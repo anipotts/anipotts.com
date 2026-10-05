@@ -149,10 +149,13 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .editorial-workspace-shell {
     --admin-main-block-size: 100dvh;
   }
-  /* A complete panel perimeter uses the theme's quiet border colour. The
-     inset stays visible in light mode and restrained on the dark canvas. */
+  /* Frame the inset against the sidebar and top gutter. The content reaches
+     the viewport at the bottom and end without a second perimeter. */
   .editorial-workspace-shell #astryx-app-shell-main {
-    border: var(--border-width) solid var(--color-border);
+    border-top: var(--border-width) solid var(--color-border);
+    border-inline-start: var(--border-width) solid var(--color-border);
+    border-bottom: 0;
+    border-inline-end: 0;
   }
   .editorial-workspace-shell[data-sidebar-collapsed="false"] {
     --admin-main-block-size: calc(100dvh - var(--spacing-3));
@@ -446,22 +449,6 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .admin-unified-nav[data-rail="true"] > .admin-local-owner {
     width: var(--spacing-11);
     height: var(--spacing-11);
-  }
-}
-
-/* Tablets expand the desktop sidebar over content; the inline rail keeps
-   reserving its 52px. The sidebar owns its identity, search and footer. */
-@media (min-width: 641px) and (max-width: 1023px) {
-  .admin-tablet-sidebar > div:not(#\#) {
-    width: calc(var(--spacing-10) * 5);
-    max-width: calc(var(--spacing-10) * 5);
-    background: var(--color-workspace-sidebar, var(--color-background-body));
-  }
-  .admin-tablet-sidebar > div > div:first-child {
-    display: none;
-  }
-  .admin-tablet-sidebar > div > div:last-child {
-    padding: 0;
   }
 }
 

@@ -1,3 +1,7 @@
+import {
+  ContentRecordMark,
+  PendingChangesIndicator,
+} from "../workspace/Workspace";
 import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
@@ -191,14 +195,6 @@ function recordGlyph(record: CatalogRecord): [Icon, string] {
   return [library.icon, library.kind];
 }
 
-/** The row link's tooltip carries this string, so it stays bounded rather
- * than listing every changed frontmatter field. */
-export function changedFieldSummary(fields: readonly string[]): string {
-  if (!fields.length) return "Source changes";
-  const shown = fields.slice(0, 2).join(", ");
-  return fields.length > 2 ? `${shown} +${fields.length - 2}` : shown;
-}
-
 /** The private draft state could not be read: a glyph, named on hover. */
 function UnavailableMark() {
   return (
@@ -348,24 +344,43 @@ export function ContentLibrary({
       header: "Title",
       render: (item) => {
         const decision = decisions.get(item)!;
-        const changed =
-          decision.action === "Review changes" &&
-          item.changedFields !== undefined
-            ? changedFieldSummary(item.changedFields)
+        const pending = item.changesPending && !decision.unavailable;
+        const transition =
+          decision.detail && decision.detail !== "Unpublished edits"
+            ? decision.detail
             : undefined;
         return (
           <RowTitle
             icon={group.name === "writing" ? undefined : recordGlyph(item)[0]}
+            mark={
+              group.name === "work" ? (
+                <ContentRecordMark record={item} />
+              ) : undefined
+            }
             kind={recordGlyph(item)[1]}
             title={item.title}
             href={rowHref(item)}
-            linkLabel={rowName(item)}
-            tooltip={changed ? `${rowName(item)} (${changed})` : rowName(item)}
+            linkLabel={
+              pending
+                ? `${rowName(item)}, Unpublished changes${transition ? `: ${transition}` : ""}`
+                : rowName(item)
+            }
+            tooltip={
+              pending
+                ? `${rowName(item)}: ${transition ?? "Unpublished changes"}`
+                : rowName(item)
+            }
+            wrap={false}
+            tooltipOnFocus={Boolean(pending)}
+            titleIndicator={
+              <PendingChangesIndicator pending={Boolean(pending)} />
+            }
             secondary={
-              decision.detail || decision.unavailable ? (
+              (decision.detail && !item.changesPending) ||
+              decision.unavailable ? (
                 <span className="editorial-record-exception">
                   {decision.unavailable && <UnavailableMark />}
-                  {decision.detail}
+                  {!item.changesPending && decision.detail}
                 </span>
               ) : undefined
             }

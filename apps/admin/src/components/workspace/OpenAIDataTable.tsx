@@ -512,7 +512,10 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
             className="workspace-table-count"
           >
             {loading && !rows.length ? (
-              <Skeleton width="8rem" height="var(--spacing-4)" />
+              <Skeleton
+                width="calc(var(--spacing-4) * 8)"
+                height="var(--spacing-4)"
+              />
             ) : (
               tableCountText(
                 loadedCount ?? rows.length,
