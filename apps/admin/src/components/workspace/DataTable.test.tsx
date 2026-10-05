@@ -157,8 +157,8 @@ describe("global table interactions", () => {
       ),
     ).toEqual(["a", "b", "c"]);
   });
-  it("reflows all secondary metadata from container size, with separate link and action controls", () => {
-    draw();
+  it("reflows all secondary metadata only when explicitly requested", () => {
+    draw({ responsive: "reflow" });
     const frame = host.querySelector<HTMLDivElement>(".openai-table-frame")!;
     Object.defineProperty(frame, "clientWidth", {
       configurable: true,
@@ -206,8 +206,67 @@ describe("global table interactions", () => {
     expect(scroll.getAttribute("aria-label")).toBeNull();
     expect(tableReflowWidth(columns)).toBeGreaterThanOrEqual(560);
   });
+  it("keeps narrow tables in aligned columns with one set of header controls", () => {
+    const onSortChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    draw({
+      columns: [
+        columns[0]!,
+        {
+          key: "summary",
+          header: "Summary",
+          compact: "detail",
+          render: () => "An excerpt",
+        },
+        {
+          key: "updated",
+          header: "Last activity",
+          compact: "trailing",
+          render: () => "2h ago",
+        },
+      ],
+      onSortChange,
+      onSelectionChange,
+      selectedKeys: new Set(),
+    });
+    const frame = host.querySelector<HTMLDivElement>(".openai-table-frame")!;
+    Object.defineProperty(frame, "clientWidth", {
+      configurable: true,
+      value: 390,
+    });
+    act(() => resize?.());
+    expect(
+      host.querySelector(".admin-data-table")?.getAttribute("data-narrow"),
+    ).toBe("false");
+    expect(
+      host.querySelector(".admin-data-table")?.getAttribute("data-responsive"),
+    ).toBe("scroll");
+    const header = host.querySelector("thead")!;
+    expect(
+      [...header.querySelectorAll("[data-column]")].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(["Title", "Summary", "Last activity"]);
+    expect(host.querySelector(".admin-table-controls")).toBeNull();
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(
+      rows.length + 1,
+    );
+    act(() => header.querySelector<HTMLButtonElement>("button")!.click());
+    expect(onSortChange).toHaveBeenCalledWith({
+      key: "title",
+      direction: "asc",
+    });
+    act(() => header.querySelector<HTMLInputElement>("input")!.click());
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(["a", "b", "c"]));
+    expect(host.querySelector("style")).toBeNull();
+    expect(frame.style.getPropertyValue("--admin-table-readable-width")).toBe(
+      `${tableReflowWidth([columns[0]!, { key: "summary", header: "Summary", compact: "detail", render: () => "An excerpt" }, { key: "updated", header: "Last activity", compact: "trailing", render: () => "2h ago" }], 44)}px`,
+    );
+  });
+
   it("places trailing and detail cells by explicit contract, independent of column names", () => {
     draw({
+      responsive: "reflow",
       columns: [
         columns[0]!,
         { ...columns[1]!, compact: "inline", compactLabel: false },

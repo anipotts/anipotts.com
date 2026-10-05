@@ -63,6 +63,23 @@ export function inventoryIdentity(
   });
   return parsed.success ? parsed.data : null;
 }
+function projectLogo(
+  privateData: Record<string, unknown>,
+  publishedData: Record<string, unknown>,
+) {
+  const identity = (privateData.identity ?? publishedData.identity) as
+    { logo_src?: unknown; logo_alt?: unknown } | undefined;
+  const src = identity?.logo_src;
+  return typeof src === "string" && /^\/images\/[a-zA-Z0-9/_\-.]+$/.test(src)
+    ? {
+        logoSrc: src,
+        logoAlt:
+          typeof identity?.logo_alt === "string"
+            ? identity.logo_alt
+            : undefined,
+      }
+    : {};
+}
 function timestamp(value: number): string | undefined {
   return Number.isFinite(value) && !Number.isNaN(new Date(value).getTime())
     ? new Date(value).toISOString()
@@ -284,6 +301,7 @@ export function projectEditorialInventory(
       !isPrivateOnly
         ? { publishedSlug: text(entry.data.slug) ?? entry.id }
         : {}),
+      ...(entry.collection === "projects" ? projectLogo(data, entry.data) : {}),
       title: text(data.title) ?? text(entry.data.title) ?? entry.id,
       summary:
         editorialRecordSummary(identity, data) ??

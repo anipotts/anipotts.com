@@ -91,7 +91,7 @@ describe("shared table geometry", () => {
     ).toBe(true);
     expect(
       sdk.querySelector(".admin-data-table")?.getAttribute("data-responsive"),
-    ).toBe("reflow");
+    ).toBe("scroll");
   });
   it("budgets selection width before splitting the remaining space", () => {
     const markup = host(

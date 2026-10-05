@@ -193,17 +193,33 @@ function EntityList({
             icon={Glyph}
             kind={kindName(entity.kind)}
             title={entity.name}
-            tooltip={entity.id}
+            tooltip={[entity.name, entity.summary, entity.id]
+              .filter(Boolean)
+              .join("\n")}
             href={knowledgeEntityHref(entity.id, route.kind)}
             isPressed={entity.id === route.id}
             onSelect={() =>
               navigate(knowledgeEntityHref(entity.id, route.kind))
             }
-            secondary={entity.summary || undefined}
             time={entity.lastSeenAt}
           />
         );
       },
+    },
+    {
+      key: "summary",
+      priority: 2,
+      header: "Summary",
+      min: 160,
+      hideBelow: "large",
+      render: (entity) => (
+        <span
+          className="editorial-record-summary"
+          title={entity.summary ?? undefined}
+        >
+          {entity.summary}
+        </span>
+      ),
     },
     {
       key: "records",

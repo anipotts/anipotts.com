@@ -792,7 +792,7 @@ export function YieldOnly({
 export type DataTableProps<T extends Record<string, unknown>> = {
   /** Stable across routes and renders. Defaults to the accessible label. */
   tableId?: string;
-  responsive?: "reflow" | "scroll";
+  responsive?: "fit" | "reflow" | "scroll";
   renderExpanded?: (row: T) => ReactNode;
   /** Counts are caller-owned; omission never implies all records loaded. */
   totalCount?: number;

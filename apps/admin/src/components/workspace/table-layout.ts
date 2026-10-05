@@ -342,3 +342,56 @@ export function tableResponsiveRules(scope: string, threshold: number): string {
   const selector = `.admin-data-table .openai-table-frame[data-table-scope="${scope}"]`;
   return `@container (max-width: ${threshold - 0.5}px) { ${REFLOW_CSS.replaceAll('.admin-data-table[data-narrow="true"]', selector)} }`;
 }
+
+/** Keep a semantic row. Secondary columns yield together with their headers,
+ * never move under the title or widen the table beyond its container. */
+export function tableFitRules<T>(
+  columns: readonly Column<T>[],
+  scope: string,
+  selectionWidth = 0,
+): string {
+  const at = `.openai-table-frame[data-table-scope="${scope}"]`;
+  const size = (column: Column<T>, index: number) =>
+    index === 0 ? 240 : Math.max(72, column.width ?? column.min ?? 160);
+  const minimum = (column: Column<T>, index: number) =>
+    index === 0 ? 160 : size(column, index);
+  const rank = (column: Column<T>) =>
+    (column.hideBelow === "wide"
+      ? 40
+      : column.hideBelow === "large"
+        ? 30
+        : column.hideBelow
+          ? 20
+          : 0) + (column.priority ?? 1);
+  const remaining = columns.map((column, index) => ({ column, index }));
+  const candidates = remaining
+    .slice(1)
+    .sort((a, b) => rank(b.column) - rank(a.column) || b.index - a.index);
+  const declarations = () => {
+    const total = remaining.reduce(
+      (sum, { column, index }) => sum + size(column, index),
+      0,
+    );
+    return columns
+      .map((column, index) => {
+        const visible = remaining.some((item) => item.index === index);
+        return `${at} [data-column="${column.key}"] { display: ${visible ? "table-cell" : "none"} !important; width: calc((100cqw - ${selectionWidth}px) * ${size(column, index) / total}) !important; min-width: 0 !important; max-width: none !important; }`;
+      })
+      .join("\n");
+  };
+  let rules = declarations();
+  for (const candidate of candidates) {
+    const need =
+      selectionWidth +
+      remaining.reduce(
+        (sum, { column, index }) => sum + minimum(column, index),
+        0,
+      );
+    remaining.splice(
+      remaining.findIndex((item) => item.index === candidate.index),
+      1,
+    );
+    rules += `\n@container (max-width: ${need - 0.5}px) { ${declarations()} }`;
+  }
+  return rules;
+}

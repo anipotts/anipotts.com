@@ -1,4 +1,11 @@
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import type { DataTableProps } from "./Workspace";
@@ -7,6 +14,7 @@ import {
   tableFrameStyle,
   tableReflowWidth,
   tableResponsiveRules,
+  tableFitRules,
 } from "./table-layout";
 import "./openai-table.css";
 
@@ -63,7 +71,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   selectedKeys,
   onSelectionChange,
   pagination,
-  responsive = "reflow",
+  responsive = "fit",
   renderExpanded,
   totalCount,
   loadedCount,
@@ -212,14 +220,48 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
       data-responsive={responsive}
       data-narrow={narrow}
     >
+      {responsive === "fit" && (
+        <style>{tableFitRules(columns, scope, selection ? 44 : 0)}</style>
+      )}
       {responsive === "reflow" && (
         <style>{tableResponsiveRules(scope, threshold)}</style>
+      )}
+      {selection && selectedKeys.size > 0 && (
+        <div className="admin-table-controls" role="status">
+          {selectedKeys.size} selected
+        </div>
+      )}
+      {pagination && (
+        <nav className="openai-pagination" aria-label={`${label} pages`}>
+          <button
+            type="button"
+            disabled={pagination.page <= 0 || loading}
+            onClick={() => pagination.onPageChange(pagination.page - 1)}
+          >
+            Previous
+          </button>
+          <span>
+            Page {pagination.page + 1} of {pages}
+          </span>
+          <button
+            type="button"
+            disabled={pagination.page + 1 >= pages || loading}
+            onClick={() => pagination.onPageChange(pagination.page + 1)}
+          >
+            Next
+          </button>
+        </nav>
       )}
       <div
         data-table-scope={scope}
         className="openai-table-frame workspace-table-frame"
         ref={frame}
-        style={tableFrameStyle(columns, selection ? 44 : 0)}
+        style={
+          {
+            ...tableFrameStyle(columns, selection ? 44 : 0),
+            "--admin-table-readable-width": `${threshold}px`,
+          } as CSSProperties
+        }
       >
         {narrow && (selection || onSortChange) && (
           <div className="admin-table-controls" aria-label="Record controls">
@@ -504,56 +546,6 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
           )
         )}
       </div>
-      {footer && (
-        <div className="openai-table-footer workspace-table-footer">
-          <span
-            role={loading && !rows.length ? undefined : "status"}
-            aria-hidden={(loading && !rows.length) || undefined}
-            className="workspace-table-count"
-          >
-            {loading && !rows.length ? (
-              <Skeleton width="8rem" height="var(--spacing-4)" />
-            ) : (
-              tableCountText(
-                loadedCount ?? rows.length,
-                totalCount ??
-                  (filteredCount === undefined ? pagination?.total : undefined),
-                filteredCount ?? (searchActive ? pagination?.total : undefined),
-                noun,
-              )
-            )}
-          </span>
-          {figures
-            ?.filter(([, value]) => value > 0)
-            .map(([name, value]) => (
-              <span key={name}>
-                {value} {name}
-              </span>
-            ))}
-          {selection && <span>{selectedKeys.size} selected</span>}
-        </div>
-      )}
-      {pagination && (
-        <nav className="openai-pagination" aria-label={`${label} pages`}>
-          <button
-            type="button"
-            disabled={pagination.page <= 0 || loading}
-            onClick={() => pagination.onPageChange(pagination.page - 1)}
-          >
-            Previous
-          </button>
-          <span>
-            Page {pagination.page + 1} of {pages}
-          </span>
-          <button
-            type="button"
-            disabled={pagination.page + 1 >= pages || loading}
-            onClick={() => pagination.onPageChange(pagination.page + 1)}
-          >
-            Next
-          </button>
-        </nav>
-      )}
     </div>
   );
 }
