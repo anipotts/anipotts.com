@@ -802,6 +802,8 @@ export type DataTableProps<T extends Record<string, unknown>> = {
   filteredCount?: number;
   groupTotals?: Readonly<Record<string, number>>;
   loading?: boolean;
+  /** Placeholder rows use the same table cells and responsive layout. */
+  loadingRows?: number;
   error?: ReactNode;
   onRetry?: () => void;
   emptyMessage?: ReactNode;
@@ -1416,18 +1418,41 @@ function NoValue({ text }: { text?: string }) {
   );
 }
 
+const compactCountFormat = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const scientificCountFormat = new Intl.NumberFormat("en-US", {
+  notation: "scientific",
+  maximumFractionDigits: 1,
+});
+
 /** A count in tabular figures, with its noun when it has one ("44 visits"). */
 export function Figure({
   value,
   noun,
   empty,
+  compact = false,
 }: {
   value: number | null | undefined;
   noun?: readonly [one: string, many: string] | null;
   empty?: string;
+  /** Compact large counts in fixed-width cells; retain the exact accessible value. */
+  compact?: boolean;
 }) {
   if (value == null || !Number.isFinite(value)) return <NoValue text={empty} />;
-  return <span className="workspace-figure">{countText(value, noun)}</span>;
+  const exact = countText(value, noun);
+  if (!compact || Math.abs(value) < 1000)
+    return <span className="workspace-figure">{exact}</span>;
+  const short = (
+    Math.abs(value) >= 1e15 ? scientificCountFormat : compactCountFormat
+  ).format(value);
+  return (
+    <span className="workspace-figure" title={exact}>
+      <span aria-hidden="true">{short}</span>
+      <span className="sr-only">{exact}</span>
+    </span>
+  );
 }
 
 /** How long something took: "84ms", "8.4s", "1m 24s". Give `ms` (an event's
@@ -1653,15 +1678,30 @@ export function InlineNotice({
 
 /** Loading rows shaped like the rows that replace them, tile and all. Only
  * the status is spoken; Astryx Skeleton honours reduced motion. */
-export function LoadingSkeleton({
+export function LoadingSkeleton<T extends Record<string, unknown>>({
   label,
   rows = 6,
   columns = 3,
+  footer = false,
 }: {
   label: string;
   rows?: number;
-  columns?: number;
+  columns?: number | Column<T>[];
+  footer?: boolean;
 }) {
+  if (Array.isArray(columns))
+    return (
+      <DataTable
+        rows={[]}
+        columns={columns}
+        rowKey={"id" as keyof T & string}
+        label={label}
+        noun={["record", "records"]}
+        footer={footer}
+        loading
+        loadingRows={rows}
+      />
+    );
   return (
     <VStack
       gap={0}

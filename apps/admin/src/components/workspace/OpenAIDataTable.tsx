@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import type { DataTableProps } from "./Workspace";
 import {
@@ -70,6 +71,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   filteredCount,
   groupTotals,
   loading = false,
+  loadingRows = 6,
   error,
   onRetry,
   emptyMessage,
@@ -297,6 +299,68 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                 ))}
               </tr>
             </thead>
+            {loading && !rows.length && (
+              <tbody aria-hidden="true" data-loading-rows="">
+                {Array.from({ length: Math.max(0, loadingRows) }, (_, row) => (
+                  <tr
+                    key={row}
+                    data-record-id={`loading-${row}`}
+                    data-loading-row=""
+                  >
+                    {selection && <td className="admin-table-select" />}
+                    {columns.map((column, index) => (
+                      <td
+                        key={column.key}
+                        {...cellAttributes(column)}
+                        data-lead={index === 0 || undefined}
+                        style={{
+                          order:
+                            index === 0
+                              ? -1
+                              : column.compact === "trailing"
+                                ? 0
+                                : 2 + (column.priority ?? index),
+                        }}
+                      >
+                        {index > 0 && column.compactLabel !== false && (
+                          <span
+                            className="openai-mobile-label"
+                            aria-hidden="true"
+                          >
+                            {column.header}
+                          </span>
+                        )}
+                        <span
+                          className={
+                            index === 0
+                              ? "admin-table-loading-primary"
+                              : "admin-table-value"
+                          }
+                        >
+                          {index === 0 && (
+                            <Skeleton
+                              width="var(--spacing-5)"
+                              height="var(--spacing-5)"
+                              radius={1}
+                              index={row}
+                            />
+                          )}
+                          <Skeleton
+                            width={
+                              index === 0
+                                ? `${60 - (row % 3) * 12}%`
+                                : "var(--spacing-12)"
+                            }
+                            height="var(--spacing-4)"
+                            index={row}
+                          />
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            )}
             {[...groups].map(([key, members]) => {
               const groupId = `${scope}-group-${encodeURIComponent(key)}`;
               const groupCount =
@@ -413,7 +477,11 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
           </table>
         </div>
         {loading ? (
-          <div className="admin-table-state" role="status">
+          <div
+            className="sr-only"
+            role="status"
+            aria-label={`Loading ${label.toLowerCase()}`}
+          >
             Loading {noun[1]}…
           </div>
         ) : error ? (
@@ -438,13 +506,24 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
       </div>
       {footer && (
         <div className="openai-table-footer workspace-table-footer">
-          <span role="status" className="workspace-table-count">
-            {tableCountText(
-              loadedCount ?? rows.length,
-              totalCount ??
-                (filteredCount === undefined ? pagination?.total : undefined),
-              filteredCount ?? (searchActive ? pagination?.total : undefined),
-              noun,
+          <span
+            role={loading && !rows.length ? undefined : "status"}
+            aria-hidden={(loading && !rows.length) || undefined}
+            className="workspace-table-count"
+          >
+            {loading && !rows.length ? (
+              <Skeleton
+                width="calc(var(--spacing-4) * 8)"
+                height="var(--spacing-4)"
+              />
+            ) : (
+              tableCountText(
+                loadedCount ?? rows.length,
+                totalCount ??
+                  (filteredCount === undefined ? pagination?.total : undefined),
+                filteredCount ?? (searchActive ? pagination?.total : undefined),
+                noun,
+              )
             )}
           </span>
           {figures
