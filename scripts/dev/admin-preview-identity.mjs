@@ -24,7 +24,10 @@ export function adminPreviewIdentity(root) {
         ) {
           const target = pathname.startsWith(appPrefix)
             ? `/${pathname.slice(appPrefix.length)}?${query}`
-            : pathname.startsWith(dependencyPrefix) && pathname.endsWith("/node_modules/astro/components/ClientRouter.astro")
+            : pathname.startsWith(dependencyPrefix) &&
+                pathname.endsWith(
+                  "/node_modules/astro/components/ClientRouter.astro",
+                )
               ? `/@fs${pathname}?${query}`
               : null;
           if (target) {
