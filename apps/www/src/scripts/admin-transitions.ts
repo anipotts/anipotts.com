@@ -107,6 +107,7 @@ const anchor = (el: Element) => {
 };
 
 type PublicScene = {
+  morph: boolean;
   ghost: Ghost;
   scope: Scope;
   header: ReturnType<typeof anchor>;
@@ -199,15 +200,18 @@ function publicScene(direction: Direction): PublicScene {
           el.matches(direction === 1 ? ".coding-agent-card" : ".press-mention"),
         )
       : undefined;
-  const paper = (preferred || visible[0])?.el;
-  // A missing real nested pair uses the router's ordinary fallback. Never
-  // manufacture a rectangle or change another page's composition to animate it.
-  if (!paper)
-    throw new NoMotionSurface("No visible full-row card with an action");
+  const selected = (preferred || visible[0])?.el;
+  // Pages without a genuine nested card use a short whole-page dissolve.
+  // Capture their real footer for colors; never animate a fabricated card.
+  const paper = selected ?? $("footer.foot")!;
   const button =
-    $("[data-admin-motion-action]", paper) || $(".site-action", paper)!;
-  paper.setAttribute("data-admin-motion-paper", "");
-  button.setAttribute("data-admin-motion-button", "");
+    $("[data-admin-motion-action]", paper) ||
+    $(".site-action", paper) ||
+    $(".contact-email", paper)!;
+  if (selected) {
+    paper.setAttribute("data-admin-motion-paper", "");
+    button.setAttribute("data-admin-motion-button", "");
+  }
   let ghost: Ghost;
   try {
     ghost = pageGhost();
@@ -221,6 +225,7 @@ function publicScene(direction: Direction): PublicScene {
   const buttonStyle = getComputedStyle(button);
   const ground = getComputedStyle(document.documentElement).backgroundColor;
   return {
+    morph: Boolean(selected),
     ghost,
     scope,
     header: anchor(header),
@@ -263,6 +268,7 @@ function adminScene(): AdminScene {
   const scale = 0.1;
   const identity = {
     origin,
+    adminScale: scale,
     baseline: $("[data-admin-baseline]")!.getBoundingClientRect().top,
     targetLetters: boxes.map(
       (r, i) =>
@@ -305,11 +311,15 @@ function run(
   backdrop: HTMLDivElement,
 ) {
   const layout = motionLayout(innerWidth);
+  const travelScale =
+    direction === 1 ? publicView.footer.scale : publicView.header.scale;
+  const dockRatio = (adminView.identity.adminScale ?? 0.1) / travelScale;
   const geometry: IdentityGeometry = {
     layout,
     header: publicView.header,
     footer: publicView.footer,
     ...adminView.identity,
+    targetLetters: adminView.identity.targetLetters.map((x) => x * dockRatio),
   };
   const surface: SurfaceGeometry = {
     layout,
@@ -496,7 +506,7 @@ function run(
   const render = (progress: number) => {
     const t = direction === 1 ? progress : 1 - progress;
     backdrop.dataset.progress = t.toFixed(4);
-    if (reduced.matches) {
+    if (reduced.matches || !publicView.morph) {
       plane.style.display = "none";
       backdrop.style.background = blend(publicView.ground, adminView.paper, t);
       alpha(publicView.ghost.host, 1 - t);
@@ -581,20 +591,23 @@ function run(
       word,
       `translate(${logo.pose.x},${logo.pose.y}) scale(${logo.pose.scale})`,
     );
-    transform(a, `translate(${geometry.targetLetters[0]},0)`);
-    transform(p, `translate(${logo.pX},0)`);
+    transform(
+      a,
+      `translate(${geometry.targetLetters[0]},0) scale(${logo.glyphScale})`,
+    );
+    transform(p, `translate(${logo.pX},0) scale(${logo.glyphScale})`);
     transform(spin, `rotate(${-180 * logo.rotation},53.9,50)`);
     letters.forEach((el, i) => {
       transform(
         el,
-        `translate(${geometry.targetLetters[i + 2]},${10 * (1 - logo.min[i])})`,
+        `translate(${geometry.targetLetters[i + 2]},${10 * (1 - logo.min[i])}) scale(${dockRatio})`,
       );
       alpha(el, logo.min[i]);
     });
     brackets.forEach((el, i) => {
       transform(
         el,
-        `translate(${(i === 0 ? adminView.left : adminView.right) + (i === 0 ? -12 : 12) * (1 - logo.bracket)},0)`,
+        `translate(${(i === 0 ? adminView.left : adminView.right) * dockRatio + (i === 0 ? -12 : 12) * (1 - logo.bracket)},0) scale(${dockRatio})`,
       );
       alpha(el, logo.bracket);
     });
@@ -607,9 +620,11 @@ function run(
   const started = performance.now();
   const length = reduced.matches
     ? reducedDuration
-    : layout === "compact"
-      ? compactDuration
-      : duration;
+    : !publicView.morph
+      ? 320
+      : layout === "compact"
+        ? compactDuration
+        : duration;
   render(0);
   const tick = (now: number) => {
     // A callback registered during a frame can receive that frame's earlier
