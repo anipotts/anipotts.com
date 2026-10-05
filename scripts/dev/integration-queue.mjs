@@ -30,6 +30,16 @@ export function validateQueue(queue) {
       fail("Invalid item");
     if (item.revision !== null && !sha.test(item.revision))
       fail("Revision must be a full SHA");
+    if (
+      item.release &&
+      (!sha.test(item.release.revision) ||
+        item.release.reviewedRevision !== item.revision ||
+        !item.release.evidence ||
+        !item.release.at)
+    )
+      fail(
+        "Release mapping requires current reviewed revision and tree evidence",
+      );
     for (const [scope, approval] of Object.entries(item.approvals ?? {})) {
       if (
         !["code", "content", "production"].includes(scope) ||
@@ -50,7 +60,7 @@ export function validateQueue(queue) {
       (!item.deployment?.evidence ||
         !item.deployment?.target ||
         !sha.test(item.deployment.revision) ||
-        item.deployment.revision !== item.revision)
+        item.deployment.revision !== (item.release?.revision ?? item.revision))
     )
       fail(
         "Deployment requires matching release revision, target and evidence",
@@ -69,8 +79,31 @@ export function updateItem(queue, args, now = new Date().toISOString()) {
       item.revision = args.revision;
       item.approvals = {};
       delete item.deployment;
+      delete item.release;
       item.state = "implementing";
     }
+  }
+  if (args["release-revision"]) {
+    if (
+      !sha.test(args["release-revision"]) ||
+      args["reviewed-revision"] !== item.revision ||
+      !args["mapping-evidence"]
+    )
+      fail(
+        "Release mapping requires full release SHA, current reviewed SHA and tree evidence",
+      );
+    if (item.release?.revision !== args["release-revision"])
+      delete item.deployment;
+    if (item.state === "deployed")
+      item.state = item.approvals?.[item.lane] ? "approved" : "awaiting-review";
+    item.release = {
+      revision: args["release-revision"],
+      reviewedRevision: item.revision,
+      evidence: args["mapping-evidence"],
+      at: now,
+    };
+  } else if (args["reviewed-revision"] || args["mapping-evidence"]) {
+    fail("Mapping evidence requires --release-revision");
   }
   if (args.approval) {
     if (!["code", "content", "production"].includes(args.approval))
@@ -90,10 +123,10 @@ export function updateItem(queue, args, now = new Date().toISOString()) {
     if (args.state === "deployed") {
       if (!item.approvals?.[item.lane] || !item.approvals?.production)
         fail("Deployment requires separate lane and production approvals");
-      if (!args.revision || !args.target || !args.evidence)
+      if (!item.revision || !args.target || !args.evidence)
         fail("Deployment requires revision, target and provider/live evidence");
       item.deployment = {
-        revision: args.revision,
+        revision: item.release?.revision ?? item.revision,
         target: args.target,
         evidence: args.evidence,
         at: now,
@@ -123,6 +156,9 @@ export function parseArgs(argv) {
         "evidence",
         "target",
         "note",
+        "release-revision",
+        "reviewed-revision",
+        "mapping-evidence",
       ].includes(key) ||
       !rest[i + 1] ||
       rest[i + 1].startsWith("--") ||
@@ -135,7 +171,9 @@ export function parseArgs(argv) {
   if (
     command === "update" &&
     (!args.id ||
-      !["state", "revision", "approval", "note"].some((key) => args[key]))
+      !["state", "revision", "approval", "note", "release-revision"].some(
+        (key) => args[key],
+      ))
   )
     fail("update requires --id and a change");
   return args;
