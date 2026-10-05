@@ -49,6 +49,7 @@ playground*.html
 .codex/*
 !.codex/environments/
 !.codex/environments/environment.toml
+!.codex/config.toml
 .local/
 .e2e/
 HANDOFF.md

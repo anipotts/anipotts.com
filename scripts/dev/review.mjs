@@ -25,7 +25,13 @@ const git = (...args) =>
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
 const run = (args) => {
-  const r = spawnSync("pnpm", args, { cwd: root, stdio: "inherit" });
+  // The review lane is the integration checkout: exempt from the worker
+  // preview budget and the idle reaper (scripts/dev/preview-budget.mjs).
+  const r = spawnSync("pnpm", args, {
+    cwd: root,
+    env: { ...process.env, ANIPOTTS_REVIEW_LANE: "1" },
+    stdio: "inherit",
+  });
   if (r.status !== 0) throw Error(`command failed: pnpm ${args.join(" ")}`);
 };
 function owns(record, command = watcher) {

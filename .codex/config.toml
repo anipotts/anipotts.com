@@ -1,0 +1,23 @@
+# Project-scoped Codex settings for anipotts.com. Codex loads this file in
+# trusted checkouts and it applies to every worktree of this repository.
+#
+# Each Codex thread starts its own copy of every enabled MCP server. Website
+# work does not use these, so they stay off here to keep parallel threads light.
+# The bundled Codex browser handles page review and chrome-devtools stays on
+# for performance traces. Re-enable a server for one task by editing a local
+# copy of this file in that worktree, not by committing the change.
+
+[mcp_servers.imessage]
+enabled = false
+
+[mcp_servers.applescript]
+enabled = false
+
+[plugins."playwright@claude-plugins-official"]
+enabled = false
+
+[plugins."build-macos-apps@openai-curated"]
+enabled = false
+
+[plugins."messages@openai-bundled"]
+enabled = false
