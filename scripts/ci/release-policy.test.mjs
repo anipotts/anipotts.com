@@ -452,11 +452,28 @@ assert.equal(classifySql("UPDATE canary SET id = 'x';"), "approval");
 assert.equal(classifySql("VACUUM;"), "unknown");
 
 const protection = protectionPayload();
+assert.deepEqual(REQUIRED_CHECKS, [
+  "Build, lint, typecheck, test",
+  "Security Review",
+]);
 assert.equal(protection.required_status_checks.strict, true);
 assert.deepEqual(protection.required_status_checks.contexts, REQUIRED_CHECKS);
-assert.equal(protection.required_pull_request_reviews, null);
+assert.notEqual(
+  protection.required_pull_request_reviews,
+  null,
+  "pull requests remain required even without mandatory human approval",
+);
+assert.deepEqual(protection.required_pull_request_reviews, {
+  required_approving_review_count: 0,
+  dismiss_stale_reviews: false,
+  require_code_owner_reviews: false,
+  require_last_push_approval: false,
+  bypass_pull_request_allowances: { users: [], teams: [], apps: [] },
+});
 assert.equal(protection.required_conversation_resolution, true);
 assert.equal(protection.enforce_admins, true);
+assert.equal(protection.allow_force_pushes, false);
+assert.equal(protection.allow_deletions, false);
 
 assert.equal(
   selectedConditions(
