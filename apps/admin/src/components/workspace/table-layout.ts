@@ -218,127 +218,55 @@ export function tableFrameStyle<T>(
   ) as CSSProperties;
 }
 
-/** Reflow the complete record before its title loses useful reading room. */
-export function tableReflowWidth<T>(
+/** Keep a semantic row. Secondary columns yield together with their headers,
+ * never move under the title or widen the table beyond its container. */
+export function tableFitRules<T>(
   columns: readonly Column<T>[],
+  scope: string,
   selectionWidth = 0,
-): number {
-  return Math.max(
-    560,
-    selectionWidth +
-      Math.max(240, columns[0]?.room ?? columns[0]?.reserve ?? 280) +
-      columns
-        .slice(1)
-        .reduce((sum, column) => sum + (column.width ?? column.min ?? 80), 0),
-  );
-}
-
-/** Scoped container queries provide correct geometry before hydration. */
-const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table thead {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-.admin-data-table[data-narrow="true"] .openai-record-table thead button {
-  visibility: hidden;
-}
-.admin-data-table[data-narrow="true"]
-  .openai-record-table
-  :is(tbody, tr, th, td) {
-  display: block;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id] {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  padding-block: 4px;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table td[data-lead] {
-  flex: 0 0 100%;
-  box-sizing: border-box;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table td {
-  padding-block: 0;
-  overflow-wrap: anywhere;
-  text-align: start;
-}
-.admin-data-table[data-narrow="true"]
-  .openai-record-table
-  td:not([data-lead]):not(.admin-table-select) {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-2, 8px);
-  padding-inline-start: 12px;
-}
-.admin-data-table[data-narrow="true"] .openai-mobile-label {
-  display: inline;
-  color: var(--color-text-secondary);
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-.admin-data-table[data-narrow="true"]
-  .openai-record-table
-  tr:has(.admin-table-select) {
-  padding-inline-start: 44px;
-}
-.admin-data-table[data-narrow="true"]
-  .openai-record-table
-  td.admin-table-select {
-  position: absolute;
-  inset-inline-start: 0;
-  top: var(--spacing-2, 8px);
-  width: 44px;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table td:not([data-lead]):not(.admin-table-select):has(.admin-table-value:empty),
-.admin-data-table[data-narrow="true"] td:has(> .admin-table-value > .sr-only:only-child) { display: none; }
-.admin-data-table[data-narrow="true"] .editorial-record-summary {
-  display: block;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  line-height: 20px;
-  overflow: hidden;
-}
-.admin-data-table[data-narrow="true"] tr:has(.workspace-row-mark) td:not([data-lead]):not(.admin-table-select):not([data-compact="trailing"]) {
-  padding-inline-start: 40px;
-}
-
-.admin-data-table[data-narrow="true"] .workspace-row-link {
-  min-height: 44px;
-  box-sizing: border-box;
-  padding-block: 4px;
-  padding-inline: 0;
-  align-items: center;
-}
-.admin-data-table[data-narrow="true"] .workspace-row-mark {
-  margin-block-start: 12px;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table tr[data-record-id]::after {
-  content: "";
-  flex: 0 0 100%;
-  order: 1;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table tr:has(td[data-compact="trailing"]) td[data-lead] {
-  flex: 1 1 0;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table td[data-compact="trailing"]:not([data-lead]) {
-  flex: 0 0 auto;
-  align-self: flex-start;
-  padding: 12px 12px 0 8px;
-  font-size: var(--text-caption-size, 12px);
-  white-space: nowrap;
-}
-.admin-data-table[data-narrow="true"] .openai-record-table td[data-compact="detail"]:not([data-lead]) {
-  flex: 0 0 100%;
-  box-sizing: border-box;
-  padding-block-end: 6px;
-}
-`;
-export function tableResponsiveRules(scope: string, threshold: number): string {
-  const selector = `.admin-data-table .openai-table-frame[data-table-scope="${scope}"]`;
-  return `@container (max-width: ${threshold - 0.5}px) { ${REFLOW_CSS.replaceAll('.admin-data-table[data-narrow="true"]', selector)} }`;
+): string {
+  const at = `.openai-table-frame[data-table-scope="${scope}"]`;
+  const size = (column: Column<T>, index: number) =>
+    index === 0 ? 240 : Math.max(72, column.width ?? column.min ?? 160);
+  const minimum = (column: Column<T>, index: number) =>
+    index === 0 ? 160 : size(column, index);
+  const rank = (column: Column<T>) =>
+    (column.hideBelow === "wide"
+      ? 40
+      : column.hideBelow === "large"
+        ? 30
+        : column.hideBelow
+          ? 20
+          : 0) + (column.priority ?? 1);
+  const remaining = columns.map((column, index) => ({ column, index }));
+  const candidates = remaining
+    .slice(1)
+    .sort((a, b) => rank(b.column) - rank(a.column) || b.index - a.index);
+  const declarations = () => {
+    const total = remaining.reduce(
+      (sum, { column, index }) => sum + size(column, index),
+      0,
+    );
+    return columns
+      .map((column, index) => {
+        const visible = remaining.some((item) => item.index === index);
+        return `${at} [data-column="${column.key}"] { display: ${visible ? "table-cell" : "none"} !important; width: calc((100cqw - ${selectionWidth}px) * ${size(column, index) / total}) !important; min-width: 0 !important; max-width: none !important; }`;
+      })
+      .join("\n");
+  };
+  let rules = declarations();
+  for (const candidate of candidates) {
+    const need =
+      selectionWidth +
+      remaining.reduce(
+        (sum, { column, index }) => sum + minimum(column, index),
+        0,
+      );
+    remaining.splice(
+      remaining.findIndex((item) => item.index === candidate.index),
+      1,
+    );
+    rules += `\n@container (max-width: ${need - 0.5}px) { ${declarations()} }`;
+  }
+  return rules;
 }

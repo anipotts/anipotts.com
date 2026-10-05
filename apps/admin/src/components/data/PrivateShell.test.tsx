@@ -689,11 +689,13 @@ describe("Health and Knowledge", () => {
     );
     const table = () => host.querySelector('table[aria-label="Entities"]')!;
     expect(table().textContent).toContain("Robin Example");
-    const places = [...host.querySelectorAll("button")].find(
-      (button) =>
-        button.textContent?.trim() === "Places" ||
-        button.getAttribute("aria-label") === "Places",
+    const more = host.querySelector<HTMLButtonElement>(
+      '[aria-label="More types: All kinds"]',
     )!;
+    await act(async () => more.click());
+    const places = [
+      ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ].find((item) => item.textContent?.trim() === "Places")!;
     await act(async () => places.click());
     await settle();
     expect(window.location.search).toBe("?kind=place");

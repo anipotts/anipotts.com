@@ -1,12 +1,11 @@
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import type { DataTableProps } from "./Workspace";
 import {
   tableColumnStyle,
   tableFrameStyle,
-  tableReflowWidth,
-  tableResponsiveRules,
+  tableFitRules,
 } from "./table-layout";
 import "./openai-table.css";
 
@@ -51,8 +50,6 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   label,
   tableId = label,
   noun,
-  figures,
-  footer = true,
   interactive = true,
   groupBy,
   groupLabel = (key) => key,
@@ -63,12 +60,8 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   selectedKeys,
   onSelectionChange,
   pagination,
-  responsive = "reflow",
   renderExpanded,
-  totalCount,
-  loadedCount,
   groupCounts,
-  filteredCount,
   groupTotals,
   loading = false,
   loadingRows = 6,
@@ -78,10 +71,6 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   searchActive = false,
 }: DataTableProps<T>) {
   const scope = useId();
-  const frame = useRef<HTMLDivElement>(null);
-  const [narrow, setNarrow] = useState(false);
-  const scrollSurface = useRef<HTMLDivElement>(null);
-  const [overflowing, setOverflowing] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const storageKey = `admin:table-groups:v1:${tableId}`;
   useEffect(() => {
@@ -102,35 +91,6 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
   }, [storageKey, Boolean(groupBy)]);
   const selection =
     selectedKeys !== undefined && onSelectionChange !== undefined;
-  const threshold = tableReflowWidth(columns, selection ? 44 : 0);
-  useEffect(() => {
-    const node = frame.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    const measure = () =>
-      setNarrow(responsive === "reflow" && node.clientWidth < threshold);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [threshold, responsive]);
-  useEffect(() => {
-    const node = scrollSurface.current;
-    if (!node) return;
-    if (responsive !== "scroll") {
-      setOverflowing(false);
-      return;
-    }
-    const measure = () =>
-      setOverflowing(
-        responsive === "scroll" && node.scrollWidth > node.clientWidth,
-      );
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    if (node.firstElementChild) observer.observe(node.firstElementChild);
-    return () => observer.disconnect();
-  }, [responsive, rows, columns, collapsed]);
   const groups = groupTableRows(rows, groupBy, foldGroup);
   const isCollapsed = (key: string) =>
     typeof collapsed[key] === "boolean" && Object.hasOwn(collapsed, key)
@@ -209,49 +169,41 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
       className="admin-data-table openai-table"
       data-interactive={interactive}
       data-table-id={tableId}
-      data-responsive={responsive}
-      data-narrow={narrow}
+      data-responsive="fit"
     >
-      {responsive === "reflow" && (
-        <style>{tableResponsiveRules(scope, threshold)}</style>
+      <style>{tableFitRules(columns, scope, selection ? 44 : 0)}</style>
+      {selection && selectedKeys.size > 0 && (
+        <div className="admin-table-controls" role="status">
+          {selectedKeys.size} selected
+        </div>
+      )}
+      {pagination && (
+        <nav className="openai-pagination" aria-label={`${label} pages`}>
+          <button
+            type="button"
+            disabled={pagination.page <= 0 || loading}
+            onClick={() => pagination.onPageChange(pagination.page - 1)}
+          >
+            Previous
+          </button>
+          <span>
+            Page {pagination.page + 1} of {pages}
+          </span>
+          <button
+            type="button"
+            disabled={pagination.page + 1 >= pages || loading}
+            onClick={() => pagination.onPageChange(pagination.page + 1)}
+          >
+            Next
+          </button>
+        </nav>
       )}
       <div
         data-table-scope={scope}
         className="openai-table-frame workspace-table-frame"
-        ref={frame}
         style={tableFrameStyle(columns, selection ? 44 : 0)}
       >
-        {narrow && (selection || onSortChange) && (
-          <div className="admin-table-controls" aria-label="Record controls">
-            {selection && checkbox()}
-            {columns
-              .filter((column) => column.sortable && onSortChange)
-              .map((column) => (
-                <button
-                  type="button"
-                  key={column.key}
-                  onClick={() => sortColumn(column.key)}
-                  aria-pressed={sort?.key === column.key}
-                >
-                  {column.header}
-                  {sort?.key === column.key
-                    ? sort.direction === "asc"
-                      ? " ↑"
-                      : " ↓"
-                    : ""}
-                </button>
-              ))}
-          </div>
-        )}
-        <div
-          ref={scrollSurface}
-          className="admin-table-scroll astryx-table-scroll-wrapper"
-          tabIndex={overflowing ? 0 : undefined}
-          role={overflowing ? "region" : undefined}
-          aria-label={
-            overflowing ? `${label}, horizontally scrollable` : undefined
-          }
-        >
+        <div className="admin-table-scroll astryx-table-scroll-wrapper">
           <table
             className="openai-record-table"
             role="table"
@@ -504,59 +456,6 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
           )
         )}
       </div>
-      {footer && (
-        <div className="openai-table-footer workspace-table-footer">
-          <span
-            role={loading && !rows.length ? undefined : "status"}
-            aria-hidden={(loading && !rows.length) || undefined}
-            className="workspace-table-count"
-          >
-            {loading && !rows.length ? (
-              <Skeleton
-                width="calc(var(--spacing-4) * 8)"
-                height="var(--spacing-4)"
-              />
-            ) : (
-              tableCountText(
-                loadedCount ?? rows.length,
-                totalCount ??
-                  (filteredCount === undefined ? pagination?.total : undefined),
-                filteredCount ?? (searchActive ? pagination?.total : undefined),
-                noun,
-              )
-            )}
-          </span>
-          {figures
-            ?.filter(([, value]) => value > 0)
-            .map(([name, value]) => (
-              <span key={name}>
-                {value} {name}
-              </span>
-            ))}
-          {selection && <span>{selectedKeys.size} selected</span>}
-        </div>
-      )}
-      {pagination && (
-        <nav className="openai-pagination" aria-label={`${label} pages`}>
-          <button
-            type="button"
-            disabled={pagination.page <= 0 || loading}
-            onClick={() => pagination.onPageChange(pagination.page - 1)}
-          >
-            Previous
-          </button>
-          <span>
-            Page {pagination.page + 1} of {pages}
-          </span>
-          <button
-            type="button"
-            disabled={pagination.page + 1 >= pages || loading}
-            onClick={() => pagination.onPageChange(pagination.page + 1)}
-          >
-            Next
-          </button>
-        </nav>
-      )}
     </div>
   );
 }
