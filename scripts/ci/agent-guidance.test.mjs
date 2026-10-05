@@ -69,3 +69,52 @@ test("focused visual work and active user review have bounded verification", () 
     assert.match(guide, pattern, `missing ${message}`);
   }
 });
+
+for (const [path, heading] of [
+  ["README.md", "## Checks and release"],
+  ["docs/platform-architecture.md", "## Verification and releases"],
+]) {
+  test(`${path} documents the default local scope and explicit committed scope`, () => {
+    const contents = readFileSync(
+      new URL(`../../${path}`, import.meta.url),
+      "utf8",
+    );
+    const section = contents.split(`${heading}\n`)[1]?.split(/\n## /u)[0];
+    assert.ok(section, `${path} is missing its verification section`);
+    const defaultCommand = section
+      .split("\n")
+      .find((line) =>
+        /^pnpm check:changed\s*(?:#|$)|^- `(?:pnpm )?check:changed`/u.test(
+          line,
+        ),
+      );
+    assert.ok(defaultCommand, `${path} must explain the default command`);
+    for (const kind of ["committed", "staged", "unstaged", "untracked"])
+      assert.match(
+        defaultCommand,
+        new RegExp(`\\b${kind}\\b`, "u"),
+        `${path} default scope omits ${kind}`,
+      );
+    assert.doesNotMatch(
+      defaultCommand,
+      /committed (?:PR )?diff|commits only/iu,
+    );
+    const committedCommand = section
+      .split("\n")
+      .find((line) => line.includes("--commits-only"));
+    assert.ok(
+      committedCommand,
+      `${path} must document the committed-only option`,
+    );
+    assert.match(
+      committedCommand,
+      /committed (?:branch )?(?:diff|tree)|commits only/iu,
+    );
+    const normalized = section.replace(/\s+/gu, " ");
+    assert.match(normalized, /ignored files (?:stay |are )?excluded/iu);
+    assert.match(
+      normalized,
+      /`--working-tree`.*(?:alias|compatible).*default.*scope/iu,
+    );
+  });
+}
