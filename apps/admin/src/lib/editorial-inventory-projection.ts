@@ -1,3 +1,4 @@
+import { projectRecordIdentity } from "./project-media";
 import { libraryPath } from "./content-library-state";
 import { editorialRecordSummary } from "./editorial-record-summary";
 import { gitBlobSha1 } from "./crypto";
@@ -278,6 +279,9 @@ export function projectEditorialInventory(
     records.set(`${entry.collection}:${entry.id}`, {
       collection: entry.collection,
       id: entry.id,
+      ...(entry.collection === "projects"
+        ? { projectIdentity: projectRecordIdentity(draft ? data : entry.data) }
+        : {}),
       ...(entry.collection === "writing" &&
       entry.published === true &&
       status === "published" &&
@@ -390,6 +394,9 @@ export function editorialInventorySearch(records: ProjectedRecord[]) {
       : "content inventory",
     freshness: "current",
     href: record.href,
+    ...(record.projectIdentity
+      ? { projectIdentity: record.projectIdentity }
+      : {}),
     keywords: [
       record.id,
       record.collection,

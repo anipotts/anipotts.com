@@ -53,3 +53,46 @@ it("retains responsive palette sizing for mapped and fallback projects", () => {
     expect(html).toContain("brand-tile admin-palette-tile");
   }
 });
+
+it("uses the saved project logo ahead of a slug mapping and resolves private media", () => {
+  const logo = "/images/brand/chainedchat-logo.png";
+  const html = renderToStaticMarkup(
+    <ContentRecordMark
+      record={{
+        id: "chainedchat",
+        href: "/content/projects/chainedchat",
+        projectIdentity: { logo_src: logo, logo_tone: "adaptive" },
+      }}
+    />,
+  );
+  expect(html).toContain(`src="https://anipotts.com${logo}"`);
+  expect(html).toContain('data-artwork-tone="adaptive"');
+  expect(html).not.toContain("chainedchat-favicon");
+  const id = "a".repeat(64) + ".png";
+  const privateHtml = renderToStaticMarkup(
+    <ContentRecordMark
+      record={{
+        href: "/content/projects/chainedchat",
+        projectIdentity: { logo_src: `/images/editorial/${id}` },
+      }}
+    />,
+  );
+  expect(privateHtml).toContain(`/api/editorial/media?id=${id}`);
+});
+
+it("honors a removed logo and rejects invalid paths instead of restoring a stale brand asset", () => {
+  for (const identity of [{}, { logo_src: "javascript:alert(1)" }]) {
+    const html = renderToStaticMarkup(
+      <ContentRecordMark
+        record={{
+          id: "chainedchat",
+          href: "/content/projects/chainedchat",
+          projectIdentity: identity,
+        }}
+      />,
+    );
+    expect(html).not.toContain("<img");
+    expect(html).toContain("<svg");
+  }
+  expect(projectMark("chainedchat")).toContain("chainedchat-logo.png");
+});

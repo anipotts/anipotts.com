@@ -643,3 +643,47 @@ it("keeps authorable seed content unpublished without CMS evidence and unknown o
     ),
   ).toBe(true);
 });
+
+it("projects and searches use the current private identity, including removal", () => {
+  const entry = {
+    collection: "projects",
+    id: "chainedchat",
+    data: {
+      title: "chained chat",
+      public_state: "listed",
+      identity: { logo_src: "/images/brand/chainedchat-logo.png" },
+    },
+    published: true,
+  };
+  const published = projectEditorialInventory([entry], []);
+  expect(published[0].projectIdentity?.logo_src).toBe(
+    "/images/brand/chainedchat-logo.png",
+  );
+  const current = projectEditorialInventory(
+    [entry],
+    [
+      draft({
+        key: "content/public/projects/chainedchat.md",
+        source:
+          "---\ntitle: chained chat\npublic_state: listed\nidentity:\n  logo_src: /images/brand/new.png\n  logo_tone: adaptive\n---\n",
+      }),
+    ],
+  );
+  expect(current[0].projectIdentity).toMatchObject({
+    logo_src: "/images/brand/new.png",
+    logo_tone: "adaptive",
+  });
+  expect(editorialInventorySearch(current)[0].projectIdentity).toEqual(
+    current[0].projectIdentity,
+  );
+  const removed = projectEditorialInventory(
+    [entry],
+    [
+      draft({
+        key: "content/public/projects/chainedchat.md",
+        source: "---\ntitle: chained chat\nidentity: {}\n---\n",
+      }),
+    ],
+  );
+  expect(removed[0].projectIdentity).not.toHaveProperty("logo_src");
+});

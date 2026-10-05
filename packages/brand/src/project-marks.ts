@@ -2,7 +2,7 @@
  * each app emit/cache the same source artwork without duplicating files or
  * fetching remote favicons. Prefer small existing favicons to full logos. */
 import agents from "../../../apps/www/public/images/brand/agents-favicon.svg?url&no-inline";
-import chainedchat from "../../../apps/www/public/images/brand/chainedchat-favicon.svg?url&no-inline";
+import chainedchat from "../../../apps/www/public/images/brand/chainedchat-logo.png?url&no-inline";
 import npm from "../../../apps/www/public/images/brand/npm-icon.svg?url&no-inline";
 import chrome from "../../../apps/www/public/images/brand/google-chrome-logo.svg?url&no-inline";
 import nyu from "../../../apps/www/public/images/brand/nyu-purity-test-favicon.png?url&no-inline";

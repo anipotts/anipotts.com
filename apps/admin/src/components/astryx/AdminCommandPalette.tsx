@@ -381,7 +381,10 @@ export function AdminCommandPalette({
           <HStack gap={3} vAlign="center" className="admin-palette-result">
             {project ? (
               <ContentRecordMark
-                record={{ href }}
+                record={{
+                  href,
+                  projectIdentity: item.auxiliaryData?.projectIdentity,
+                }}
                 className="admin-palette-tile"
               />
             ) : (

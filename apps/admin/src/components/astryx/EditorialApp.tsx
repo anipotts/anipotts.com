@@ -77,6 +77,7 @@ export type CatalogRecord = {
   collection?: string;
   id?: string;
   publishedSlug?: string;
+  projectIdentity?: import("../../lib/project-media").ProjectRecordIdentity;
   changesPending?: boolean;
   changedFields?: string[];
   privateRevision?: number;

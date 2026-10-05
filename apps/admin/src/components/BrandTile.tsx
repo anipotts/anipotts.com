@@ -77,6 +77,7 @@ export function plateTone(hex: string): "dark" | "light" {
 export function BrandTile({
   id,
   artwork,
+  artworkTone,
   kind = "unknown",
   glyph,
   size,
@@ -87,6 +88,7 @@ export function BrandTile({
   id?: string | null;
   /** Existing local project artwork, emitted as a cached asset URL. */
   artwork?: string | null;
+  artworkTone?: "default" | "light" | "adaptive";
   /** The Phosphor fallback when `id` has no mark. */
   kind?: GlyphKind;
   glyph?: Icon;
@@ -118,6 +120,7 @@ export function BrandTile({
       className={className ? `brand-tile ${className}` : "brand-tile"}
       data-mark={mark?.id ?? kind}
       data-kind={mark?.kind}
+      data-artwork-tone={artwork ? artworkTone : undefined}
       data-fit={artwork ? "fill" : mark ? mark.fit : "glyph"}
       data-plate={mark?.plate ? plateTone(mark.plate) : undefined}
       style={style}
