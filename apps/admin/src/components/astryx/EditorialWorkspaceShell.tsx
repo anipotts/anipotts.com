@@ -34,6 +34,7 @@ import {
 import {
   MagnifyingGlassIcon,
   SidebarSimpleIcon,
+  ArrowLeftIcon,
   SignOutIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
@@ -281,35 +282,45 @@ function WorkspaceIdentity({
   );
 }
 
-/** Sidebar footer: log out outside local previews, then the one theme
- * button, which cycles light, dark and system. */
+/** Website return and theme controls share the sidebar footer. */
 function WorkspaceUtilities({
   rail,
-  localPreview,
+  siteUrl,
 }: {
   rail: boolean;
-  localPreview: boolean;
+  siteUrl: string;
 }) {
   const Stack = rail ? VStack : HStack;
   return (
     <Stack
-      className="editorial-workspace-utilities"
+      className="editorial-workspace-utilities editorial-workspace-utility-controls"
       data-collapsed={rail}
       gap={1}
     >
-      {!localPreview && (
-        <SideNavItem
-          label="Log out"
-          href="/auth/logout"
-          icon={<SignOutIcon size={18} aria-hidden="true" />}
-        />
-      )}
+      <SideNavItem
+        label="www"
+        href={siteUrl}
+        icon={<ArrowLeftIcon size={18} aria-hidden="true" />}
+        onClick={(event) => {
+          if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          event.preventDefault();
+          navigateAdmin(siteUrl);
+        }}
+      />
       <ThemeControl />
     </Stack>
   );
 }
 
-/** One controlled modal provides phone navigation and tablet sidebar expansion. */
+/** Phones use a controlled drawer; wider screens resize the inline sidebar. */
 const NO_DRAWER = <></>;
 
 export function EditorialWorkspaceShell({
@@ -326,6 +337,7 @@ export function EditorialWorkspaceShell({
   workspace = "content",
   currentRoute,
   recordPage = false,
+  siteUrl = "https://anipotts.com/",
 }: {
   children: ReactNode;
   area: "content" | "newsletter";
@@ -347,10 +359,11 @@ export function EditorialWorkspaceShell({
   currentRoute?: string;
   /** Identifies record routes; the shared phone appbar remains visible. */
   recordPage?: boolean;
+  /** Matching managed www preview in development, public site in production. */
+  siteUrl?: string;
 }) {
   const [rail, setRail] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
-  const [tabletNavigation, setTabletNavigation] = useState(false);
   const navigationId = useId();
   useEffect(() => {
     // A requested route can still be held by the editor's unsaved-change guard.
@@ -358,8 +371,7 @@ export function EditorialWorkspaceShell({
     // temporary-navigation range. Native dialog owns focus restoration.
     const committed = () => setNavigationOpen(false);
     const resize = () => {
-      setTabletNavigation(window.innerWidth > 640 && window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) committed();
+      if (window.innerWidth > 640) committed();
     };
     resize();
     window.addEventListener("admin:workspace-navigation", committed);
@@ -448,7 +460,7 @@ export function EditorialWorkspaceShell({
     };
   }, [railReady, userCollapsed]);
   const changeCollapsed = (collapsed: boolean) => {
-    if (window.innerWidth <= 1023) {
+    if (window.innerWidth <= 640) {
       setNavigationOpen(!collapsed);
       return;
     }
@@ -528,8 +540,7 @@ export function EditorialWorkspaceShell({
         height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
-        // Keep AppShell's responsive inline rail; our shared controlled drawer
-        // also serves temporary tablet expansion without resizing the content.
+        // Tablets and desktops share the inline sidebar. Only phones use a drawer.
         mobileNav={{ breakpoint: "sm", hasToggle: false, content: NO_DRAWER }}
         banner={
           <PhoneBar
@@ -553,9 +564,7 @@ export function EditorialWorkspaceShell({
             header={
               <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
             }
-            footer={
-              <WorkspaceUtilities rail={rail} localPreview={localPreview} />
-            }
+            footer={<WorkspaceUtilities rail={rail} siteUrl={siteUrl} />}
           >
             <UnifiedNavigation
               rail={rail}
@@ -573,7 +582,7 @@ export function EditorialWorkspaceShell({
         <NavigationIconScope value>
           <MobileNav
             id={navigationId}
-            className={`admin-navigation-drawer${tabletNavigation ? " admin-tablet-sidebar" : ""}`}
+            className="admin-navigation-drawer"
             label="Admin navigation"
             header="Navigation"
             side="start"
@@ -584,28 +593,6 @@ export function EditorialWorkspaceShell({
             <SideNav
               className="editorial-workspace-nav admin-drawer-nav"
               aria-label="Admin"
-              collapsible={
-                tabletNavigation
-                  ? {
-                      isCollapsed: false,
-                      onCollapsedChange: () => setNavigationOpen(false),
-                      hasButton: false,
-                    }
-                  : undefined
-              }
-              header={
-                tabletNavigation ? (
-                  <WorkspaceIdentity rail={false} localOwner={showLocalOwner} />
-                ) : undefined
-              }
-              footer={
-                tabletNavigation ? (
-                  <WorkspaceUtilities
-                    rail={false}
-                    localPreview={localPreview}
-                  />
-                ) : undefined
-              }
             >
               <UnifiedNavigation
                 rail={false}
@@ -614,9 +601,7 @@ export function EditorialWorkspaceShell({
                 contentHref={destination}
                 groupCounts={groupCounts}
               />
-              {!tabletNavigation && (
-                <WorkspaceUtilities rail={false} localPreview={localPreview} />
-              )}
+              <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
             </SideNav>
           </MobileNav>
         </NavigationIconScope>
