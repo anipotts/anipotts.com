@@ -742,3 +742,14 @@ assert.ok(
     "0044_public_identity_systems.sql: removed migration",
   ),
 );
+
+for (const path of [".codex/config.toml", ".claude/settings.json"]) {
+  const release = classifyRelease([`M\t${path}`], base);
+  assert.equal(release.risk, "automatic");
+  assert.equal(release.local_dev_changed, true);
+  assert.equal(Object.values(release.deploy_targets).some(Boolean), false);
+}
+assert.equal(
+  classifyRelease(["M\t.claude/credentials.json"], base).risk,
+  "approval",
+);

@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { acquire, lockPath, release } from "./heavy-slot.mjs";
 
 // Host-wide preview budget shared by every worktree of this repository. The
 // integration owner's checkout (the one running `pnpm review`) is exempt;
@@ -161,7 +162,29 @@ export function groupCpu() {
 /** Consecutive idle minutes after one sample; any busy sample resets it. */
 export function nextIdleMinutes(idleMinutes, cpuDelta, elapsedMinutes) {
   if (elapsedMinutes <= 0) return idleMinutes;
+  if (cpuDelta < 0) return 0;
   return cpuDelta / elapsedMinutes < IDLE_CPU_SECONDS_PER_MINUTE
     ? idleMinutes + elapsedMinutes
     : 0;
+}
+
+/** Serialize the scan/start/metadata transaction across worktrees. Without this,
+ * two simultaneous workers can both observe an empty budget and start. */
+export async function withPreviewStartup(cwd, start) {
+  const path = join(dirname(lockPath(cwd)), "anipotts-preview-start");
+  const state = await acquire(path, {
+    pid: process.pid,
+    cwd,
+    command: "preview startup",
+    startedAt: new Date().toISOString(),
+  });
+  if (state !== "acquired")
+    throw new Error(
+      "Preview startup lock unavailable; coordinate with the integration owner",
+    );
+  try {
+    return await start();
+  } finally {
+    release(path);
+  }
 }

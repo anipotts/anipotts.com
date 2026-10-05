@@ -24,6 +24,7 @@ import {
 import {
   DEFAULT_WORKER_SLOTS,
   isIntegrationCheckout,
+  withPreviewStartup,
   otherWorkerPreviews,
   parseCount,
   runningPreviews,
@@ -469,7 +470,8 @@ async function stop(surface) {
 const action = process.argv[2] ?? "ensure";
 const surface = process.argv[3] ?? "all";
 try {
-  if (action === "ensure") await ensure(surface);
+  if (action === "ensure")
+    await withPreviewStartup(WORKTREE_ROOT, () => ensure(surface));
   else if (action === "status") await status(surface);
   else if (action === "stop") await stop(surface);
   else

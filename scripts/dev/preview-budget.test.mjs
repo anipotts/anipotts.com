@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { spawn, execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   IDLE_CPU_SECONDS_PER_MINUTE,
   isIntegrationCheckout,
@@ -46,6 +51,11 @@ test("idle minutes accumulate only while CPU stays under the threshold", () => {
   assert.equal(idle, 3);
   assert.equal(nextIdleMinutes(idle, IDLE_CPU_SECONDS_PER_MINUTE * 3, 1), 0);
   assert.equal(nextIdleMinutes(idle, 0, 0), 3);
+  assert.equal(
+    nextIdleMinutes(idle, -10, 1),
+    0,
+    "a restarted group has no inherited idle time",
+  );
 });
 
 test("the review lane flag marks the integration checkout", () => {
@@ -76,4 +86,51 @@ test("counts reject negatives and fractions", () => {
   assert.equal(parseCount("X", "0", 1), 0);
   assert.throws(() => parseCount("X", "-1", 1), /whole number/);
   assert.throws(() => parseCount("X", "1.5", 1), /whole number/);
+});
+
+test("concurrent worker startups cannot both scan an empty slot", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "preview-startup-"));
+  execFileSync("git", ["init", "--quiet", dir]);
+  const log = join(dir, "startup.log");
+  const moduleUrl = pathToFileURL(
+    join(import.meta.dirname, "preview-budget.mjs"),
+  ).href;
+  const run = () =>
+    new Promise((resolve, reject) => {
+      const child = spawn(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `
+      import { withPreviewStartup } from ${JSON.stringify(moduleUrl)};
+      import { appendFileSync } from "node:fs";
+      await withPreviewStartup(${JSON.stringify(dir)}, async () => {
+        appendFileSync(${JSON.stringify(log)}, "enter\\n");
+        await new Promise(done => setTimeout(done, 100));
+        appendFileSync(${JSON.stringify(log)}, "leave\\n");
+      });`,
+        ],
+        { stdio: ["ignore", "ignore", "pipe"] },
+      );
+      let stderr = "";
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      child.on("error", reject);
+      child.on("exit", (code) =>
+        code === 0 ? resolve() : reject(new Error(stderr)),
+      );
+    });
+  try {
+    await Promise.all([run(), run()]);
+    assert.deepEqual(readFileSync(log, "utf8").trim().split("\n"), [
+      "enter",
+      "leave",
+      "enter",
+      "leave",
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

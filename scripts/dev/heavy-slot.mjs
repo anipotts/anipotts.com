@@ -75,7 +75,7 @@ export function release(path, pid = process.pid) {
     rmSync(path, { recursive: true, force: true });
 }
 
-async function acquire(path, holder) {
+export async function acquire(path, holder) {
   let lastNotice = 0;
   for (;;) {
     const result = tryAcquire(path, holder);
@@ -132,7 +132,10 @@ async function main() {
   return run(command, { ...process.env, ANIPOTTS_HEAVY_SLOT: "held" });
 }
 
-if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
+) {
   main().then(
     (code) => process.exit(code),
     (error) => {

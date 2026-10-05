@@ -31,6 +31,7 @@ const INTERVAL_MS = 60_000;
 
 let idleMinutes = 0;
 let lastCpu = null;
+let lastServers = "";
 let lastAt = Date.now();
 
 function writeState(extra = {}) {
@@ -58,6 +59,15 @@ function tick() {
     idleMinutes = 0;
     writeState({ exempt: "integration checkout" });
     return;
+  }
+  const servers = previews
+    .map((record) => `${record.key}:${record.pid}`)
+    .sort()
+    .join(",");
+  if (servers !== lastServers) {
+    idleMinutes = 0;
+    lastCpu = null;
+    lastServers = servers;
   }
   const totals = groupCpu();
   const cpu = previews.reduce(
