@@ -763,7 +763,10 @@ describe("private Data workspace", () => {
       calls.filter((call) => !isCatalog(call)).map((call) => call.url.search),
     ).toEqual(["?q=&limit=30&offset=0&kind=contact"]);
     const entries = window.history.length;
-    await click("Notes");
+    await click("More types: Contacts");
+    const notes = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find((item) => item.textContent?.trim() === "Notes");
+    expect(notes).toBeTruthy();
+    await act(async () => notes!.click());
     await settle();
     expect(window.location.search).toBe("?kind=note");
     expect(calls.at(-1)?.url.search).toBe("?q=&limit=30&offset=0&kind=note");
