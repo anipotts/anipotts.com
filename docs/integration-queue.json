@@ -284,13 +284,13 @@
       "note": "Separate pushed codex/preview-module-urls branch; developer-only redirects for known public components and installed Astro ClientRouter. Three focused tests pass; canonical controls verified. Classifier selects no targets. Native review blocked opening its PR without immediate send approval; approval requested."
     },
     {
-      "id": "admin-inset-edges",
+      "id": "pr-499",
       "title": "Admin inset top and left edges",
-      "revision": "a1b103e6",
+      "revision": "a1b103e6c9fe4e0eaa0de2ffec4fe572069880f6",
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},
-      "note": "Requested inset CSS fix is on origin/codex/admin-inset-edges and applied in canonical preview. 33 existing shell/frame checks passed. Browser computed top/left1px and bottom/right0px. Native approval review blocked PR creation because the earlier approval covered #496 only. No PR, merge or deployment for this followup."
+      "note": "PR499 opened after explicit Ani approval of PR creation. Exact-head CI37254443830 running; security passed. Canonical preview top/left1px, bottom/right0px and 33 shell/frame checks passed. Merge/deploy require review; no production change for this followup."
     }
   ]
 }
