@@ -743,11 +743,21 @@ assert.ok(
   ),
 );
 
-const launcher = classifyRelease(["M\t.claude/launch.json"], base);
-assert.equal(launcher.risk, "automatic");
-assert.equal(launcher.local_dev_changed, true);
-assert.equal(Object.values(launcher.deploy_targets).some(Boolean), false);
+for (const path of [
+  ".codex/config.toml",
+  ".claude/settings.json",
+  ".claude/launch.json",
+]) {
+  const release = classifyRelease([`M\t${path}`], base);
+  assert.equal(release.risk, "automatic");
+  assert.equal(release.local_dev_changed, true);
+  assert.equal(Object.values(release.deploy_targets).some(Boolean), false);
+}
 assert.equal(
-  classifyRelease(["M\t.claude/settings.json"], base).risk,
+  classifyRelease(["M\t.claude/credentials.json"], base).risk,
+  "approval",
+);
+assert.equal(
+  classifyRelease(["M\t.claude/settings.local.json"], base).risk,
   "unknown",
 );
