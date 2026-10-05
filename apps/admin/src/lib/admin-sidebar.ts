@@ -7,14 +7,10 @@ export const SIDEBAR_STORAGE_KEYS = [
   "editorial:sidebar-collapsed",
 ] as const;
 
-/** The sidebar contract, on lib/breakpoints.ts. Compact phones (640px and
- * below) use the shared appbar and unified navigation drawer. Medium widths
- * (641px to 1023px) always open on the rail, because the full sidebar would
- * leave a table too little room; the rail button opens an overlay for the
- * moment without changing saved desktop preferences. From large (1024px) a saved choice wins, and without one the
- * sidebar is a rail until 1280px, where the full sidebar has room. */
+/** Phones (640px and below) use the appbar and navigation drawer. From
+ * 641px, the sidebar expands beside the content and keeps the saved choice.
+ * Without a choice, it starts as a rail until the full sidebar fits at 1280px. */
 export const COMPACT_MAX_WIDTH = BREAKPOINT_MIN.medium - 1;
-export const RAIL_ONLY_MAX_WIDTH = BREAKPOINT_MIN.large - 1;
 export const FULL_SIDEBAR_MIN_WIDTH = 1280;
 export const RAIL_QUERY = `(min-width: ${BREAKPOINT_MIN.medium}px) and (max-width: ${FULL_SIDEBAR_MIN_WIDTH - 1}px)`;
 export const COMPACT_QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
@@ -38,7 +34,6 @@ export function sidebarRail(
   inRailRange: boolean,
 ) {
   if (width <= COMPACT_MAX_WIDTH) return false;
-  if (width <= RAIL_ONLY_MAX_WIDTH) return true;
   return collapsed ?? inRailRange;
 }
 
@@ -125,11 +120,9 @@ export function prepaintAdminSidebar() {
   const rail =
     width <= 640
       ? false
-      : width <= 1023
-        ? true
-        : (collapsed ??
-          window.matchMedia("(min-width: 641px) and (max-width: 1279px)")
-            .matches);
+      : (collapsed ??
+        window.matchMedia("(min-width: 641px) and (max-width: 1279px)")
+          .matches);
   document.documentElement.dataset.adminSidebar = rail ? "rail" : "full";
   // Groups the viewer closed, except the active page's group, which always
   // opens. CSS holds these closed until the sidebar hydrates, so a saved
