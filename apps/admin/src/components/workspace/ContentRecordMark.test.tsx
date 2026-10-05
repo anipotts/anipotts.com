@@ -21,6 +21,7 @@ describe("project identity", () => {
     );
     expect(catalog).toBe(direct);
     expect(direct).toContain("structured-ai-favicon.png");
+    expect(direct).toContain("background-color:#fff");
     expect(direct).toContain('loading="lazy"');
     expect(direct).toContain('aria-hidden="true"');
     expect(direct).not.toContain("https://");

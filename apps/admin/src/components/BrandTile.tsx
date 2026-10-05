@@ -97,6 +97,8 @@ export function BrandTile({
 }) {
   const mark = brandMark(id);
   const style = {
+    // Transparent project artwork keeps its authored dark ink readable in both themes.
+    ...(artwork ? { backgroundColor: "#fff" } : {}),
     ...(size ? { "--brand-tile-size": `${size}px` } : {}),
     ...(mark?.plate && mark.color
       ? { "--brand-plate": mark.plate, "--brand-mark-color": mark.color }
