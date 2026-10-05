@@ -14,7 +14,7 @@ import {
   DEFAULT_IDLE_MINUTES,
   groupCpu,
   isIntegrationCheckout,
-  nextIdleMinutes,
+  nextGroupsIdleMinutes,
   parseCount,
   runningPreviews,
 } from "./preview-budget.mjs";
@@ -70,15 +70,15 @@ function tick() {
     lastServers = servers;
   }
   const totals = groupCpu();
-  const cpu = previews.reduce(
-    (sum, record) => sum + (totals.get(record.pid) ?? 0),
-    0,
+  const cpu = new Map(
+    previews.map((record) => [record.pid, totals.get(record.pid) ?? 0]),
   );
   const now = Date.now();
   if (lastCpu !== null) {
-    idleMinutes = nextIdleMinutes(
+    idleMinutes = nextGroupsIdleMinutes(
       idleMinutes,
-      cpu - lastCpu,
+      cpu,
+      lastCpu,
       (now - lastAt) / 60_000,
     );
   }

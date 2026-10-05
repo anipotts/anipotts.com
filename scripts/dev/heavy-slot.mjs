@@ -17,6 +17,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
@@ -53,20 +54,42 @@ function readHolder(path) {
 }
 
 /** Returns "acquired", "busy" with the holder, or "unavailable". */
-export function tryAcquire(path, holder) {
+export function tryAcquire(path, holder, now = Date.now()) {
   try {
     mkdirSync(path);
   } catch (error) {
     if (error.code !== "EEXIST") return { state: "unavailable", error };
     const current = readHolder(path);
-    // A lock without a readable holder may be mid-creation; give it a moment.
-    if (current && !isAlive(current.pid)) {
-      rmSync(path, { recursive: true, force: true });
-      return tryAcquire(path, holder);
+    // Serialize stale reclamation, then reread: another contender may already
+    // have replaced the exited holder with a live owner.
+    const reclaim = `${path}.reclaim`;
+    try {
+      mkdirSync(reclaim);
+    } catch {
+      return { state: "busy", holder: current };
     }
+    let stale = false;
+    try {
+      const latest = readHolder(path);
+      stale = latest
+        ? !isAlive(latest.pid)
+        : now - statSync(path).mtimeMs > 5_000;
+      if (stale) rmSync(path, { recursive: true, force: true });
+    } catch (error) {
+      if (error.code === "ENOENT") stale = true;
+      else throw error;
+    } finally {
+      rmSync(reclaim, { recursive: true, force: true });
+    }
+    if (stale) return tryAcquire(path, holder, now);
     return { state: "busy", holder: current };
   }
-  writeFileSync(join(path, "holder.json"), `${JSON.stringify(holder)}\n`);
+  try {
+    writeFileSync(join(path, "holder.json"), `${JSON.stringify(holder)}\n`);
+  } catch (error) {
+    rmSync(path, { recursive: true, force: true });
+    return { state: "unavailable", error };
+  }
   return { state: "acquired" };
 }
 
@@ -95,11 +118,39 @@ export async function acquire(path, holder) {
 
 function run(command, env) {
   return new Promise((done) => {
-    const child = spawn(command, { shell: true, stdio: "inherit", env });
-    const forward = (signal) => child.kill(signal);
+    const grouped = process.platform !== "win32";
+    const child = spawn(command, {
+      shell: true,
+      stdio: "inherit",
+      env,
+      detached: grouped,
+    });
+    let cancellation;
+    const forward = (signal) => {
+      const send = (value) => {
+        try {
+          if (grouped) process.kill(-child.pid, value);
+          else child.kill(value);
+        } catch (error) {
+          if (error.code !== "ESRCH") throw error;
+        }
+      };
+      send(signal);
+      cancellation ??= setTimeout(() => send("SIGKILL"), 1_000);
+    };
     process.on("SIGINT", forward);
     process.on("SIGTERM", forward);
-    child.on("exit", (code, signal) => done(signal ? 1 : (code ?? 1)));
+    child.on("error", () => done(1));
+    child.on("exit", (code, signal) => {
+      // Keep ownership through escalation, even if the shell exits first.
+      const finish = () => {
+        process.off("SIGINT", forward);
+        process.off("SIGTERM", forward);
+        done(signal ? 1 : (code ?? 1));
+      };
+      if (cancellation) setTimeout(finish, 1_100);
+      else finish();
+    });
   });
 }
 

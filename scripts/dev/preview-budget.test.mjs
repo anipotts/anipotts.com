@@ -134,3 +134,35 @@ test("concurrent worker startups cannot both scan an empty slot", async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("two individually idle groups accumulate idle time independently", async () => {
+  const { nextGroupsIdleMinutes } = await import("./preview-budget.mjs");
+  const before = new Map([
+    [11, 10],
+    [22, 10],
+  ]);
+  assert.equal(
+    nextGroupsIdleMinutes(
+      2,
+      new Map([
+        [11, 10.6],
+        [22, 10.6],
+      ]),
+      before,
+      1,
+    ),
+    3,
+  );
+  assert.equal(
+    nextGroupsIdleMinutes(
+      2,
+      new Map([
+        [11, 11.2],
+        [22, 10.6],
+      ]),
+      before,
+      1,
+    ),
+    0,
+  );
+});

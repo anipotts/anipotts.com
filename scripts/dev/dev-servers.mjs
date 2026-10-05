@@ -23,6 +23,7 @@ import {
 } from "./dev-server-ports.mjs";
 import {
   DEFAULT_WORKER_SLOTS,
+  DEFAULT_IDLE_MINUTES,
   isIntegrationCheckout,
   withPreviewStartup,
   otherWorkerPreviews,
@@ -295,6 +296,7 @@ function assertWorkerSlot(integration) {
     "ANIPOTTS_WORKER_PREVIEW_SLOTS",
     process.env.ANIPOTTS_WORKER_PREVIEW_SLOTS,
     DEFAULT_WORKER_SLOTS,
+    DEFAULT_IDLE_MINUTES,
   );
   const error = slotError(otherWorkerPreviews(WORKTREE_ROOT), slots);
   if (error) throw new Error(error);
@@ -302,6 +304,11 @@ function assertWorkerSlot(integration) {
 
 /** One detached idle reaper per worker worktree; see preview-reaper.mjs. */
 function ensureReaper() {
+  const limitMinutes = parseCount(
+    "ANIPOTTS_PREVIEW_IDLE_MINUTES",
+    process.env.ANIPOTTS_PREVIEW_IDLE_MINUTES,
+    DEFAULT_IDLE_MINUTES,
+  );
   const record = (() => {
     try {
       return JSON.parse(readFileSync(REAPER_PATH, "utf8"));
@@ -313,8 +320,10 @@ function ensureReaper() {
     record &&
     !record.stoppedAt &&
     processCommand(record.pid).includes("preview-reaper.mjs")
-  )
-    return;
+  ) {
+    if (record.limitMinutes === limitMinutes) return;
+    process.kill(record.pid, "SIGTERM");
+  }
   const child = spawn(
     process.execPath,
     [join(SCRIPT_DIR, "preview-reaper.mjs"), WORKTREE_ROOT],

@@ -188,3 +188,12 @@ export async function withPreviewStartup(cwd, start) {
     release(path);
   }
 }
+
+/** Each managed process group must satisfy the idle threshold independently. */
+export function nextGroupsIdleMinutes(idle, current, previous, elapsed) {
+  return Math.min(
+    ...[...current].map(([pid, cpu]) =>
+      nextIdleMinutes(idle, cpu - (previous.get(pid) ?? cpu), elapsed),
+    ),
+  );
+}

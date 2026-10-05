@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -57,5 +64,52 @@ test("CI and nested runs skip the lock and keep the exit code", () => {
       env: { ...process.env, ...env },
     });
     assert.equal(result.status, 3);
+  }
+});
+
+test("holderless locks have a grace period and then recover", () => {
+  const dir = mkdtempSync(join(tmpdir(), "heavy-orphan-"));
+  const lock = join(dir, "lock");
+  try {
+    mkdirSync(lock);
+    assert.equal(tryAcquire(lock, holder(process.pid)).state, "busy");
+    const old = new Date(Date.now() - 10_000);
+    utimesSync(lock, old, old);
+    assert.equal(tryAcquire(lock, holder(process.pid)).state, "acquired");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("targeted cancellation stops descendants before the wrapper finishes", async () => {
+  if (process.platform === "win32") return;
+  const dir = mkdtempSync(join(tmpdir(), "heavy-cancel-"));
+  const pidFile = join(dir, "pid");
+  const script = join(import.meta.dirname, "heavy-slot.mjs");
+  const payload = `require("node:fs").writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);`;
+  const quoted = "'" + payload.replaceAll("'", "'\\''") + "'";
+  const wrapper = spawn(
+    process.execPath,
+    [script, `${process.execPath} -e ${quoted}`],
+    { env: { ...process.env, CI: "1" }, stdio: "ignore" },
+  );
+  const exit = new Promise((resolve) => wrapper.once("exit", resolve));
+  try {
+    for (let i = 0; !existsSync(pidFile) && i < 100; i++)
+      await new Promise((r) => setTimeout(r, 20));
+    assert.ok(existsSync(pidFile));
+    const pid = Number(readFileSync(pidFile, "utf8"));
+    wrapper.kill("SIGTERM");
+    await exit;
+    const state = spawnSync("ps", ["-o", "stat=", "-p", String(pid)], {
+      encoding: "utf8",
+    }).stdout.trim();
+    assert.ok(
+      !state || state.startsWith("Z"),
+      `descendant still running: ${state}`,
+    );
+  } finally {
+    wrapper.kill("SIGKILL");
+    rmSync(dir, { recursive: true, force: true });
   }
 });
