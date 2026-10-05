@@ -5,15 +5,16 @@ export function toggleEntrySidebar(button: HTMLButtonElement) {
   const collapsed = shell.dataset.sidebarCollapsed !== "true";
   shell.dataset.sidebarCollapsed = String(collapsed);
   button.setAttribute("aria-expanded", String(!collapsed));
-  const label = collapsed ? "expand sidebar" : "collapse sidebar";
-  button.setAttribute("aria-label", label);
-  button.title = label;
 }
 
-document.addEventListener("click", (event) => {
-  if (!(event.target instanceof Element)) return;
-  const button = event.target.closest<HTMLButtonElement>(
+export function bindEntrySidebar() {
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
     "[data-admin-collapse]",
-  );
-  if (button) toggleEntrySidebar(button);
-});
+  )) {
+    // Rebind safely after navigation or development hot updates.
+    button.onclick = () => toggleEntrySidebar(button);
+    button.dataset.entryControlsBound = "true";
+  }
+}
+bindEntrySidebar();
+document.addEventListener("astro:page-load", bindEntrySidebar);

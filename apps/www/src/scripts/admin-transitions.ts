@@ -1,3 +1,4 @@
+import "./admin-entry.ts";
 /** Public presentation only. Authentication starts at the explicit continue link. */
 import {
   navigate,
