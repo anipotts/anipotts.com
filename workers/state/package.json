@@ -12,6 +12,7 @@
     "test:cli": "bun run scripts/test-link-vault.ts"
   },
   "dependencies": {
+    "@anipotts/runtime-contract": "workspace:*",
     "@anipotts/types": "workspace:*",
     "hono": "^4.13.7"
   },

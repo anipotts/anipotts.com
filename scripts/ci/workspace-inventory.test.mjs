@@ -14,6 +14,7 @@ const EXPECTED_PACKAGES = [
   "content",
   "control-plane-runner",
   "lib",
+  "runtime-contract",
   "types",
 ];
 const EXPECTED_WORKERS = ["ingest", "newsletter", "state", "weekly-email"];
