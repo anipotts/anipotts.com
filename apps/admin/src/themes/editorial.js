@@ -431,7 +431,7 @@ export const editorialTheme = {
         "--color-project-artwork-plate": "#ffffff"
       }
     },
-    "command-palette": {
+    "dialog": {
       "base": {
         "--color-project-artwork-plate": "#ffffff"
       }

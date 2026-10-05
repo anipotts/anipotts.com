@@ -38,7 +38,7 @@ export const editorialTheme = defineTheme({
       },
     },
 
-    "command-palette": {
+    dialog: {
       base: { "--color-project-artwork-plate": projectArtworkPlate },
     },
     "top-nav": { base: { backgroundColor: "var(--color-background-surface)" } },
