@@ -104,14 +104,18 @@ describe("Quiet Precision library rows", () => {
       />,
     );
     expect(html).toContain("Listed");
-    expect(html).toContain("Unpublished edits");
-    expect(html).toContain('aria-label="Review changes: ChainedChat"');
+    expect(html).toContain("Unpublished changes");
+    expect(html).not.toContain("Unpublished edits");
+    expect(html).toContain("workspace-pending-dot");
+    expect(html).toContain(
+      'aria-label="Review changes: ChainedChat, Unpublished changes"',
+    );
     expect(html).toContain("view=review");
     expect(html).toContain(
       "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
     expect(html).toContain('class="workspace-row-mark"');
-    expect(html).toContain("editorial-record-exception");
+    expect(html).not.toContain("editorial-record-exception");
     // The whole row opens the record: no separate action column.
     expect(html).not.toContain("editorial-record-action");
     expect(html).toContain("Shared context across models");

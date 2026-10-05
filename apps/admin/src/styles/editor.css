@@ -851,3 +851,52 @@ html[data-theme="light"] .editor-rendered-value .inline-image-white {
     filter: brightness(0);
   }
 }
+
+/* Publishing review is a sibling region, not a modal overlay. */
+.editorial-workspace-shell
+  .editorial-content.writing-content:has(.publishing-review-panel) {
+  max-width: none;
+}
+.editor-workspace {
+  container-type: inline-size;
+}
+.record-workspace-layout[data-review-open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.publishing-review-panel {
+  min-width: 0;
+  width: 100%;
+  order: -1;
+  padding: var(--spacing-4);
+  background: var(--color-background-surface);
+  border-radius: var(--radius-container);
+  overflow-wrap: anywhere;
+}
+@container (min-width: 56rem) {
+  .record-workspace-layout[data-review-open] {
+    grid-template-columns: minmax(28rem, 1fr) minmax(24rem, 32rem);
+  }
+  .record-workspace-layout[data-review-open] > .record-workspace-main {
+    max-width: none;
+  }
+  .publishing-review-panel {
+    order: 0;
+    position: sticky;
+    top: var(--spacing-4);
+    max-height: calc(100dvh - var(--spacing-12) * 2);
+    overflow-y: auto;
+  }
+}
+.editor-published-state {
+  color: var(--color-success);
+}
+.editor-published-action:disabled {
+  color: var(--color-success);
+  background: var(--color-success-muted);
+  opacity: 1;
+}
+.editor-publish-action:disabled {
+  color: var(--color-text-secondary);
+  background: var(--color-background-surface);
+}

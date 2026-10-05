@@ -179,7 +179,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-it("keeps one editor bar and opens review as its own sheet with one Publish now", async () => {
+it("keeps one editor bar and opens review as a nonmodal sibling with one Publish now", async () => {
   await mount("?view=review", false);
   const bar = host.querySelector(".editor-bar")!;
   expect(bar).not.toBeNull();
@@ -188,7 +188,7 @@ it("keeps one editor bar and opens review as its own sheet with one Publish now"
   expect(
     [...host.querySelectorAll("h1")].map((node) => node.textContent),
   ).toEqual(["Original title"]);
-  const sheet = host.querySelector('aside[aria-label="Review changes"]')!;
+  const sheet = host.querySelector('[role="complementary"][aria-labelledby]')!;
   expect(sheet).not.toBeNull();
   expect(sheet.querySelector(".editor-revision-diff")).not.toBeNull();
   const saveStatus = host.querySelectorAll('[aria-label="Draft save status"]');
@@ -578,7 +578,11 @@ it("releases an unread record error body and shows the load failure", async () =
 it.each(["verified", "superseded", "unverified"])(
   "announces only a confirmed current publication (%s)",
   async (mode) => {
+    const { publicationSourceHash } =
+      await import("@anipotts/content/editorial/publication-contract");
+    const hash = await publicationSourceHash(source);
     const job = (phase: string) => ({
+      sourceSha256: hash,
       id: "test-publication",
       mode: "direct",
       publicationId: "receipt",
@@ -601,6 +605,15 @@ it.each(["verified", "superseded", "unverified"])(
         if (url.includes("/csrf")) return response({ csrf: "test-only" });
         if (url.includes("operationId="))
           return response({ publication: job(phase) });
+        if (url.includes("/baseline") && phase === "live")
+          return response({
+            base: {
+              ...snapshot.base,
+              source,
+              publicationId: "receipt",
+              sourceSha256: hash,
+            },
+          });
         if (url.includes("/publish"))
           return new Promise<Response>((resolve) => (finish = resolve));
         return response(snapshot);
@@ -632,7 +645,9 @@ it.each(["verified", "superseded", "unverified"])(
         expect(events).toHaveLength(0);
         return;
       }
-      expect(events).toHaveLength(1);
+      await act(async () => {
+        await vi.waitFor(() => expect(events).toHaveLength(1));
+      });
       expect(events[0]!.detail).toMatchObject({
         record: { kind: "writing", id: "test" },
         title: "Original title",
@@ -1320,5 +1335,92 @@ it.each([
     expect(host.textContent).toContain("Prepare");
     expect(host.textContent).toContain("Publish");
     expect(host.textContent).toContain("Verify");
+  },
+);
+
+it.each([false, true])(
+  "reconciles verified publication without replacing the current draft (newer=%s)",
+  async (newer) => {
+    const { publicationSourceHash } =
+      await import("@anipotts/content/editorial/publication-contract");
+    const savedSource = newer
+      ? source.replace("Original title", "Newer private title")
+      : source;
+    const hash = await publicationSourceHash(source);
+    const live = {
+      id: "completed",
+      mode: "direct",
+      revision: 1,
+      phase: "live",
+      publicationId: "verified-receipt",
+      verifiedAt: 12345,
+      blocked: null,
+      superseded: false,
+      sourceSha256: hash,
+      checkpoint: {},
+      attempts: 1,
+      dueAt: 0,
+      lease: null,
+      leaseUntil: 0,
+      version: 2,
+      queue: { pending: 0, position: null, head: null, alarmAt: null },
+    };
+    const base = {
+      ...snapshot.base,
+      source,
+      publicationId: "verified-receipt",
+      sourceSha256: hash,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/csrf")) return response({ csrf: "test-only" });
+        if (url.includes("/baseline")) return response({ base });
+        return response({
+          ...snapshot,
+          publication: live,
+          draft: { ...draft, source: savedSource, revision: newer ? 2 : 1 },
+        });
+      }),
+    );
+    const events: CustomEvent[] = [];
+    const listen = (event: Event) => events.push(event as CustomEvent);
+    window.addEventListener(RECORD_SAVED_EVENT, listen);
+    try {
+      await mount("?view=review", false);
+      await act(async () => {
+        await vi.waitFor(() => expect(events.length).toBe(1));
+      });
+      expect(events[0].detail.changesPending).toBe(newer);
+      expect(
+        host.querySelector('textarea[aria-label="Test article body"]'),
+      ).not.toBeNull();
+      expect(host.querySelector('[role="dialog"]')).toBeNull();
+      if (newer) {
+        expect(host.textContent).toContain("newer changes not published");
+        expect(
+          host
+            .querySelector('textarea[aria-label="Writing title"]')
+            ?.getAttribute("value") ?? host.textContent,
+        ).not.toContain("Refreshing published comparison");
+        if (
+          [...host.querySelectorAll("button")].some(
+            (button) => button.textContent?.trim() === "Retry review",
+          )
+        )
+          await click("Retry review");
+        expect(
+          host.querySelector('[aria-label="Reviewed source"]')?.textContent,
+        ).toContain("Newer private title");
+      } else {
+        const published = [...host.querySelectorAll("button")].filter(
+          (button) => button.textContent?.trim() === "Published",
+        );
+        expect(published.length).toBeGreaterThan(0);
+        expect(published.every((button) => button.disabled)).toBe(true);
+      }
+    } finally {
+      window.removeEventListener(RECORD_SAVED_EVENT, listen);
+    }
   },
 );

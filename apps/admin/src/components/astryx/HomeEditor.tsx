@@ -14,6 +14,11 @@ import { editorialRecordSummary } from "../../lib/editorial-record-summary";
 import { recordCollection } from "../../lib/editorial-collections";
 import { dispatchEditorialRecordSaved } from "../../lib/editorial-inventory-events";
 import { RecordPanel } from "./RecordPanel";
+import { PublishingReviewPanel } from "../workspace/PublishingReviewPanel";
+import {
+  verifiedPublication,
+  reconcilePublishedBaseline,
+} from "../../lib/published-baseline";
 import {
   readRecordWorkspaceState,
   recordWorkspaceUrl,
@@ -230,9 +235,9 @@ function announceRecordFreshness(
       summary: editorialRecordSummary(record, metadata) ?? "",
       revision: draft.revision,
       updatedAt: new Date(draft.updatedAt).toISOString(),
-      changesPending: publishedAt ? false : draft.source !== baseSource,
+      changesPending: draft.source !== baseSource,
       ...(typeof intended === "string" ? { intendedVisibility: intended } : {}),
-      ...(publishedAt ? { publishedAt } : {}),
+      ...(publishedAt && draft.source === baseSource ? { publishedAt } : {}),
     });
   } catch {
     /* Metadata refresh never interrupts an acknowledged save. */
@@ -295,6 +300,8 @@ function HomeEditorImpl({
   }, [state?.source]);
 
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const publicBaseSource = useRef<string | null>(null);
+  publicBaseSource.current = snapshot?.base.source ?? null;
   const [error, setError] = useState("");
   const [preflightIssues, setPreflightIssues] = useState<SnapshotIssue[]>([]);
   useEffect(() => {
@@ -624,6 +631,9 @@ function HomeEditorImpl({
   publicationRef.current = publication;
   const [publishing, setPublishing] = useState(false);
   const [publicationStale, setPublicationStale] = useState(false);
+  const [baselineRetry, setBaselineRetry] = useState(0);
+  const reconciledPublication = useRef<string | null>(null);
+  const [baselineError, setBaselineError] = useState(false);
   const [reviewedDraft, setReviewedDraft] = useState<ReviewedDraft | null>(
     null,
   );
@@ -703,7 +713,11 @@ function HomeEditorImpl({
               await postRequest("save", input),
             );
             if (result.ok)
-              announceRecordFreshness(record, result.draft, data.base.source);
+              announceRecordFreshness(
+                record,
+                result.draft,
+                publicBaseSource.current ?? data.base.source,
+              );
             return result;
           },
           (next) => {
@@ -824,25 +838,6 @@ function HomeEditorImpl({
         const data = await response.json();
         if (!cancelled && active === request) {
           if (!data.publication) throw new Error();
-          const submitted = publishedDraft.current;
-          if (
-            submitted &&
-            data.publication.phase === "live" &&
-            !data.publication.superseded &&
-            data.publication.publicationId &&
-            data.publication.verifiedAt != null &&
-            !data.publication.blocked &&
-            submitted.operationId === data.publication.id
-          ) {
-            const publishedAt = new Date().toISOString();
-            announceRecordFreshness(
-              record,
-              { ...submitted, updatedAt: publishedAt },
-              submitted.source,
-              publishedAt,
-            );
-            publishedDraft.current = null;
-          }
           setPublicationStale(false);
           setPublication(data.publication);
         }
@@ -988,6 +983,77 @@ function HomeEditorImpl({
   }, []);
   // A visibility change moves the public base. Once it activates, read the
   // base again so the editor offers the opposite action.
+  // Refresh only the public comparison baseline. The live draft/controller and
+  // unsaved rich-text buffers must survive publication of an older revision.
+  useEffect(() => {
+    if (!verifiedPublication(publication) || !snapshot) return;
+    const job = publication;
+    const identity = `${query}:${job.id}:${job.publicationId}`;
+    if (reconciledPublication.current === identity) return;
+    const changed = snapshot.base.publicationId !== job.publicationId;
+    let cancelled = false;
+    const request = new AbortController();
+    setBaselineError(false);
+    const baseline = changed
+      ? editorialAdminJson(endpoint("baseline"), {
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]),
+        }).then(async (response) => {
+          if (!response.ok) {
+            discardBody(response);
+            throw new Error();
+          }
+          return (await response.json()).base as HomeBase;
+        })
+      : Promise.resolve(snapshot.base);
+    void baseline
+      .then(async (base) => {
+        const confirmed = await reconcilePublishedBaseline(job, base);
+        if (cancelled) return;
+        reconciledPublication.current = identity;
+        publicBaseSource.current = confirmed.source;
+        if (changed) {
+          reviewRequest.current += 1;
+          setReviewLoading(false);
+        }
+        setSnapshot((previous) =>
+          previous ? { ...previous, base: confirmed } : previous,
+        );
+        if (changed) {
+          setReviewedDraft(null);
+          setReviewedBase(null);
+        }
+        const current = editor.current?.state;
+        if (current)
+          announceRecordFreshness(
+            record,
+            {
+              source: current.source,
+              revision: current.revision,
+              updatedAt: Date.now(),
+            },
+            confirmed.source,
+            new Date().toISOString(),
+          );
+        publishedDraft.current = null;
+      })
+      .catch(() => {
+        if (!cancelled) setBaselineError(true);
+      });
+    return () => {
+      cancelled = true;
+      request.abort();
+    };
+  }, [
+    publication?.id,
+    publication?.phase,
+    publication?.publicationId,
+    publication?.verifiedAt,
+    publication?.blocked,
+    publication?.superseded,
+    snapshot?.base.publicationId,
+    baselineRetry,
+    query,
+  ]);
   const activatedVisibility =
     publication?.publicationId &&
     snapshot &&
@@ -1442,32 +1508,44 @@ function HomeEditorImpl({
   const needsNewPublicationReview =
     publication?.phase === "cancelled" &&
     publication.revision === state.revision;
-  const publishUnavailable = preflightIssues.length
-    ? "Resolve the publication issues, then review your changes again."
-    : uploadPending
-      ? "Finish uploading or close the image crop before publishing."
-      : localPreview
-        ? "Publishing is available in the production editor. This draft stays local."
-        : snapshot.publishing !== "ready"
-          ? "Publishing is not configured. Your private draft is retained."
-          : publicationActive
-            ? "A publication is already in progress. See its status below; you can keep editing privately."
-            : needsNewPublicationReview
-              ? "This publication was stopped. Review again to prepare a new private revision."
-              : unsupportedPublication
-                ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
-                : !valid
-                  ? "Correct the marked fields before publishing."
-                  : snapshot.draft?.discardedAt
-                    ? "Recover this draft before publishing."
-                    : untouched && snapshot.base.publicationId
-                      ? "There are no changes to publish."
-                      : !reviewCurrent || reviewLoading
-                        ? "Waiting for the latest saved revision to finish reviewing."
-                        : state.source === snapshot.base.source &&
-                            snapshot.base.publicationId
-                          ? "There are no changes to publish."
-                          : null;
+  const baselinePending =
+    baselineError ||
+    (verifiedPublication(publication) &&
+      snapshot.base.publicationId !== publication.publicationId);
+  const publishedCurrent =
+    !baselinePending &&
+    Boolean(snapshot.base.publicationId) &&
+    state.source === snapshot.base.source &&
+    !bodyDirty &&
+    !uploadPending;
+  const publishUnavailable = baselinePending
+    ? "Refreshing the published comparison. Your newer edits are retained."
+    : preflightIssues.length
+      ? "Resolve the publication issues, then review your changes again."
+      : uploadPending
+        ? "Finish uploading or close the image crop before publishing."
+        : localPreview
+          ? "Publishing is available in the production editor. This draft stays local."
+          : snapshot.publishing !== "ready"
+            ? "Publishing is not configured. Your private draft is retained."
+            : publicationActive
+              ? "A publication is already in progress. See its status below; you can keep editing privately."
+              : needsNewPublicationReview
+                ? "This publication was stopped. Review again to prepare a new private revision."
+                : unsupportedPublication
+                  ? "Publishing keeps a piece visible. To take it off the website, use Unpublish; scheduling is not available yet. Update visibility in Properties or source before reviewing again; your draft is retained."
+                  : !valid
+                    ? "Correct the marked fields before publishing."
+                    : snapshot.draft?.discardedAt
+                      ? "Recover this draft before publishing."
+                      : untouched && snapshot.base.publicationId
+                        ? "There are no changes to publish."
+                        : !reviewCurrent || reviewLoading
+                          ? "Waiting for the latest saved revision to finish reviewing."
+                          : state.source === snapshot.base.source &&
+                              snapshot.base.publicationId
+                            ? "There are no changes to publish."
+                            : null;
   // Visibility on the website follows the public base, not the private draft.
   // A record that was never public has nothing to take down.
   const onWebsite = Boolean(snapshot.base.publicationId);
@@ -1814,12 +1892,14 @@ function HomeEditorImpl({
           : undefined
       }
       publish={{
-        label: hiddenFromSite ? "Publish again" : "Publish",
+        label: publishedCurrent
+          ? "Published"
+          : hiddenFromSite
+            ? "Publish again"
+            : "Publish",
+        isPublished: publishedCurrent,
         isLoading: reviewLoading && tab === "publish",
-        isDisabled:
-          !valid ||
-          discarded ||
-          (untouched && Boolean(snapshot.base.publicationId)),
+        isDisabled: !valid || discarded || publishedCurrent || baselinePending,
         onClick: () => {
           setConfirmingUnpublish(false);
           setTab("publish");
@@ -1978,6 +2058,7 @@ function HomeEditorImpl({
       <HStack
         className="record-workspace-layout"
         data-record-workspace
+        data-review-open={tab === "publish" || undefined}
         gap={6}
         vAlign="start"
       >
@@ -2891,12 +2972,31 @@ function HomeEditorImpl({
           </RecordPanel>
         )}
         {tab === "publish" && (
-          <RecordPanel
+          <PublishingReviewPanel
             title="Review changes"
-            form="review"
             onClose={() => setTab("edit")}
           >
             <VStack gap={4} className="editor-review">
+              {verifiedPublication(publication) && (
+                <Text role="status" className="editor-published-state">
+                  Published
+                  {!publishedCurrent ? "; newer changes not published" : ""}
+                </Text>
+              )}
+              {baselinePending && (
+                <Text role="status">
+                  {baselineError
+                    ? "Couldn’t refresh the published comparison. Your draft is retained."
+                    : "Refreshing published comparison…"}
+                </Text>
+              )}
+              {baselinePending && baselineError && (
+                <Button
+                  label="Retry comparison"
+                  onClick={() => setBaselineRetry((value) => value + 1)}
+                />
+              )}
+
               {error &&
                 (preflightIssues.length ? (
                   <PublicationIssues
@@ -2927,7 +3027,7 @@ function HomeEditorImpl({
                 label="Changes"
                 destination={`anipotts.com${livePath}`}
                 before={reviewedBase?.source ?? snapshot.base.source}
-                after={reviewedSource}
+                after={publishedCurrent ? snapshot.base.source : reviewedSource}
                 changes={reviewChanges}
               />
               {reviewedDraft && !reviewCurrent && (
@@ -2955,8 +3055,17 @@ function HomeEditorImpl({
               <HStack gap={2} wrap="wrap" className="editor-review-actions">
                 <Button
                   size="sm"
-                  label="Publish now"
-                  variant="primary"
+                  label={publishedCurrent ? "Published" : "Publish now"}
+                  className={
+                    publishedCurrent
+                      ? "editor-published-action"
+                      : "editor-publish-action"
+                  }
+                  variant={
+                    publishUnavailable || publishedCurrent
+                      ? "secondary"
+                      : "primary"
+                  }
                   isDisabled={Boolean(publishUnavailable)}
                   aria-describedby={
                     publishUnavailable
@@ -2987,7 +3096,7 @@ function HomeEditorImpl({
                 )}
               </HStack>
             </VStack>
-          </RecordPanel>
+          </PublishingReviewPanel>
         )}
       </HStack>
     </VStack>

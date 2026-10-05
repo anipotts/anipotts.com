@@ -1,3 +1,4 @@
+import { ContentRecordMark } from "../workspace/ContentRecordMark";
 import { navigateAdmin } from "../../lib/editorial-navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -373,11 +374,21 @@ export function AdminCommandPalette({
       }}
       renderItem={(item) => {
         const Glyph = item.auxiliaryData?.icon ?? FileTextIcon;
+        const href = item.auxiliaryData?.href;
+        const project =
+          typeof href === "string" && /^\/content\/projects\/[^/?]+/.test(href);
         return (
           <HStack gap={3} vAlign="center" className="admin-palette-result">
-            <span className="brand-tile admin-palette-tile" aria-hidden="true">
-              <Glyph className="brand-tile-glyph" weight="regular" />
-            </span>
+            {project ? (
+              <ContentRecordMark record={{ href }} />
+            ) : (
+              <span
+                className="brand-tile admin-palette-tile"
+                aria-hidden="true"
+              >
+                <Glyph className="brand-tile-glyph" weight="regular" />
+              </span>
+            )}
             <Text className="admin-palette-result-label">{item.label}</Text>
           </HStack>
         );

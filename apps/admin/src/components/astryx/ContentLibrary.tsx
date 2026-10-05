@@ -1,3 +1,4 @@
+import { ContentRecordMark } from "../workspace/ContentRecordMark";
 import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
@@ -348,24 +349,37 @@ export function ContentLibrary({
       header: "Title",
       render: (item) => {
         const decision = decisions.get(item)!;
-        const changed =
-          decision.action === "Review changes" &&
-          item.changedFields !== undefined
-            ? changedFieldSummary(item.changedFields)
-            : undefined;
+        const pending = item.changesPending && !decision.unavailable;
         return (
           <RowTitle
             icon={group.name === "writing" ? undefined : recordGlyph(item)[0]}
+            mark={
+              group.name === "work" ? (
+                <ContentRecordMark record={item} />
+              ) : undefined
+            }
             kind={recordGlyph(item)[1]}
             title={item.title}
             href={rowHref(item)}
-            linkLabel={rowName(item)}
-            tooltip={changed ? `${rowName(item)} (${changed})` : rowName(item)}
+            linkLabel={
+              pending ? `${rowName(item)}, Unpublished changes` : rowName(item)
+            }
+            tooltip={
+              pending ? `${rowName(item)}: Unpublished changes` : rowName(item)
+            }
+            wrap={false}
+            tooltipOnFocus={Boolean(pending)}
+            titleIndicator={
+              <span className="workspace-pending-slot" aria-hidden="true">
+                {pending && <span className="workspace-pending-dot" />}
+              </span>
+            }
             secondary={
-              decision.detail || decision.unavailable ? (
+              (decision.detail && !item.changesPending) ||
+              decision.unavailable ? (
                 <span className="editorial-record-exception">
                   {decision.unavailable && <UnavailableMark />}
-                  {decision.detail}
+                  {!item.changesPending && decision.detail}
                 </span>
               ) : undefined
             }

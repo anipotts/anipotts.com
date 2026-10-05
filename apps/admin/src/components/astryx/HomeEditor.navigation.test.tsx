@@ -421,8 +421,8 @@ it("leaving review during session preparation never starts publication", async (
       ),
     );
   });
-  // The review sheet's close returns to the editor.
-  await click("Close panel");
+  // The review panel's close returns to the editor.
+  await click("Close review changes");
   await act(async () => {
     finish(response({ csrf: "test-only" }));
     await csrf;
