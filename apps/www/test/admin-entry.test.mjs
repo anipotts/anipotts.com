@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 globalThis.document = new EventTarget();
-const { toggleEntrySidebar } = await import("../src/scripts/admin-entry.ts");
+document.querySelectorAll = () => [];
+const { toggleEntrySidebar, bindEntrySidebar } =
+  await import("../src/scripts/admin-entry.ts");
 
 function controls(inert = false) {
   const shell = { dataset: {}, hasAttribute: () => inert };
@@ -35,4 +37,20 @@ test("transition previews remain inert", () => {
   toggleEntrySidebar(button);
   assert.deepEqual(shell.dataset, {});
   assert.deepEqual(attributes, {});
+});
+
+test("repeated page loads bind one toggle per activation", () => {
+  const { shell, button } = controls();
+  button.dataset = {};
+  document.querySelectorAll = () => [button];
+  try {
+    bindEntrySidebar();
+    bindEntrySidebar();
+    button.onclick();
+    assert.equal(shell.dataset.sidebarCollapsed, "true");
+    button.onclick();
+    assert.equal(shell.dataset.sidebarCollapsed, "false");
+  } finally {
+    document.querySelectorAll = () => [];
+  }
 });
