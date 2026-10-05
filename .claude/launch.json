@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "www (canonical integration)",
+      "url": "http://127.0.0.1:4580"
+    },
+    {
+      "name": "admin (canonical integration)",
+      "url": "http://localhost:4311"
+    }
+  ]
+}

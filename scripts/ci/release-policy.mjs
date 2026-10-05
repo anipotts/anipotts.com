@@ -53,6 +53,7 @@ const PUBLIC_BROWSER_PATHS = [
 ];
 
 const LOCAL_DEV_PATHS = [
+  /^\.claude\/launch\.json$/,
   /^\.codex\//,
   /^\.claude\/settings\.json$/,
   /^\.nvmrc$/,
@@ -78,6 +79,7 @@ const APPROVAL_PATHS = [
 const KNOWN_SAFE_ROOTS = [
   /^\.codex\/config\.toml$/,
   /^\.claude\/settings\.json$/,
+  /^\.claude\/launch\.json$/,
   /^\.codex\/environments\/environment\.toml$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
