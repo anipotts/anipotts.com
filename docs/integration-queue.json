@@ -294,29 +294,69 @@
       "title": "Admin inset top and left edges",
       "revision": "a1b103e6c9fe4e0eaa0de2ffec4fe572069880f6",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "PR499 exact a1b103e6 CI37254443830 and security passed. Canonical top/left1px, bottom/right0px and 33 shell/frame checks passed. Waiting for Ani code and production review."
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "a1b103e6c9fe4e0eaa0de2ffec4fe572069880f6",
+          "by": "Ani",
+          "at": "2026-10-05T02:57:31.745898+00:00",
+          "evidence": "Direct website chat reply: approved to deploy all. Owner stated scope PR500 table loading, PR502 tablet sidebar, PR499 inset edges. PR500 main refresh changes no apps/admin source versus reviewed1113ef04."
+        },
+        "production": {
+          "revision": "a1b103e6c9fe4e0eaa0de2ffec4fe572069880f6",
+          "by": "Ani",
+          "at": "2026-10-05T02:57:31.745898+00:00",
+          "evidence": "Direct website chat reply: approved to deploy all. Owner stated scope PR500 table loading, PR502 tablet sidebar, PR499 inset edges. PR500 main refresh changes no apps/admin source versus reviewed1113ef04."
+        }
+      },
+      "note": "PR499 exact a1b103e6 CI37254443830 and security passed. Canonical top/left1px, bottom/right0px and 33 shell/frame checks passed. Waiting for Ani code and production review. Ani approved current source changes for admin deployment; strict current-main checks refreshing before serial merges.",
+      "updatedAt": "2026-10-05T02:57:31.745898+00:00"
     },
     {
       "id": "table-loading-layout",
       "title": "Static table headers and stable loading geometry",
-      "revision": "1113ef04be085d52f3cf4b942de5ebf8d3dd5596",
+      "revision": "3af4961e58d0645069911062444085c444e98901",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "updatedAt": "2026-10-05T02:53:35.229769+00:00",
-      "note": "PR500 initial approved45356530 passed required CI but protected merge refused due four new review threads. Corrected static Sources/Records schemas, loading tokens and responsive row rules at1113ef04. Current focused tests and types pass; renewed code/production review required for changed content. No merge/deploy."
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "3af4961e58d0645069911062444085c444e98901",
+          "by": "Ani",
+          "at": "2026-10-05T02:57:31.745898+00:00",
+          "evidence": "Direct website chat reply: approved to deploy all. Owner stated scope PR500 table loading, PR502 tablet sidebar, PR499 inset edges. PR500 main refresh changes no apps/admin source versus reviewed1113ef04."
+        },
+        "production": {
+          "revision": "3af4961e58d0645069911062444085c444e98901",
+          "by": "Ani",
+          "at": "2026-10-05T02:57:31.745898+00:00",
+          "evidence": "Direct website chat reply: approved to deploy all. Owner stated scope PR500 table loading, PR502 tablet sidebar, PR499 inset edges. PR500 main refresh changes no apps/admin source versus reviewed1113ef04."
+        }
+      },
+      "updatedAt": "2026-10-05T02:57:31.745898+00:00",
+      "note": "PR500 initial approved45356530 passed required CI but protected merge refused due four new review threads. Corrected static Sources/Records schemas, loading tokens and responsive row rules at1113ef04. Current focused tests and types pass; renewed code/production review required for changed content. No merge/deploy. Ani approved current source changes for admin deployment; strict current-main checks refreshing before serial merges."
     },
     {
       "id": "tablet-sidebar-layout",
       "title": "Tablet sidebar expands beside content",
       "revision": "b19ab1e01d26dbdccb30b0a817465dfd5ee86a9c",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "updatedAt": "2026-10-05T02:53:35.229769+00:00",
-      "note": "PR502 draft atb19ab1e0, locally integrated. 54 focused responsive/prepaint/house-style tests pass, Astro zero errors/warnings. Browser at930px: sidebar52px/200px, main x52/x200, no modal/filter/overflow. Awaiting Ani review, admin-only release."
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "b19ab1e01d26dbdccb30b0a817465dfd5ee86a9c",
+          "by": "Ani",
+          "at": "2026-10-05T02:57:31.745898+00:00",
+          "evidence": "Direct website chat reply: approved to deploy all. Owner stated scope PR500 table loading, PR502 tablet sidebar, PR499 inset edges. PR500 main refresh changes no apps/admin source versus reviewed1113ef04."
+        },
+        "production": {
+          "revision": "b19ab1e01d26dbdccb30b0a817465dfd5ee86a9c",
+          "by": "Ani",
+          "at": "2026-10-05T02:57:31.745898+00:00",
+          "evidence": "Direct website chat reply: approved to deploy all. Owner stated scope PR500 table loading, PR502 tablet sidebar, PR499 inset edges. PR500 main refresh changes no apps/admin source versus reviewed1113ef04."
+        }
+      },
+      "updatedAt": "2026-10-05T02:57:31.745898+00:00",
+      "note": "PR502 draft atb19ab1e0, locally integrated. 54 focused responsive/prepaint/house-style tests pass, Astro zero errors/warnings. Browser at930px: sidebar52px/200px, main x52/x200, no modal/filter/overflow. Awaiting Ani review, admin-only release. Ani approved current source changes for admin deployment; strict current-main checks refreshing before serial merges."
     }
   ]
 }
