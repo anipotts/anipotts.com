@@ -189,7 +189,7 @@
       "title": "Landscape invariants and guidance symlink",
       "revision": "f0b5647630e675493a24e7b4187257a1dec40c1e",
       "lane": "code",
-      "state": "approved",
+      "state": "deployed",
       "approvals": {
         "code": {
           "revision": "f0b5647630e675493a24e7b4187257a1dec40c1e",
@@ -198,7 +198,12 @@
           "at": "2026-10-04T20:00:00-04:00"
         }
       },
-      "note": "Full CI running; merge first. Local path classifier selects no targets."
+      "note": "Merged as 18e3fc3668d461e871b0a7cfd5dfe442f2d9cc5d after exact-head CI and live protection checks. Deploy run succeeded with every app, worker and migration job skipped. No application deployment occurred.",
+      "deployment": {
+        "revision": "18e3fc3668d461e871b0a7cfd5dfe442f2d9cc5d",
+        "target": "none",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37244536612"
+      }
     },
     {
       "id": "pr-494",
@@ -219,10 +224,10 @@
     {
       "id": "pr-493",
       "title": "Public card currents and page-band drift",
-      "revision": "c584464d5c0843d4df4ed444cb8924192a632e62",
+      "revision": "64c38b76737afbca965f524a1f710f3049ec4c99",
       "lane": "code",
-      "state": "approved",
-      "note": "Ani waived further visual preview and approved final tuning, review, merge and live deployment. Main update preserves approved motion source; only fixture reconciliation changed. Await exact-head full CI. Classifier selects www and admin because admin reuses public components; additional app-target approval requested before merge.",
+      "state": "awaiting-review",
+      "note": "Ani approved original tuning and www + admin targets. Current high-refresh correction passed CI 37244998251. Native review blocked merge of changed source head pending explicit renewed approval. Additional offscreen-card wakeup correction is tested locally, unpushed; native review blocked its push/review resolution until approval. Both correction approvals requested; production unchanged.",
       "approvals": {
         "code": {
           "revision": "c584464d5c0843d4df4ed444cb8924192a632e62",
@@ -246,6 +251,24 @@
       "state": "implementing",
       "note": "Plan complete only. No source implementation, PR, merge or deployment. Plan: /Users/anipotts/.codex/visualizations/2026/10/04/01a108cd-5713-7131-a18e-89284afdf84f/admin-publishing-redesign-plan.md. Existing main uses review dialog. Planned first step: immutable activation acknowledgement/revision reconciliation before continuous panel UI.",
       "approvals": {}
+    },
+    {
+      "id": "pr-496",
+      "title": "Sidebar www return and public sign-in collapse",
+      "revision": "94916dcbf",
+      "lane": "code",
+      "state": "approved",
+      "approvals": {},
+      "note": "Ani requested www beside theme, removal of sidebar logout, deployment once fixed, and functional public sign-in collapse. Canonical browser confirms Enter collapse and Space expansion. 27 shell tests, 9 entry/navigation tests, focused canceled-signout recovery test and app typechecks passed. Full exact-head CI 37250087811 running; no merge or deploy yet."
+    },
+    {
+      "id": "preview-module-urls",
+      "title": "Local Astro component module URL compatibility",
+      "revision": "cb975fd77",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "note": "Separate pushed codex/preview-module-urls branch; developer-only redirects for known public components and installed Astro ClientRouter. Three focused tests pass; canonical controls verified. Classifier selects no targets. Native review blocked opening its PR without immediate send approval; approval requested."
     }
   ]
 }
