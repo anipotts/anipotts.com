@@ -4,6 +4,7 @@ import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AdminShell } from "./AdminShell";
 import { EditorialApp } from "./EditorialApp";
 import {
   EditorialWorkspaceShell,
@@ -43,7 +44,7 @@ describe("Website workspace navigation", () => {
       "Newsletter",
     ]);
   });
-  it("renders one workspace shell with navigation, preserves private logout boundary", () => {
+  it("renders website return beside theme controls in local and production shells", () => {
     const render = (localPreview: boolean) =>
       renderToStaticMarkup(
         <EditorialApp
@@ -58,7 +59,15 @@ describe("Website workspace navigation", () => {
     expect(local).toContain('data-sidebar-group="content"');
     expect(local).toContain("Pages");
     expect(local).not.toContain("/auth/logout");
-    expect(render(false)).toContain("/auth/logout");
+    const production = render(false);
+    expect(production).not.toContain("/auth/logout");
+    for (const shell of [local, production]) {
+      expect(shell).toContain('href="https://anipotts.com/"');
+      expect(shell).toContain("www");
+      expect(shell).toContain(
+        "editorial-workspace-utilities editorial-workspace-utility-controls",
+      );
+    }
     expect(local).not.toContain('class="editorial-nav-actions"');
   });
 });
@@ -204,5 +213,30 @@ it("confines collapsed geometry to the inline sidebar, excluding the modal drawe
         ".astryx-app-shell-sidenav .editorial-workspace-nav",
       );
     }
+  }
+});
+
+it("returns every workspace to its configured website preview", () => {
+  for (const shell of [
+    <EditorialApp
+      title="Content"
+      area="content"
+      localPreview
+      siteUrl="http://127.0.0.1:4580/"
+    />,
+    <AdminShell
+      currentRoute="/observability/status"
+      localPreview
+      siteUrl="http://127.0.0.1:4580/"
+    >
+      Content
+    </AdminShell>,
+  ]) {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(shell);
+    const links = host.querySelectorAll(".editorial-workspace-utilities a");
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links)
+      expect(link.getAttribute("href")).toBe("http://127.0.0.1:4580/");
   }
 });

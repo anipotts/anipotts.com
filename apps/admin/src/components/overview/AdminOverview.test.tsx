@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import snapshot from "../../fixtures/ops_v1.sample.json";
 import events from "../../fixtures/ops_events_v1.synthetic.json";
 import data from "../../fixtures/data_v1.synthetic.json";
+import { AlertsTable } from "../astryx/ObservabilityWorkspace";
 import { AdminOverview } from "./AdminOverview";
 
 const NOW = Date.parse("2026-09-21T18:00:00Z");
@@ -203,8 +204,44 @@ describe("the one overview", () => {
       [...host.querySelectorAll(`table[aria-label="${label}"] thead th`)]
         .slice(-2)
         .map((th) => (th as HTMLElement).style.width);
-    expect(tail("Firing alerts")).toEqual(["144px", "116px"]);
+    expect(tail("Firing alerts")[0]).toBe("144px");
+    expect(parseFloat(tail("Firing alerts")[1]!)).toBeGreaterThanOrEqual(116);
     expect(tail("Recently updated content")).toEqual(["144px", "116px"]);
+  });
+
+  it("keeps the overview Since width when loading settles to a bounded alert", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <AlertsTable rows={[]} loading now={NOW} />,
+    );
+    // Astryx's header carries the same column position as the response table.
+    const sinceWidth = () =>
+      (host.querySelectorAll("thead th")[2] as HTMLElement).style.width;
+    const loading = sinceWidth();
+    host.innerHTML = renderToStaticMarkup(
+      <AlertsTable
+        now={NOW}
+        rows={[
+          {
+            subject: "pc.inference",
+            name: "Inference",
+            kind: null,
+            host: null,
+            runbook: null,
+            status: "firing",
+            state: "failing",
+            peak: "failing",
+            since: null,
+            startedBefore: "2026-09-20T12:00:00Z",
+            resolvedAt: null,
+            detail: null,
+            incidents: 1,
+          },
+        ]}
+      />,
+    );
+    expect(sinceWidth()).toBe(loading);
+    expect(host.textContent).toContain("Seen");
   });
 
   it("shows each recent record as one row: tile, title, source, state and time", async () => {
@@ -227,19 +264,18 @@ describe("the one overview", () => {
     for (let i = 0; i < 10; i++)
       await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     const table = host.querySelector('table[aria-label="Recent records"]')!;
-    // No recent record has a state to show, so the column holds the tier
-    // glyphs under an assistive heading, never an empty "State" over them.
+    // The State header and width match loading even when rows only show tiers.
     const heads = [...table.querySelectorAll("thead th")];
     expect(heads.map((th) => th.textContent)).toEqual([
       "Record",
       "Source",
-      "Tier",
+      "State",
       "Occurred",
     ]);
-    expect(heads[2]!.querySelector(".sr-only")).not.toBeNull();
+    expect(heads[2]!.querySelector(".sr-only")).toBeNull();
     expect(
       heads.slice(-2).map((th) => (th as HTMLElement).style.width),
-    ).toEqual(["56px", "116px"]);
+    ).toEqual(["144px", "116px"]);
     expect(
       table.querySelectorAll('tbody td[data-column="state"] .workspace-tier')
         .length,

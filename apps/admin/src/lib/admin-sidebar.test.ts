@@ -39,15 +39,15 @@ function prepaint(
 }
 
 describe("sidebar rail choice", () => {
-  it("has no sidebar at compact widths, the rail at medium, and a saved choice from 1024px", () => {
+  it("uses the drawer on phones and the saved inline sidebar choice from 641px", () => {
     expect(RAIL_QUERY).toBe("(min-width: 641px) and (max-width: 1279px)");
     expect(sidebarRail(390, true, false)).toBe(false);
     expect(sidebarRail(640, true, false)).toBe(false);
     expect(sidebarRail(641, null, true)).toBe(true);
     expect(sidebarRail(768, true, true)).toBe(true);
-    // A saved expand never crushes a tablet's tables.
-    expect(sidebarRail(768, false, true)).toBe(true);
-    expect(sidebarRail(1023, false, true)).toBe(true);
+    // Tablets honor an explicit expansion just like desktop.
+    expect(sidebarRail(768, false, true)).toBe(false);
+    expect(sidebarRail(1023, false, true)).toBe(false);
     expect(sidebarRail(1024, false, true)).toBe(false);
     expect(sidebarRail(1440, true, false)).toBe(true);
     expect(sidebarRail(1440, null, false)).toBe(false);

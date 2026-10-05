@@ -75,6 +75,23 @@ describe("initial recent records", () => {
         ),
       );
       await settle();
+      const pendingTable = host.querySelector(
+        'table[aria-label="recent records"]',
+      );
+      expect(
+        [...pendingTable!.querySelectorAll("thead th")].map(
+          (cell) => cell.textContent,
+        ),
+      ).toEqual(["Record", "Source", "State", "Occurred"]);
+      expect(pendingTable!.querySelectorAll("[data-loading-row]")).toHaveLength(
+        5,
+      );
+      const pendingSchema = [...pendingTable!.querySelectorAll("thead th")].map(
+        (cell) => ({
+          title: cell.textContent,
+          width: (cell as HTMLElement).style.width,
+        }),
+      );
       const answer = (kind: "records" | "sources") =>
         Response.json({
           schema: "personal_context_data_v1",
@@ -98,6 +115,16 @@ describe("initial recent records", () => {
         host.querySelector('[aria-label="Loading recent records"]'),
       ).toBeNull();
       expect(host.textContent).toContain(data.records[0]!.title);
+      expect(
+        [
+          ...host.querySelectorAll(
+            'table[aria-label="Recent records"] thead th',
+          ),
+        ].map((cell) => ({
+          title: cell.textContent,
+          width: (cell as HTMLElement).style.width,
+        })),
+      ).toEqual(pendingSchema);
       await act(async () => root.unmount());
       session.logout();
     },
@@ -153,8 +180,24 @@ describe("live alerts on the overview", () => {
       ),
     );
     await settle();
-    expect(host.querySelector('[aria-label="Loading alerts"]')).not.toBeNull();
-    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+    expect(
+      host.querySelector('[aria-label="Loading firing alerts"]'),
+    ).not.toBeNull();
+    expect(
+      host
+        .querySelector('table[aria-label="Firing alerts"]')
+        ?.getAttribute("aria-busy"),
+    ).toBe("true");
+    expect(
+      [
+        ...host.querySelectorAll('table[aria-label="Firing alerts"] thead th'),
+      ].map((cell) => cell.textContent),
+    ).toEqual(["Alert", "State", "Since"]);
+    expect(
+      host.querySelectorAll(
+        'table[aria-label="Firing alerts"] [data-loading-row]',
+      ),
+    ).toHaveLength(3);
     await act(async () =>
       first(
         Response.json({
@@ -165,8 +208,24 @@ describe("live alerts on the overview", () => {
       ),
     );
     await settle();
-    expect(host.querySelector('[aria-label="Loading alerts"]')).not.toBeNull();
-    expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
+    expect(
+      host.querySelector('[aria-label="Loading firing alerts"]'),
+    ).not.toBeNull();
+    expect(
+      host
+        .querySelector('table[aria-label="Firing alerts"]')
+        ?.getAttribute("aria-busy"),
+    ).toBe("true");
+    expect(
+      [
+        ...host.querySelectorAll('table[aria-label="Firing alerts"] thead th'),
+      ].map((cell) => cell.textContent),
+    ).toEqual(["Alert", "State", "Since"]);
+    expect(
+      host.querySelectorAll(
+        'table[aria-label="Firing alerts"] [data-loading-row]',
+      ),
+    ).toHaveLength(3);
     expect(waits).toEqual([null, null]);
     await act(async () =>
       last(
@@ -179,7 +238,9 @@ describe("live alerts on the overview", () => {
     );
     await settle();
     expect(controller.getState().eventsInitial).toBe("ready");
-    expect(host.querySelector('[aria-label="Loading alerts"]')).toBeNull();
+    expect(
+      host.querySelector('[aria-label="Loading firing alerts"]'),
+    ).toBeNull();
     expect(host.querySelector('table[aria-label="Firing alerts"]')).toBeNull();
     await act(async () => root.unmount());
     controller.dispose();
