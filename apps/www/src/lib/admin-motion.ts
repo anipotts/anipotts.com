@@ -20,6 +20,7 @@ export interface IdentityGeometry {
   footer: LogoAnchor;
   origin: number;
   baseline: number;
+  adminScale?: number;
   targetLetters: readonly number[];
 }
 export interface MotionRoute {
@@ -35,6 +36,7 @@ export interface IdentitySample {
   bracket: number;
   native: number;
   pX: number;
+  glyphScale: number;
   blur: number;
   context: number;
   plane: number;
@@ -127,10 +129,13 @@ export const sourcePose = (source: LogoAnchor): Pose => ({
   y: source.y - 51 * source.scale,
   scale: source.scale,
 });
-export const endPose = (geometry: IdentityGeometry): Pose => ({
+export const endPose = (
+  geometry: IdentityGeometry,
+  direction: Direction = -1,
+): Pose => ({
   x: geometry.origin,
-  y: geometry.baseline - 100 * geometry.header.scale,
-  scale: geometry.header.scale,
+  y: geometry.baseline - 100 * (geometry.adminScale ?? geometry.header.scale),
+  scale: direction === 1 ? geometry.footer.scale : geometry.header.scale,
 });
 
 /** Reverse playback samples t from 1 to 0 and lands in the public header. */
@@ -142,7 +147,7 @@ export function logoPose(
   const start = sourcePose(
     direction === -1 ? geometry.header : geometry.footer,
   );
-  const end = endPose(geometry);
+  const end = endPose(geometry, direction);
   if (geometry.layout === "compact") {
     // Resolve the small horizontal offset first. The long rise then follows
     // the card's vertical expansion without a sideways jog at the destination.
@@ -178,16 +183,19 @@ function reroutedPose(
 ): Pose {
   if (!route) return logoPose(t, geometry, direction);
   const u = clamp((t - route.start) / (route.end - route.start));
-  const end = direction === 1 ? endPose(geometry) : sourcePose(geometry.header);
+  const end =
+    direction === 1
+      ? endPose(geometry, direction)
+      : sourcePose(geometry.header);
   const x =
     direction === 1 ? segment(u, 0.7, 1, travel) : segment(u, 0, 0.3, travel);
   const y =
     direction === 1 ? segment(u, 0, 0.7, travel) : segment(u, 0.3, 1, travel);
-  if (direction === 1 && t >= route.end) return endPose(geometry);
+  if (direction === 1 && t >= route.end) return endPose(geometry, direction);
   return {
     x: mix(route.from.x, end.x, x),
     y: mix(route.from.y, end.y, y),
-    scale: geometry.header.scale,
+    scale: direction === 1 ? geometry.footer.scale : geometry.header.scale,
   };
 }
 
@@ -250,6 +258,9 @@ export function sampleIdentity(
     bracket,
     native,
     pX: mix(106.8 + 18 * spread, geometry.targetLetters[1], dock),
+    // Resize the letter shapes only while they morph at the dock. The AP's
+    // travel scale stays fixed even when header and footer marks differ.
+    glyphScale: mix(1, (geometry.adminScale ?? pose.scale) / pose.scale, dock),
     blur: Math.min(4, angularVelocity * 0.35),
     context: 1 - segment(t, 0.025, 0.235),
     plane: segment(t, 0.015, 0.38, travel),
