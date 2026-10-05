@@ -302,11 +302,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
             {loading && !rows.length && (
               <tbody aria-hidden="true" data-loading-rows="">
                 {Array.from({ length: Math.max(0, loadingRows) }, (_, row) => (
-                  <tr
-                    key={row}
-                    data-record-id={`loading-${row}`}
-                    data-loading-row=""
-                  >
+                  <tr key={row} data-loading-row="">
                     {selection && <td className="admin-table-select" />}
                     {columns.map((column, index) => (
                       <td
@@ -339,8 +335,8 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                         >
                           {index === 0 && (
                             <Skeleton
-                              width="20px"
-                              height="20px"
+                              width="var(--spacing-5)"
+                              height="var(--spacing-5)"
                               radius={1}
                               index={row}
                             />

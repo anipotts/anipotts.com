@@ -677,9 +677,8 @@ export function RecordsExplorer({
     controls: id ? detailId : undefined,
     hideSource: Boolean(source),
     beside,
-    // When no row has a state to show, the column holds only the tier
-    // glyph, with no empty "State" heading over it.
-    tiersOnly: recordTiersOnly(list?.items ?? []),
+    // Keep the header and width fixed before and after rows arrive.
+    tiersOnly: false,
   });
 
   return (

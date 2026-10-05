@@ -52,7 +52,7 @@ import {
 } from "../workspace/Workspace";
 import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
-import { recordColumns, recordTiersOnly } from "../data/RecordsView";
+import { recordColumns } from "../data/RecordsView";
 import { parseItems, parseRecord } from "../data/data-model";
 import {
   SourceNamesContext,
@@ -396,7 +396,7 @@ function RecentRecords({
           rows={RECENT}
           columns={recordColumns({
             href: (item) => dataRecordHref(item.id),
-            tiersOnly: true,
+            tiersOnly: false,
           })}
         />
       ) : session.status !== "ready" ? (
@@ -414,7 +414,7 @@ function RecentRecords({
             footer={false}
             columns={recordColumns({
               href: (item) => dataRecordHref(item.id),
-              tiersOnly: recordTiersOnly(items),
+              tiersOnly: false,
             })}
           />
         </SourceNamesContext>

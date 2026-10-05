@@ -276,6 +276,7 @@ describe("global table interactions", () => {
     expect(host.querySelectorAll("[data-loading-row]")).toHaveLength(3);
     const placeholders = host.querySelector("[data-loading-rows]")!;
     expect(placeholders.getAttribute("aria-hidden")).toBe("true");
+    expect(placeholders.querySelectorAll("[data-record-id]")).toHaveLength(0);
     expect(
       placeholders.querySelectorAll("a,button,input,[tabindex]"),
     ).toHaveLength(0);
