@@ -4,6 +4,10 @@ import {
   PrivateReaderError,
   privateReaderInit,
 } from "./private-reader-fetch";
+import {
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_OPS_SCOPES,
+} from "./private-reader-modes";
 import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
@@ -50,9 +54,10 @@ import {
  * flag is set in no deploy yet, and tests use fixtures only.
  */
 export const OPS_SNAPSHOT_PATH = "/v1/ops/snapshot";
-/** Mirrors PRIVATE_READER_OPS_PATH without pulling signing code into the client. */
-export const OPS_CREDENTIAL_ENDPOINT = "/api/private-reader/ops-credential";
-export const OPS_SCOPE = "ops:read";
+/** The ops issuance route and its one scope, shared with the server through
+ * lib/private-reader-modes.ts without pulling signing code into the client. */
+export const OPS_CREDENTIAL_ENDPOINT = PRIVATE_READER_OPS_PATH;
+export const OPS_SCOPE = PRIVATE_READER_OPS_SCOPES[0];
 export const OPS_POLL_MS = 30_000;
 export const OPS_READ_TIMEOUT_MS = 10_000;
 /** The events fallback interval: after an error, after repeated short

@@ -1,4 +1,5 @@
 import { AdminRequestError, protectedAdminJson } from "./protected-admin-json";
+import { PRIVATE_READER_PATH } from "./private-reader-modes";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -68,7 +69,7 @@ export function createPrivateReaderSession(
   const setTimer = options.setTimer ?? setTimeout;
   const clearTimer = options.clearTimer ?? clearTimeout;
   const lead = options.renewLeadMs ?? 10_000;
-  const endpoint = options.endpoint ?? "/api/private-reader/credential";
+  const endpoint = options.endpoint ?? PRIVATE_READER_PATH;
   const listeners = new Set<() => void>();
   let state: PrivateReaderState = { status: "idle" };
   let renewTimer: Timer | null = null;

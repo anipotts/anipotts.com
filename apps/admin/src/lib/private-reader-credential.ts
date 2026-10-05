@@ -5,6 +5,15 @@ import {
   privateJson,
   readEditorialJson,
 } from "./editorial-security";
+import {
+  PRIVATE_READER_HEALTH_PATH,
+  PRIVATE_READER_HEALTH_SCOPES,
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_OPS_SCOPES,
+  PRIVATE_READER_ORIGIN,
+  PRIVATE_READER_PATH,
+  PRIVATE_READER_SCOPES,
+} from "./private-reader-modes";
 
 /**
  * Short private reader delegation for the tailnet reader on ap-mini.
@@ -13,21 +22,21 @@ import {
  * ES256 private JWK is bound. Device admission is enforced by the tailnet
  * grant, never by request headers, so this reads no device, principal or scope
  * header. It reuses the owner middleware verified, verifying only without one.
+ *
+ * Issuance paths, scopes and the reader origin are client-safe and written
+ * once in lib/private-reader-modes.ts, which the browser readers import too.
+ * They are re-exported here unchanged for the server routes.
  */
-export const PRIVATE_READER_PATH = "/api/private-reader/credential";
-/** Separate issuance for the Observability Status view. */
-export const PRIVATE_READER_OPS_PATH = "/api/private-reader/ops-credential";
-/** Separate issuance for the Data Health view. */
-export const PRIVATE_READER_HEALTH_PATH =
-  "/api/private-reader/health-credential";
+export {
+  PRIVATE_READER_PATH,
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_HEALTH_PATH,
+  PRIVATE_READER_SCOPES,
+  PRIVATE_READER_OPS_SCOPES,
+  PRIVATE_READER_HEALTH_SCOPES,
+};
 export const PRIVATE_READER_ISSUER = "https://admin.anipotts.com";
-export const PRIVATE_READER_AUDIENCE = "https://ap-mini.tail060490.ts.net";
-/** Server selected. Client-requested scopes are ignored. */
-export const PRIVATE_READER_SCOPES = ["data:read", "activity:read"] as const;
-/** Ops credentials carry only this scope and never a Data scope. */
-export const PRIVATE_READER_OPS_SCOPES = ["ops:read"] as const;
-/** Health credentials carry only the daily health summary scope. */
-export const PRIVATE_READER_HEALTH_SCOPES = ["health:read"] as const;
+export const PRIVATE_READER_AUDIENCE = PRIVATE_READER_ORIGIN;
 
 /**
  * Each mode has its own path, fixed scope set and switch, so an
