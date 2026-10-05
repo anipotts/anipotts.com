@@ -258,6 +258,11 @@
   }
 }
 
+/* Keep row geometry while hiding the loaded table's rule during loading. */
+.admin-data-table .openai-record-table tbody tr[data-loading-row] {
+  border-bottom-color: transparent;
+}
+
 .admin-table-loading-primary {
   display: flex;
   align-items: center;
