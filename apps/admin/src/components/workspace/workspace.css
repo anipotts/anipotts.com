@@ -1238,5 +1238,4 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   width: var(--spacing-2);
   height: var(--spacing-2);
   border-radius: 50%;
-  background: var(--color-warning);
 }

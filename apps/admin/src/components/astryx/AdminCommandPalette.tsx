@@ -1,4 +1,4 @@
-import { ContentRecordMark } from "../workspace/ContentRecordMark";
+import { ContentRecordMark } from "../workspace/Workspace";
 import { navigateAdmin } from "../../lib/editorial-navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -380,7 +380,10 @@ export function AdminCommandPalette({
         return (
           <HStack gap={3} vAlign="center" className="admin-palette-result">
             {project ? (
-              <ContentRecordMark record={{ href }} />
+              <ContentRecordMark
+                record={{ href }}
+                className="admin-palette-tile"
+              />
             ) : (
               <span
                 className="brand-tile admin-palette-tile"

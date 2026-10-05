@@ -78,6 +78,7 @@ export function BrandTile({
   id,
   artwork,
   kind = "unknown",
+  glyph,
   size,
   label,
   className,
@@ -88,6 +89,7 @@ export function BrandTile({
   artwork?: string | null;
   /** The Phosphor fallback when `id` has no mark. */
   kind?: GlyphKind;
+  glyph?: Icon;
   /** Omit inside RowTitle's mark slot to follow `--row-mark-size`. */
   size?: BrandTileSize;
   /** The accessible name and tooltip. Omit when text beside the tile already
@@ -98,7 +100,9 @@ export function BrandTile({
   const mark = brandMark(id);
   const style = {
     // Transparent project artwork keeps its authored dark ink readable in both themes.
-    ...(artwork ? { backgroundColor: "#fff" } : {}),
+    ...(artwork
+      ? { backgroundColor: "var(--color-project-artwork-plate)" }
+      : {}),
     ...(size ? { "--brand-tile-size": `${size}px` } : {}),
     ...(mark?.plate && mark.color
       ? { "--brand-plate": mark.plate, "--brand-mark-color": mark.color }
@@ -107,7 +111,7 @@ export function BrandTile({
   const naming = label
     ? { role: "img", "aria-label": label, title: label }
     : { "aria-hidden": true as const };
-  const Glyph = TILE_GLYPHS[kind] ?? QuestionIcon;
+  const Glyph = glyph ?? TILE_GLYPHS[kind] ?? QuestionIcon;
 
   return (
     <span

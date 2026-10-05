@@ -427,7 +427,8 @@ export const editorialTheme = {
     },
     "app-shell": {
       "base": {
-        "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)"
+        "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)",
+        "--color-project-artwork-plate": "#ffffff"
       }
     },
     "top-nav": {

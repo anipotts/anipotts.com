@@ -21,7 +21,9 @@ describe("project identity", () => {
     );
     expect(catalog).toBe(direct);
     expect(direct).toContain("structured-ai-favicon.png");
-    expect(direct).toContain("background-color:#fff");
+    expect(direct).toContain(
+      "background-color:var(--color-project-artwork-plate)",
+    );
     expect(direct).toContain('loading="lazy"');
     expect(direct).toContain('aria-hidden="true"');
     expect(direct).not.toContain("https://");
@@ -35,6 +37,19 @@ describe("project identity", () => {
       />,
     );
     expect(fallback).toContain("<svg");
+    expect(fallback).toContain("brand-tile");
     expect(fallback).not.toContain("<img");
   });
+});
+
+it("retains responsive palette sizing for mapped and fallback projects", () => {
+  for (const id of ["structured-ai", "new-project"]) {
+    const html = renderToStaticMarkup(
+      <ContentRecordMark
+        record={{ id, href: `/content/projects/${id}` }}
+        className="admin-palette-tile"
+      />,
+    );
+    expect(html).toContain("brand-tile admin-palette-tile");
+  }
 });

@@ -14,7 +14,7 @@ import { editorialRecordSummary } from "../../lib/editorial-record-summary";
 import { recordCollection } from "../../lib/editorial-collections";
 import { dispatchEditorialRecordSaved } from "../../lib/editorial-inventory-events";
 import { RecordPanel } from "./RecordPanel";
-import { PublishingReviewPanel } from "../workspace/PublishingReviewPanel";
+import { PublishingReviewPanel } from "../workspace/Workspace";
 import {
   verifiedPublication,
   reconcilePublishedBaseline,
@@ -1023,7 +1023,7 @@ function HomeEditorImpl({
           setReviewedBase(null);
         }
         const current = editor.current?.state;
-        if (current)
+        if (current && !bodyDirtyRef.current)
           announceRecordFreshness(
             record,
             {
@@ -1032,7 +1032,7 @@ function HomeEditorImpl({
               updatedAt: Date.now(),
             },
             confirmed.source,
-            new Date().toISOString(),
+            new Date(job.verifiedAt!).toISOString(),
           );
         publishedDraft.current = null;
       })
@@ -1054,38 +1054,6 @@ function HomeEditorImpl({
     baselineRetry,
     query,
   ]);
-  const activatedVisibility =
-    publication?.publicationId &&
-    snapshot &&
-    canUnpublish(record) &&
-    (publication.action === "unpublish" ||
-      !sourceIsPublic(record, snapshot.base.source))
-      ? publication.publicationId
-      : null;
-  useEffect(() => {
-    if (!activatedVisibility) return;
-    let cancelled = false;
-    editorialAdminJson(endpoint("baseline"), {
-      signal: AbortSignal.timeout(15000),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          discardBody(response);
-          return;
-        }
-        const base: HomeBase | undefined = (await response.json()).base;
-        if (!cancelled && base && typeof base.source === "string")
-          setSnapshot((previous) =>
-            previous ? { ...previous, base } : previous,
-          );
-      })
-      .catch(() => {
-        /* The next record load shows the current base. */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activatedVisibility]);
   const reviewChanges = useMemo(() => {
     if (tab !== "publish" || !reviewedDraft || !reviewedBase) return [];
     const before = reviewedBase.source;
@@ -1350,6 +1318,9 @@ function HomeEditorImpl({
       }
       const baseline: HomeBase | undefined = (await response.json()).base;
       if (!baseline || typeof baseline.source !== "string") throw new Error();
+      const completed = publicationRef.current;
+      if (verifiedPublication(completed))
+        await reconcilePublishedBaseline(completed, baseline);
       if (!isCurrent()) return;
       setSnapshot((previous) =>
         previous ? { ...previous, base: baseline } : previous,
@@ -1515,6 +1486,7 @@ function HomeEditorImpl({
   const publishedCurrent =
     !baselinePending &&
     Boolean(snapshot.base.publicationId) &&
+    sourceIsPublic(record, snapshot.base.source) &&
     state.source === snapshot.base.source &&
     !bodyDirty &&
     !uploadPending;
@@ -1538,7 +1510,8 @@ function HomeEditorImpl({
                     ? "Correct the marked fields before publishing."
                     : snapshot.draft?.discardedAt
                       ? "Recover this draft before publishing."
-                      : untouched && snapshot.base.publicationId
+                      : publishedCurrent ||
+                          (untouched && snapshot.base.publicationId)
                         ? "There are no changes to publish."
                         : !reviewCurrent || reviewLoading
                           ? "Waiting for the latest saved revision to finish reviewing."
@@ -1899,7 +1872,7 @@ function HomeEditorImpl({
             : "Publish",
         isPublished: publishedCurrent,
         isLoading: reviewLoading && tab === "publish",
-        isDisabled: !valid || discarded || publishedCurrent || baselinePending,
+        isDisabled: !valid || discarded || publishedCurrent,
         onClick: () => {
           setConfirmingUnpublish(false);
           setTab("publish");
@@ -2978,9 +2951,17 @@ function HomeEditorImpl({
           >
             <VStack gap={4} className="editor-review">
               {verifiedPublication(publication) && (
-                <Text role="status" className="editor-published-state">
-                  Published
-                  {!publishedCurrent ? "; newer changes not published" : ""}
+                <Text
+                  role="status"
+                  className={
+                    publication.action === "unpublish"
+                      ? undefined
+                      : "editor-published-state"
+                  }
+                >
+                  {publication.action === "unpublish"
+                    ? "Hidden from website; private draft retained"
+                    : `Published${!publishedCurrent ? "; newer changes not published" : ""}`}
                 </Text>
               )}
               {baselinePending && (

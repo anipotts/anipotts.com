@@ -1,4 +1,7 @@
-import { ContentRecordMark } from "../workspace/ContentRecordMark";
+import {
+  ContentRecordMark,
+  PendingChangesIndicator,
+} from "../workspace/Workspace";
 import { contentDecision, decisionHref } from "../../lib/content-decision";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
@@ -350,6 +353,10 @@ export function ContentLibrary({
       render: (item) => {
         const decision = decisions.get(item)!;
         const pending = item.changesPending && !decision.unavailable;
+        const transition =
+          decision.detail && decision.detail !== "Unpublished edits"
+            ? decision.detail
+            : undefined;
         return (
           <RowTitle
             icon={group.name === "writing" ? undefined : recordGlyph(item)[0]}
@@ -362,17 +369,19 @@ export function ContentLibrary({
             title={item.title}
             href={rowHref(item)}
             linkLabel={
-              pending ? `${rowName(item)}, Unpublished changes` : rowName(item)
+              pending
+                ? `${rowName(item)}, Unpublished changes${transition ? `: ${transition}` : ""}`
+                : rowName(item)
             }
             tooltip={
-              pending ? `${rowName(item)}: Unpublished changes` : rowName(item)
+              pending
+                ? `${rowName(item)}: ${transition ?? "Unpublished changes"}`
+                : rowName(item)
             }
             wrap={false}
             tooltipOnFocus={Boolean(pending)}
             titleIndicator={
-              <span className="workspace-pending-slot" aria-hidden="true">
-                {pending && <span className="workspace-pending-dot" />}
-              </span>
+              <PendingChangesIndicator pending={Boolean(pending)} />
             }
             secondary={
               (decision.detail && !item.changesPending) ||

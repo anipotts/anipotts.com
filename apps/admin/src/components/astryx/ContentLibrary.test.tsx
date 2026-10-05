@@ -357,3 +357,28 @@ describe("table language", () => {
     expect(html).not.toContain("4 loaded, 4 total");
   });
 });
+
+it("retains visibility transitions in the compact pending link name", () => {
+  const html = renderToStaticMarkup(
+    <ContentLibrary
+      selectedGroup="writing"
+      groups={[
+        {
+          name: "writing",
+          href: "/content/writing",
+          records: [
+            {
+              title: "Hide this piece",
+              href: "/content/writing/test",
+              status: "published",
+              changesPending: true,
+              intendedVisibility: "draft",
+            },
+          ],
+        },
+      ]}
+    />,
+  );
+  expect(html).toContain("Unpublished changes: Public to Hidden");
+  expect(html).not.toContain("editorial-record-exception");
+});

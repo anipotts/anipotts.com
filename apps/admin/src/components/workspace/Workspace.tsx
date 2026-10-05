@@ -2328,3 +2328,26 @@ export function CompactTimeline({
 }
 
 export { RecordHeader } from "./RecordHeader";
+
+export { PublishingReviewPanel } from "./PublishingReviewPanel";
+export { ContentRecordMark } from "./ContentRecordMark";
+
+/** Reserve a stable slot for pending evidence using the shared status primitive. */
+export function PendingChangesIndicator({ pending }: { pending: boolean }) {
+  return (
+    <HStack
+      className="workspace-pending-slot"
+      vAlign="center"
+      hAlign="center"
+      aria-hidden="true"
+    >
+      {pending && (
+        <StatusDot
+          variant="warning"
+          label="Unpublished changes"
+          className="workspace-pending-dot"
+        />
+      )}
+    </HStack>
+  );
+}

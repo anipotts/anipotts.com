@@ -1,4 +1,4 @@
-import { ContentRecordMark } from "../workspace/ContentRecordMark";
+import { ContentRecordMark } from "../workspace/Workspace";
 import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { workspaceReturnPath } from "../../lib/workspace-navigation";
