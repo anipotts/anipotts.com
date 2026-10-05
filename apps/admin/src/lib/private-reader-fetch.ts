@@ -50,6 +50,11 @@ export const PRIVATE_READER_ROUTES = {
    * target contract, not served yet. */
   entities: "/v1/data/entities",
   entity: "/v1/data/entities/",
+  /** System's ops_v1 snapshot and events feed (lib/ops-reader.ts), under
+   * their own ops:read credential. Raw mode only: their bodies have their
+   * own caps, and the snapshot answers 304. */
+  opsSnapshot: "/v1/ops/snapshot",
+  opsEvents: "/v1/ops/events",
 } as const;
 
 /** Verifier outcomes, by HTTP status. `expired` is local: no live bearer. */
@@ -104,16 +109,32 @@ const SOURCES_LIMIT = PRIVATE_READER_BOUNDS.dataLimit.max;
 const ACTIVITY_LIMIT = 100;
 const BODY_LIMIT = 32_000;
 
-/** Unknown query params are a 400 upstream, so each route sends only these. */
-const ALLOWED_PARAMS: Record<string, readonly string[]> = {
-  [PRIVATE_READER_ROUTES.status]: [],
-  [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
-  [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset", "kind"],
-  [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
-  [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
-  [PRIVATE_READER_ROUTES.health]: ["days"],
-  [PRIVATE_READER_ROUTES.entities]: ["q", "kind", "limit", "offset"],
-  [PRIVATE_READER_ROUTES.entity]: [],
+/**
+ * How a read takes its answer. `json`: the reply is parsed here, within
+ * 1 MiB of application/json, and a 304 is a failure. `raw`: the 200 or 304
+ * Response goes back to the caller, which applies its own caps and checks
+ * (the ops_v1 reads, lib/ops-reader.ts).
+ */
+export type ReaderMode = "json" | "raw";
+
+/** Unknown query params are a 400 upstream, so each route sends only these.
+ * Each route belongs to one mode, so a Data, health or knowledge read can
+ * never reach an ops route, and an ops read never reaches a Data one. */
+const ALLOWED_PARAMS: Record<ReaderMode, Record<string, readonly string[]>> = {
+  json: {
+    [PRIVATE_READER_ROUTES.status]: [],
+    [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
+    [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset", "kind"],
+    [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
+    [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
+    [PRIVATE_READER_ROUTES.health]: ["days"],
+    [PRIVATE_READER_ROUTES.entities]: ["q", "kind", "limit", "offset"],
+    [PRIVATE_READER_ROUTES.entity]: [],
+  },
+  raw: {
+    [PRIVATE_READER_ROUTES.opsSnapshot]: [],
+    [PRIVATE_READER_ROUTES.opsEvents]: ["after", "limit", "wait"],
+  },
 };
 const REQUIRED_PARAMS: Record<string, readonly string[]> = {
   [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
@@ -122,6 +143,7 @@ const REQUIRED_PARAMS: Record<string, readonly string[]> = {
   [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
   [PRIVATE_READER_ROUTES.health]: ["days"],
   [PRIVATE_READER_ROUTES.entities]: ["limit", "offset"],
+  [PRIVATE_READER_ROUTES.opsEvents]: ["after", "limit"],
 };
 
 function bounded(value: number | undefined, max: number, min = 0): string {
@@ -190,8 +212,9 @@ export function privateReaderPath(request: DataRead): string {
   return params.size ? `${path}?${params}` : path;
 }
 
-/** Second gate at the fetch boundary: route, record ID and exact param set. */
-function readerUrl(path: string): string {
+/** Second gate at the fetch boundary: route, record ID and exact param set,
+ * for a route of the read's own mode. */
+function readerUrl(path: string, mode: ReaderMode): string {
   if (
     typeof path !== "string" ||
     !path.startsWith("/") ||
@@ -212,7 +235,7 @@ function readerUrl(path: string): string {
       throw new PrivateReaderError(400, "malformed");
     route = entity;
   }
-  const allowed = ALLOWED_PARAMS[route];
+  const allowed = ALLOWED_PARAMS[mode][route];
   if (!allowed) throw new PrivateReaderError(400, "malformed");
   const keys = [...url.searchParams.keys()];
   if (
@@ -245,45 +268,89 @@ export type ReaderFetchOptions = {
   fetch?: typeof fetch;
   signal?: AbortSignal;
   /** Runs before every send, the renewed one included, and throws to stop
-   * it: a mode's exact-scope check (lib/private-reader-health.ts). */
+   * it: a mode's exact-scope check (exactScope, for health and ops). */
   beforeSend?: () => void;
   /** Runs a 401's renewal, so the caller can hold its reader deadline while
    * admin issues the new credential (A-26). */
   renewing?: DeadlineHold;
 };
 
+export type ReaderGetOptions = ReaderFetchOptions & {
+  /** Sent after Authorization, such as an ops snapshot's If-None-Match. */
+  headers?: Record<string, string>;
+};
+
 /** Runs admin's own work (a credential renewal) outside a read's reader
  * deadline, under a deadline of its own. */
 export type DeadlineHold = <T>(work: () => Promise<T>) => Promise<T>;
 
-type BearerSource = Pick<
+/** What a read needs of a private reader session. */
+export type BearerSource = Pick<
   PrivateReaderSession,
   "bearer" | "renew" | "deny" | "getState"
 >;
 
 /**
- * One private GET. A 401 renews the credential once and retries; a second 401
- * (or a failed renewal) clears the session. A logout while the request is in
- * flight discards the reply. A request that gets no reply throws
- * ReaderNoReplyError (lib/reader-reach.ts), naming the hop.
+ * A beforeSend for a mode with its own credential (health, ops): a ready
+ * credential whose scope is not exactly `[scope]` is cleared as denied and
+ * refused, so no other scope ever leaves.
  */
-export async function readerFetch(
+export function exactScope(session: BearerSource, scope: string): () => void {
+  return () => {
+    const state = session.getState();
+    if (
+      state.status === "ready" &&
+      !(
+        state.credential.scope.length === 1 &&
+        state.credential.scope[0] === scope
+      )
+    ) {
+      session.deny();
+      throw new PrivateReaderError(403, "forbidden");
+    }
+  };
+}
+
+/**
+ * One private GET, for every reader mode. A 401 renews the credential once
+ * and retries; a second 401 (or a failed renewal) clears the session. A
+ * logout while the request is in flight discards the reply. A request that
+ * gets no reply throws ReaderNoReplyError (lib/reader-reach.ts), naming the
+ * hop. `json` returns the parsed body; `raw` returns the 200 or 304 Response
+ * for the caller to bound and re-check (see ReaderMode).
+ */
+export function readerGet(
   session: BearerSource,
   path: string,
-  options: ReaderFetchOptions = {},
+  mode: "json",
+  options?: ReaderGetOptions,
+): Promise<unknown>;
+export function readerGet(
+  session: BearerSource,
+  path: string,
+  mode: "raw",
+  options?: ReaderGetOptions,
+): Promise<Response>;
+export async function readerGet(
+  session: BearerSource,
+  path: string,
+  mode: ReaderMode,
+  options: ReaderGetOptions = {},
 ): Promise<unknown> {
-  const url = readerUrl(path);
+  const url = readerUrl(path, mode);
   const fetcher = options.fetch ?? ((...args) => globalThis.fetch(...args));
   let renewed = false;
   for (;;) {
     options.beforeSend?.();
     const bearer = session.bearer();
     if (!bearer) throw new PrivateReaderError(401, "expired");
-    const response = await fetchReader(
-      fetcher,
-      url,
-      privateReaderInit(bearer, options.signal),
-    );
+    const init = privateReaderInit(bearer, options.signal);
+    if (options.headers)
+      init.headers = {
+        ...(init.headers as Record<string, string>),
+        ...options.headers,
+      };
+    const response = await fetchReader(fetcher, url, init);
     if (session.getState().status !== "ready") {
       discardBody(response);
       throw new PrivateReaderError(401, "expired");
@@ -300,6 +367,8 @@ export async function readerFetch(
       if (next.status !== "ready") throw new PrivateReaderError(401);
       continue;
     }
+    if (mode === "raw" && (response.status === 304 || response.ok))
+      return response;
     if (!response.ok) {
       discardBody(response);
       throw new PrivateReaderError(response.status);
@@ -309,6 +378,21 @@ export async function readerFetch(
       throw new PrivateReaderError(401, "expired");
     return body;
   }
+}
+
+/** One private GET in json mode (readerGet), with no header but the bearer. */
+export function readerFetch(
+  session: BearerSource,
+  path: string,
+  options: ReaderFetchOptions = {},
+): Promise<unknown> {
+  const { fetch, signal, beforeSend, renewing } = options;
+  return readerGet(session, path, "json", {
+    fetch,
+    signal,
+    beforeSend,
+    renewing,
+  });
 }
 
 /** The Data workspace reader: owner Data reads plus metadata-only activity. */
