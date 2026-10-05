@@ -257,3 +257,37 @@
     margin-top: 12px;
   }
 }
+
+/* Keep row geometry while hiding the loaded table's rule during loading. */
+.admin-data-table .openai-record-table tbody tr[data-loading-row] {
+  border-bottom-color: transparent;
+}
+
+.admin-table-loading-primary {
+  display: flex;
+  align-items: center;
+  min-height: var(--spacing-9);
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.admin-data-table [data-loading-row] .admin-table-value {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+.admin-data-table [data-loading-row] .astryx-skeleton {
+  max-width: 100%;
+  flex-shrink: 1;
+}
+
+@media (pointer: coarse) {
+  .admin-table-loading-primary {
+    min-height: var(--spacing-11);
+  }
+}
+
+.admin-data-table .workspace-table-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--spacing-6);
+}

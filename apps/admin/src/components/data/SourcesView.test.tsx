@@ -114,6 +114,42 @@ const button = (name: string) =>
   );
 
 describe("Sources by connector", () => {
+  it("keeps columns and widths stable when device and sync metadata arrive", async () => {
+    const fixture = createFixtureReader({ status: {}, records: [], sources });
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reader: typeof fixture = async (request) => {
+      await waiting;
+      return fixture(request);
+    };
+    await act(async () => root.render(<SourcesExplorer reader={reader} />));
+    const schema = () =>
+      [...host.querySelectorAll('table[aria-label="Sources" i] thead th')].map(
+        (cell) => ({
+          title: cell.textContent,
+          width: (cell as HTMLElement).style.width,
+          hidden: cell.getAttribute("data-hide-below"),
+        }),
+      );
+    const pending = schema();
+    expect(pending.map((column) => column.title)).toEqual([
+      "Source",
+      "Device",
+      "State",
+      "Records",
+      "Revisions",
+      "Last sync",
+      "Last seen",
+    ]);
+    expect(host.querySelector("[data-loading-row]")).not.toBeNull();
+    await act(async () => release());
+    await settle();
+    expect(host.querySelector("[data-loading-row]")).toBeNull();
+    expect(schema()).toEqual(pending);
+  });
+
   it("A-4: reads every page and groups by lifecycle, discovered last and folded", async () => {
     const onCount = await render();
     // 28 rows over two fixture pages of 20.
@@ -324,7 +360,7 @@ describe("Sources by connector", () => {
 
   // A-3: the newest record's observation is not a sync (Messages read
   // "Last sync 6d ago" while its intake passed 16m ago).
-  it("A-3: heads the observation Last seen, and shows Last sync only from System's last_success_at", async () => {
+  it("A-3: keeps the sync header fixed and uses only System's last_success_at for values", async () => {
     await render();
     const heads = () =>
       [...host.querySelectorAll('table[aria-label="Sources"] thead th')].map(
@@ -347,7 +383,7 @@ describe("Sources by connector", () => {
     });
     await act(async () => root.render(<SourcesExplorer reader={reader} />));
     await settle();
-    expect(heads()).not.toContain("Last sync");
+    expect(heads()).toContain("Last sync");
     expect(heads()).toContain("Last seen");
     const contacts = host
       .querySelector(
@@ -355,6 +391,34 @@ describe("Sources by connector", () => {
       )
       ?.closest("tr");
     expect(contacts?.textContent).toContain("30m ago");
+  });
+
+  it("keeps large reader counts compact without losing the exact accessible value", async () => {
+    const reader = createFixtureReader({
+      status: {},
+      records: [],
+      sources: [
+        source("ani-browsing", {
+          record_count: 1_234_567,
+          revision_count: Number.MAX_SAFE_INTEGER,
+        }),
+      ] as typeof sources,
+    });
+    await act(async () => root.render(<SourcesExplorer reader={reader} />));
+    await settle();
+    for (const value of [1_234_567, Number.MAX_SAFE_INTEGER]) {
+      const cell = host.querySelector(
+        `.workspace-figure[title="${value.toLocaleString("en-US")}"]`,
+      )!;
+      expect(cell).not.toBeNull();
+      expect(cell.getAttribute("title")).toBe(value.toLocaleString("en-US"));
+      expect(
+        cell.querySelector('[aria-hidden="true"]')!.textContent!.length,
+      ).toBeLessThanOrEqual(6);
+      expect(cell.querySelector(".sr-only")?.textContent).toBe(
+        value.toLocaleString("en-US"),
+      );
+    }
   });
 
   it("opens Records filtered to a source from its row", async () => {

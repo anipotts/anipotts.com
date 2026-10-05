@@ -250,6 +250,85 @@ describe("global table interactions", () => {
     expect(rules).not.toContain('data-column="updated"');
   });
 
+  it("keeps the real header and cell layout while loading, including future columns", () => {
+    const change = vi.fn();
+    draw({
+      rows: [],
+      loading: true,
+      loadingRows: 3,
+      footer: false,
+      selectedKeys: new Set(),
+      onSelectionChange: change,
+    });
+    const header = host.querySelector("thead")!;
+    const geometry = (row: Element) =>
+      [...row.querySelectorAll("[data-column]")].map((cell) => ({
+        key: cell.getAttribute("data-column"),
+        compact: cell.getAttribute("data-compact"),
+        hidden: cell.getAttribute("data-hide-below"),
+        order: (cell as HTMLElement).style.order,
+      }));
+    expect(
+      [...header.querySelectorAll("[data-column]")].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(["Title", "Status", "Actions"]);
+    expect(host.querySelectorAll("[data-loading-row]")).toHaveLength(3);
+    const placeholders = host.querySelector("[data-loading-rows]")!;
+    expect(placeholders.getAttribute("aria-hidden")).toBe("true");
+    expect(
+      placeholders.querySelectorAll("a,button,input,[tabindex]"),
+    ).toHaveLength(0);
+    expect(host.querySelector<HTMLInputElement>("thead input")!.disabled).toBe(
+      true,
+    );
+    const pendingGeometry = geometry(placeholders.querySelector("tr")!);
+    draw({ footer: false, selectedKeys: new Set(), onSelectionChange: change });
+    expect(host.querySelector("thead")).toBe(header);
+    expect(geometry(host.querySelector('[data-record-id="a"]')!)).toEqual(
+      pendingGeometry,
+    );
+    expect(host.querySelector("[data-loading-rows]")).toBeNull();
+    draw({
+      rows: [],
+      loading: true,
+      columns: [
+        ...columns,
+        {
+          key: "added",
+          header: "Added column",
+          width: 120,
+          render: () => "Value",
+        },
+      ],
+    });
+    expect(host.querySelector('thead [data-column="added"]')?.textContent).toBe(
+      "Added column",
+    );
+    expect(
+      host.querySelectorAll('[data-loading-row] [data-column="added"]'),
+    ).toHaveLength(6);
+  });
+  it("reserves the count footer without announcing a false zero while empty and loading", () => {
+    draw({ rows: [], loading: true });
+    const footer = host.querySelector(".workspace-table-count")!;
+    expect(footer.getAttribute("aria-hidden")).toBe("true");
+    expect(footer.textContent).not.toContain("0 loaded");
+    draw();
+    expect(host.querySelector(".workspace-table-count")).toBe(footer);
+    expect(footer.getAttribute("aria-hidden")).toBeNull();
+    expect(footer.textContent).toContain("3 loaded");
+  });
+  it("retains loaded rows during refresh instead of collapsing them into placeholders", () => {
+    draw({ loading: true, footer: false });
+    expect(
+      host.querySelector('[role="status"]')?.getAttribute("aria-label"),
+    ).toBe("Loading synthetic records");
+    expect(host.querySelectorAll("[data-loading-row]")).toHaveLength(0);
+    expect(host.querySelectorAll("[data-record-id]")).toHaveLength(3);
+    expect(host.textContent).toContain("First");
+  });
+
   it("distinguishes states and counts without inventing an inventory total", () => {
     expect(tableCountText(20)).toBe("20 loaded");
     expect(tableCountText(7, 7)).toBe("7 records");
