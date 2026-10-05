@@ -227,7 +227,7 @@
       "revision": "64c38b76737afbca965f524a1f710f3049ec4c99",
       "lane": "code",
       "state": "awaiting-review",
-      "note": "Ani approved original tuning and www + admin targets. Current high-refresh correction passed CI 37244998251. Native review blocked merge of changed source head pending explicit renewed approval. Additional offscreen-card wakeup correction is tested locally, unpushed; native review blocked its push/review resolution until approval. Both correction approvals requested; production unchanged.",
+      "note": "Ani approved original tuning and www + admin targets. Current high-refresh correction passed CI 37244998251. Native review blocked merge of changed source head pending explicit renewed approval. Additional offscreen-card wakeup correction is tested locally, unpushed; native review blocked its push/review resolution until approval. Both correction approvals requested; production unchanged. Local correction saved as a6442ca8a89c931830300df00e73ece8ed73ab8a and integrated in canonical preview; remote PR head remains 64c38b76737afbca965f524a1f710f3049ec4c99.",
       "approvals": {
         "code": {
           "revision": "c584464d5c0843d4df4ed444cb8924192a632e62",
@@ -255,7 +255,7 @@
     {
       "id": "pr-496",
       "title": "Sidebar www return and public sign-in collapse",
-      "revision": "94916dcbf",
+      "revision": "94916dcbfcff95d1ce5136db363ab4dd1a4f3097",
       "lane": "code",
       "state": "approved",
       "approvals": {},

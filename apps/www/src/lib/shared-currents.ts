@@ -458,11 +458,15 @@ export function mountSharedCurrents() {
   // display frames while it lasts, and so does the scroll push on desktop.
   let interval = IDLE;
   function schedule(now = performance.now()) {
-    const fps = pouring(now)
-      ? 60
-      : Math.abs(pushed() - flow) > 1e-4
-        ? motion().activeFps
-        : 30;
+    // Page bands do not use scroll push. Offscreen cards need no RAF coast.
+    if (!visible.size) flow = pushed();
+    const fps = !visible.size
+      ? 15
+      : pouring(now)
+        ? 60
+        : Math.abs(pushed() - flow) > 1e-4
+          ? motion().activeFps
+          : 30;
     const idle = visible.size ? IDLE : BANDS;
     interval = fps > 30 ? 1000 / fps : idle;
     if (fps > 30) frame = requestAnimationFrame(tick);

@@ -53,6 +53,30 @@ for (const refreshRate of [60, 90, 120, 144])
     }
     assert.equal(draws, 60);
   });
+test("offscreen cards leave page bands on the 15Hz idle timer", () => {
+  let wait;
+  const context = vm.createContext({
+    tick: () => {},
+    pouring: () => true,
+    pushed: () => 1,
+    motion: () => ({ speed: 2, activeFps: 60 }),
+    visible: { size: 0 },
+    performance: { now: () => 0 },
+    requestAnimationFrame: () => assert.fail("no invisible card RAF coast"),
+    setTimeout: (_, delay) => {
+      wait = delay;
+      return 1;
+    },
+    BANDS: 1000 / 15,
+  });
+  vm.runInContext(
+    `let interval, IDLE=1000/30, last=0, flow=0, timer, frame; ${fn("schedule")} schedule(0);`,
+    context,
+  );
+  assert.equal(wait, 1000 / 15);
+  assert.equal(vm.runInContext("flow", context), 1);
+});
+
 test("reduced motion settles every card and disconnects pending entrances", () => {
   const hosts = [{}, {}],
     entered = new Map();
