@@ -27,6 +27,9 @@ const MIGRATION_PREFLIGHT_PATHS = [
 const ADMIN_CORE_PATCH = "patches/@astryxdesign__core@0.4.6.patch";
 
 const CI_POLICY_PATHS = [
+  // These documents are inputs to the guidance invariants in test:workspace.
+  /^(?:AGENTS|CLAUDE|README)\.md$/,
+  /^docs\/(?:platform-architecture\.md|design\/admin-workspace\/quiet-precision-delivery\.md)$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
   /^\.github\/editorial-publisher\.pem$/,
@@ -50,6 +53,7 @@ const PUBLIC_BROWSER_PATHS = [
 ];
 
 const LOCAL_DEV_PATHS = [
+  /^\.claude\/launch\.json$/,
   /^\.codex\//,
   /^\.nvmrc$/,
   /^docs\/local-development\.md$/,
@@ -72,6 +76,7 @@ const APPROVAL_PATHS = [
 ];
 
 const KNOWN_SAFE_ROOTS = [
+  /^\.claude\/launch\.json$/,
   /^\.codex\/environments\/environment\.toml$/,
   /^\.(?:gitignore|prettierignore)$/,
   /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,

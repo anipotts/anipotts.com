@@ -52,7 +52,7 @@ Only that owner changes the shared candidate and starts or restarts its services
 Run `pnpm review` there to maintain the existing www/admin previews and one
 publication watcher/supervisor. Keep this review lane running across task endings.
 Use `pnpm review:status` to inspect revision, checkout, URLs and freshness.
-The shared `.claude/launch.json` reuses this checkout and runs `pnpm review`;
+The shared `.claude/launch.json` attaches to these existing URLs without launching a process;
 it never fetches, switches, resets or installs dependencies on startup. Its public
 URL reflects the current owner port; update that entry if the owner port changes.
 
@@ -68,12 +68,12 @@ checks and updates the existing integration queue. Worker previews are temporary
 Ani reviews the combined result at the canonical URLs. Check preview identity and
 content freshness so an old server is not mistaken for the new candidate.
 
-## one approval for merge and production deploy
+## release authority and evidence
 
-Before requesting approval, the owner presents the committed, clean candidate
+Under the current standing authority and native release controls, the owner records the committed, clean candidate
 revision, included PR heads, affected production targets and verification evidence
-at the canonical preview. Commit before requesting approval; dirty changes do not
-have an approvable revision. Keep candidate membership fixed during review.
+at the canonical preview. Dirty changes do not have an approvable revision. Keep
+candidate membership fixed during review.
 
 Ani's approval to merge and deploy that identified candidate supplies both code
 review and production-release authority. Record `code` and `production` approvals
@@ -85,10 +85,14 @@ Only included PR heads are authorized. Candidate edits, changed PR heads or chan
 release contents invalidate affected approval and require refreshed checks and
 review. A Git merge SHA may differ from the candidate SHA; verify the approved
 content against the resulting release tree and record the mapping. Refresh required
-checks after updating a PR to current main. Do not transfer approvals across heads
+checks after updating a PR to current main. Keep `revision` as the reviewed SHA;
+record the merge SHA with `--release-revision`, `--reviewed-revision` and
+`--mapping-evidence` after verifying the approved tree against the release.
+Deployment uses the recorded release SHA. Updating the reviewed revision clears
+the mapping, approvals and deployment evidence. Do not transfer approvals across heads
 merely because the branch name stayed the same.
 
-After approval, re-read live default-branch protection immediately before each
+Before integration, re-read live default-branch protection immediately before each
 serial merge. Required PRs, exact-head passing checks, strict checking where
 supported, no bypass, and blocked force-push/deletion remain mandatory. Resolve
 review threads and comply with scoped release gates. Run required checks on the

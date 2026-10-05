@@ -1,3 +1,4 @@
+import { ContentRecordMark } from "../workspace/Workspace";
 import { AuthReentry } from "../astryx/AuthReentry";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { workspaceReturnPath } from "../../lib/workspace-navigation";
@@ -293,6 +294,11 @@ function RecentContent({ records }: { records: CatalogRecord[] }) {
                 return (
                   <RowTitle
                     icon={glyph}
+                    mark={
+                      type === "Project" ? (
+                        <ContentRecordMark record={item} />
+                      ) : undefined
+                    }
                     kind={type}
                     title={item.title}
                     href={item.href}
