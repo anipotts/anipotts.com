@@ -30,6 +30,7 @@ type AdminShellProps = {
   localPreview?: boolean;
   localOwner?: boolean;
   initialMode?: ThemePreference;
+  siteUrl?: string;
 };
 
 /** The shell for the overview, Data, Observability and the retired console
@@ -41,6 +42,7 @@ export function AdminShell({
   localPreview = false,
   localOwner = false,
   initialMode = "light",
+  siteUrl = "https://anipotts.com/",
 }: AdminShellProps) {
   const [locked, setLocked] = useState(protectedSessionIsLocked);
   const inactive = useRef(locked);
@@ -95,6 +97,7 @@ export function AdminShell({
   return (
     <Theme theme={shellTheme} mode={mode}>
       <EditorialWorkspaceShell
+        siteUrl={siteUrl}
         area="content"
         workspace={workspace}
         mode={mode}

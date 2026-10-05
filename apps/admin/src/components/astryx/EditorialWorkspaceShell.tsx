@@ -283,7 +283,13 @@ function WorkspaceIdentity({
 }
 
 /** Website return and theme controls share the sidebar footer. */
-function WorkspaceUtilities({ rail }: { rail: boolean }) {
+function WorkspaceUtilities({
+  rail,
+  siteUrl,
+}: {
+  rail: boolean;
+  siteUrl: string;
+}) {
   const Stack = rail ? VStack : HStack;
   return (
     <Stack
@@ -293,8 +299,21 @@ function WorkspaceUtilities({ rail }: { rail: boolean }) {
     >
       <SideNavItem
         label="www"
-        href="https://anipotts.com/"
+        href={siteUrl}
         icon={<ArrowLeftIcon size={18} aria-hidden="true" />}
+        onClick={(event) => {
+          if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          event.preventDefault();
+          navigateAdmin(siteUrl);
+        }}
       />
       <ThemeControl />
     </Stack>
@@ -318,6 +337,7 @@ export function EditorialWorkspaceShell({
   workspace = "content",
   currentRoute,
   recordPage = false,
+  siteUrl = "https://anipotts.com/",
 }: {
   children: ReactNode;
   area: "content" | "newsletter";
@@ -339,6 +359,8 @@ export function EditorialWorkspaceShell({
   currentRoute?: string;
   /** Identifies record routes; the shared phone appbar remains visible. */
   recordPage?: boolean;
+  /** Matching managed www preview in development, public site in production. */
+  siteUrl?: string;
 }) {
   const [rail, setRail] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -545,7 +567,7 @@ export function EditorialWorkspaceShell({
             header={
               <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
             }
-            footer={<WorkspaceUtilities rail={rail} />}
+            footer={<WorkspaceUtilities rail={rail} siteUrl={siteUrl} />}
           >
             <UnifiedNavigation
               rail={rail}
@@ -590,7 +612,7 @@ export function EditorialWorkspaceShell({
               }
               footer={
                 tabletNavigation ? (
-                  <WorkspaceUtilities rail={false} />
+                  <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
                 ) : undefined
               }
             >
@@ -601,7 +623,9 @@ export function EditorialWorkspaceShell({
                 contentHref={destination}
                 groupCounts={groupCounts}
               />
-              {!tabletNavigation && <WorkspaceUtilities rail={false} />}
+              {!tabletNavigation && (
+                <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
+              )}
             </SideNav>
           </MobileNav>
         </NavigationIconScope>

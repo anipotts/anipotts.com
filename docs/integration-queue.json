@@ -255,11 +255,11 @@
     {
       "id": "pr-496",
       "title": "Sidebar www return and public sign-in collapse",
-      "revision": "94916dcbfcff95d1ce5136db363ab4dd1a4f3097",
+      "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
       "lane": "code",
       "state": "approved",
       "approvals": {},
-      "note": "Ani requested www beside theme, removal of sidebar logout, deployment once fixed, and functional public sign-in collapse. Canonical browser confirms Enter collapse and Space expansion. 27 shell tests, 9 entry/navigation tests, focused canceled-signout recovery test and app typechecks passed. Full exact-head CI 37250087811 running; no merge or deploy yet."
+      "note": "Sidebar www and theme share one footer row, including public sign-in collapse. Keyboard collapse and collapsed www return verified in canonical preview. 58 focused tests and admin typecheck pass; exact-head CI refreshed. Four review findings fixed, including configured www URL and save-before-leave. Production release pending required checks."
     },
     {
       "id": "preview-module-urls",
