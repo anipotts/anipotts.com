@@ -332,12 +332,6 @@
   max-width: 100%;
 }
 
-.admin-data-table .editorial-project-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: var(--radius-control);
-}
 .admin-data-table .workspace-row-body {
   min-width: 0;
 }

@@ -1,6 +1,8 @@
 import { defineTheme } from "@astryxdesign/core/theme";
 import { neutralTheme } from "@astryxdesign/theme-neutral";
 
+const projectArtworkPlate = "#ffffff";
+
 export const editorialTheme = defineTheme({
   name: "editorial",
   extends: neutralTheme,
@@ -30,9 +32,15 @@ export const editorialTheme = defineTheme({
   components: {
     // Shell-local CSS property; the closed Astryx token registry remains unchanged.
     "app-shell": {
-      base: { "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)" },
+      base: {
+        "--color-workspace-sidebar": "light-dark(#f1f4fa, #0d1015)",
+        "--color-project-artwork-plate": projectArtworkPlate,
+      },
     },
 
+    dialog: {
+      base: { "--color-project-artwork-plate": projectArtworkPlate },
+    },
     "top-nav": { base: { backgroundColor: "var(--color-background-surface)" } },
     button: {
       base: {

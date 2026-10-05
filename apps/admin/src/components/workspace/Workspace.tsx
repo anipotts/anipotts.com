@@ -76,6 +76,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
+import { useTooltip } from "@astryxdesign/core/Tooltip";
 import { Button } from "@astryxdesign/core/Button";
 import { Collapsible } from "@astryxdesign/core/Collapsible";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
@@ -909,6 +910,8 @@ export function RowTitle({
   linkLabel,
   tooltip,
   anchorId,
+  titleIndicator,
+  tooltipOnFocus = false,
   wrap = true,
 }: {
   icon?: Icon;
@@ -947,10 +950,18 @@ export function RowTitle({
   tooltip?: string;
   /** An id for the row, so other pages can link to it. */
   anchorId?: string;
+  /** Compact, non-wrapping evidence beside the title. */
+  titleIndicator?: ReactNode;
+  tooltipOnFocus?: boolean;
   /** A title too long for its column wraps at a space rather than ending
    * in an ellipsis (TitleText), so no word is ever cut; on by default. */
   wrap?: boolean;
 }) {
+  const titleTooltip = useTooltip({
+    delay: 300,
+    placement: "above",
+    isEnabled: tooltipOnFocus,
+  });
   const select = onSelect
     ? (event: React.MouseEvent<HTMLElement>) => {
         if (
@@ -966,7 +977,12 @@ export function RowTitle({
         onSelect(event.currentTarget);
       }
     : undefined;
-  const label = <TitleText title={title} keep={keep} wrap={wrap} />;
+  const label = (
+    <>
+      <TitleText title={title} keep={keep} wrap={wrap} />
+      {titleIndicator}
+    </>
+  );
   const trailing = (end != null || time != null) && (
     <Text type="supporting" color="secondary" className="workspace-row-end">
       {end}
@@ -992,7 +1008,9 @@ export function RowTitle({
               rel={external ? "noopener noreferrer" : undefined}
               referrerPolicy={external ? "no-referrer" : undefined}
               aria-label={linkLabel}
-              title={tooltip}
+              title={tooltipOnFocus ? undefined : tooltip}
+              ref={titleTooltip.ref}
+              aria-describedby={titleTooltip.describedBy}
               onClick={select}
               aria-current={onSelect && isPressed ? "true" : undefined}
               aria-controls={controls}
@@ -1004,7 +1022,9 @@ export function RowTitle({
               type="button"
               className="workspace-row-link"
               data-row-link=""
-              title={tooltip}
+              title={tooltipOnFocus ? undefined : tooltip}
+              ref={titleTooltip.ref}
+              aria-describedby={titleTooltip.describedBy}
               onClick={select}
               aria-pressed={isPressed}
               aria-controls={controls}
@@ -1015,6 +1035,11 @@ export function RowTitle({
             <span className="workspace-row-text" title={tooltip}>
               {label}
             </span>
+          )}
+          {titleTooltip.renderTooltip(
+            <Text type="supporting" style={{ color: "inherit" }}>
+              {tooltip}
+            </Text>,
           )}
           {trailing}
         </div>
@@ -1394,18 +1419,41 @@ function NoValue({ text }: { text?: string }) {
   );
 }
 
+const compactCountFormat = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const scientificCountFormat = new Intl.NumberFormat("en-US", {
+  notation: "scientific",
+  maximumFractionDigits: 1,
+});
+
 /** A count in tabular figures, with its noun when it has one ("44 visits"). */
 export function Figure({
   value,
   noun,
   empty,
+  compact = false,
 }: {
   value: number | null | undefined;
   noun?: readonly [one: string, many: string] | null;
   empty?: string;
+  /** Compact large counts in fixed-width cells; retain the exact accessible value. */
+  compact?: boolean;
 }) {
   if (value == null || !Number.isFinite(value)) return <NoValue text={empty} />;
-  return <span className="workspace-figure">{countText(value, noun)}</span>;
+  const exact = countText(value, noun);
+  if (!compact || Math.abs(value) < 1000)
+    return <span className="workspace-figure">{exact}</span>;
+  const short = (
+    Math.abs(value) >= 1e15 ? scientificCountFormat : compactCountFormat
+  ).format(value);
+  return (
+    <span className="workspace-figure" title={exact}>
+      <span aria-hidden="true">{short}</span>
+      <span className="sr-only">{exact}</span>
+    </span>
+  );
 }
 
 /** How long something took: "84ms", "8.4s", "1m 24s". Give `ms` (an event's
@@ -2321,3 +2369,26 @@ export function CompactTimeline({
 }
 
 export { RecordHeader } from "./RecordHeader";
+
+export { PublishingReviewPanel } from "./PublishingReviewPanel";
+export { ContentRecordMark } from "./ContentRecordMark";
+
+/** Reserve a stable slot for pending evidence using the shared status primitive. */
+export function PendingChangesIndicator({ pending }: { pending: boolean }) {
+  return (
+    <HStack
+      className="workspace-pending-slot"
+      vAlign="center"
+      hAlign="center"
+      aria-hidden="true"
+    >
+      {pending && (
+        <StatusDot
+          variant="warning"
+          label="Unpublished changes"
+          className="workspace-pending-dot"
+        />
+      )}
+    </HStack>
+  );
+}

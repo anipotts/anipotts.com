@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ContentLibrary,
-  changedFieldSummary,
   matchingRecords,
   recentlyUpdated,
   Updated,
@@ -23,32 +22,6 @@ const rows = [
   },
 ];
 describe("Content library", () => {
-  it("uses project identity artwork instead of a generic briefcase", () => {
-    const html = renderToStaticMarkup(
-      <ContentLibrary
-        groups={[
-          {
-            name: "projects",
-            href: "/content/projects",
-            records: [
-              {
-                ...rows[0],
-                collection: "projects",
-                logoSrc: "/images/brand/studio.png",
-                logoAlt: "Studio",
-              },
-            ],
-          },
-        ]}
-        selectedGroup="projects"
-      />,
-    );
-    expect(html).toContain('class="editorial-project-logo"');
-    expect(html).toContain(
-      'src="https://anipotts.com/images/brand/studio.png"',
-    );
-  });
-
   it("keeps publication state while showing private changes", () => {
     const html = renderToStaticMarkup(
       <ContentLibrary
@@ -130,14 +103,18 @@ describe("Quiet Precision library rows", () => {
       />,
     );
     expect(html).toContain("Listed");
-    expect(html).toContain("Unpublished edits");
-    expect(html).toContain('aria-label="Review changes: ChainedChat"');
+    expect(html).toContain("Unpublished changes");
+    expect(html).not.toContain("Unpublished edits");
+    expect(html).toContain("workspace-pending-dot");
+    expect(html).toContain(
+      'aria-label="Review changes: ChainedChat, Unpublished changes"',
+    );
     expect(html).toContain("view=review");
     expect(html).toContain(
       "returnTo=%2Fcontent%2Fprojects%3Fq%3DChained%26sort%3Dupdated",
     );
     expect(html).toContain('class="workspace-row-mark"');
-    expect(html).toContain("editorial-record-exception");
+    expect(html).not.toContain("editorial-record-exception");
     // The whole row opens the record: no separate action column.
     expect(html).not.toContain("editorial-record-action");
     expect(html).toContain("Shared context across models");
@@ -336,15 +313,30 @@ describe("Row actions", () => {
     expect(html).not.toContain(">Kind<");
     expect(html).not.toContain(">Action<");
   });
-  it("bounds the changed-field description on the row action", () => {
-    // The tooltip renders on the client, so assert the bounding directly.
-    expect(
-      changedFieldSummary(["title", "summary", "hero", "seo", "links"]),
-    ).toBe("title, summary +3");
-    expect(changedFieldSummary(["title", "summary"])).toBe("title, summary");
-    expect(changedFieldSummary(["title"])).toBe("title");
-    expect(changedFieldSummary([])).toBe("Source changes");
-    expect(changedFieldSummary(["a", "b", "c"])).not.toContain("\u00b7");
+  it("keeps ordinary pending evidence simple even when field details are available", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        selectedGroup="writing"
+        groups={[
+          {
+            name: "writing",
+            href: "/content/writing",
+            records: [
+              {
+                title: "Pending",
+                href: "/content/writing/test",
+                status: "published",
+                changesPending: true,
+                changedFields: ["title", "summary", "hero", "seo", "links"],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Unpublished changes");
+    expect(html).not.toContain("title, summary");
+    expect(html).not.toContain("+3");
   });
 });
 
@@ -378,4 +370,29 @@ describe("table language", () => {
     expect(html).toContain("4 articles");
     expect(html).not.toContain("4 loaded, 4 total");
   });
+});
+
+it("retains visibility transitions in the compact pending link name", () => {
+  const html = renderToStaticMarkup(
+    <ContentLibrary
+      selectedGroup="writing"
+      groups={[
+        {
+          name: "writing",
+          href: "/content/writing",
+          records: [
+            {
+              title: "Hide this piece",
+              href: "/content/writing/test",
+              status: "published",
+              changesPending: true,
+              intendedVisibility: "draft",
+            },
+          ],
+        },
+      ]}
+    />,
+  );
+  expect(html).toContain("Unpublished changes: Public to Hidden");
+  expect(html).not.toContain("editorial-record-exception");
 });
