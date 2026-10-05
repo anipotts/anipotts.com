@@ -38,9 +38,9 @@ and freshness blockers. `pnpm review:doctor` additionally verifies read-only
 production authorization without displaying credential values. Use
 `pnpm review:doctor --offline` to skip that provider check.
 
-The small local-only badge expands to show identity and content freshness.
-A stale or failed check is amber; old publication timestamps alone are not stale.
-The badge and identity endpoint are development-only.
+Preview identity and sync freshness are available through `pnpm review:status`.
+The identity endpoint is development-only. The on-page dropdown was removed
+at Ani's request.
 
 `pnpm review:queue` shows the maintained integration queue. See
 [integration-queue.md](integration-queue.md) for exact-revision transitions. Code

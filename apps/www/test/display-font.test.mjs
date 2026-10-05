@@ -90,13 +90,15 @@ test("the display stack falls back to metric-matched local faces first", () => {
   }
 });
 
-test("critical faces block fallback painting during font loading", () => {
-  for (const family of ["AP Structural", "Instrument Sans Variable"]) {
-    const face = faces
-      .filter((candidate) => candidate.family === family)
-      .at(-1);
-    assert.ok(face, `${family} exists`);
-    assert.match(face.body, /font-display:\s*block/);
+test("downloaded faces keep text readable while fonts are pending or unavailable", () => {
+  const downloaded = faces.filter((face) => /url\(/.test(face.body));
+  assert.ok(downloaded.length >= 4);
+  for (const face of downloaded) {
+    assert.match(
+      face.body,
+      /font-display:\s*swap/,
+      `${face.family} must not hide text while loading`,
+    );
   }
 });
 

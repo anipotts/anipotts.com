@@ -1,19 +1,19 @@
 @import "@anipotts/brand/public.css";
-/* Critical typography is requested from the document head. Block fallback
-   painting during its short loading window instead of visibly swapping faces. */
+/* Preload critical faces, but keep text readable while fonts are slow or fail.
+   The homepage hero paints exact brand outlines independently of web fonts. */
 @font-face {
   font-family: "AP Structural";
   src: url("@anipotts/brand/ap-structural/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2")
     format("woff2");
   font-style: normal;
   font-weight: 900;
-  font-display: block;
+  font-display: swap;
 }
 /* instrument-sans-latin-ext-wght-normal */
 @font-face {
   font-family: "Instrument Sans Variable";
   font-style: normal;
-  font-display: block;
+  font-display: swap;
   font-weight: 400 700;
   src: url(@fontsource-variable/instrument-sans/files/instrument-sans-latin-ext-wght-normal.woff2)
     format("woff2-variations");
@@ -27,7 +27,7 @@
 @font-face {
   font-family: "Instrument Sans Variable";
   font-style: normal;
-  font-display: block;
+  font-display: swap;
   font-weight: 400 700;
   src: url(@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2)
     format("woff2-variations");
@@ -39,7 +39,7 @@
 @font-face {
   font-family: "JetBrains Mono Variable";
   font-style: normal;
-  font-display: block;
+  font-display: swap;
   font-weight: 100 800;
   src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
     format("woff2-variations");
