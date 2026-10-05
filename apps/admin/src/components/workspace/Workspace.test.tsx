@@ -36,6 +36,7 @@ import {
   easternClockText,
   easternClockTitle,
   leadWidth,
+  figureWidth,
   shareWidthAt,
   tableMinWidths,
   titleWidth,
@@ -1012,6 +1013,33 @@ describe("cells", () => {
     expect(
       html(<DueTime value="2026-09-22T17:59:30Z" now={NOW} />).textContent,
     ).toBe("due now");
+  });
+
+  it("compact counts fit the fixed figure cell while exposing every exact digit", () => {
+    for (const value of [
+      999,
+      1000,
+      999_949,
+      1_234_567,
+      999_949_999_999_999,
+      Number.MAX_SAFE_INTEGER,
+    ]) {
+      const host = html(<Figure compact value={value} />);
+      expect(
+        figureWidth(
+          host.querySelector('[aria-hidden="true"]')?.textContent ??
+            host.textContent ??
+            "",
+        ) + 24,
+      ).toBeLessThanOrEqual(CELL_WIDTHS.figure);
+      if (value >= 1000) {
+        const cell = host.querySelector(".workspace-figure")!;
+        expect(cell.getAttribute("title")).toBe(value.toLocaleString("en-US"));
+        expect(cell.querySelector(".sr-only")?.textContent).toBe(
+          value.toLocaleString("en-US"),
+        );
+      }
+    }
   });
 
   it("heads day groups live, and as a heading outside tables", () => {
