@@ -57,7 +57,7 @@ const records = fixture.records
   .filter((item): item is DataRecord => item !== null);
 const columns = recordColumns({
   href: (record) => `/data/records/${record.id}`,
-  tiersOnly: true,
+  tiersOnly: false,
 });
 
 /** Same overview tables, held pending until clicked. No reader or private data. */

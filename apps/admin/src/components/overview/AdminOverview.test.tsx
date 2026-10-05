@@ -227,19 +227,18 @@ describe("the one overview", () => {
     for (let i = 0; i < 10; i++)
       await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     const table = host.querySelector('table[aria-label="Recent records"]')!;
-    // No recent record has a state to show, so the column holds the tier
-    // glyphs under an assistive heading, never an empty "State" over them.
+    // The State header and width match loading even when rows only show tiers.
     const heads = [...table.querySelectorAll("thead th")];
     expect(heads.map((th) => th.textContent)).toEqual([
       "Record",
       "Source",
-      "Tier",
+      "State",
       "Occurred",
     ]);
-    expect(heads[2]!.querySelector(".sr-only")).not.toBeNull();
+    expect(heads[2]!.querySelector(".sr-only")).toBeNull();
     expect(
       heads.slice(-2).map((th) => (th as HTMLElement).style.width),
-    ).toEqual(["56px", "116px"]);
+    ).toEqual(["144px", "116px"]);
     expect(
       table.querySelectorAll('tbody td[data-column="state"] .workspace-tier')
         .length,

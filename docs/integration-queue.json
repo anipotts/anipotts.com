@@ -301,25 +301,22 @@
     {
       "id": "table-loading-layout",
       "title": "Static table headers and stable loading geometry",
-      "revision": "453565308a077707b6e372e428498aed433fcd54",
+      "revision": "1113ef04be085d52f3cf4b942de5ebf8d3dd5596",
       "lane": "code",
-      "state": "approved",
-      "approvals": {
-        "code": {
-          "revision": "453565308a077707b6e372e428498aed433fcd54",
-          "by": "Ani",
-          "at": "2026-10-05T02:35:54.648767+00:00",
-          "evidence": "Direct website chat reply: approved to deploy, after PR500 local preview and review receipt."
-        },
-        "production": {
-          "revision": "453565308a077707b6e372e428498aed433fcd54",
-          "by": "Ani",
-          "at": "2026-10-05T02:35:54.648767+00:00",
-          "evidence": "Direct website chat reply: approved to deploy, after PR500 local preview and review receipt."
-        }
-      },
-      "updatedAt": "2026-10-05T02:26:53.849523+00:00",
-      "note": "Ani approved PR500 exact45356530 to merge/deploy admin. Required CI37255698137 still running; security passed and no review threads. No source changes after reviewed preview. PR499 remains independently awaiting review."
+      "state": "awaiting-review",
+      "approvals": {},
+      "updatedAt": "2026-10-05T02:53:35.229769+00:00",
+      "note": "PR500 initial approved45356530 passed required CI but protected merge refused due four new review threads. Corrected static Sources/Records schemas, loading tokens and responsive row rules at1113ef04. Current focused tests and types pass; renewed code/production review required for changed content. No merge/deploy."
+    },
+    {
+      "id": "tablet-sidebar-layout",
+      "title": "Tablet sidebar expands beside content",
+      "revision": "b19ab1e01d26dbdccb30b0a817465dfd5ee86a9c",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "updatedAt": "2026-10-05T02:53:35.229769+00:00",
+      "note": "PR502 draft atb19ab1e0, locally integrated. 54 focused responsive/prepaint/house-style tests pass, Astro zero errors/warnings. Browser at930px: sidebar52px/200px, main x52/x200, no modal/filter/overflow. Awaiting Ani review, admin-only release."
     }
   ]
 }

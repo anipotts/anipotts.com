@@ -320,7 +320,7 @@ function WorkspaceUtilities({
   );
 }
 
-/** One controlled modal provides phone navigation and tablet sidebar expansion. */
+/** Phones use a controlled drawer; wider screens resize the inline sidebar. */
 const NO_DRAWER = <></>;
 
 export function EditorialWorkspaceShell({
@@ -364,7 +364,6 @@ export function EditorialWorkspaceShell({
 }) {
   const [rail, setRail] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
-  const [tabletNavigation, setTabletNavigation] = useState(false);
   const navigationId = useId();
   useEffect(() => {
     // A requested route can still be held by the editor's unsaved-change guard.
@@ -372,8 +371,7 @@ export function EditorialWorkspaceShell({
     // temporary-navigation range. Native dialog owns focus restoration.
     const committed = () => setNavigationOpen(false);
     const resize = () => {
-      setTabletNavigation(window.innerWidth > 640 && window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) committed();
+      if (window.innerWidth > 640) committed();
     };
     resize();
     window.addEventListener("admin:workspace-navigation", committed);
@@ -462,7 +460,7 @@ export function EditorialWorkspaceShell({
     };
   }, [railReady, userCollapsed]);
   const changeCollapsed = (collapsed: boolean) => {
-    if (window.innerWidth <= 1023) {
+    if (window.innerWidth <= 640) {
       setNavigationOpen(!collapsed);
       return;
     }
@@ -542,8 +540,7 @@ export function EditorialWorkspaceShell({
         height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
-        // Keep AppShell's responsive inline rail; our shared controlled drawer
-        // also serves temporary tablet expansion without resizing the content.
+        // Tablets and desktops share the inline sidebar. Only phones use a drawer.
         mobileNav={{ breakpoint: "sm", hasToggle: false, content: NO_DRAWER }}
         banner={
           <PhoneBar
@@ -585,7 +582,7 @@ export function EditorialWorkspaceShell({
         <NavigationIconScope value>
           <MobileNav
             id={navigationId}
-            className={`admin-navigation-drawer${tabletNavigation ? " admin-tablet-sidebar" : ""}`}
+            className="admin-navigation-drawer"
             label="Admin navigation"
             header="Navigation"
             side="start"
@@ -596,25 +593,6 @@ export function EditorialWorkspaceShell({
             <SideNav
               className="editorial-workspace-nav admin-drawer-nav"
               aria-label="Admin"
-              collapsible={
-                tabletNavigation
-                  ? {
-                      isCollapsed: false,
-                      onCollapsedChange: () => setNavigationOpen(false),
-                      hasButton: false,
-                    }
-                  : undefined
-              }
-              header={
-                tabletNavigation ? (
-                  <WorkspaceIdentity rail={false} localOwner={showLocalOwner} />
-                ) : undefined
-              }
-              footer={
-                tabletNavigation ? (
-                  <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
-                ) : undefined
-              }
             >
               <UnifiedNavigation
                 rail={false}
@@ -623,9 +601,7 @@ export function EditorialWorkspaceShell({
                 contentHref={destination}
                 groupCounts={groupCounts}
               />
-              {!tabletNavigation && (
-                <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
-              )}
+              <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
             </SideNav>
           </MobileNav>
         </NavigationIconScope>

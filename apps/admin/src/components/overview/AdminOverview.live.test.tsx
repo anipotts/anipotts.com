@@ -82,9 +82,15 @@ describe("initial recent records", () => {
         [...pendingTable!.querySelectorAll("thead th")].map(
           (cell) => cell.textContent,
         ),
-      ).toEqual(["Record", "Source", "Tier", "Occurred"]);
+      ).toEqual(["Record", "Source", "State", "Occurred"]);
       expect(pendingTable!.querySelectorAll("[data-loading-row]")).toHaveLength(
         5,
+      );
+      const pendingSchema = [...pendingTable!.querySelectorAll("thead th")].map(
+        (cell) => ({
+          title: cell.textContent,
+          width: (cell as HTMLElement).style.width,
+        }),
       );
       const answer = (kind: "records" | "sources") =>
         Response.json({
@@ -109,6 +115,16 @@ describe("initial recent records", () => {
         host.querySelector('[aria-label="Loading recent records"]'),
       ).toBeNull();
       expect(host.textContent).toContain(data.records[0]!.title);
+      expect(
+        [
+          ...host.querySelectorAll(
+            'table[aria-label="Recent records"] thead th',
+          ),
+        ].map((cell) => ({
+          title: cell.textContent,
+          width: (cell as HTMLElement).style.width,
+        })),
+      ).toEqual(pendingSchema);
       await act(async () => root.unmount());
       session.logout();
     },

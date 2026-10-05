@@ -339,8 +339,8 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                         >
                           {index === 0 && (
                             <Skeleton
-                              width="20px"
-                              height="20px"
+                              width="var(--spacing-5)"
+                              height="var(--spacing-5)"
                               radius={1}
                               index={row}
                             />
