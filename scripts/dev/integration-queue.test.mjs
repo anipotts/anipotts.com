@@ -137,3 +137,52 @@ test("unknown items and states fail without mutating the original queue", () => 
   );
   assert.equal(queue.items[0].state, "implementing");
 });
+
+test("verified merge mapping retains reviewed approvals and records the shipped SHA", () => {
+  let queue = make();
+  for (const approval of ["code", "production"])
+    queue = updateItem(queue, {
+      id: "example",
+      revision,
+      approval,
+      by: "Ani",
+      evidence: "review",
+    });
+  const release = "b".repeat(40);
+  assert.throws(
+    () => updateItem(queue, { id: "example", "release-revision": release }),
+    /mapping/,
+  );
+  queue = updateItem(queue, {
+    id: "example",
+    "release-revision": release,
+    "reviewed-revision": revision,
+    "mapping-evidence": "verified tree diff and provider checks",
+  });
+  queue = updateItem(queue, {
+    id: "example",
+    state: "deployed",
+    target: "www",
+    evidence: "provider and route proof",
+  });
+  assert.equal(queue.items[0].revision, revision);
+  assert.equal(queue.items[0].approvals.code.revision, revision);
+  assert.equal(queue.items[0].deployment.revision, release);
+  const changed = updateItem(queue, {
+    id: "example",
+    revision: "c".repeat(40),
+  });
+  assert.deepEqual(changed.items[0].approvals, {});
+  assert.equal(changed.items[0].release, undefined);
+  assert.equal(changed.items[0].deployment, undefined);
+  assert.throws(
+    () =>
+      updateItem(changed, {
+        id: "example",
+        "release-revision": release,
+        "reviewed-revision": revision,
+        "mapping-evidence": "stale mapping",
+      }),
+    /mapping/,
+  );
+});
