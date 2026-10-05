@@ -46,13 +46,9 @@ import {
   RowTitle,
   StateBadge,
   StateNotice,
-  chipWidth,
-  figureWidth,
-  titleWidth,
   type Column,
   type Tone,
 } from "../workspace/Workspace";
-import { countText } from "../workspace/format";
 import type { DataSourceRow } from "./data-model";
 import { ReadNotice } from "./DataNotices";
 import { readSourceCatalog } from "./source-catalog";
@@ -408,33 +404,6 @@ function timeCell(row: SourceRow, value: string | null, label: string) {
   return <RelativeTime value={value} empty="Not recorded" label={label} />;
 }
 
-/** A cell's inline inset: 12px each side. */
-const SOURCE_CELL_INSET = 24;
-
-/** The State column at its widest cell: a quiet dot, or the widest chip
- * the rows draw, and never narrower than its header. */
-export function sourceStateWidth(rows: readonly SourceRow[]): number {
-  let widest = titleWidth("State");
-  for (const row of [...rows, ...rows.flatMap((row) => row.accounts)]) {
-    const badge = STATES[row.state];
-    widest = Math.max(widest, chipWidth(badge.label, badge.quiet));
-  }
-  return Math.ceil(SOURCE_CELL_INSET + widest);
-}
-
-/** A count column at its header or its widest figure, whichever is wider,
- * so the numbers sit tight beside State rather than across a dead band. */
-export function sourceFigureWidth(
-  header: string,
-  values: readonly (number | null)[],
-): number {
-  let widest = titleWidth(header);
-  for (const value of values)
-    if (value != null && Number.isFinite(value))
-      widest = Math.max(widest, figureWidth(countText(value)));
-  return Math.ceil(SOURCE_CELL_INSET + widest);
-}
-
 /** Every family and source, with each open family's accounts under it. */
 function tableRows(rows: SourceRow[], open: ReadonlySet<string>): TableRow[] {
   return rows.flatMap((row) =>
@@ -501,10 +470,10 @@ export function SourcesExplorer({
         .length ?? 0,
     [sources],
   );
-  if (!sources) return <LoadingSkeleton label="sources" columns={4} />;
-  if (failure && !sources.length)
+  if (failure && sources && !sources.length)
     return <ReadNotice result={failure} onRetry={() => void read()} />;
-  if (!rows.length) return <StateNotice kind="empty" title="No sources yet" />;
+  if (sources && !rows.length)
+    return <StateNotice kind="empty" title="No sources yet" />;
   const toggle = (key: string) =>
     setOpen((current) => {
       const next = new Set(current);
@@ -517,18 +486,8 @@ export function SourcesExplorer({
       row.accounts.map((account) => [account.key, row.name] as const),
     ),
   );
-  // A device column only when some row has a device to show.
-  const anyDevice = rows.some(
-    (row) => row.device || row.accounts.some((account) => account.device),
-  );
-  const anySync = rows.some(
-    (row) => row.lastSync || row.accounts.some((account) => account.lastSync),
-  );
-  // Every count a row shows, open accounts included.
-  const counted = (key: "records" | "revisions") =>
-    [...rows, ...rows.flatMap((row) => row.accounts)]
-      .filter(showsCounts)
-      .map((row) => row[key]);
+  // These headers and widths are schema, not observations from the first page.
+  // Missing device or sync values leave empty cells in the same columns.
   const columns: Column<TableRow>[] = [
     {
       key: "source",
@@ -545,60 +504,50 @@ export function SourcesExplorer({
           <SourceTitle row={row} family={familyOf.get(row.key)} />
         ),
     },
-    ...(anyDevice
-      ? [
-          {
-            key: "device",
-            priority: 1,
-            header: <span className="sr-only">Device</span>,
-            width: CELL_WIDTHS.tile,
-            hideBelow: "large" as const,
-            render: (row: TableRow) => <Device id={row.device} />,
-          },
-        ]
-      : []),
+    {
+      key: "device",
+      priority: 1,
+      header: <span className="sr-only">Device</span>,
+      width: CELL_WIDTHS.tile,
+      hideBelow: "large",
+      render: (row) => <Device id={row.device} />,
+    },
     {
       key: "state",
       priority: 1,
       header: "State",
-      width: sourceStateWidth(rows),
+      width: CELL_WIDTHS.state,
       render: (row) => <SourceStateMark state={row.state} />,
     },
     {
       key: "records",
       priority: 1,
       header: "Records",
-      width: sourceFigureWidth("Records", counted("records")),
+      width: CELL_WIDTHS.figure,
       numeric: true,
-      render: (row) => <Figure value={showsCounts(row) ? row.records : null} />,
+      render: (row) => (
+        <Figure compact value={showsCounts(row) ? row.records : null} />
+      ),
     },
     {
       key: "revisions",
       priority: 1,
       header: "Revisions",
-      width: sourceFigureWidth("Revisions", counted("revisions")),
+      width: CELL_WIDTHS.figure,
       numeric: true,
       hideBelow: "large",
       render: (row) => (
-        <Figure value={showsCounts(row) ? row.revisions : null} />
+        <Figure compact value={showsCounts(row) ? row.revisions : null} />
       ),
     },
-    // "Last sync" is System's own success time for the source, and shows
-    // only once System serves one; "Last seen" is when the newest record
-    // was observed, never a sync. No time System did not record: an
-    // excluded source's is withdrawn with its records (S-20), a discovered
-    // one was never connected.
-    ...(anySync
-      ? [
-          {
-            key: "sync",
-            priority: 0,
-            header: "Last sync",
-            width: CELL_WIDTHS.time,
-            render: (row: TableRow) => timeCell(row, row.lastSync, "Last sync"),
-          },
-        ]
-      : []),
+    // Only System's success time is a sync; newest record time is Last seen.
+    {
+      key: "sync",
+      priority: 0,
+      header: "Last sync",
+      width: CELL_WIDTHS.time,
+      render: (row) => timeCell(row, row.lastSync, "Last sync"),
+    },
     {
       key: "last",
       priority: 1,
@@ -606,10 +555,12 @@ export function SourcesExplorer({
       width: CELL_WIDTHS.time,
       // Beside a Last sync column it waits for the width of large, so a
       // tablet's names keep their room.
-      ...(anySync ? { hideBelow: "large" as const } : {}),
+      hideBelow: "large",
       render: (row) => timeCell(row, row.lastSeen, "Last seen"),
     },
   ];
+  if (!sources)
+    return <LoadingSkeleton label="sources" columns={columns} footer />;
   return (
     <VStack gap={3} aria-busy={busy} className="sources-view">
       {wantsJobs && ops && <JobStates ops={ops} onJobs={setJobs} />}

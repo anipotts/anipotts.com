@@ -237,72 +237,50 @@ describe("responsive workspace navigation", () => {
       localStorage.removeItem("admin:sidebar-collapsed");
     },
   );
-  it("opens a tablet overlay while preserving the rail and desktop preference", () => {
-    Object.defineProperty(window, "innerWidth", {
-      configurable: true,
-      value: 930,
-    });
-    render();
-    expect(
-      host
-        .querySelector(".editorial-workspace-shell")
-        ?.getAttribute("data-sidebar-collapsed"),
-    ).toBe("true");
-    const expand = host.querySelector(
-      'button[aria-label="Expand sidebar"]',
-    ) as HTMLButtonElement;
-    expect(expand).not.toBeNull();
-    const identity = expand.closest(".editorial-workspace-identity")!;
-    expect(identity).not.toBeNull();
-    expect(identity.querySelector("button")).toBe(expand);
-    for (const control of [
-      identity.querySelector('button[aria-label="Search"]'),
-    ]) {
-      expect(control).not.toBeNull();
-      expect(
-        expand.compareDocumentPosition(control!) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).not.toBe(0);
-    }
-    act(() => expand.click());
-    const collapsed = () =>
-      host
-        .querySelector(".editorial-workspace-shell")
-        ?.getAttribute("data-sidebar-collapsed");
-    expect(collapsed()).toBe("true");
-    expect(
-      (
-        host.querySelector(
+  it.each([641, 768, 930, 1023])(
+    "expands the inline sidebar at %ipx without opening a modal",
+    (width) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      render();
+      const shell = () => host.querySelector(".editorial-workspace-shell")!;
+      const collapsed = () => shell().getAttribute("data-sidebar-collapsed");
+      const drawer = () =>
+        host.querySelector<HTMLDialogElement>(
           "dialog.admin-navigation-drawer",
-        ) as HTMLDialogElement
-      ).open,
-    ).toBe(true);
-    const overlay = host.querySelector(".admin-tablet-sidebar")!;
-    expect(overlay).not.toBeNull();
-    expect(overlay.querySelector(".approved-workspace-header")).not.toBeNull();
-    expect(overlay.querySelector('[aria-label="Search"]')).not.toBeNull();
-    const close = overlay.querySelector(
-      '[aria-label="Collapse sidebar"]',
-    ) as HTMLButtonElement;
-    expect(close).not.toBeNull();
-    act(() => close.click());
-    expect(
-      host
-        .querySelector('[aria-label="Open navigation"]')
-        ?.getAttribute("aria-expanded"),
-    ).toBe("false");
-    expect(localStorage.getItem("admin:sidebar-collapsed")).toBeNull();
-    // A tablet opens on the rail again: the saved expand would leave its
-    // tables too little room.
-    render(vi.fn(), "remounted");
-    expect(collapsed()).toBe("true");
-    Object.defineProperty(window, "innerWidth", {
-      configurable: true,
-      value: 1100,
-    });
-    render(vi.fn(), "wide");
-    expect(collapsed()).toBe("true");
-  });
+        )!;
+      expect(collapsed()).toBe("true");
+      act(() =>
+        host
+          .querySelector<HTMLButtonElement>(
+            'button[aria-label="Expand sidebar"]',
+          )!
+          .click(),
+      );
+      expect(collapsed()).toBe("false");
+      expect(drawer().open).toBe(false);
+      expect(host.querySelector(".admin-tablet-sidebar")).toBeNull();
+      expect(localStorage.getItem("admin:sidebar-collapsed")).toBe("false");
+      const nav = shell().querySelector(".astryx-app-shell-sidenav")!;
+      expect(nav.querySelector(".approved-workspace-header")).not.toBeNull();
+      expect(nav.querySelector('[aria-label="Search"]')).not.toBeNull();
+      // A route remount keeps the expanded sidebar rather than reverting to a rail.
+      render(vi.fn(), "remounted");
+      expect(collapsed()).toBe("false");
+      act(() =>
+        host
+          .querySelector<HTMLButtonElement>(
+            'button[aria-label="Collapse sidebar"]',
+          )!
+          .click(),
+      );
+      expect(collapsed()).toBe("true");
+      expect(drawer().open).toBe(false);
+      expect(localStorage.getItem("admin:sidebar-collapsed")).toBe("true");
+    },
+  );
   it("keeps desktop search below the identity row", () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -368,6 +346,7 @@ describe("responsive workspace navigation", () => {
     [1440, "true", "true"],
     [1440, null, "false"],
     [690, null, "true"],
+    [690, "false", "false"],
     [640, "true", "false"],
   ])(
     "chooses the rail at %ipx with saved %s in one commit after hydration",
