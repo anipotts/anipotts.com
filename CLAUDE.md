@@ -42,44 +42,34 @@ the same PR checks and scoped deploy logic as other changes.
 
 ## current standing authority
 
-Ani's September 13, 2026 Quiet Precision implementation approval supersedes the
-older automatic merge and docs bypass lanes. Every PR waits for Ani's explicit
-review before merging, including documentation and dependency changes. Keep
-incomplete work in draft PRs; ready checkpoints run the full relevant required
-checks. Changed heads require refreshed checks and affected acceptance evidence.
-Do not enable auto-merge. Same-repository PRs, exact-head provider protection and
-scoped release gates still apply after Ani's review.
+Follow the current global Working with Ani agreement and native session controls.
+Current explicit task authority supersedes older dated project guidance. Routine
+in-scope edits, checks, commits and agent-branch pushes are authorized. Keep
+incomplete work in draft PRs; ready checkpoints run the relevant required checks.
+Changed heads refresh affected checks and acceptance evidence.
 
-### integration owner delegation, September 14, 2026
+Before merging or enabling auto-merge, re-read live default-branch protection.
+Pull requests are required. Required checks must pass on the exact current head,
+with strict checking where supported, no bypass, and force-push and deletion
+blocked. Missing protection stops integration; chat approval does not replace it.
+Changing branch protection requires its own approval. Follow native approval
+controls and the target's current release gates.
 
-Ani designated Claude Code as the single integration owner for the admin,
-public-site and docs lanes while Codex usage is paused, until Ani reassigns the
-lane. The Codex Quiet Precision heartbeats are paused so there is one owner. For
-this period Ani delegated PR review and serial merge to the integration owner:
-review the exact head, run the full relevant gates, merge one PR at a time after
-required checks pass and review threads are resolved, and accept the automatic
-production deploy. Record the review, merge SHA, deploy run, targets that ran,
-skipped targets and route proof for each merge. Auto-merge stays disabled.
+### integration ownership
 
-Scoped approvals that sit inside the hard stops below, granted for this round:
+Codex and Claude Code are co-equal agents. Assign one active integration owner for
+each shared lane and record the owner and current head in the task or handoff.
+The owner reviews the exact head, resolves required review threads and integrates
+one PR at a time after its required checks pass. Confirm that the owner is active;
+if ownership changes, make the handoff explicit and preserve other agents' work.
 
-- a local owner session for admin that works only with an explicit local flag on
-  loopback hostnames, refused by the deploy workflow and absent from
-  deployable bundles; production Cloudflare Access is unchanged
-- hardening the public newsletter, webhook, subscribe and ingest endpoints and the
-  admin compatibility routes for confirmed security findings
-- runtime binding contracts for www, admin and the four retained workers,
-  including the worker redeploys they cause
-- deleting dead code confirmed by the knip audit
-- pruning missing worktree registrations and removing merged or preserved
-  worktrees after additive preservation refs are verified
-- preserving unshipped Codex working-tree changes to a pushed branch, excluding
-  private writing drafts
-
-Still requiring Ani's exact approval: changing the authentication mode, removing
-Cloudflare Access or the exact-owner check, newsletter worker send changes,
-production content database bindings or remote migrations, backup key custody or
-provider setup, secrets and `.env*`, and force-push or history rewrite.
+Ordinary production releases are authorized after the required checks pass on the
+exact release tree. Record the merge SHA, deploy run, affected and skipped targets
+and route proof. Authentication, secrets, account/access changes, destructive
+data or schema changes, and outbound sends retain their native approval boundary.
+Cloudflare Access and the exact-owner assertion remain the admin sign-in boundary.
+Additive migrations require inspection, the correct target and rollback, and the
+existing release controls.
 
 The admin house style has no divider lines: no `hasDividers`, `<hr>`, or
 decorative block borders.
@@ -89,7 +79,7 @@ decorative block borders.
 For admin UI, feed, content review, auth staging, and operator-dashboard work:
 
 - use a same-repository pull request for deployable files
-- merge the exact head only after Ani's review and every required check passes
+- integrate the exact head under the standing authority and protection gates above
 - deploy only the affected admin target after release gates are enabled
 - record deploy run, skipped targets, route proof, and exact release SHA
 
@@ -107,14 +97,14 @@ For `apps/www` copy, layout, static content, accessibility, route, and
 presentation work:
 
 - use a same-repository pull request for deployable files
-- merge the exact head only after Ani's review and every required check passes
+- integrate the exact head under the standing authority and protection gates above
 - deploy `www=true` only after release gates are enabled
 - record deploy run, route proof, and exact release SHA
 
 ### docs lane
 
-Docs-only changes use a PR and wait for Ani's review. They should not run app
-deploy targets.
+Docs-only changes use a PR and the same standing authority and protection gates.
+They should not run app deploy targets.
 
 ## retired passkey sequence
 
@@ -142,7 +132,11 @@ leave the hard stop explicit.
 
 ## verification
 
-Use the narrowest command that covers the diff.
+Use the narrowest command that could expose a wrong result in the changed behavior.
+Keep verification proportional to the change. Stop when the requested outcome is
+demonstrated; expand or repeat checks only for new changes, failures or unresolved
+concerns. Instruction and tooling changes need representative non-mutating tasks
+and focused tests, not a browser matrix.
 
 ```bash
 pnpm check:changed
@@ -152,6 +146,26 @@ pnpm turbo typecheck --filter=@anipotts/admin...
 pnpm turbo build --filter=@anipotts/admin...
 pnpm validate
 ```
+
+`pnpm check:changed` includes committed, staged, unstaged and untracked changes by
+default; ignored files stay excluded. Use `pnpm check:changed --commits-only` only
+when intentionally verifying a committed tree. That mode omits uncommitted work
+and labels its result accordingly. The shared CI file collector retains its
+committed-tree default. `--working-tree` remains an explicit local alias.
+
+### website visual review
+
+Review the changed behavior and its nearby effects: rendered layout, typography,
+motion, accessibility and responsive states that the diff can affect. Use an
+isolated task-owned preview for automation. When Ani is using or reviewing a
+visible browser, keep his tab and viewport under his control; run automated
+resizing and navigation in a separate test surface.
+
+For urgent polish, fix the requested defect first and use a focused visual check.
+Broaden the audit only when the task asks for it or evidence exposes a related
+problem. An unrelated design preference does not expand the task. Report any
+unexercised acceptance cases and keep saved, accepted, checked and deployed states
+distinct.
 
 ## local development
 
@@ -187,8 +201,8 @@ The manager records only local process metadata and logs under ignored
 `.local/admin-preview/`. It refuses to stop an unrecognized process or replace
 an unrelated listener on port 4311.
 
-`pnpm check:changed` mirrors the affected PR scope. `pnpm validate` remains the
-full-workspace path for shared or consequential changes.
+`pnpm check:changed` selects affected checks from the branch and local changes.
+`pnpm validate` remains the full-workspace path for shared or consequential changes.
 
 For deploys, record:
 

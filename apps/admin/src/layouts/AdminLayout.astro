@@ -8,6 +8,7 @@ import "../styles/admin.css";
 import "../styles/fonts.css";
 import AdminDocument from "./AdminDocument.astro";
 import { AdminShell } from "../components/astryx/AdminShell";
+import { publicSiteUrl } from "../lib/editorial-content";
 import { initialAdminTheme } from "../lib/admin-theme";
 import type { AdminSearchResult } from "../data/admin-search";
 
@@ -31,6 +32,7 @@ const localOwner =
 
 <AdminDocument title={title}>
   <AdminShell
+    siteUrl={publicSiteUrl}
     client:load
     localPreview={import.meta.env.DEV}
     localOwner={localOwner}
