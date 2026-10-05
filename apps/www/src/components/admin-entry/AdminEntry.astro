@@ -47,9 +47,17 @@ const groups = [
   <div class="entry-rail" data-admin-rail aria-hidden="true"></div>
   <aside class="entry-sidebar" aria-label="admin workspace">
     <div class="entry-identity">
-      <span class="entry-identity-end" data-admin-controls aria-hidden="true">
+      <button
+        class="entry-control entry-identity-end"
+        type="button"
+        data-admin-controls
+        data-admin-collapse
+        aria-label="toggle sidebar"
+        aria-expanded="true"
+        title="toggle sidebar"
+      >
         <Icon name="ph:sidebar-simple" />
-      </span>
+      </button>
       <span class="entry-wordmark" data-admin-wordmark>
         <span class="entry-bracket" data-admin-left aria-hidden="true">[</span>
         <span data-admin-letters
@@ -96,10 +104,12 @@ const groups = [
         class="entry-return"
         href="/"
         data-admin-return
+        aria-label="back to www"
+        title="back to www"
         data-astro-prefetch="hover"
       >
         <Icon name="ph:arrow-left" aria-hidden="true" />
-        <span>back to www</span>
+        <span>www</span>
       </a>
       <button
         class="entry-control"
@@ -375,6 +385,45 @@ const groups = [
   .entry-shell button:focus-visible {
     outline: 2px solid #61abea;
     outline-offset: 3px;
+  }
+  @media (min-width: 641px) {
+    .entry-shell[data-sidebar-collapsed="true"] .entry-sidebar {
+      width: 60px;
+    }
+    .entry-shell[data-sidebar-collapsed="true"] .entry-identity {
+      justify-content: center;
+    }
+    .entry-shell[data-sidebar-collapsed="true"] .entry-wordmark,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-identity > span,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-search span,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-search kbd,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-nav-row span,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-group-heading,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-return span {
+      display: none;
+    }
+    .entry-shell[data-sidebar-collapsed="true"] .entry-nav-row,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-return,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-search {
+      justify-content: center;
+    }
+    .entry-shell[data-sidebar-collapsed="true"] .entry-utilities {
+      flex-direction: column;
+    }
+    .entry-shell[data-sidebar-collapsed="true"] .entry-main,
+    .entry-shell[data-sidebar-collapsed="true"] .entry-main-surface {
+      left: 60px;
+    }
+  }
+  @media (pointer: coarse) and (min-width: 641px) {
+    .entry-control,
+    .entry-identity,
+    .entry-return {
+      min-height: 44px;
+    }
+    .entry-control {
+      width: 44px;
+    }
   }
   @media (max-width: 640px) {
     .entry-sidebar {

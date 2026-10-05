@@ -34,6 +34,7 @@ import {
 import {
   MagnifyingGlassIcon,
   SidebarSimpleIcon,
+  ArrowLeftIcon,
   SignOutIcon,
 } from "@phosphor-icons/react";
 import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
@@ -281,29 +282,39 @@ function WorkspaceIdentity({
   );
 }
 
-/** Sidebar footer: log out outside local previews, then the one theme
- * button, which cycles light, dark and system. */
+/** Website return and theme controls share the sidebar footer. */
 function WorkspaceUtilities({
   rail,
-  localPreview,
+  siteUrl,
 }: {
   rail: boolean;
-  localPreview: boolean;
+  siteUrl: string;
 }) {
   const Stack = rail ? VStack : HStack;
   return (
     <Stack
-      className="editorial-workspace-utilities"
+      className="editorial-workspace-utilities editorial-workspace-utility-controls"
       data-collapsed={rail}
       gap={1}
     >
-      {!localPreview && (
-        <SideNavItem
-          label="Log out"
-          href="/auth/logout"
-          icon={<SignOutIcon size={18} aria-hidden="true" />}
-        />
-      )}
+      <SideNavItem
+        label="www"
+        href={siteUrl}
+        icon={<ArrowLeftIcon size={18} aria-hidden="true" />}
+        onClick={(event) => {
+          if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          event.preventDefault();
+          navigateAdmin(siteUrl);
+        }}
+      />
       <ThemeControl />
     </Stack>
   );
@@ -326,6 +337,7 @@ export function EditorialWorkspaceShell({
   workspace = "content",
   currentRoute,
   recordPage = false,
+  siteUrl = "https://anipotts.com/",
 }: {
   children: ReactNode;
   area: "content" | "newsletter";
@@ -347,6 +359,8 @@ export function EditorialWorkspaceShell({
   currentRoute?: string;
   /** Identifies record routes; the shared phone appbar remains visible. */
   recordPage?: boolean;
+  /** Matching managed www preview in development, public site in production. */
+  siteUrl?: string;
 }) {
   const [rail, setRail] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -553,9 +567,7 @@ export function EditorialWorkspaceShell({
             header={
               <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
             }
-            footer={
-              <WorkspaceUtilities rail={rail} localPreview={localPreview} />
-            }
+            footer={<WorkspaceUtilities rail={rail} siteUrl={siteUrl} />}
           >
             <UnifiedNavigation
               rail={rail}
@@ -600,10 +612,7 @@ export function EditorialWorkspaceShell({
               }
               footer={
                 tabletNavigation ? (
-                  <WorkspaceUtilities
-                    rail={false}
-                    localPreview={localPreview}
-                  />
+                  <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
                 ) : undefined
               }
             >
@@ -615,7 +624,7 @@ export function EditorialWorkspaceShell({
                 groupCounts={groupCounts}
               />
               {!tabletNavigation && (
-                <WorkspaceUtilities rail={false} localPreview={localPreview} />
+                <WorkspaceUtilities rail={false} siteUrl={siteUrl} />
               )}
             </SideNav>
           </MobileNav>
