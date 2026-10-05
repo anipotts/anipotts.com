@@ -65,6 +65,27 @@ describe("publishing review focus", () => {
     await Promise.resolve();
     expect(document.activeElement).toBe(opener);
   });
+  it("returns focus to the editor when completion disables the opener", async () => {
+    const view = (open: boolean) => (
+      <>
+        <main className="record-workspace-main">
+          <textarea aria-label="Stable editor" />
+        </main>
+        {open && (
+          <PublishingReviewPanel title="Review changes" onClose={close}>
+            <input aria-label="Review control" />
+          </PublishingReviewPanel>
+        )}
+      </>
+    );
+    act(() => root.render(view(true)));
+    opener.disabled = true;
+    act(() => root.render(view(false)));
+    await Promise.resolve();
+    expect(document.activeElement).toBe(
+      host.querySelector('textarea[aria-label="Stable editor"]'),
+    );
+  });
   it("does not steal focus from another editor when closed", async () => {
     render();
     outside.focus();

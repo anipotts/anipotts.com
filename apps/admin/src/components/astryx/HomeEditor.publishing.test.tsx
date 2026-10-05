@@ -1575,12 +1575,9 @@ it("does not clear pending evidence while a rich-text buffer is dirty", async ()
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
     expect(body.value).toBe("Newer buffered body");
-    expect(
-      events.some(
-        (event) =>
-          event.detail.publishedAt || event.detail.changesPending === false,
-      ),
-    ).toBe(false);
+    expect(events.some((event) => event.detail.changesPending === false)).toBe(
+      false,
+    );
   } finally {
     window.removeEventListener(RECORD_SAVED_EVENT, listen);
   }
@@ -1619,4 +1616,51 @@ it("reports a verified unpublish as hidden while retaining the private draft", a
   expect(
     host.querySelector('textarea[aria-label="Test article body"]'),
   ).not.toBeNull();
+});
+
+it("accepts a later explicit baseline after the observed completion was reconciled", async () => {
+  const publication = await completedPublication();
+  let baseline = {
+    ...snapshot.base,
+    source,
+    publicationId: publication.publicationId,
+  };
+  const savedSource = source.replace("Original title", "Newer private title");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/csrf")) return response({ csrf: "test-only" });
+      if (url.includes("/baseline")) return response({ base: baseline });
+      return response({
+        ...snapshot,
+        base: baseline,
+        draft: { ...draft, source: savedSource, revision: 2 },
+        publication,
+      });
+    }),
+  );
+  const events: CustomEvent[] = [];
+  const listen = (event: Event) => events.push(event as CustomEvent);
+  window.addEventListener(RECORD_SAVED_EVENT, listen);
+  try {
+    await mount("", false);
+    await act(async () => {
+      await vi.waitFor(() => expect(events.length).toBe(1));
+    });
+    baseline = {
+      ...baseline,
+      publicationId: "another-tab-receipt",
+      source: source.replace("Original title", "Another tab title"),
+    };
+    await click("Publish");
+    expect(host.textContent).not.toContain("Couldn’t prepare this review");
+    expect(host.textContent).not.toContain("Refreshing published comparison");
+    expect(
+      [...host.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Publish now",
+      )?.disabled,
+    ).toBe(false);
+  } finally {
+    window.removeEventListener(RECORD_SAVED_EVENT, listen);
+  }
 });

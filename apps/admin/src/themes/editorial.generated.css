@@ -528,6 +528,10 @@
     --color-project-artwork-plate: #ffffff;
   }
 
+  .astryx-command-palette {
+    --color-project-artwork-plate: #ffffff;
+  }
+
   .astryx-top-nav {
     background-color: var(--color-background-surface);
   }

@@ -24,17 +24,26 @@ export function PublishingReviewPanel({
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
+    const workspace = panel.current?.closest("[data-record-workspace]");
+    const fallback = workspace?.querySelector<HTMLElement>(
+      ".document-title textarea, .document-title input, .record-workspace-main textarea:not(:disabled), .record-workspace-main button:not(:disabled)",
+    );
     heading.current?.focus({ preventScroll: true });
     return () => {
       const active = document.activeElement;
-      if (!panel.current?.contains(active) || !opener?.isConnected) return;
+      if (!panel.current?.contains(active)) return;
       queueMicrotask(() => {
         if (
-          opener.isConnected &&
-          (document.activeElement === document.body ||
-            document.activeElement === active)
+          document.activeElement !== document.body &&
+          document.activeElement !== active
         )
-          opener.focus({ preventScroll: true });
+          return;
+        const target =
+          opener?.isConnected &&
+          !opener.matches(":disabled, [aria-disabled=true]")
+            ? opener
+            : fallback;
+        if (target?.isConnected) target.focus({ preventScroll: true });
       });
     };
   }, []);

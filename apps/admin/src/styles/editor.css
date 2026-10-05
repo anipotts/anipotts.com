@@ -883,8 +883,14 @@ html[data-theme="light"] .editor-rendered-value .inline-image-white {
   .publishing-review-panel {
     order: 0;
     position: sticky;
-    top: var(--spacing-4);
-    max-height: calc(100dvh - var(--spacing-12) * 2);
+    top: calc(
+      var(--admin-appbar-height, 0px) +
+        var(--editor-bar-height, var(--spacing-11)) + var(--spacing-4)
+    );
+    max-height: calc(
+      100dvh - var(--admin-appbar-height, 0px) -
+        var(--editor-bar-height, var(--spacing-11)) - var(--spacing-12)
+    );
     overflow-y: auto;
   }
 }

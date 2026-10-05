@@ -431,6 +431,11 @@ export const editorialTheme = {
         "--color-project-artwork-plate": "#ffffff"
       }
     },
+    "command-palette": {
+      "base": {
+        "--color-project-artwork-plate": "#ffffff"
+      }
+    },
     "top-nav": {
       "base": {
         "backgroundColor": "var(--color-background-surface)"

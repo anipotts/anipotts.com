@@ -195,14 +195,6 @@ function recordGlyph(record: CatalogRecord): [Icon, string] {
   return [library.icon, library.kind];
 }
 
-/** The row link's tooltip carries this string, so it stays bounded rather
- * than listing every changed frontmatter field. */
-export function changedFieldSummary(fields: readonly string[]): string {
-  if (!fields.length) return "Source changes";
-  const shown = fields.slice(0, 2).join(", ");
-  return fields.length > 2 ? `${shown} +${fields.length - 2}` : shown;
-}
-
 /** The private draft state could not be read: a glyph, named on hover. */
 function UnavailableMark() {
   return (

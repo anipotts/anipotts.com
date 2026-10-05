@@ -220,6 +220,7 @@ function announceRecordFreshness(
   draft: { source: string; revision: number; updatedAt: number | string },
   baseSource: string,
   publishedAt?: string,
+  bufferedChanges = false,
 ) {
   try {
     const metadata = parseEditorialSource(draft.source).data as Record<
@@ -235,9 +236,24 @@ function announceRecordFreshness(
       summary: editorialRecordSummary(record, metadata) ?? "",
       revision: draft.revision,
       updatedAt: new Date(draft.updatedAt).toISOString(),
-      changesPending: draft.source !== baseSource,
+      changesPending: bufferedChanges || draft.source !== baseSource,
       ...(typeof intended === "string" ? { intendedVisibility: intended } : {}),
-      ...(publishedAt && draft.source === baseSource ? { publishedAt } : {}),
+      ...(publishedAt
+        ? {
+            publishedAt,
+            publishedVisibility:
+              record.kind === "page"
+                ? "published"
+                : String(
+                    (
+                      parseEditorialSource(baseSource).data as Record<
+                        string,
+                        unknown
+                      >
+                    )[record.kind === "work" ? "public_state" : "status"],
+                  ),
+          }
+        : {}),
     });
   } catch {
     /* Metadata refresh never interrupts an acknowledged save. */
@@ -1023,7 +1039,7 @@ function HomeEditorImpl({
           setReviewedBase(null);
         }
         const current = editor.current?.state;
-        if (current && !bodyDirtyRef.current)
+        if (current)
           announceRecordFreshness(
             record,
             {
@@ -1033,6 +1049,7 @@ function HomeEditorImpl({
             },
             confirmed.source,
             new Date(job.verifiedAt!).toISOString(),
+            bodyDirtyRef.current,
           );
         publishedDraft.current = null;
       })
@@ -1319,9 +1336,15 @@ function HomeEditorImpl({
       const baseline: HomeBase | undefined = (await response.json()).base;
       if (!baseline || typeof baseline.source !== "string") throw new Error();
       const completed = publicationRef.current;
-      if (verifiedPublication(completed))
+      if (
+        verifiedPublication(completed) &&
+        reconciledPublication.current !==
+          `${query}:${completed.id}:${completed.publicationId}`
+      )
         await reconcilePublishedBaseline(completed, baseline);
       if (!isCurrent()) return;
+      setBaselineError(false);
+      publicBaseSource.current = baseline.source;
       setSnapshot((previous) =>
         previous ? { ...previous, base: baseline } : previous,
       );
@@ -1482,7 +1505,8 @@ function HomeEditorImpl({
   const baselinePending =
     baselineError ||
     (verifiedPublication(publication) &&
-      snapshot.base.publicationId !== publication.publicationId);
+      reconciledPublication.current !==
+        `${query}:${publication.id}:${publication.publicationId}`);
   const publishedCurrent =
     !baselinePending &&
     Boolean(snapshot.base.publicationId) &&

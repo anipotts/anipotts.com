@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ContentLibrary,
-  changedFieldSummary,
   matchingRecords,
   recentlyUpdated,
   Updated,
@@ -314,15 +313,30 @@ describe("Row actions", () => {
     expect(html).not.toContain(">Kind<");
     expect(html).not.toContain(">Action<");
   });
-  it("bounds the changed-field description on the row action", () => {
-    // The tooltip renders on the client, so assert the bounding directly.
-    expect(
-      changedFieldSummary(["title", "summary", "hero", "seo", "links"]),
-    ).toBe("title, summary +3");
-    expect(changedFieldSummary(["title", "summary"])).toBe("title, summary");
-    expect(changedFieldSummary(["title"])).toBe("title");
-    expect(changedFieldSummary([])).toBe("Source changes");
-    expect(changedFieldSummary(["a", "b", "c"])).not.toContain("\u00b7");
+  it("keeps ordinary pending evidence simple even when field details are available", () => {
+    const html = renderToStaticMarkup(
+      <ContentLibrary
+        selectedGroup="writing"
+        groups={[
+          {
+            name: "writing",
+            href: "/content/writing",
+            records: [
+              {
+                title: "Pending",
+                href: "/content/writing/test",
+                status: "published",
+                changesPending: true,
+                changedFields: ["title", "summary", "hero", "seo", "links"],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Unpublished changes");
+    expect(html).not.toContain("title, summary");
+    expect(html).not.toContain("+3");
   });
 });
 
