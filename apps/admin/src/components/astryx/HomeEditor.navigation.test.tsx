@@ -663,10 +663,11 @@ it("does not clear recovery when sign-out navigation is canceled", async () => {
       />,
     );
   });
-  const link = host.querySelector(
-    'a[href="/auth/logout"]',
-  ) as HTMLAnchorElement;
-  expect(link).not.toBeNull();
+  // The sidebar returns to www. Exercise the native sign-out boundary directly
+  // so canceled navigation still cannot discard private recovery state.
+  const link = document.createElement("a");
+  link.href = "/auth/logout";
+  host.append(link);
   const cancel = (event: Event) => event.preventDefault();
   document.addEventListener("click", cancel);
   try {
