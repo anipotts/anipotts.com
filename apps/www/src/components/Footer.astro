@@ -87,7 +87,8 @@ const externalProfiles = [
     display: grid;
     place-items: center start;
     width: 52px;
-    height: 52px;
+    height: 44px;
+    align-self: flex-end;
     flex: 0 0 52px;
     color: var(--ink);
     text-decoration: none;
@@ -97,7 +98,7 @@ const externalProfiles = [
     width: 29.696px;
     height: 29.696px;
     /* Match the content edge rather than the SVG's transparent margin. */
-    transform: translateX(-13.8671875%);
+    transform: translate(-13.8671875%, 7.61044922%);
   }
 
   .contact-copy {
@@ -113,8 +114,7 @@ const externalProfiles = [
 
   .contact-email {
     display: inline-flex;
-    align-items: flex-start;
-    padding-top: 2px;
+    align-items: center;
     min-height: 44px;
     max-width: 100%;
     color: var(--ink);

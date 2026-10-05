@@ -48,6 +48,15 @@ The stop command leaves the managed Admin fallback alone and keeps the
 recorded ports. Use `pnpm admin:preview:stop` only when Ani explicitly ends the
 Admin feedback loop.
 
+## shared agent resource budget
+
+Agents follow [shared-runtime-policy.md](shared-runtime-policy.md). The integration
+owner keeps the canonical www/admin preview pair running via `pnpm review` in the
+[designated checkout](local-integration-preview.md). Workers code in isolated
+worktrees without starting servers by default. Coordinate one extra temporary
+preview and one heavy verification job at a time across this repo on this host.
+Stop only worker-owned temporary servers after review; preserve canonical services.
+
 ## astro 7 dev runtime
 
 Since Astro 7 and `@astrojs/cloudflare` 14, `astro dev` runs each app inside

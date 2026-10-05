@@ -15,8 +15,12 @@ changed paths and verification. Only the integration owner updates this preview.
 Review acceptance is revision-specific. Keep PR identities and origin/main
 ancestry; do not rewrite production history or treat a local merge as deployment.
 Do not independently replace preview processes or promote a candidate. After
-Ani reviews the combined candidate, refresh required checks and native release
-protection before serial production integration.
+Ani approves the identified combined candidate for merge and production deploy,
+record both approval scopes from that one decision, refresh exact-head checks and
+native release protection, then perform serial production integration and the
+listed deploys without another approval prompt. Changed content needs fresh review.
+See [shared-runtime-policy.md](shared-runtime-policy.md) for the shared resource
+budget and exact-revision approval rules.
 
 Initial candidate includes production `1ca0eb0e7`, PRs #483, #486 and #487,
 and public card spacing/BI changes. #487 remains a draft upstream. Its red

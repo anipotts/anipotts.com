@@ -368,7 +368,7 @@ try {
   assert.equal(
     scene.randomCalls,
     0,
-    "the route, not chance, chooses one composition for the whole page",
+    "the route seeds one composition for the whole page",
   );
   assert.deepEqual(
     scene.hosts.map((host) => host.svg.attributes.get("viewBox")),
@@ -587,12 +587,8 @@ try {
   cleanup();
   location.pathname = "/work";
   cleanup = mountSharedCurrents();
-  assert.equal(scene.randomCalls, 0);
-  assert.notDeepEqual(
-    shapes(first),
-    previousMount,
-    "another page chooses its own composition",
-  );
+  assert.equal(scene.randomCalls, 0, "compositions never use Math.random");
+  assert.notDeepEqual(shapes(first), previousMount);
   cleanup();
   scene.document.body = {};
   const observerCount = scene.resizes.length;

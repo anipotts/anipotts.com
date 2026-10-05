@@ -44,6 +44,43 @@ function geometry(width) {
   };
 }
 
+test("unequal header and footer marks dock at the native admin size and baseline", () => {
+  for (const layout of ["compact", "desktop"]) {
+    for (const direction of [1, -1]) {
+      const g = {
+        ...geometry(768),
+        layout,
+        header: { x: 42, y: 36, scale: (44 * 0.68965517) / 204.8 },
+        adminScale: 0.1,
+      };
+      const source = direction === 1 ? g.footer : g.header;
+      const ratio = g.adminScale / source.scale;
+      g.targetLetters = g.targetLetters.map((x) => x * ratio);
+      const start = sampleIdentity(0, g, direction);
+      assert.deepEqual(start.pose, sourcePose(source));
+      assert.equal(start.glyphScale, 1);
+      for (let step = 0; step <= 100; step++) {
+        const frame = sampleIdentity(step / 100, g, direction);
+        assert.equal(frame.pose.scale, source.scale, "travel never scales AP");
+      }
+      const docked = sampleIdentity(1, g, direction);
+      assert.ok(
+        Math.abs(docked.pose.scale * docked.glyphScale - g.adminScale) < 1e-9,
+      );
+      assert.ok(
+        Math.abs(
+          docked.pose.y +
+            100 * docked.pose.scale * docked.glyphScale -
+            g.baseline,
+        ) < 1e-9,
+      );
+      assert.ok(
+        Math.abs(docked.pX * docked.pose.scale - 106 * g.adminScale) < 1e-9,
+      );
+    }
+  }
+});
+
 test("identity lands before morphing, with fixed size and separate travel axes", () => {
   assert.equal(duration, 2000);
   assert.equal(reducedDuration, 160);

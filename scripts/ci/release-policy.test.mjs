@@ -742,3 +742,12 @@ assert.ok(
     "0044_public_identity_systems.sql: removed migration",
   ),
 );
+
+const launcher = classifyRelease(["M\t.claude/launch.json"], base);
+assert.equal(launcher.risk, "automatic");
+assert.equal(launcher.local_dev_changed, true);
+assert.equal(Object.values(launcher.deploy_targets).some(Boolean), false);
+assert.equal(
+  classifyRelease(["M\t.claude/settings.json"], base).risk,
+  "unknown",
+);

@@ -89,7 +89,7 @@ const { essayHref } = Astro.props;
   :global(html[data-theme="dark"]) .press-mention__logo {
     filter: brightness(0) invert(1);
   }
-  @media (max-width: 640px) {
+  @media (max-width: 1024px) {
     .press-mention {
       gap: 0.625rem;
       padding: 1rem;
@@ -121,12 +121,36 @@ const { essayHref } = Astro.props;
       font-size: 0.8rem;
     }
   }
-  @media (max-width: 480px) {
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .press-mention__content {
+      display: grid;
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .press-mention__title,
+    .press-mention__copy {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
+  @media (max-width: 640px) {
     .press-mention {
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .press-mention__logo {
+      grid-column: 1;
+      grid-row: 1;
+      width: 4.5rem;
     }
     .press-mention__links {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .press-mention__title {
       grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    .press-mention__copy {
       grid-row: 3;
     }
   }

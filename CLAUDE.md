@@ -55,6 +55,14 @@ blocked. Missing protection stops integration; chat approval does not replace it
 Changing branch protection requires its own approval. Follow native approval
 controls and the target's current release gates.
 
+### shared runtime budget
+
+Follow [the shared runtime policy](docs/shared-runtime-policy.md) for isolated
+parallel editing, persistent previews and ownership of expensive verification.
+The default host budget is two owner previews, one temporary worker preview and
+one heavy verification job at a time. Record exceptions and cleanup ownership.
+Only the active integration owner runs `pnpm review` in the canonical checkout.
+
 ### integration ownership
 
 Codex and Claude Code are co-equal agents. Assign one active integration owner for

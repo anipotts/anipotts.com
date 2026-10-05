@@ -22,8 +22,11 @@ The revision must be a full commit SHA. Changing it clears prior approvals and
 release evidence. Code review, content publication approval and production
 release approval are distinct scopes. An item has a `code` or `content` lane;
 its matching approval is required to mark it approved. `--approval production`
-records a separate exact-revision release approval. Never invent approval from
-CI results or from another task's request. These records do not override native
+records a separate exact-revision release approval. One explicit Ani decision to
+merge and deploy an identified candidate can supply both `code` and `production` scopes: record the same human evidence reference for
+each scope on the exact included revisions. Separate fields do not require
+separate user prompts. Changed revisions still clear both approvals.
+Never invent approval from CI results or from another task's request. These records do not override native
 permissions, live branch protection, or repository release controls.
 
 To record a verified release, supply `--state deployed`, `--revision`, `--target`
