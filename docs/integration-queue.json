@@ -257,9 +257,9 @@
       "title": "Sidebar www return and public sign-in collapse",
       "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
       "lane": "code",
-      "state": "approved",
+      "state": "awaiting-review",
       "approvals": {},
-      "note": "Sidebar www and theme share one footer row, including public sign-in collapse. Keyboard collapse and collapsed www return verified in canonical preview. 58 focused tests and admin typecheck pass; exact-head CI refreshed. Four review findings fixed, including configured www URL and save-before-leave. Production release pending required checks."
+      "note": "Head 661d02efe627c7f5ea3716b52ded5fd14d313e2a: required CI37250946251 and Security Review37250946229 passed; all four review threads resolved. Local canonical preview verified click/Enter/Space collapse and collapsed return to www; 58 focused tests and admin typecheck pass. Native automatic approval review rejected merge because the changed head needs direct Ani approval. No production deployment. Approval question pending in website chat."
     },
     {
       "id": "preview-module-urls",
