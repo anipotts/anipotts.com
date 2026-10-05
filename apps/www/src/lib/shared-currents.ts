@@ -523,7 +523,11 @@ export function mountSharedCurrents() {
   }
   // Leave the idle wait as soon as scrolling starts.
   function scrolled() {
-    if (visible.size && timer !== undefined && motion().activeFps > 30) sync();
+    if (!visible.size) {
+      flow = pushed();
+      return;
+    }
+    if (timer !== undefined && motion().activeFps > 30) sync();
   }
   const intersection = new IntersectionObserver(
     (entries) => {

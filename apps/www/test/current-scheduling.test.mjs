@@ -119,6 +119,9 @@ test("offscreen scroll keeps bands at 15Hz and cards return at the current push"
   assert.equal(delay, 1000 / 15);
   assert.equal(vm.runInContext("flow", context), push);
   push = 20;
+  vm.runInContext("scrolled();", context);
+  assert.equal(wakes, 1, "scrolling keeps the existing band timer");
+  assert.equal(vm.runInContext("flow", context), push);
   vm.runInContext("schedule();", context);
   assert.equal(vm.runInContext("flow", context), push);
   visible.size = 1;
