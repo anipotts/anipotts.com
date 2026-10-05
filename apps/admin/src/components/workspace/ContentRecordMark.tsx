@@ -1,3 +1,4 @@
+import { publicSiteUrl } from "../../lib/public-site-url";
 import React from "react";
 import {
   projectMark,
@@ -20,15 +21,17 @@ import type { CatalogRecord } from "../astryx/EditorialApp";
 export function ContentRecordMark({
   record,
   className,
+  siteUrl = publicSiteUrl,
 }: {
   record: Pick<CatalogRecord, "id" | "href" | "projectIdentity">;
   className?: string;
+  siteUrl?: string;
 }) {
   const id = record.id ?? record.href.split("?")[0].split("/").at(-1);
   const identity = record.projectIdentity;
   const artwork = identity
     ? (ownedProjectArtwork(identity.logo_src) ??
-      projectMediaPreview(identity.logo_src, "https://anipotts.com"))
+      projectMediaPreview(identity.logo_src, siteUrl))
     : projectMark(id);
   if (artwork)
     return (

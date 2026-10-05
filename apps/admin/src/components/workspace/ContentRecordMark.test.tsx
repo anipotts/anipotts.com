@@ -68,6 +68,7 @@ it("uses the saved project logo ahead of a slug mapping and resolves private med
   expect(html).toContain("chainedchat-logo.png");
   expect(html).not.toContain("https://anipotts.com");
   expect(html).toContain('data-artwork-tone="adaptive"');
+  expect(html).toContain("background-color:var(--color-background-surface)");
   expect(html).not.toContain("chainedchat-favicon");
   const id = "a".repeat(64) + ".png";
   const privateHtml = renderToStaticMarkup(
@@ -96,4 +97,30 @@ it("honors a removed logo and rejects invalid paths instead of restoring a stale
     expect(html).toContain("<svg");
   }
   expect(projectMark("chainedchat")).toContain("chainedchat-logo.png");
+});
+
+it("resolves other saved public assets against the worktree origin, while private previews stay relative", () => {
+  const siteUrl = "http://127.0.0.1:4500/";
+  const html = renderToStaticMarkup(
+    <ContentRecordMark
+      siteUrl={siteUrl}
+      record={{
+        href: "/content/projects/demo",
+        projectIdentity: { logo_src: "/images/custom-logo.png" },
+      }}
+    />,
+  );
+  expect(html).toContain('src="http://127.0.0.1:4500/images/custom-logo.png"');
+  const id = "b".repeat(64) + ".png";
+  const privateHtml = renderToStaticMarkup(
+    <ContentRecordMark
+      siteUrl={siteUrl}
+      record={{
+        href: "/content/projects/demo",
+        projectIdentity: { logo_src: `/images/editorial/${id}` },
+      }}
+    />,
+  );
+  expect(privateHtml).toContain(`/api/editorial/media?id=${id}`);
+  expect(privateHtml).not.toContain("http://127.0.0.1:4500");
 });

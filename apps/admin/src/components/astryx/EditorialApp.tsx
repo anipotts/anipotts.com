@@ -421,6 +421,7 @@ export function EditorialApp({
             )}
             {groups && (
               <ContentLibrary
+                siteUrl={siteUrl}
                 title={title}
                 groups={inventoryView.groups ?? groups}
                 selectedGroup={selectedGroup}
