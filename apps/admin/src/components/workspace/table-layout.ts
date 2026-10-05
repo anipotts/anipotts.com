@@ -235,14 +235,32 @@ export function tableReflowWidth<T>(
 
 /** Scoped container queries provide correct geometry before hydration. */
 const REFLOW_CSS = `.admin-data-table[data-narrow="true"] .openai-record-table thead {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+  display: block;
 }
-.admin-data-table[data-narrow="true"] .openai-record-table thead button {
-  visibility: hidden;
+.admin-data-table[data-narrow="true"] .openai-record-table thead tr {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table thead th {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 1 1 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table th[data-lead] {
+  flex: 1 1 0;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table th[data-compact="trailing"] {
+  flex: 0 0 auto;
+  text-align: end;
+}
+.admin-data-table[data-narrow="true"] .openai-record-table th.admin-table-select {
+  position: absolute;
+  inset-inline-start: 0;
 }
 .admin-data-table[data-narrow="true"]
   .openai-record-table

@@ -204,6 +204,12 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
     "data-numeric": column.numeric || undefined,
     "data-align": column.numeric ? "end" : column.align,
   });
+  const compactOrder = (column: (typeof columns)[number], index: number) =>
+    index === 0
+      ? -1
+      : column.compact === "trailing"
+        ? 0
+        : 2 + (column.priority ?? index);
   return (
     <div
       className="admin-data-table openai-table"
@@ -221,28 +227,6 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
         ref={frame}
         style={tableFrameStyle(columns, selection ? 44 : 0)}
       >
-        {narrow && (selection || onSortChange) && (
-          <div className="admin-table-controls" aria-label="Record controls">
-            {selection && checkbox()}
-            {columns
-              .filter((column) => column.sortable && onSortChange)
-              .map((column) => (
-                <button
-                  type="button"
-                  key={column.key}
-                  onClick={() => sortColumn(column.key)}
-                  aria-pressed={sort?.key === column.key}
-                >
-                  {column.header}
-                  {sort?.key === column.key
-                    ? sort.direction === "asc"
-                      ? " ↑"
-                      : " ↓"
-                    : ""}
-                </button>
-              ))}
-          </div>
-        )}
         <div
           ref={scrollSurface}
           className="admin-table-scroll astryx-table-scroll-wrapper"
@@ -265,13 +249,17 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                     {checkbox()}
                   </th>
                 )}
-                {columns.map((column) => (
+                {columns.map((column, index) => (
                   <th
                     role="columnheader"
                     scope="col"
                     key={column.key}
                     {...cellAttributes(column)}
-                    style={tableColumnStyle(column, columns)}
+                    data-lead={index === 0 || undefined}
+                    style={{
+                      ...tableColumnStyle(column, columns),
+                      order: compactOrder(column, index),
+                    }}
                     aria-sort={
                       sort?.key === column.key
                         ? sort.direction === "asc"
@@ -314,12 +302,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                         {...cellAttributes(column)}
                         data-lead={index === 0 || undefined}
                         style={{
-                          order:
-                            index === 0
-                              ? -1
-                              : column.compact === "trailing"
-                                ? 0
-                                : 2 + (column.priority ?? index),
+                          order: compactOrder(column, index),
                         }}
                       >
                         {index > 0 && column.compactLabel !== false && (
@@ -429,12 +412,7 @@ export function OpenAIDataTable<T extends Record<string, unknown>>({
                                   {...cellAttributes(column)}
                                   data-lead={index === 0 || undefined}
                                   style={{
-                                    order:
-                                      index === 0
-                                        ? -1
-                                        : column.compact === "trailing"
-                                          ? 0
-                                          : 2 + (column.priority ?? index),
+                                    order: compactOrder(column, index),
                                   }}
                                 >
                                   {index > 0 &&

@@ -206,6 +206,68 @@ describe("global table interactions", () => {
     expect(scroll.getAttribute("aria-label")).toBeNull();
     expect(tableReflowWidth(columns)).toBeGreaterThanOrEqual(560);
   });
+  it("keeps compact headers visible with one set of sorting and selection controls", () => {
+    const onSortChange = vi.fn();
+    const onSelectionChange = vi.fn();
+    draw({
+      columns: [
+        columns[0]!,
+        {
+          key: "summary",
+          header: "Summary",
+          compact: "detail",
+          render: () => "An excerpt",
+        },
+        {
+          key: "updated",
+          header: "Last activity",
+          compact: "trailing",
+          render: () => "2h ago",
+        },
+      ],
+      onSortChange,
+      onSelectionChange,
+      selectedKeys: new Set(),
+    });
+    const frame = host.querySelector<HTMLDivElement>(".openai-table-frame")!;
+    Object.defineProperty(frame, "clientWidth", {
+      configurable: true,
+      value: 390,
+    });
+    act(() => resize?.());
+    expect(
+      host.querySelector(".admin-data-table")?.getAttribute("data-narrow"),
+    ).toBe("true");
+    const header = host.querySelector("thead")!;
+    expect(
+      [...header.querySelectorAll("[data-column]")].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(["Title", "Summary", "Last activity"]);
+    for (const cell of header.querySelectorAll<HTMLElement>("[data-column]")) {
+      const value = host.querySelector<HTMLElement>(
+        `tbody [data-column="${cell.dataset.column}"]`,
+      )!;
+      expect(cell.style.order).toBe(value.style.order);
+      expect(cell.dataset.compact).toBe(value.dataset.compact);
+    }
+    expect(host.querySelector(".admin-table-controls")).toBeNull();
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(
+      rows.length + 1,
+    );
+    act(() => header.querySelector<HTMLButtonElement>("button")!.click());
+    expect(onSortChange).toHaveBeenCalledWith({
+      key: "title",
+      direction: "asc",
+    });
+    act(() => header.querySelector<HTMLInputElement>("input")!.click());
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(["a", "b", "c"]));
+    const rules = host.querySelector("style")!.textContent!;
+    expect(rules).toContain("thead tr");
+    expect(rules).not.toContain("clip-path");
+    expect(rules).not.toContain("visibility: hidden");
+  });
+
   it("places trailing and detail cells by explicit contract, independent of column names", () => {
     draw({
       columns: [
