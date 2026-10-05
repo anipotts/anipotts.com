@@ -280,3 +280,42 @@ lightweight; missing dependencies produce an explicit install instruction.
 ## Canonical integration review
 
 All website work integrates into the [canonical local preview](local-integration-preview.md) before Ani approves production integration.
+
+## enforced runtime budget
+
+The shared budget is enforced by the tools, so it holds even for an agent
+that never read the policy.
+
+- **worker preview slot.** `pnpm dev:www`, `dev:admin` and `dev:all` refuse to
+  start a new server when another worktree already runs a worker preview. The
+  error names the holder. The checkout running `pnpm review` is exempt. Set
+  `ANIPOTTS_WORKER_PREVIEW_SLOTS=2` for a concrete review need and say why in
+  the handoff.
+- **idle stop.** Each worker preview gets a detached reaper
+  (`scripts/dev/preview-reaper.mjs`). It samples the CPU time of the server's
+  process group once a minute and runs `pnpm dev:stop` after 30 idle minutes.
+  Idle means under 1 CPU second per minute. A page load or rebuild resets the
+  clock. `ANIPOTTS_PREVIEW_IDLE_MINUTES` changes the limit and `0` disables it.
+  `pnpm dev:status` prints the current idle count. Worktree, data and ports stay
+  as they are, and `pnpm dev:www` brings the server back.
+- **heavy slot.** `pnpm validate` and the `test:e2e:*` suites wait their turn
+  through `scripts/dev/heavy-slot.mjs`, one at a time across all worktrees. The
+  lock lives in the shared git directory, is reclaimed when its holder exits,
+  and is skipped in CI and by nested runs. Focused checks such as
+  `pnpm check:changed` stay unlocked.
+- **MCP diet.** `.codex/config.toml` turns off the imessage, applescript,
+  playwright, macOS build and Messages servers for this repo. Every Codex thread
+  starts its own copy of each enabled server. `.claude/settings.json` turns off
+  the playwright plugin, because the Claude app has its own browser.
+
+A www preview costs about 2 GB (Astro plus workerd), so one forgotten preview
+equals many coding threads. Measured on October 4, 2026.
+
+Worker preview startup holds a shared repository lock across the budget scan,
+server start and metadata write, so concurrent worktrees cannot both claim the
+last slot. A missing startup lock stops the launch and asks the owner to
+coordinate it. Restarted server groups begin a fresh idle window.
+
+The preview startup lock also serializes the canonical owner's startup, while
+its previews remain exempt from worker-slot accounting. The separate heavy-job
+lock coordinates validation; a preview startup does not consume that slot.

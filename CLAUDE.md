@@ -192,6 +192,10 @@ Dev servers bind `127.0.0.1` on a stable per-worktree port pair from 4400 to
 fallback.
 See `docs/local-development.md`.
 
+The runtime budget is enforced: a second worker preview is refused, idle worker
+previews stop after 30 minutes, and `pnpm validate` and e2e suites take turns.
+See "enforced runtime budget" in that doc for the overrides.
+
 The canonical local review URL is `http://localhost:4311/`.
 
 Start or reuse the durable preview with:
