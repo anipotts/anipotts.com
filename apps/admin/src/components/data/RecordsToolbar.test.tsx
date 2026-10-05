@@ -16,7 +16,7 @@ describe("record filter overflow", () => {
     await act(() =>
       root.render(
         <RecordsToolbar
-          route={{ kind: "all", source: null, id: null }}
+          route={{ view: "records", kind: "all", source: null, id: null }}
           navigate={navigate}
         />,
       ),
@@ -44,7 +44,7 @@ describe("record filter overflow", () => {
     await act(() =>
       root.render(
         <RecordsToolbar
-          route={{ kind: "contact", source: null, id: null }}
+          route={{ view: "records", kind: "contact", source: null, id: null }}
           navigate={vi.fn()}
           disabled
         />,
