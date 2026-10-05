@@ -257,7 +257,7 @@
       "title": "Sidebar www return and public sign-in collapse",
       "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
       "lane": "code",
-      "state": "approved",
+      "state": "deployed",
       "approvals": {
         "code": {
           "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
@@ -272,7 +272,13 @@
           "at": "2026-10-05T02:06:56Z"
         }
       },
-      "note": "Merged as d74c1d839611bca0595589ba2c7c943a2493b632 after exact-head CI and live strict protection verification. Deploy37254088173 running for www and admin, with worker targets and migrations skipped. Configured Production gates approved for the authorized release. Live proof pending."
+      "note": "Approved sidebar release is live. Inset border PR499 and table-loading changes remain separately unapproved for production.",
+      "deployment": {
+        "revision": "661d02efe627c7f5ea3716b52ded5fd14d313e2a",
+        "target": "www,admin",
+        "at": "2026-10-05T02:14:16Z",
+        "evidence": "Approved PR496 merged as d74c1d839611bca0595589ba2c7c943a2493b632. Deploy https://github.com/anipotts/anipotts.com/actions/runs/37254088173 succeeded for www and admin; worker targets and migrations skipped. www health exact release/schema0044; admin version7cdfe80a-6893-46a6-9dce-c9b2aa594052 exact release and eight owner-boundary redirects. Live www link, click collapse and keyboard expand passed."
+      }
     },
     {
       "id": "preview-module-urls",
@@ -290,7 +296,17 @@
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},
-      "note": "PR499 opened after explicit Ani approval of PR creation. Exact-head CI37254443830 running; security passed. Canonical preview top/left1px, bottom/right0px and 33 shell/frame checks passed. Merge/deploy require review; no production change for this followup."
+      "note": "PR499 exact a1b103e6 CI37254443830 and security passed. Canonical top/left1px, bottom/right0px and 33 shell/frame checks passed. Waiting for Ani code and production review."
+    },
+    {
+      "id": "table-loading-layout",
+      "title": "Static table headers and stable loading geometry",
+      "revision": "453565308a077707b6e372e428498aed433fcd54",
+      "lane": "code",
+      "state": "awaiting-review",
+      "approvals": {},
+      "updatedAt": "2026-10-05T02:26:53.849523+00:00",
+      "note": "Draft PR500 at453565308a077707b6e372e428498aed433fcd54. Canonical4311 has static headers and matching row/column geometry, Records/Sources/Knowledge footer reservation. Synthetic replay /content/dev-catalog?fixture=table-loading. Focused131 tests and build/lint/typecheck passed. Default full suite startup import timeouts; bounded4-worker equivalent unit run in progress. No production approval."
     }
   ]
 }

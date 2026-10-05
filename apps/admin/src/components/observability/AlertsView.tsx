@@ -288,6 +288,8 @@ const RUNBOOK_WIDTH = 44;
 
 export function AlertsTable({
   rows,
+  loading = false,
+  loadingRows,
   resolved = false,
   incidents = false,
   now,
@@ -299,6 +301,8 @@ export function AlertsTable({
   stateColumnWidth,
 }: {
   rows: AlertRow[];
+  loading?: boolean;
+  loadingRows?: number;
   /** The State column's width (alertStateWidth), shared by the page's
    * tables; this table's own rows' otherwise. */
   stateColumnWidth?: number;
@@ -543,6 +547,8 @@ export function AlertsTable({
         <DataTable
           tableId={resolved ? "ops-alerts-resolved" : "ops-alerts-firing"}
           rows={rows}
+          loading={loading}
+          loadingRows={loadingRows}
           columns={columns}
           rowKey="subject"
           label={resolved ? "Resolved alerts" : "Firing alerts"}

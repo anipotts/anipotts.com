@@ -225,7 +225,8 @@ function EntityList({
     },
   ];
   let body: React.ReactNode;
-  if (!items) body = <LoadingSkeleton label="entities" columns={3} />;
+  if (!items)
+    body = <LoadingSkeleton label="entities" columns={columns} footer />;
   else if (failure && !items.length)
     body = (
       <StateNotice
