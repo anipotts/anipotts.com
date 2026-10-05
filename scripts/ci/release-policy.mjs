@@ -40,6 +40,8 @@ const CI_POLICY_PATHS = [
   /^config\//,
   /^scripts\/ci\//,
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
+  // Turbo global dependencies and pnpm install settings change every package.
+  /^(?:\.npmrc|\.prettierrc|tsconfig\.json)$/,
 ];
 
 const PUBLIC_BROWSER_PATHS = [
@@ -50,6 +52,8 @@ const PUBLIC_BROWSER_PATHS = [
   /^apps\/admin\/migrations\/content-publication\//,
   /^scripts\/content\/(?:seed-content-d1|content-d1-seed)\.mjs$/,
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/,
+  // pnpm settings live in either pnpm-workspace.yaml or .npmrc.
+  /^\.npmrc$/,
 ];
 
 const LOCAL_DEV_PATHS = [
@@ -74,6 +78,8 @@ const APPROVAL_PATHS = [
   /(?:^|\/)(?:wrangler\.(?:toml|jsonc)|_routes\.json)$/,
   /(?:^|\/)(?:credentials?|secrets?)(?:\.|\/)/i,
   /^workers\/(?:ingest|newsletter|state|weekly-email)\//,
+  // Environment template beside local secrets; classified by name only.
+  /^\.env\.example$/,
 ];
 
 const KNOWN_SAFE_ROOTS = [
@@ -96,6 +102,14 @@ const KNOWN_SAFE_ROOTS = [
   /^drizzle\/migrations\//,
   /^\.github\/(?:ISSUE_TEMPLATE|CODEOWNERS)/,
   /^(?:\.nvmrc|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
+  // Editor, formatter, install and launcher settings with no deploy output.
+  /^\.(?:editorconfig|npmrc|posthog-events\.json|prettierrc|worktreeinclude)$/,
+  /^\.github\/dependabot\.yml$/,
+  /^\.husky\/pre-commit$/,
+  /^\.vscode\/(?:extensions|settings)\.json$/,
+  /^(?:drizzle\.config\.ts|solo\.yml|tsconfig\.json)$/,
+  // Historical drizzle-kit journal; migrations/manifest.json is the authority.
+  /^drizzle\/meta\/_journal\.json$/,
 ];
 
 function parseChange(line) {
@@ -179,6 +193,24 @@ function routeContractChanged(change) {
   );
 }
 
+// One test for both CI and local scope checks, so they cannot disagree on
+// which paths no rule names.
+function isUnclassified(change) {
+  return (
+    !isReleaseIgnored(change.path) &&
+    !APPROVAL_PATHS.some((pattern) => pattern.test(change.path)) &&
+    !routeContractChanged(change) &&
+    !KNOWN_SAFE_ROOTS.some((pattern) => pattern.test(change.path))
+  );
+}
+
+export function unclassifiedPaths(changeLines) {
+  const changes = changeLines.filter(Boolean).flatMap(parseChange);
+  return [
+    ...new Set(changes.filter(isUnclassified).map((change) => change.path)),
+  ];
+}
+
 export function classifyRelease(changeLines, options = {}) {
   const sourceSha = options.sourceSha || "unknown";
   const changes = changeLines.filter(Boolean).flatMap(parseChange);
@@ -210,6 +242,7 @@ export function classifyRelease(changeLines, options = {}) {
   }
   const reasons = [];
   let risk = migration.risk;
+  let unclassified = false;
 
   for (const change of changes) {
     if (isReleaseIgnored(change.path)) continue;
@@ -223,11 +256,13 @@ export function classifyRelease(changeLines, options = {}) {
       reasons.push(`route contract changed: ${change.path}`);
       continue;
     }
-    if (!KNOWN_SAFE_ROOTS.some((pattern) => pattern.test(change.path))) {
-      risk = "unknown";
+    if (isUnclassified(change)) {
+      unclassified = true;
       reasons.push(`unclassified path: ${change.path}`);
     }
   }
+  // Fail closed: an unclassified path stays unknown whatever sorts after it.
+  if (unclassified) risk = "unknown";
 
   const hasDeployTarget = Object.values(deployTargets).some(Boolean);
   const docsOnly = changes.length > 0 && paths.every(isReleaseIgnored);

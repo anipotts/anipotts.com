@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { protectionPayload, REQUIRED_CHECKS } from "./branch-protection.mjs";
 import {
@@ -12,7 +13,11 @@ import {
   selectedConditions,
 } from "./d1-migration-conditions.mjs";
 import { classifySql, loadManifest, sha256 } from "./migration-policy.mjs";
-import { classifyRelease, githubOutputs } from "./release-policy.mjs";
+import {
+  classifyRelease,
+  githubOutputs,
+  unclassifiedPaths,
+} from "./release-policy.mjs";
 
 const base = { sourceSha: "a".repeat(40), eventName: "pull_request" };
 
@@ -761,3 +766,158 @@ assert.equal(
   classifyRelease(["M\t.claude/settings.local.json"], base).risk,
   "unknown",
 );
+
+// Fail closed: every tracked path has a deliberate rule, so Classify release
+// fails only for paths no rule names yet. Historical migrations still throw.
+const trackedPaths = execFileSync("git", ["ls-files", "-z"], {
+  encoding: "utf8",
+})
+  .split("\0")
+  .filter(Boolean);
+assert.ok(trackedPaths.length > 1000, "git ls-files must list the repository");
+const unclassifiedTracked = [];
+for (const status of ["M", "A", "D"]) {
+  for (const path of trackedPaths) {
+    try {
+      const release = classifyRelease([`${status}\t${path}`], base);
+      if (release.risk === "unknown")
+        unclassifiedTracked.push(`${status} ${path}`);
+    } catch (error) {
+      const historicalMigration =
+        /^drizzle\/migrations\/\d{4}_.+\.sql$/.test(path) &&
+        /^historical migration cannot be changed: /.test(error.message);
+      if (!historicalMigration) throw error;
+    }
+  }
+}
+assert.deepEqual(unclassifiedTracked, [], "tracked paths must not be unknown");
+assert.deepEqual(
+  unclassifiedPaths(trackedPaths.map((path) => `M\t${path}`)),
+  [],
+);
+
+// The 14 tracked files that classified unknown before each have a rule.
+const formerlyUnknown = {
+  ".editorconfig": {},
+  ".env.example": { risk: "approval" },
+  ".github/dependabot.yml": {},
+  ".husky/pre-commit": {},
+  ".npmrc": { ciPolicy: true, publicBrowser: true },
+  ".posthog-events.json": {},
+  ".prettierrc": { ciPolicy: true },
+  ".vscode/extensions.json": {},
+  ".vscode/settings.json": {},
+  ".worktreeinclude": {},
+  "drizzle.config.ts": {},
+  "drizzle/meta/_journal.json": { preflight: true },
+  "solo.yml": {},
+  "tsconfig.json": { ciPolicy: true },
+};
+for (const [path, expected] of Object.entries(formerlyUnknown)) {
+  for (const status of ["M", "A", "D"]) {
+    const label = `${status} ${path}`;
+    const release = classifyRelease([`${status}\t${path}`], base);
+    assert.equal(release.risk, expected.risk ?? "automatic", label);
+    assert.equal(release.docs_only, false, label);
+    assert.equal(release.ci_policy_changed, Boolean(expected.ciPolicy), label);
+    assert.equal(
+      release.public_browser_changed,
+      Boolean(expected.publicBrowser),
+      label,
+    );
+    assert.equal(release.local_dev_changed, false, label);
+    assert.equal(
+      release.migration_preflight_required,
+      Boolean(expected.preflight),
+      label,
+    );
+    assert.equal(release.d1_changed, false, label);
+    assert.equal(
+      Object.values(release.deploy_targets).some(Boolean),
+      false,
+      label,
+    );
+  }
+}
+
+// Novel siblings of those rules still have no rule and must stay unknown.
+for (const path of [
+  "c1c4-probe-unclassified.txt",
+  "notes.txt",
+  "scratch.mjs",
+  ".codex-workspaces/agent/",
+  ".local/admin-preview/log.txt",
+  ".env",
+  ".env.local",
+  ".env.production",
+  ".env.example.bak",
+  ".npmrc.bak",
+  ".prettierrc.json",
+  ".prettierrc.mjs",
+  ".editorconfig.local",
+  ".worktreeinclude.bak",
+  ".posthog-events.json.bak",
+  "tsconfig.base.json",
+  "apps/tsconfig.json",
+  ".github/dependabot.yaml",
+  ".github/actions/guard/action.yml",
+  ".husky/pre-push",
+  ".vscode/launch.json",
+  ".vscode/settings.local.json",
+  "drizzle.config.js",
+  "drizzle/meta/0001_snapshot.json",
+  "drizzle/meta/_journal.json.bak",
+  "solo.yaml",
+  "mystery/file.bin",
+]) {
+  for (const status of ["M", "A", "D"]) {
+    const release = classifyRelease([`${status}\t${path}`], base);
+    assert.equal(release.risk, "unknown", `${status} ${path}`);
+    assert.ok(
+      release.reasons.includes(`unclassified path: ${path}`),
+      `${status} ${path}`,
+    );
+    assert.deepEqual(unclassifiedPaths([`${status}\t${path}`]), [path]);
+  }
+}
+assert.equal(
+  classifyRelease(["A\tdrizzle/meta/0001_snapshot.json"], base)
+    .migration_preflight_required,
+  true,
+);
+
+// An unclassified path stays unknown whatever sorts before or after it.
+const a1Diff = [
+  "M\t.github/workflows/ci.yml",
+  "M\tscripts/ci/check-changed-scope.mjs",
+  "M\tscripts/ci/check-changed-scope.test.mjs",
+  "M\tscripts/ci/release-policy.mjs",
+  "M\tscripts/ci/release-policy.test.mjs",
+  "M\tscripts/ci/workflow-inventory.test.mjs",
+];
+const a1Release = classifyRelease(a1Diff, base);
+assert.equal(a1Release.risk, "approval");
+assert.equal(a1Release.ci_policy_changed, true);
+assert.equal(Object.values(a1Release.deploy_targets).some(Boolean), false);
+for (const lines of [
+  ["A\tc1c4-probe-unclassified.txt", "M\tscripts/ci/release-policy.mjs"],
+  ["M\tscripts/ci/release-policy.mjs", "A\tc1c4-probe-unclassified.txt"],
+  ["A\tnotes.txt", "M\tdocs/release.md"],
+  ["M\tdocs/release.md", "A\tnotes.txt"],
+  ["A\tnotes.txt", "M\tapps/admin/src/middleware.ts"],
+  ["R100\tapps/www/src/pages/example.astro\tnotes.txt"],
+  // The probe commit's diff in git's path order.
+  [a1Diff[0], "A\tc1c4-probe-unclassified.txt", ...a1Diff.slice(1)],
+]) {
+  const release = classifyRelease(lines, base);
+  assert.equal(release.risk, "unknown", lines.join(" "));
+  assert.equal(release.docs_only, false, lines.join(" "));
+  assert.equal(
+    release.reasons.filter((reason) => reason.startsWith("unclassified path: "))
+      .length,
+    1,
+    lines.join(" "),
+  );
+}
+
+console.log("release policy fail-closed tests passed");
