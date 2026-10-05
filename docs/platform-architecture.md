@@ -156,8 +156,9 @@ write tables; `pnpm test:public-boundary` enforces this separation.
 
 The four workflows are `ci.yml`, `security-review.yml`, `deploy.yml` and `smoke.yml`. No external paid model review workflow is allowed.
 
-- `check:changed` defaults to the committed PR diff.
-- `check:changed --working-tree` also includes staged, unstaged and untracked files.
+- `check:changed` includes committed, staged, unstaged and untracked changes by default; ignored files stay excluded.
+- `check:changed --commits-only` checks the committed branch diff and omits uncommitted work. The shared CI file collector retains its committed-tree default.
+- `--working-tree` remains a compatible alias for the default local scope.
 - `validate` checks the whole workspace.
 - `content:check` checks generated content drift.
 - `test:admin-solid-retirement` prevents the retired app or deploy target returning.
