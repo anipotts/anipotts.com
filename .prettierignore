@@ -34,3 +34,6 @@ apps/admin/test/bindings.d.ts
 
 # byte-exact copy of System's ops_v1 fixture; provenance in ops_v1.provenance.ts.
 apps/admin/src/fixtures/ops_v1.sample.json
+
+# Deterministic exports are verified by check-system-contracts.
+apps/admin/src/lib/generated/
