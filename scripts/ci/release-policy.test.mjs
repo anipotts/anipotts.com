@@ -883,6 +883,7 @@ for (const path of [
   ".worktreeinclude.bak",
   ".posthog-events.json.bak",
   "tsconfig.base.json",
+  "tsconfig.json.bak",
   "apps/tsconfig.json",
   ".github/dependabot.yaml",
   ".github/actions/guard/action.yml",
@@ -890,9 +891,11 @@ for (const path of [
   ".vscode/launch.json",
   ".vscode/settings.local.json",
   "drizzle.config.js",
+  "drizzle.config.ts.bak",
   "drizzle/meta/0001_snapshot.json",
   "drizzle/meta/_journal.json.bak",
   "solo.yaml",
+  "solo.yml.bak",
   "mystery/file.bin",
 ]) {
   for (const status of ["M", "A", "D"]) {
