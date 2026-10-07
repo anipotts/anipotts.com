@@ -16,7 +16,22 @@ import {
   systemsPageSchema,
   workPageSchema,
 } from "./pages";
-import type { HomepageMention, SystemsPageContent } from "./index";
+import type {
+  Homepage,
+  HomepageMention as ZodHomepageMention,
+  ListingPage,
+  NewsletterPage,
+  SystemsPage,
+  WorkPage,
+} from "./pages";
+import type { ProjectProjection, WritingProjection } from "./projections";
+import type {
+  CmsWritingContent,
+  HomepageMention,
+  ListingBucketContent,
+  ListingPageContent,
+  SystemsPageContent,
+} from "./index";
 
 // Runtime half of the public content contract. The generated page defaults
 // must survive their zod schema unchanged, so zod can be the only type source.
@@ -104,5 +119,37 @@ describe("public entry types consumers read", () => {
     expectTypeOf<SystemsPageContent["workflow"]["sources"]>().toEqualTypeOf<
       string[]
     >();
+  });
+});
+
+describe("public entry types come from zod", () => {
+  it("re-exported names alias the inferred page types", () => {
+    expectTypeOf<HomepageMention>().toEqualTypeOf<ZodHomepageMention>();
+    expectTypeOf<SystemsPageContent>().toEqualTypeOf<SystemsPage>();
+    expectTypeOf<ListingPageContent>().toEqualTypeOf<ListingPage>();
+    expectTypeOf<ListingBucketContent>().toEqualTypeOf<
+      WorkPage["buckets"][number]
+    >();
+    expectTypeOf<CmsWritingContent>().toEqualTypeOf<WritingProjection>();
+  });
+
+  it("drops the d1-only mention fields", () => {
+    expectTypeOf<HomepageMention>().not.toHaveProperty("icon");
+    expectTypeOf<HomepageMention>().not.toHaveProperty("mark");
+    expectTypeOf<HomepageMention>().not.toHaveProperty("badgeSrc");
+    expectTypeOf<HomepageMention>().not.toHaveProperty("badgeAlt");
+  });
+
+  it("types the generated defaults with zod and projection types", () => {
+    expectTypeOf(DEFAULT_HOMEPAGE_CONTENT).toEqualTypeOf<Homepage>();
+    expectTypeOf(DEFAULT_WORK_INDEX_CONTENT).toEqualTypeOf<WorkPage>();
+    expectTypeOf(DEFAULT_WRITING_INDEX_CONTENT).toEqualTypeOf<ListingPage>();
+    expectTypeOf(
+      DEFAULT_NEWSLETTER_ARCHIVE_CONTENT,
+    ).toEqualTypeOf<ListingPage>();
+    expectTypeOf(DEFAULT_NEWSLETTER_CONTENT).toEqualTypeOf<NewsletterPage>();
+    expectTypeOf(DEFAULT_SYSTEMS_CONTENT).toEqualTypeOf<SystemsPage>();
+    expectTypeOf(DEFAULT_CMS_PROJECTS).toEqualTypeOf<ProjectProjection[]>();
+    expectTypeOf(DEFAULT_CMS_WRITING).toEqualTypeOf<WritingProjection[]>();
   });
 });
