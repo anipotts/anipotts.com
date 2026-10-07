@@ -28,6 +28,38 @@ const workflowFiles = readdirSync(WORKFLOW_DIR)
 const deployWorkflow = readFileSync(join(WORKFLOW_DIR, "deploy.yml"), "utf8");
 const ciWorkflow = readFileSync(join(WORKFLOW_DIR, "ci.yml"), "utf8");
 const ciJobs = parse(ciWorkflow).jobs;
+// Fail closed: a failed or skipped classification turns the required check red
+// at its first step. An unquoted `if: !cancelled()` is a YAML tag that parses
+// to an empty condition, so compare the parsed value exactly.
+assert.deepEqual(ciJobs.ci.needs, ["classify"]);
+assert.equal(ciJobs.ci.if, "${{ !cancelled() }}");
+assert.doesNotMatch(ciJobs.ci.if, /always\(\)/);
+assert.equal(ciJobs.ci["continue-on-error"], undefined);
+assert.equal(ciJobs.classify.if, undefined);
+assert.equal(ciJobs.classify["continue-on-error"], undefined);
+const [classificationGuard, ...laterCiSteps] = ciJobs.ci.steps;
+assert.equal(
+  classificationGuard.name,
+  "Require successful release classification",
+);
+assert.equal(classificationGuard.if, undefined);
+assert.equal(classificationGuard["continue-on-error"], undefined);
+assert.equal(
+  classificationGuard.env.CLASSIFY_RESULT,
+  "${{ needs.classify.result }}",
+);
+assert.match(classificationGuard.run, /"\$CLASSIFY_RESULT" != "success"/);
+assert.match(classificationGuard.run, /::error::/);
+assert.match(classificationGuard.run, /exit 1/);
+for (const step of laterCiSteps) {
+  if (typeof step.if === "string")
+    assert.doesNotMatch(
+      step.if,
+      /\b(?:always|failure|cancelled|success)\(\)/,
+      `${step.name || step.uses} must stop after a failed classification guard`,
+    );
+  assert.equal(step["continue-on-error"], undefined);
+}
 assert.equal(
   ciJobs.classify.outputs.public_browser_changed,
   "${{ steps.release.outputs.public_browser_changed }}",
