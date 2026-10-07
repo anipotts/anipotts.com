@@ -10,7 +10,7 @@ import {
 import {
   PRIVATE_READER_OPS_PATH,
   PRIVATE_READER_OPS_SCOPES,
-} from "./private-reader-modes";
+} from "./generated/private-reader";
 import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
@@ -56,8 +56,9 @@ import {
  * flag is set in no deploy yet, and tests use fixtures only.
  */
 export const OPS_SNAPSHOT_PATH = PRIVATE_READER_ROUTES.opsSnapshot;
-/** The ops issuance route and its one scope, shared with the server through
- * lib/private-reader-modes.ts without pulling signing code into the client. */
+/** The ops issuance route and its one scope come from the pinned System
+ * contract (lib/generated/private-reader.ts), which imports nothing, so the
+ * client gets them without signing code. */
 export const OPS_CREDENTIAL_ENDPOINT = PRIVATE_READER_OPS_PATH;
 export const OPS_SCOPE = PRIVATE_READER_OPS_SCOPES[0];
 export const OPS_POLL_MS = 30_000;

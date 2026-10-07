@@ -12,7 +12,7 @@ import {
 import { ENTITY_ID } from "./data-routes";
 import { discardBody } from "./response-body";
 import { fetchReader } from "./reader-reach";
-import { PRIVATE_READER_ORIGIN } from "./private-reader-modes";
+import { PRIVATE_READER_AUDIENCE } from "./generated/private-reader";
 import type { DataReader } from "./data-read-session";
 import {
   usePrivateReaderState,
@@ -27,10 +27,11 @@ import {
  * browser supplies `Origin: https://admin.anipotts.com`; this module never sets
  * device, principal or scope headers. Responses are held in memory only:
  * `cache: "no-store"` on every request, and nothing is written to Web Storage,
- * IndexedDB, Cache Storage or a service worker. The origin is written once
- * in lib/private-reader-modes.ts, beside the credential's audience.
+ * IndexedDB, Cache Storage or a service worker. The origin is the
+ * credential's audience in the pinned System contract
+ * (lib/generated/private-reader.ts).
  */
-export { PRIVATE_READER_ORIGIN };
+export const PRIVATE_READER_ORIGIN = PRIVATE_READER_AUDIENCE;
 
 /**
  * Proposed relative GET routes from the System consolidation handoff

@@ -1,6 +1,6 @@
 import { AdminRequestError, protectedAdminJson } from "./protected-admin-json";
-import { PRIVATE_READER_PATH } from "./private-reader-modes";
 import { useSyncExternalStore } from "react";
+import { PRIVATE_READER_PATH } from "./generated/private-reader";
 
 /**
  * Browser custody for the short private reader credential.
