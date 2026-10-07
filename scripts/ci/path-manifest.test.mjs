@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-// Golden release corpus. Every recorded change line is replayed through the
-// release classifier, the deploy-target selector, Security Review's path
-// filter and check:changed's broad escalation, and any difference fails. A
-// refactor of the path rules must replay with 0 differences. An intended rule
-// change regenerates the corpus with
+// Golden release corpus and path manifest checks. Every recorded change line
+// is replayed through the release classifier, the deploy-target selector,
+// Security Review's path filter and check:changed's broad escalation, and any
+// difference fails. A refactor of the path rules must replay with 0
+// differences. An intended rule change regenerates the corpus with
 // `node scripts/ci/path-manifest.test.mjs --write`, and its json diff is the
 // review record of every classification that moved.
 
@@ -13,7 +13,16 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "yaml";
 import {
+  PATH_RULES,
+  isBroadChangeLine,
+  matchesPath,
+  matchingRules,
+  rulesOfKind,
+} from "./path-manifest.mjs";
+import {
+  DEPLOY_TARGETS,
   classifyRelease,
   computeDeployTargets,
   githubOutputs,
@@ -25,18 +34,15 @@ import { isSensitivePath } from "./security-review.mjs";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const CORPUS = new URL("./fixtures/release-corpus.json", import.meta.url);
 const STATUSES = ["M", "A", "D"];
+// No single rule may cover more than this share of the tracked tree.
+const MAX_RULE_SHARE = 0.5;
 
 // check-changed-scope.mjs runs git and pnpm at import, so the corpus records
-// its broad escalation with this copy, which must match the source verbatim.
-const BROAD_CHANGE_LINE =
-  /\t(?:\.github\/|config\/|scripts\/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|packages\/(?:lib|types)\/)/u;
-const isBroadChangeLine = (line) => BROAD_CHANGE_LINE.test(line);
-assert.ok(
-  readFileSync(
-    new URL("./check-changed-scope.mjs", import.meta.url),
-    "utf8",
-  ).includes(`/${BROAD_CHANGE_LINE.source}/${BROAD_CHANGE_LINE.flags}`),
-  "check-changed-scope.mjs must use the broad regex the corpus recorded",
+// its broad escalation through the manifest helper that it calls.
+assert.match(
+  readFileSync(new URL("./check-changed-scope.mjs", import.meta.url), "utf8"),
+  /^const broad = changes\.some\(isBroadChangeLine\);$/m,
+  "check:changed must escalate through the manifest's broad rows",
 );
 
 // Change line sets the classifier test files used at the corpus base
@@ -624,22 +630,276 @@ function replayCorpus() {
   return { corpus, options, entries: entries.length };
 }
 
-// Novel paths stay unknown, throw, or (a deleted migration) need approval.
+// Novel paths stay unknown. A new migration file throws until the manifest
+// records it, and deleting one needs approval.
 function assertNovelPathsFailClosed(options) {
   for (const path of NOVEL_PATHS) {
+    const migration = /^drizzle\/migrations\/\d{4}_.+\.sql$/.test(path);
     for (const status of STATUSES) {
+      const label = `${status} ${path}`;
       let release;
       try {
         release = classifyRelease([`${status}\t${path}`], options);
-      } catch {
+      } catch (error) {
+        assert.ok(migration && status !== "D", `${label}: ${error.message}`);
         continue;
       }
       assert.ok(
         release.risk === "unknown" || release.risk === "approval",
-        `${status} ${path} must not release as ${release.risk}`,
+        `${label} must not release as ${release.risk}`,
+      );
+      if (release.risk === "approval") {
+        assert.ok(migration && status === "D", label);
+        assert.ok(
+          release.reasons.includes(
+            `${path.split("/").at(-1)}: removed migration`,
+          ),
+          label,
+        );
+      }
+    }
+  }
+}
+
+function globToRegExp(glob) {
+  let source = "";
+  let depth = 0;
+  for (let index = 0; index < glob.length; index += 1) {
+    const char = glob[index];
+    if (char === "*" && glob[index + 1] === "*") {
+      source += ".*";
+      index += 1;
+    } else if (char === "*") source += "[^/]*";
+    else if (char === "{") {
+      source += "(?:";
+      depth += 1;
+    } else if (char === "}") {
+      source += ")";
+      depth -= 1;
+    } else if (char === "," && depth > 0) source += "|";
+    else source += char.replace(/[.+?^$()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${source}$`);
+}
+
+const isProtectedSurface = (path) =>
+  rulesOfKind("risk").some(
+    (rule) =>
+      rule.risk === "approval" &&
+      rule.status === undefined &&
+      matchesPath(rule, path),
+  );
+
+function assertRuleTable() {
+  assert.ok(Object.isFrozen(PATH_RULES), "the rule table is frozen");
+  const ids = PATH_RULES.map((rule) => rule.id);
+  assert.equal(new Set(ids).size, ids.length, "rule ids are unique");
+  const flags = [
+    "migration_preflight_required",
+    "ci_policy_changed",
+    "public_browser_changed",
+    "local_dev_changed",
+  ];
+  for (const rule of PATH_RULES) {
+    const matchers = ["prefix", "exact", "suffix", "pattern"].filter(
+      (key) => rule[key] !== undefined,
+    );
+    assert.equal(matchers.length, 1, `${rule.id} has one path matcher`);
+    if (rule.pattern)
+      assert.ok(
+        !rule.pattern.global && !rule.pattern.sticky,
+        `${rule.id} pattern keeps no state between tests`,
+      );
+    if (rule.exact)
+      assert.ok(rule.exact.length > 0, `${rule.id} lists exact paths`);
+    if (rule.status)
+      assert.ok(
+        ["risk", "removed-migration"].includes(rule.kind),
+        `${rule.id}: only change-level kinds read the git status`,
+      );
+    if (rule.kind === "ignored")
+      assert.equal(typeof rule.ignored, "boolean", rule.id);
+    else if (rule.kind === "risk") {
+      assert.ok(["approval", "safe"].includes(rule.risk), rule.id);
+      if (rule.risk === "approval") assert.ok(rule.reason, rule.id);
+    } else if (rule.kind === "removed-migration") assert.ok(rule.status);
+    else if (rule.kind === "flag")
+      assert.ok(flags.includes(rule.flag), rule.id);
+    else if (rule.kind === "target")
+      assert.ok(
+        rule.targets.length > 0 &&
+          rule.targets.every((name) => DEPLOY_TARGETS.includes(name)),
+        `${rule.id} selects known deploy targets`,
+      );
+    else if (rule.kind === "sensitive")
+      assert.equal(typeof rule.sensitive, "boolean", rule.id);
+    else if (rule.kind === "broad")
+      assert.ok(
+        rule.prefix !== undefined || rule.exact !== undefined,
+        `${rule.id} matches by prefix or exact path`,
+      );
+    else assert.fail(`${rule.id} has unknown kind ${rule.kind}`);
+  }
+
+  // First-match kinds keep the precedence the consumers rely on.
+  const riskOrder = rulesOfKind("risk").map((rule) =>
+    rule.risk === "safe" ? 2 : rule.status ? 1 : 0,
+  );
+  assert.deepEqual(
+    riskOrder,
+    [...riskOrder].sort((a, b) => a - b),
+    "approval rows, then the route contract row, then known-safe rows",
+  );
+  const [carveOut, ...docs] = rulesOfKind("ignored");
+  assert.equal(carveOut.ignored, false, "public content is never ignored");
+  assert.ok(
+    docs.every((rule) => rule.ignored),
+    "docs rows follow it",
+  );
+  const [markdown, ...scanned] = rulesOfKind("sensitive");
+  assert.equal(markdown.suffix, ".md");
+  assert.equal(markdown.sensitive, false, "markdown is never scanned");
+  assert.ok(
+    scanned.every((rule) => rule.sensitive),
+    "scanned rows follow",
+  );
+}
+
+function assertManifest(options) {
+  assertRuleTable();
+  const tracked = execFileSync("git", ["ls-files", "-z"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  })
+    .split("\0")
+    .filter(Boolean);
+  assert.ok(tracked.length > 1000, "git ls-files must list the repository");
+
+  // A rule that covers most of the tree hides the paths it was not written
+  // for; split it instead.
+  for (const rule of PATH_RULES) {
+    const share =
+      tracked.filter((path) => matchesPath(rule, path)).length / tracked.length;
+    assert.ok(
+      share <= MAX_RULE_SHARE,
+      `${rule.id} matches ${(share * 100).toFixed(1)}% of tracked paths`,
+    );
+  }
+
+  // The manifest guards its own rules.
+  for (const status of STATUSES) {
+    const release = classifyRelease(
+      [`${status}\tscripts/ci/path-manifest.mjs`],
+      options,
+    );
+    assert.equal(release.risk, "approval", status);
+    assert.ok(
+      release.reasons.includes(
+        "protected surface: scripts/ci/path-manifest.mjs",
+      ),
+      status,
+    );
+    assert.equal(release.ci_policy_changed, true, status);
+  }
+  assert.equal(isSensitivePath("scripts/ci/path-manifest.mjs"), true);
+
+  // Root manifests escalate only as the last field of a change line.
+  for (const [line, broad] of [
+    ["M\tpackage.json", true],
+    ["package.json", false],
+    ["R100\tpackage.json\tfoo.json", false],
+    ["R100\tfoo.json\tpackage.json", true],
+    ["C100\tturbo.json\tturbo.bak", false],
+    ["R100\tscripts/a.mjs\tdocs/a.md", true],
+    ["M\t.github/actions/x/action.yml", true],
+    ["M\tpackages/lib/src/index.ts", true],
+    ["M\tpackages/content/src/index.ts", false],
+  ])
+    assert.equal(isBroadChangeLine(line), broad, JSON.stringify(line));
+
+  // Every deploy.yml paths-ignore entry is a release-ignored rule, so the push
+  // workflow never skips a path the classifier would deploy.
+  const deploy = parse(
+    readFileSync(join(ROOT, ".github/workflows/deploy.yml"), "utf8"),
+  );
+  const ignoredRows = rulesOfKind("ignored");
+  const carveOuts = ignoredRows.filter((rule) => !rule.ignored);
+  for (const glob of deploy.on.push["paths-ignore"]) {
+    const prefix = /^[^*?[\]{}!]+\/\*\*$/.test(glob)
+      ? glob.slice(0, -2)
+      : undefined;
+    const exact = /^[^*?[\]{}!]+$/.test(glob) ? glob : undefined;
+    assert.ok(prefix || exact, `paths-ignore ${glob}: use dir/** or a path`);
+    assert.ok(
+      ignoredRows.some(
+        (rule) =>
+          rule.ignored &&
+          (prefix ? rule.prefix === prefix : rule.exact?.includes(exact)),
+      ),
+      `paths-ignore ${glob} must be a release-ignored rule`,
+    );
+    assert.equal(isReleaseIgnored(prefix ? `${prefix}a/b.txt` : exact), true);
+    for (const rule of carveOuts) {
+      const skipped = prefix ?? exact;
+      assert.ok(
+        !skipped.startsWith(rule.prefix) && !rule.prefix.startsWith(skipped),
+        `paths-ignore ${glob} must not skip ${rule.prefix}`,
       );
     }
   }
+
+  // The CodeRabbit review paths sit on approval rules. Markdown under them is
+  // release-ignored docs, a new worker stays unknown until it gets a rule,
+  // and migration files are governed by migration policy and preflight.
+  const coderabbit = parse(
+    readFileSync(join(ROOT, ".coderabbit.yaml"), "utf8"),
+  );
+  const reviewGlobs = coderabbit.reviews.path_instructions.map(
+    ({ path }) => path,
+  );
+  assert.deepEqual(
+    reviewGlobs,
+    [
+      "apps/admin/src/{middleware.ts,lib/access-identity.ts,pages/auth/**}",
+      "drizzle/{migrations/**,meta/**}",
+      ".github/workflows/**",
+      "workers/**",
+    ],
+    "update these review-path checks with .coderabbit.yaml",
+  );
+  const under = (glob) => {
+    const pattern = globToRegExp(glob);
+    const paths = tracked.filter((path) => pattern.test(path));
+    assert.ok(paths.length > 0, `${glob} matches tracked paths`);
+    return paths;
+  };
+  for (const glob of [reviewGlobs[0], reviewGlobs[2], reviewGlobs[3]]) {
+    for (const path of under(glob)) {
+      assert.ok(
+        isProtectedSurface(path),
+        `${path} must match an approval rule`,
+      );
+      const release = classifyRelease([`M\t${path}`], options);
+      assert.equal(
+        release.risk,
+        isReleaseIgnored(path) ? "none" : "approval",
+        path,
+      );
+    }
+  }
+  assert.equal(
+    classifyRelease(["A\tworkers/newworker/src/index.ts"], options).risk,
+    "unknown",
+  );
+  for (const path of under(reviewGlobs[1])) {
+    assert.ok(
+      matchingRules("flag", path).some(
+        (rule) => rule.flag === "migration_preflight_required",
+      ),
+      `${path} requires migration preflight`,
+    );
+  }
+  assert.ok(isProtectedSurface("drizzle/migrations/manifest.json"));
 }
 
 const directRun = process.argv[1] === fileURLToPath(import.meta.url);
@@ -651,7 +911,8 @@ if (directRun && process.argv.includes("--write")) {
 } else {
   const { corpus, options, entries } = replayCorpus();
   assertNovelPathsFailClosed(options);
+  assertManifest(options);
   console.log(
-    `release corpus replayed: ${entries} entries in ${corpus.classes.length} classes, 0 differences`,
+    `release corpus replayed: ${entries} entries in ${corpus.classes.length} classes, 0 differences; path manifest checks passed`,
   );
 }
