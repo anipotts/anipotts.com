@@ -235,3 +235,111 @@ test("failed validation of dirty work propagates a failure", () => {
     assert.deepEqual(result.commands, [["format:check"]]);
   });
 });
+
+test("committed unclassified paths fail before any check in both scope modes", () => {
+  fixture(({ git, write, run }) => {
+    write("notes.txt", "committed\n");
+    git("add", "notes.txt");
+    git("commit", "-m", "synthetic unclassified path");
+    for (const args of [[], ["--commits-only"]]) {
+      const result = run(args);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.deepEqual(result.commands, []);
+      assert.match(result.stderr, /match no release rule:\n {2}notes\.txt\n/);
+      assert.match(result.stderr, /scripts\/ci\/release-policy\.mjs/);
+    }
+  });
+});
+
+test("staged unclassified paths fail before any check", () => {
+  fixture(({ git, write, run }) => {
+    write("apps/www/src/pages/index.astro", "unstaged\n");
+    write("notes.txt", "staged\n");
+    git("add", "notes.txt");
+    const result = run();
+    assert.equal(result.status, 1);
+    assert.deepEqual(result.commands, []);
+    assert.match(result.stderr, / {2}notes\.txt\n/);
+  });
+});
+
+test("unstaged edits to tracked unclassified paths fail", () => {
+  fixture(({ git, write, run }) => {
+    write("notes.txt", "tracked\n");
+    git("add", "notes.txt");
+    git("commit", "-m", "synthetic tracked path");
+    git("branch", "-f", "baseline");
+    write("notes.txt", "edited\n");
+    const result = run();
+    assert.equal(result.status, 1);
+    assert.deepEqual(result.commands, []);
+    assert.match(result.stderr, / {2}notes\.txt\n/);
+    const committed = run(["--commits-only"]);
+    assert.equal(committed.status, 0, committed.stderr);
+    assert.match(committed.stdout, /clean against baseline \(commits only\)/);
+  });
+});
+
+test("a staged delete still fails when the same path is untracked again", () => {
+  fixture(({ git, write, run }) => {
+    write("notes.txt", "tracked\n");
+    git("add", "notes.txt");
+    git("commit", "-m", "synthetic tracked path");
+    git("branch", "-f", "baseline");
+    git("rm", "--cached", "--quiet", "notes.txt");
+    const result = run();
+    assert.equal(result.status, 1);
+    assert.deepEqual(result.commands, []);
+    assert.match(result.stderr, / {2}notes\.txt\n/);
+  });
+});
+
+test("untracked unclassified files warn and keep the selected checks", () => {
+  fixture(({ write, run }) => {
+    write("apps/www/src/pages/index.astro", "unstaged\n");
+    write("notes.txt", "scratch\n");
+    const result = run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.commands, publicChecks);
+    assert.match(
+      result.stderr,
+      /warning: untracked path is unclassified; ci only sees committed files: notes\.txt/,
+    );
+    assert.doesNotMatch(result.stderr, /match no release rule/);
+  });
+});
+
+test("an untracked nested agent worktree only warns", () => {
+  fixture(({ git, write, run }) => {
+    git("init", "--quiet", ".codex-workspaces/agent");
+    write(".codex-workspaces/agent/notes.txt", "agent\n");
+    const result = run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.commands, [["format:check"]]);
+    assert.match(
+      result.stderr,
+      /unclassified; ci only sees committed files: \.codex-workspaces\/agent\//,
+    );
+  });
+});
+
+for (const [path, commands] of [
+  ["tsconfig.json", [["validate"]]],
+  [".prettierrc", [["validate"]]],
+  [".npmrc", [["validate"]]],
+  [".github/dependabot.yml", [["validate"]]],
+  [".editorconfig", [["format:check"]]],
+  [".vscode/settings.json", [["format:check"]]],
+]) {
+  test(`formerly unknown tooling path ${path} selects its checks`, () => {
+    fixture(({ git, write, run }) => {
+      write(path, "edited\n");
+      // Force past a developer's global ignores, such as .vscode/.
+      git("add", "--force", path);
+      const result = run();
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(result.commands, commands);
+      assert.doesNotMatch(result.stderr, /unclassified|no release rule/);
+    });
+  });
+}
