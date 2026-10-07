@@ -807,7 +807,7 @@ const formerlyUnknown = {
   ".prettierrc": { ciPolicy: true },
   ".vscode/extensions.json": {},
   ".vscode/settings.json": {},
-  ".worktreeinclude": {},
+  ".worktreeinclude": { risk: "approval" },
   "drizzle.config.ts": {},
   "drizzle/meta/_journal.json": { preflight: true },
   "solo.yml": {},
@@ -839,6 +839,31 @@ for (const [path, expected] of Object.entries(formerlyUnknown)) {
     );
   }
 }
+
+// .worktreeinclude names the secret files copied into agent worktrees: any
+// change needs approval, alone or beside automatic and docs-only paths.
+for (const lines of [
+  ["M\t.worktreeinclude"],
+  ["A\t.worktreeinclude"],
+  ["D\t.worktreeinclude"],
+  ["M\t.worktreeinclude", "M\tdocs/local-development.md"],
+  ["M\tapps/www/src/components/Footer.astro", "M\t.worktreeinclude"],
+  ["R100\t.worktreeinclude\tdocs/worktreeinclude.md"],
+  ["R100\tscripts/dev/worktree-files.txt\t.worktreeinclude"],
+]) {
+  const release = classifyRelease(lines, base);
+  assert.equal(release.risk, "approval", lines.join(" "));
+  assert.ok(
+    release.reasons.includes("protected surface: .worktreeinclude"),
+    lines.join(" "),
+  );
+  assert.deepEqual(unclassifiedPaths(lines), [], lines.join(" "));
+}
+// An unclassified sibling still wins over its approval.
+assert.equal(
+  classifyRelease(["M\t.worktreeinclude", "A\tnotes.txt"], base).risk,
+  "unknown",
+);
 
 // Novel siblings of those rules still have no rule and must stay unknown.
 for (const path of [

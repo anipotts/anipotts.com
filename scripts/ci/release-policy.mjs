@@ -80,6 +80,10 @@ const APPROVAL_PATHS = [
   /^workers\/(?:ingest|newsletter|state|weekly-email)\//,
   // Environment template beside local secrets; classified by name only.
   /^\.env\.example$/,
+  // Lists the ignored secret files copied into new agent worktrees, so a
+  // change alters what agents receive. It holds path patterns, not values, so
+  // owner review is the control; security-review's literal-secret scan is not.
+  /^\.worktreeinclude$/,
 ];
 
 const KNOWN_SAFE_ROOTS = [
@@ -103,7 +107,7 @@ const KNOWN_SAFE_ROOTS = [
   /^\.github\/(?:ISSUE_TEMPLATE|CODEOWNERS)/,
   /^(?:\.nvmrc|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
   // Editor, formatter, install and launcher settings with no deploy output.
-  /^\.(?:editorconfig|npmrc|posthog-events\.json|prettierrc|worktreeinclude)$/,
+  /^\.(?:editorconfig|npmrc|posthog-events\.json|prettierrc)$/,
   /^\.github\/dependabot\.yml$/,
   /^\.husky\/pre-commit$/,
   /^\.vscode\/(?:extensions|settings)\.json$/,
