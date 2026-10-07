@@ -130,6 +130,43 @@ describe("listEditorialSources", () => {
     ).toBe(false);
   });
 
+  it.each(["/repo/", "/repo///"])(
+    "trims trailing slashes from root %j",
+    (root) => {
+      const plain = fakeFs(tree);
+      const slashed = fakeFs(tree);
+      const files = listEditorialSources(root, slashed.fs);
+      expect(files).toEqual(listEditorialSources("/repo", plain.fs));
+      expect(slashed.listed).toEqual(plain.listed);
+      expect(slashed.reads).toEqual(plain.reads);
+    },
+  );
+
+  it("keeps slashes before the root's last segment", () => {
+    const prefix = `${"/".repeat(20_000)}repo`;
+    const { fs, listed } = fakeFs({
+      [`${prefix}/content/public/pages`]: ["home.md"],
+      [`${prefix}/content/public/projects`]: [],
+      [`${prefix}/content/public/writing`]: [],
+    });
+    expect(listEditorialSources(`${prefix}//`, fs)).toHaveLength(1);
+    expect(listed[0]).toBe(`${prefix}/content/public/pages`);
+  });
+
+  it("treats a root of slashes as the filesystem root", () => {
+    const { fs, listed } = fakeFs({
+      "/content/public/pages": [],
+      "/content/public/projects": [],
+      "/content/public/writing": [],
+    });
+    expect(listEditorialSources("//", fs)).toEqual([]);
+    expect(listed).toEqual([
+      "/content/public/pages",
+      "/content/public/projects",
+      "/content/public/writing",
+    ]);
+  });
+
   it("throws when a layout directory is missing", () => {
     const { fs } = fakeFs({
       "/repo/content/public/pages": ["home.md"],

@@ -69,7 +69,11 @@ export function listEditorialSources(
   root: string,
   fs: EditorialFileSystem,
 ): EditorialSourceFile[] {
-  const base = root.replace(/\/+$/u, "");
+  // Trim trailing slashes in one linear pass. A /\/+$/ replace is quadratic
+  // on long runs of slashes (CodeQL js/polynomial-redos).
+  let end = root.length;
+  while (end > 0 && root[end - 1] === "/") end -= 1;
+  const base = root.slice(0, end);
   const files: EditorialSourceFile[] = [];
   for (const [directory, kind] of EDITORIAL_DIRECTORIES) {
     const names = fs
