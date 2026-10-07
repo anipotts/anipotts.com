@@ -699,7 +699,7 @@ describe("one reader transport", () => {
     // The server credential route and the browser readers both import it,
     // so it must pull in neither signing code nor React. (A variable path
     // keeps Vite from turning the URL into an asset URL.)
-    const file = "./private-reader-modes.ts";
+    const file = "./generated/private-reader.ts";
     const source = readFileSync(
       fileURLToPath(new URL(file, import.meta.url)),
       "utf8",
@@ -1232,7 +1232,7 @@ describe("private Data workspace", () => {
     for (const file of [
       "./private-reader-fetch.ts",
       "./private-reader-client.ts",
-      "./private-reader-modes.ts",
+      "./generated/private-reader.ts",
       "../components/data/DataWorkspace.tsx",
       "../components/data/DataNotices.tsx",
       "../components/data/RecordsView.tsx",
