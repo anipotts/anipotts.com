@@ -27,6 +27,7 @@
   "dependencies": {
     "@anipotts/brand": "workspace:*",
     "@anipotts/content": "workspace:*",
+    "@anipotts/runtime-contract": "workspace:*",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/react": "^7.0.0",
     "@astryxdesign/core": "^0.4.6",
