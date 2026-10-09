@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import {
@@ -232,6 +232,44 @@ const FIXTURE_LINE_SETS = [
   ["M\tdocs/example.md"],
   ["A\tnotes.txt", "M\tapps/www/src/pages/index.astro"],
   ["M\tapps/www/src/pages/index.astro", "A\tnotes.txt"],
+  // Coverage closure (a3): paths its rules are written for that are not
+  // tracked yet, and siblings that must not inherit those rules.
+  ...[
+    "packages/runtime-contract/package.json",
+    "packages/runtime-contract/src/index.ts",
+    "packages/runtime-contract/README.md",
+    "packages/runtime-contractx/a.ts",
+    "packages/content/src/astro-adapter.ts",
+    "packages/content/src/editorial/layout.ts",
+    "packages/content/src/editorialx/a.ts",
+    "packages/lib/src/db/new.ts",
+    "packages/lib/src/dbx/a.ts",
+    "packages/lib/src/db.ts",
+    "scripts/content/new.mjs",
+    "scripts/contentx/a.mjs",
+    "scripts/admin/new.mjs",
+    "scripts/adminx/a.mjs",
+    "scripts/dev/review-state.mjs.bak",
+    "docs/worker-inventory.md.bak",
+    "docs/local-admin-preview-thread-prompt.md.bak",
+  ].flatMap((path) => STATUSES.map((status) => [`${status}\t${path}`])),
+  // The final db row decides only its own paths.
+  ["M\tpackages/lib/src/db/schema.ts", "M\tpackages/lib/src/cms/index.ts"],
+  ["R100\tpackages/lib/src/db/schema.ts\tpackages/lib/src/schema.ts"],
+  ["R100\tpackages/lib/src/schema.ts\tpackages/lib/src/db/schema.ts"],
+  // The b4 schema docs diff, and a b2a-shaped runtime contract diff.
+  [
+    "M\tdrizzle/README.md",
+    "M\tpackage.json",
+    "A\tscripts/ci/d1-schema-docs.test.mjs",
+    "M\tpackages/lib/src/db/schema.ts",
+  ],
+  [
+    "A\tpackages/runtime-contract/package.json",
+    "A\tpackages/runtime-contract/src/index.ts",
+    "M\tworkers/state/src/runtime-contract.ts",
+  ],
+  ["R100\tpackages/content/src/public/site.ts\tpackages/content/src/site.ts"],
 ];
 
 // computeDeployTargets path arrays from the same test files.
@@ -905,6 +943,211 @@ function assertManifest(options) {
     );
   }
   assert.ok(isProtectedSurface("drizzle/migrations/manifest.json"));
+  assertCoverage(tracked);
+}
+
+// Coverage closure: a deploy target follows every file that reaches it.
+const DEPENDENCY_KEYS = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+];
+const WORKSPACE_TARGETS = {
+  "apps/www": "www",
+  "apps/admin": "admin",
+  "workers/ingest": "ingest",
+  "workers/newsletter": "newsletter",
+  "workers/state": "state",
+  "workers/weekly-email": "weekly_email",
+};
+const CODE_FILE = /\.(?:astro|[cm]?[jt]sx?)$/;
+const TEST_FILE = /(?:^|\/)(?:test|e2e)\/|\.test\.[cm]?[jt]sx?$/;
+const IMPORT_SPECIFIER =
+  /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(["'])([^"'\n]+)\1/g;
+const BUILD_SCRIPT_NODE_FILE = /\bnode\s+([^\s&|;"'-][^\s&|;"']*\.m?js)\b/g;
+
+const readRoot = (path) => readFileSync(join(ROOT, path), "utf8");
+
+function workspaceManifests(tracked) {
+  return tracked
+    .filter((path) =>
+      /^(?:apps|packages|workers)\/[^/]+\/package\.json$/.test(path),
+    )
+    .map((path) => ({
+      dir: posix.dirname(path),
+      manifest: JSON.parse(readRoot(path)),
+    }));
+}
+
+function dependentsOf(name, workspaces) {
+  return workspaces
+    .filter(({ manifest }) =>
+      DEPENDENCY_KEYS.some((key) => manifest[key]?.[name] !== undefined),
+    )
+    .map(({ dir }) => dir);
+}
+
+/** The tracked file one import specifier names, if it is in this repository. */
+function resolveImport(from, specifier, trackedSet, workspaces) {
+  let base;
+  const workspace = workspaces.find(
+    ({ manifest }) =>
+      specifier === manifest.name || specifier.startsWith(`${manifest.name}/`),
+  );
+  if (workspace) {
+    const key = `.${specifier.slice(workspace.manifest.name.length)}`;
+    let entry = workspace.manifest.exports?.[key];
+    if (entry && typeof entry === "object")
+      entry = entry.import ?? entry.default;
+    if (typeof entry !== "string") return undefined;
+    // dist output is built from the matching source file.
+    base = posix.join(
+      workspace.dir,
+      entry.replace(/^\.\/dist\/(.+)\.js$/, "./src/$1.ts"),
+    );
+  } else if (specifier.startsWith(".")) {
+    base = posix.join(posix.dirname(from), specifier);
+  } else return undefined;
+  return [
+    base,
+    base.replace(/\.js$/, ".ts"),
+    base.replace(/\.js$/, ".tsx"),
+    `${base}.ts`,
+    `${base}.mjs`,
+    `${base}/index.ts`,
+  ].find((candidate) => trackedSet.has(candidate));
+}
+
+/** Files outside an app that its build or runtime imports: the app's own
+ * non-test source, the node scripts its build and its workspace
+ * dependencies' builds run, and every packages/content or scripts file
+ * those import in turn. */
+function appBuildInputs(app, trackedSet, workspaces) {
+  const byName = new Map(workspaces.map((ws) => [ws.manifest.name, ws]));
+  const builders = [];
+  const visit = (ws) => {
+    if (!ws || builders.includes(ws)) return;
+    builders.push(ws);
+    for (const key of DEPENDENCY_KEYS)
+      for (const [name, version] of Object.entries(ws.manifest[key] ?? {}))
+        if (String(version).startsWith("workspace:")) visit(byName.get(name));
+  };
+  visit(workspaces.find(({ dir }) => dir === app));
+  const queue = [...trackedSet].filter(
+    (path) =>
+      path.startsWith(`${app}/`) &&
+      CODE_FILE.test(path) &&
+      !TEST_FILE.test(path.slice(app.length + 1)),
+  );
+  for (const { dir, manifest } of builders)
+    for (const script of ["prebuild", "build"])
+      for (const [, file] of (manifest.scripts?.[script] ?? "").matchAll(
+        BUILD_SCRIPT_NODE_FILE,
+      ))
+        queue.push(posix.join(dir, file));
+  const reached = new Set();
+  for (const file of queue) {
+    if (!trackedSet.has(file) || !CODE_FILE.test(file)) continue;
+    for (const [, , specifier] of readRoot(file).matchAll(IMPORT_SPECIFIER)) {
+      const resolved = resolveImport(file, specifier, trackedSet, workspaces);
+      if (
+        resolved &&
+        !reached.has(resolved) &&
+        /^(?:packages\/content|scripts)\//.test(resolved)
+      ) {
+        reached.add(resolved);
+        queue.push(resolved);
+      }
+    }
+    if (!file.startsWith(`${app}/`)) reached.add(file);
+  }
+  return reached;
+}
+
+function assertCoverage(tracked) {
+  const trackedSet = new Set(tracked);
+  const workspaces = workspaceManifests(tracked);
+  const targetRule = (id) => PATH_RULES.find((rule) => rule.id === id);
+
+  // The runtime contract deploys exactly the workspaces that depend on it,
+  // so a package-only change cannot ship to fewer of them.
+  const contractUsers = dependentsOf("@anipotts/runtime-contract", workspaces);
+  assert.deepEqual(
+    contractUsers.filter((dir) => !WORKSPACE_TARGETS[dir]),
+    [],
+    "a package that depends on @anipotts/runtime-contract needs a deploy mapping",
+  );
+  if (trackedSet.has("packages/runtime-contract/package.json"))
+    assert.deepEqual(
+      contractUsers.map((dir) => WORKSPACE_TARGETS[dir]).sort(),
+      [...targetRule("target.runtime-contract").targets].sort(),
+      "target.runtime-contract must list every workspace that depends on @anipotts/runtime-contract",
+    );
+  else assert.deepEqual(contractUsers, []);
+
+  // packages/lib/src/db/ selects no deploy target only while no deployed
+  // code depends on the package or imports the drizzle model.
+  assert.equal(targetRule("target.lib-db").final, true);
+  assert.deepEqual(targetRule("target.lib-db").targets, []);
+  assert.deepEqual(
+    dependentsOf("@anipotts/lib", workspaces),
+    [],
+    "target.lib-db assumes no workspace depends on @anipotts/lib",
+  );
+  const modelImporters = tracked.filter(
+    (path) =>
+      /^(?:apps|packages|workers)\//.test(path) &&
+      !path.startsWith("packages/lib/") &&
+      CODE_FILE.test(path) &&
+      [...readRoot(path).matchAll(IMPORT_SPECIFIER)].some(
+        ([, , specifier]) =>
+          specifier.startsWith("@anipotts/lib") ||
+          resolveImport(path, specifier, trackedSet, workspaces)?.startsWith(
+            "packages/lib/",
+          ),
+      ),
+  );
+  assert.deepEqual(
+    modelImporters,
+    [],
+    "target.lib-db assumes no deployed code imports packages/lib",
+  );
+
+  // Every packages/content or scripts file an app's build or runtime
+  // imports selects that app.
+  const expectedInputs = {
+    "apps/www": [
+      "packages/content/src/editorial/direct-publication.ts",
+      "packages/content/src/editorial/source.ts",
+      "packages/content/src/public/defaults.ts",
+      "scripts/ci/public-built-output.test.mjs",
+      "scripts/content/content-d1-seed.mjs",
+      "scripts/content/generate-public-content.mjs",
+      "scripts/dev/admin-preview-identity.mjs",
+      "scripts/dev/review-state.mjs",
+    ],
+    "apps/admin": [
+      "scripts/ci/admin-route-inventory.mjs",
+      "scripts/content/generate-public-content.mjs",
+      "scripts/dev/admin-local-owner-host.mjs",
+      "scripts/dev/admin-preview-identity.mjs",
+      "scripts/dev/editorial-public-assets.mjs",
+      "scripts/dev/editorial-updates.mjs",
+      "scripts/dev/public-content-hot-reload.mjs",
+      "scripts/dev/review-state.mjs",
+    ],
+  };
+  for (const [app, expected] of Object.entries(expectedInputs)) {
+    const target = WORKSPACE_TARGETS[app];
+    const inputs = [...appBuildInputs(app, trackedSet, workspaces)].sort();
+    for (const path of expected)
+      assert.ok(inputs.includes(path), `${app} build inputs include ${path}`);
+    const missed = inputs.filter(
+      (path) => !computeDeployTargets([path])[target],
+    );
+    assert.deepEqual(missed, [], `${app} build inputs must select ${target}`);
+  }
 }
 
 const directRun = process.argv[1] === fileURLToPath(import.meta.url);

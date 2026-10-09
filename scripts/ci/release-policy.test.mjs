@@ -588,7 +588,7 @@ for (const path of [
   if (!path.startsWith("apps/admin/migrations/"))
     assert.equal(
       release.deploy_targets.www,
-      path.startsWith("apps/www/"),
+      /^(?:apps\/www|scripts\/content)\//.test(path),
       path,
     );
 }
@@ -596,9 +596,9 @@ assert.equal(
   classifyRelease(["A\te2e.production.config.ts"], base).risk,
   "unknown",
 );
-// The public CMS reader consumes these shared modules even when the change
-// does not otherwise select a www deployment. Exercise the browser gate for
-// changes to both its reader and source parsing dependencies.
+// The public CMS reader consumes these shared modules, so a change deploys
+// www and runs the browser gate. Exercise both for changes to its reader and
+// source parsing dependencies.
 for (const path of [
   "packages/content/src/editorial/direct-publication.ts",
   "packages/content/src/editorial/publication-contract.ts",
@@ -608,6 +608,7 @@ for (const path of [
   for (const status of ["A", "M", "D"]) {
     const release = classifyRelease([`${status}\t${path}`], base);
     assert.equal(release.public_browser_changed, true, `${status} ${path}`);
+    assert.equal(release.deploy_targets.www, true, `${status} ${path}`);
   }
 }
 assert.equal(
@@ -951,3 +952,176 @@ for (const lines of [
 }
 
 console.log("release policy fail-closed tests passed");
+
+// Coverage closure: each file a build, a runtime or a CI suite reads selects
+// the deploy target or the CI step that depends on it, under M, A and D.
+function expectRelease(lines, expected) {
+  const label = lines.join(" ");
+  const release = classifyRelease(lines, base);
+  assert.equal(release.risk, expected.risk ?? "automatic", label);
+  assert.deepEqual(
+    Object.entries(release.deploy_targets)
+      .filter(([, selected]) => selected)
+      .map(([target]) => target),
+    expected.targets ?? [],
+    label,
+  );
+  for (const [key, output] of [
+    ["preflight", "migration_preflight_required"],
+    ["ciPolicy", "ci_policy_changed"],
+    ["publicBrowser", "public_browser_changed"],
+    ["localDev", "local_dev_changed"],
+    ["docsOnly", "docs_only"],
+  ])
+    assert.equal(
+      release[output],
+      Boolean(expected[key]),
+      `${label}: ${output}`,
+    );
+  assert.deepEqual(unclassifiedPaths(lines), [], label);
+  return release;
+}
+
+const workers = ["ingest", "newsletter", "state", "weekly_email"];
+const bothApps = ["www", "admin"];
+const coverage = {
+  // The shared runtime contract deploys every worker that depends on it.
+  "packages/runtime-contract/package.json": {
+    risk: "approval",
+    targets: workers,
+  },
+  "packages/runtime-contract/src/index.ts": {
+    risk: "approval",
+    targets: workers,
+  },
+  "packages/runtime-contract/README.md": { risk: "none", docsOnly: true },
+  // www reads the editorial contracts and the content dist build.
+  "packages/content/src/editorial/source.ts": {
+    targets: bothApps,
+    publicBrowser: true,
+  },
+  "packages/content/src/editorial/record.ts": {
+    targets: bothApps,
+    publicBrowser: true,
+  },
+  "packages/content/src/editorial/snapshot.test.ts": {
+    targets: bothApps,
+    publicBrowser: true,
+  },
+  "packages/content/src/editorial/layout.ts": {
+    targets: bothApps,
+    publicBrowser: true,
+  },
+  "packages/content/src/editorial/direct-publication.ts": {
+    targets: bothApps,
+    publicBrowser: true,
+    preflight: true,
+  },
+  "packages/content/src/astro-adapter.ts": { targets: bothApps },
+  "packages/content/tsconfig.json": { targets: bothApps },
+  "packages/content/src/newsletter-draft.ts": { targets: ["admin"] },
+  "packages/content/src/admin/content.ts": { targets: ["admin"] },
+  // Content scripts run in both builds.
+  "scripts/content/generate-public-content.mjs": { targets: bothApps },
+  "scripts/content/content-d1-seed.mjs": {
+    targets: bothApps,
+    publicBrowser: true,
+  },
+  "scripts/content/seed-content-d1.mjs": {
+    targets: bothApps,
+    publicBrowser: true,
+  },
+  "scripts/content/new.mjs": { targets: bothApps },
+  // The drizzle model runs migration preflight and deploys nothing; the
+  // rest of packages/lib still deploys admin.
+  "packages/lib/src/db/schema.ts": { preflight: true },
+  "packages/lib/src/db/new.ts": { preflight: true },
+  "packages/lib/src/admin-control/index.ts": { targets: ["admin"] },
+  "packages/lib/src/cms/index.ts": { targets: ["admin"] },
+  // Docs that CI suites read run those suites.
+  "docs/worker-inventory.md": { risk: "none", ciPolicy: true, docsOnly: true },
+  "docs/local-admin-preview-thread-prompt.md": {
+    risk: "none",
+    localDev: true,
+    docsOnly: true,
+  },
+  "AGENTS.md": { risk: "none", ciPolicy: true, localDev: true, docsOnly: true },
+  "CLAUDE.md": { risk: "none", ciPolicy: true, localDev: true, docsOnly: true },
+  "scripts/admin/admin-preview.mjs": { localDev: true },
+  "scripts/admin/admin-preview-env.mjs": { localDev: true },
+  "scripts/admin/new.mjs": { localDev: true },
+  // Scripts the app builds import or run select those apps.
+  "scripts/dev/admin-preview-identity.mjs": {
+    targets: bothApps,
+    localDev: true,
+  },
+  "scripts/dev/review-state.mjs": { targets: bothApps, localDev: true },
+  "scripts/dev/public-content-hot-reload.mjs": {
+    targets: ["admin"],
+    localDev: true,
+  },
+  "scripts/dev/editorial-public-assets.mjs": {
+    targets: ["admin"],
+    localDev: true,
+  },
+  "scripts/dev/admin-local-owner-host.mjs": {
+    targets: ["admin"],
+    localDev: true,
+  },
+  "scripts/dev/editorial-updates.mjs": { targets: ["admin"], localDev: true },
+  "scripts/ci/admin-route-inventory.mjs": {
+    targets: ["admin"],
+    ciPolicy: true,
+  },
+  "scripts/ci/public-built-output.test.mjs": {
+    targets: ["www"],
+    ciPolicy: true,
+  },
+  // Siblings of those rules do not inherit them.
+  "packages/runtime-contractx/a.ts": {},
+  "packages/content/src/editorialx/a.ts": { targets: ["admin"] },
+  "packages/lib/src/dbx/a.ts": { targets: ["admin"] },
+  "packages/lib/src/db.ts": { targets: ["admin"] },
+  "scripts/contentx/a.mjs": {},
+  "scripts/adminx/a.mjs": {},
+  "scripts/dev/dev-servers.mjs": { localDev: true },
+  "scripts/dev/review-state.mjs.bak": { localDev: true },
+  "docs/worker-inventory.md.bak": { risk: "none", docsOnly: true },
+  "docs/local-admin-preview-thread-prompt.md.bak": {
+    risk: "none",
+    docsOnly: true,
+  },
+};
+for (const [path, expected] of Object.entries(coverage)) {
+  for (const status of ["M", "A", "D"]) {
+    const release = expectRelease([`${status}\t${path}`], expected);
+    if (expected.risk === "approval")
+      assert.ok(
+        release.reasons.includes(`protected surface: ${path}`),
+        `${status} ${path}`,
+      );
+  }
+}
+
+// The final db row decides only its own paths: a change beside it, or a
+// rename out of it, still deploys admin.
+expectRelease(
+  ["M\tpackages/lib/src/db/schema.ts", "M\tpackages/lib/src/cms/index.ts"],
+  { targets: ["admin"], preflight: true },
+);
+expectRelease(
+  ["R100\tpackages/lib/src/db/schema.ts\tpackages/lib/src/schema.ts"],
+  { targets: ["admin"], preflight: true },
+);
+// b4's schema docs diff deploys nothing and runs migration preflight.
+expectRelease(
+  [
+    "M\tdrizzle/README.md",
+    "M\tpackage.json",
+    "A\tscripts/ci/d1-schema-docs.test.mjs",
+    "M\tpackages/lib/src/db/schema.ts",
+  ],
+  { preflight: true, ciPolicy: true, publicBrowser: true },
+);
+
+console.log("release policy coverage tests passed");

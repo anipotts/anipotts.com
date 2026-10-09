@@ -59,6 +59,10 @@ const target = (id, matcher, ...targets) => ({
   ...matcher,
   targets,
 });
+const finalTarget = (id, matcher, ...targets) => ({
+  ...target(id, matcher, ...targets),
+  final: true,
+});
 const sensitive = (id, matcher, value = true) => ({
   id,
   kind: "sensitive",
@@ -116,6 +120,8 @@ export const PATH_RULES = Object.freeze(
       "approval.workers",
       /^workers\/(?:ingest|newsletter|state|weekly-email)\//,
     ),
+    // The runtime contract the deployed workers evaluate, shared as a package.
+    approval("approval.runtime-contract", /^packages\/runtime-contract\//),
     // Environment template beside local secrets; classified by name only.
     approval("approval.env-template", /^\.env\.example$/),
     // Lists the ignored secret files copied into new agent worktrees, so a
@@ -200,6 +206,9 @@ export const PATH_RULES = Object.freeze(
       "preflight.migration-scripts",
       /^scripts\/ci\/(?:d1-|migration-|site-migrations)/,
     ),
+    // The historical drizzle model of anipotts-db describes the migrated
+    // schema, so a change runs the migration preflight suites.
+    preflight("preflight.lib-db", /^packages\/lib\/src\/db\//),
 
     // ci_policy_changed
     // These documents are inputs to the guidance invariants in test:workspace.
@@ -208,6 +217,8 @@ export const PATH_RULES = Object.freeze(
       "ci.guidance-docs",
       /^docs\/(?:platform-architecture\.md|design\/admin-workspace\/quiet-precision-delivery\.md)$/,
     ),
+    // test:workspace checks its retained workers against the workspace.
+    ciPolicy("ci.worker-inventory", /^docs\/worker-inventory\.md$/),
     ciPolicy("ci.ignore-files", /^\.(?:gitignore|prettierignore)$/),
     ciPolicy(
       "ci.astryx-patch",
@@ -257,6 +268,15 @@ export const PATH_RULES = Object.freeze(
     localDev("local.nvmrc", /^\.nvmrc$/),
     localDev("local.docs", /^docs\/local-development\.md$/),
     localDev("local.scripts", /^scripts\/(?:codex-action$|dev\/)/),
+    // test:admin-preview reads the preview scripts, its thread prompt and the
+    // agent guide. AGENTS.md links to CLAUDE.md, so an edit made through the
+    // link shows in a diff as CLAUDE.md.
+    localDev("local.admin-scripts", /^scripts\/admin\//),
+    localDev(
+      "local.admin-preview-prompt",
+      /^docs\/local-admin-preview-thread-prompt\.md$/,
+    ),
+    localDev("local.agent-guide", /^(?:AGENTS|CLAUDE)\.md$/),
 
     // Deploy targets. Shared Astro integrations run inside both app builds.
     target("target.astro-config", { prefix: "config/astro/" }, "www", "admin"),
@@ -289,6 +309,25 @@ export const PATH_RULES = Object.freeze(
       },
       "www",
     ),
+    // www imports the editorial contracts at runtime, and its build seeds a
+    // fixture database through them.
+    target(
+      "target.editorial-package",
+      { prefix: "packages/content/src/editorial/" },
+      "www",
+    ),
+    // The content package's dist build, which www imports, and the shared
+    // Astro schema adapter planned for both apps' content configs.
+    target(
+      "target.content-build-inputs",
+      {
+        exact: [
+          "packages/content/tsconfig.json",
+          "packages/content/src/astro-adapter.ts",
+        ],
+      },
+      "www",
+    ),
     target("target.brand", { prefix: "packages/brand/" }, "www", "admin"),
     target(
       "target.astryx-patch",
@@ -297,8 +336,62 @@ export const PATH_RULES = Object.freeze(
     ),
     target("target.admin-app", { prefix: "apps/admin/" }, "admin"),
     target("target.content-package", { prefix: "packages/content/" }, "admin"),
+    // Content scripts run inside both builds: the content package prebuild
+    // generates the public projections, and the www build seeds its fixture
+    // database.
+    target(
+      "target.content-scripts",
+      { prefix: "scripts/content/" },
+      "www",
+      "admin",
+    ),
+    // Scripts the app builds import, or run as a build step.
+    target(
+      "target.build-identity-scripts",
+      {
+        exact: [
+          "scripts/dev/admin-preview-identity.mjs",
+          "scripts/dev/review-state.mjs",
+        ],
+      },
+      "www",
+      "admin",
+    ),
+    target(
+      "target.admin-build-scripts",
+      {
+        exact: [
+          "scripts/ci/admin-route-inventory.mjs",
+          "scripts/dev/admin-local-owner-host.mjs",
+          "scripts/dev/editorial-public-assets.mjs",
+          "scripts/dev/editorial-updates.mjs",
+          "scripts/dev/public-content-hot-reload.mjs",
+        ],
+      },
+      "admin",
+    ),
+    target(
+      "target.www-build-scripts",
+      { exact: ["scripts/ci/public-built-output.test.mjs"] },
+      "www",
+    ),
+    // The historical drizzle model of anipotts-db is no deploy input: no
+    // workspace depends on @anipotts/lib, and migrations/manifest.json
+    // decides what a release applies. This final row decides alone, so
+    // target.lib does not select admin for these paths.
+    finalTarget("target.lib-db", { prefix: "packages/lib/src/db/" }),
     target("target.lib", { prefix: "packages/lib/" }, "admin"),
     target("target.types", { prefix: "packages/types/" }, "admin", "state"),
+    // Every workspace that depends on @anipotts/runtime-contract. The
+    // manifest test keeps this list equal to the package's dependents.
+    target(
+      "target.runtime-contract",
+      { prefix: "packages/runtime-contract/" },
+      "ingest",
+      "newsletter",
+      "state",
+      "weekly_email",
+    ),
     target("target.ingest", { prefix: "workers/ingest/" }, "ingest"),
     target(
       "target.newsletter",
