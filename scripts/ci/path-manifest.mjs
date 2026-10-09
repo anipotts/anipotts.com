@@ -18,7 +18,9 @@
 //   removed-migration  a deleted migration file needs approval
 //   flag               any matching row sets its output, docs included
 //   target             any matching row selects its deploy targets, for
-//                      paths that are not release-ignored
+//                      paths that are not release-ignored. a matching row
+//                      marked final decides alone, so the general rows do
+//                      not apply to the paths it carves out
 //   sensitive          the first matching row decides whether Security
 //                      Review scans the file
 //   broad              any matching row makes check:changed run validate
@@ -396,9 +398,14 @@ export function firstRule(kind, path, status = "M") {
   return rulesOfKind(kind).find((rule) => matchesChange(rule, path, status));
 }
 
-/** Every row of a kind that matches, in table order. */
+/** Every row of a kind that matches, in table order. A matching final row
+ * decides alone: it is the only row returned. */
 export function matchingRules(kind, path, status = "M") {
-  return rulesOfKind(kind).filter((rule) => matchesChange(rule, path, status));
+  const rules = rulesOfKind(kind).filter((rule) =>
+    matchesChange(rule, path, status),
+  );
+  const decisive = rules.find((rule) => rule.final);
+  return decisive ? [decisive] : rules;
 }
 
 /** Whether one local change line escalates check:changed to validate. */

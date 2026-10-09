@@ -717,6 +717,11 @@ function assertRuleTable() {
         ["risk", "removed-migration"].includes(rule.kind),
         `${rule.id}: only change-level kinds read the git status`,
       );
+    if (rule.final !== undefined)
+      assert.ok(
+        rule.kind === "target" && rule.final === true,
+        `${rule.id}: only target rows can decide alone`,
+      );
     if (rule.kind === "ignored")
       assert.equal(typeof rule.ignored, "boolean", rule.id);
     else if (rule.kind === "risk") {
@@ -727,7 +732,7 @@ function assertRuleTable() {
       assert.ok(flags.includes(rule.flag), rule.id);
     else if (rule.kind === "target")
       assert.ok(
-        rule.targets.length > 0 &&
+        (rule.final || rule.targets.length > 0) &&
           rule.targets.every((name) => DEPLOY_TARGETS.includes(name)),
         `${rule.id} selects known deploy targets`,
       );
