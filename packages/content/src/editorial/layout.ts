@@ -6,8 +6,10 @@
  * Keep this module import-free and erasable TypeScript only (no enum,
  * namespace or parameter properties): node loads it directly, with type
  * stripping, from scripts/content/*.mjs before any package build. Vite glob
- * literals cannot import it, so
- * apps/admin/src/lib/editorial-source-equivalence.test.ts holds them to it. */
+ * literals and Astro collection loader bases cannot import it, so each app's
+ * own suite holds its literals to it:
+ * apps/admin/src/lib/editorial-source-equivalence.test.ts and
+ * apps/www/test/editorial-source-layout.test.mjs. */
 
 export const EDITORIAL_CONTENT_ROOT = "content/public";
 
