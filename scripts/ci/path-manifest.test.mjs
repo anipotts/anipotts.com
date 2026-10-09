@@ -310,8 +310,15 @@ const DEPLOY_TARGET_PATH_SETS = [
 
 // isSensitivePath inputs from the same test files.
 const SENSITIVE_PATHS = [
+  ".claude/settings.json",
+  ".codex/config.toml",
+  ".github/dependabot.yml",
   ".github/workflows/deploy.yml",
   ".github/workflows/review.yml",
+  ".husky/pre-commit",
+  ".npmrc",
+  ".worktreeinclude",
+  "CLAUDE.md",
   "apps/admin/README.md",
   "apps/admin/src/data/life-owner-reader.ts",
   "apps/admin/src/data/personal-context.ts",
@@ -327,14 +334,20 @@ const SENSITIVE_PATHS = [
   "apps/admin/src/pages/api/admin/passkey/status.ts",
   "apps/admin/src/pages/auth/invite-safe.astro",
   "apps/admin/src/pages/auth/passkey.astro",
+  "apps/admin/test/wrangler.jsonc",
   "apps/admin/wrangler.toml",
   "apps/www/src/pages/index.astro",
   "apps/www/wrangler.toml",
+  "config/release-train.json",
   "docs/archive/old.md",
+  "docs/local-admin-preview-thread-prompt.md",
   "docs/platform-architecture.md",
+  "docs/worker-inventory.md",
+  "drizzle.config.ts",
   "drizzle/migrations/0016_seed_homepage_rich_summary.sql",
   "drizzle/migrations/0099_drop.sql",
   "drizzle/migrations/0100_public_metadata.sql",
+  "e2e.www.config.ts",
   "package.json",
   "packages/content/src/admin/operations.ts",
   "packages/content/src/admin/runtime.ts",
@@ -343,9 +356,11 @@ const SENSITIVE_PATHS = [
   "packages/lib/src/admin-control/types.ts",
   "packages/lib/src/admin-control/unsafe.ts",
   "packages/lib/src/cms/homepage.ts",
+  "packages/runtime-contract/src/index.ts",
   "patches/@astryxdesign__core@0.4.6.patch",
   "scripts/ci/security-review.mjs",
   "scripts/example.ts",
+  "tsconfig.json",
   "workers/state/src/control-plane-safe.ts",
   "workers/state/src/index.ts",
 ];
@@ -805,6 +820,41 @@ function assertRuleTable() {
   assert.ok(
     scanned.every((rule) => rule.sensitive),
     "scanned rows follow",
+  );
+
+  // Security Review scans every protected surface named by path, every CI
+  // policy and local development input, and the tooling roots, through rows
+  // derived from those rows with the same matcher.
+  const derived = new Map(
+    scanned
+      .filter((rule) => rule.id.startsWith("sensitive.from."))
+      .map((rule) => [rule.id.slice("sensitive.from.".length), rule]),
+  );
+  for (const rule of PATH_RULES) {
+    const scannedSource =
+      (rule.kind === "risk" &&
+        rule.risk === "approval" &&
+        rule.status === undefined) ||
+      (rule.kind === "flag" &&
+        ["ci_policy_changed", "local_dev_changed"].includes(rule.flag));
+    if (scannedSource) assert.ok(derived.has(rule.id), `${rule.id} is scanned`);
+  }
+  for (const [id, row] of derived) {
+    const source = PATH_RULES.find((rule) => rule.id === id);
+    assert.ok(source, `${row.id} names a row`);
+    for (const key of ["prefix", "exact", "suffix", "pattern"])
+      assert.equal(row[key], source[key], `${row.id} ${key}`);
+  }
+  assert.deepEqual(
+    [...derived.keys()].filter((id) => id.startsWith("safe.")),
+    [
+      "safe.editor-settings",
+      "safe.dependabot",
+      "safe.husky",
+      "safe.vscode",
+      "safe.root-tooling",
+    ],
+    "the tooling roots are scanned",
   );
 }
 

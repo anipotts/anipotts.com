@@ -22,7 +22,9 @@
 //                      marked final decides alone, so the general rows do
 //                      not apply to the paths it carves out
 //   sensitive          the first matching row decides whether Security
-//                      Review scans the file
+//                      Review scans the file. rows derived at the end of
+//                      the table add every protected surface, CI policy
+//                      and local development input, and tooling root
 //   broad              any matching row makes check:changed run validate
 //
 // scripts/ci/path-manifest.test.mjs replays a golden corpus against these
@@ -76,8 +78,51 @@ const broad = (id, matcher, extra = {}) => ({
   ...extra,
 });
 
+// Security Review also scans every file that decides how a release, CI or
+// local agent tooling behaves: each protected surface matched by name, each
+// CI policy and local development input, and the editor, install and
+// launcher roots. withScannedRows appends a sensitive row for each, after
+// the written ones, so a new rule of those kinds is scanned too. Markdown
+// still is not, and the route contract row stays out because Security
+// Review sees file names, not git statuses.
+const TOOLING_ROOTS = [
+  "safe.editor-settings",
+  "safe.dependabot",
+  "safe.husky",
+  "safe.vscode",
+  "safe.root-tooling",
+];
+const SCANNED_FLAGS = ["ci_policy_changed", "local_dev_changed"];
+const MATCHERS = ["prefix", "exact", "suffix", "pattern"];
+
+function scannedAlso(rule) {
+  if (rule.kind === "risk")
+    return (
+      (rule.risk === "approval" && rule.status === undefined) ||
+      TOOLING_ROOTS.includes(rule.id)
+    );
+  return rule.kind === "flag" && SCANNED_FLAGS.includes(rule.flag);
+}
+
+function withScannedRows(rows) {
+  const scanned = rows
+    .filter(scannedAlso)
+    .map((rule) =>
+      sensitive(
+        `sensitive.from.${rule.id}`,
+        Object.fromEntries(
+          MATCHERS.filter((key) => rule[key] !== undefined).map((key) => [
+            key,
+            rule[key],
+          ]),
+        ),
+      ),
+    );
+  return [...rows, ...scanned];
+}
+
 export const PATH_RULES = Object.freeze(
-  [
+  withScannedRows([
     // Release-ignored paths. Canonical public Markdown still deploys.
     ignored("ignored.public-content", { prefix: "content/public/" }, false),
     ignored("ignored.markdown", { suffix: ".md" }, true),
@@ -457,7 +502,7 @@ export const PATH_RULES = Object.freeze(
     ),
     broad("broad.lib", { prefix: "packages/lib/" }),
     broad("broad.types", { prefix: "packages/types/" }),
-  ].map((rule) => Object.freeze(rule)),
+  ]).map((rule) => Object.freeze(rule)),
 );
 
 const RULES_BY_KIND = new Map();
