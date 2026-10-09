@@ -1164,6 +1164,33 @@ function assertCoverage(tracked) {
     "target.lib-db assumes no deployed code imports packages/lib",
   );
 
+  // CI runs this suite only when ci_policy_changed is set, so the import walk
+  // below cannot fail the www or admin change that adds an uncovered import.
+  // Content source therefore fails safe on its own: every file selects both
+  // apps except the admin entrypoints, which public-app-boundary.test.mjs
+  // forbids www from importing and which every www change runs. A scripts
+  // file outside scripts/content and scripts/ci still relies on the walk.
+  assert.ok(
+    readRoot("scripts/ci/public-app-boundary.test.mjs").includes(
+      String.raw`pattern: /@anipotts\/content\/admin\b/,`,
+    ),
+    "target.content-source leaves packages/content/src/admin/ to admin only while www may not import it",
+  );
+  for (const path of [
+    ...tracked.filter((path) => path.startsWith("packages/content/src/")),
+    "packages/content/src/new.ts",
+    "packages/content/src/new/a.ts",
+    "packages/content/src/admin/a.ts",
+  ]) {
+    const targets = computeDeployTargets([path]);
+    assert.equal(targets.admin, true, `${path} selects admin`);
+    assert.equal(
+      targets.www,
+      !path.startsWith("packages/content/src/admin/"),
+      `${path} selects www unless it is an admin entrypoint`,
+    );
+  }
+
   // Every packages/content or scripts file an app's build or runtime
   // imports selects that app.
   const expectedInputs = {

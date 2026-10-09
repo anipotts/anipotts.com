@@ -339,36 +339,28 @@ export const PATH_RULES = Object.freeze(
       "www",
       "admin",
     ),
+    // www imports the package entry, the public projections and the
+    // editorial contracts at runtime, and its build seeds a fixture database
+    // through them. Every other content source file selects www too: the
+    // import walk in path-manifest.test.mjs runs only on ci_policy changes,
+    // so a www change that starts importing another content module passes its
+    // own CI, and this fallback keeps the next edit to that module from
+    // leaving www stale. packages/content/src/admin/ stays admin only, since
+    // public-app-boundary.test.mjs, which every www change runs, forbids www
+    // from importing it.
     target(
-      "target.public-content-package",
-      { prefix: "packages/content/src/public/" },
+      "target.content-source",
+      { pattern: /^packages\/content\/src\/(?!admin\/)/ },
       "www",
     ),
+    // The package manifest www resolves and the config of the dist build it
+    // imports.
     target(
-      "target.content-package-entry",
+      "target.content-package-build",
       {
         exact: [
           "packages/content/package.json",
-          "packages/content/src/index.ts",
-        ],
-      },
-      "www",
-    ),
-    // www imports the editorial contracts at runtime, and its build seeds a
-    // fixture database through them.
-    target(
-      "target.editorial-package",
-      { prefix: "packages/content/src/editorial/" },
-      "www",
-    ),
-    // The content package's dist build, which www imports, and the shared
-    // Astro schema adapter planned for both apps' content configs.
-    target(
-      "target.content-build-inputs",
-      {
-        exact: [
           "packages/content/tsconfig.json",
-          "packages/content/src/astro-adapter.ts",
         ],
       },
       "www",

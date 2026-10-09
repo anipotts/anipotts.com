@@ -1019,8 +1019,18 @@ const coverage = {
   },
   "packages/content/src/astro-adapter.ts": { targets: bothApps },
   "packages/content/tsconfig.json": { targets: bothApps },
-  "packages/content/src/newsletter-draft.ts": { targets: ["admin"] },
+  "packages/content/package.json": { targets: bothApps },
+  // Every other content source file falls back to both apps, so a module www
+  // starts importing deploys www before the import walk can see it.
+  "packages/content/src/newsletter-draft.ts": { targets: bothApps },
+  "packages/content/src/new.ts": { targets: bothApps },
+  "packages/content/src/new/a.ts": { targets: bothApps },
+  "packages/content/src/adminx/a.ts": { targets: bothApps },
+  // www may not import the admin entrypoints, and the package's test config
+  // is no build input.
   "packages/content/src/admin/content.ts": { targets: ["admin"] },
+  "packages/content/src/admin/new/a.ts": { targets: ["admin"] },
+  "packages/content/vitest.config.ts": { targets: ["admin"] },
   // Content scripts run in both builds.
   "scripts/content/generate-public-content.mjs": { targets: bothApps },
   "scripts/content/content-d1-seed.mjs": {
@@ -1077,9 +1087,10 @@ const coverage = {
     targets: ["www"],
     ciPolicy: true,
   },
-  // Siblings of those rules do not inherit them.
+  // Siblings of those rules do not inherit them. A content sibling takes
+  // only the source fallback, not the editorial browser suite.
   "packages/runtime-contractx/a.ts": {},
-  "packages/content/src/editorialx/a.ts": { targets: ["admin"] },
+  "packages/content/src/editorialx/a.ts": { targets: bothApps },
   "packages/lib/src/dbx/a.ts": { targets: ["admin"] },
   "packages/lib/src/db.ts": { targets: ["admin"] },
   "scripts/contentx/a.mjs": {},

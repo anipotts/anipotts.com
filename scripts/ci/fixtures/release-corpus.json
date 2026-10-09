@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "source": "04312a35e3cee9762540f086f38f1e38fad9241a",
+  "source": "0e1507271bfe8689eb1a164eaaa9e58e2d333af1",
   "options": {
     "sourceSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "eventName": "pull_request"
@@ -10192,7 +10192,7 @@
     "packages/content/src/editorial/source.test.ts": [116, 116, 116],
     "packages/content/src/editorial/source.ts": [116, 116, 116],
     "packages/content/src/index.ts": [114, 114, 114],
-    "packages/content/src/newsletter-draft.ts": [12, 12, 12],
+    "packages/content/src/newsletter-draft.ts": [114, 114, 114],
     "packages/content/src/public/defaults.ts": [114, 114, 114],
     "packages/content/src/public/editor.test.ts": [114, 114, 114],
     "packages/content/src/public/editor.ts": [114, 114, 114],
@@ -10571,9 +10571,9 @@
     "M\tpackages/content/src/editorial/layout.ts": 116,
     "A\tpackages/content/src/editorial/layout.ts": 116,
     "D\tpackages/content/src/editorial/layout.ts": 116,
-    "M\tpackages/content/src/editorialx/a.ts": 12,
-    "A\tpackages/content/src/editorialx/a.ts": 12,
-    "D\tpackages/content/src/editorialx/a.ts": 12,
+    "M\tpackages/content/src/editorialx/a.ts": 114,
+    "A\tpackages/content/src/editorialx/a.ts": 114,
+    "D\tpackages/content/src/editorialx/a.ts": 114,
     "M\tpackages/lib/src/db/new.ts": 118,
     "A\tpackages/lib/src/db/new.ts": 118,
     "D\tpackages/lib/src/db/new.ts": 118,
