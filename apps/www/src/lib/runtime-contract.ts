@@ -9,7 +9,16 @@
  * Coverage is dynamic routes only. src/worker.ts only wraps the
  * @astrojs/cloudflare handler, which serves every manifest asset path through
  * env.ASSETS before middleware runs. Those requests never reach this report.
+ *
+ * The shared evaluator in @anipotts/runtime-contract runs the checks. www
+ * keeps its own name predicate, which also accepts function-typed bindings,
+ * and its CONTENT_RUNTIME gate.
  */
+
+import {
+  evaluateRuntimeContract as evaluate,
+  type RuntimeReportWithFeatures,
+} from "@anipotts/runtime-contract";
 
 type Source = "assets" | "d1" | "r2" | "queue_producer" | "secret";
 type Check = "fetch" | "prepare" | "get" | "send" | "text";
@@ -49,15 +58,10 @@ export const RUNTIME_FEATURES = {
 >;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
-type RuntimeFeatureState = "available" | "unavailable";
-type RuntimeContractReport = {
-  ok: boolean;
-  missing: RuntimeName[];
-  features: Record<
-    RuntimeFeature,
-    { state: RuntimeFeatureState; missing: RuntimeName[] }
-  >;
-};
+type RuntimeContractReport = RuntimeReportWithFeatures<
+  RuntimeName,
+  RuntimeFeature
+>;
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
 
 const sha = /^[a-f0-9]{40}$/;
@@ -79,33 +83,26 @@ function satisfied(env: unknown, name: RuntimeName): boolean {
   return typeof read(value, check) === "function";
 }
 
-/** Pure: reads each contract name at most once and never throws. */
+const FEATURE_NEEDS = {} as Record<RuntimeFeature, readonly RuntimeName[]>;
+for (const [feature, { needs }] of Object.entries(RUNTIME_FEATURES))
+  FEATURE_NEEDS[feature as RuntimeFeature] = needs;
+
+/** Pure: reads each contract name and CONTENT_RUNTIME at most once and
+ * never throws. A cms feature is unavailable unless CONTENT_RUNTIME is
+ * exactly "cms", without naming a missing binding.
+ */
 export function evaluateRuntimeContract(env: unknown): RuntimeContractReport {
-  const results = new Map<RuntimeName, boolean>();
-  const has = (name: RuntimeName) => {
-    let result = results.get(name);
-    if (result === undefined) {
-      result = satisfied(env, name);
-      results.set(name, result);
-    }
-    return result;
-  };
-  const missing: RuntimeName[] = RUNTIME_REQUIRED.filter((name) => !has(name));
-  const features = {} as RuntimeContractReport["features"];
+  const report = evaluate<RuntimeName, RuntimeFeature>(env, {
+    contract: RUNTIME_CONTRACT,
+    required: RUNTIME_REQUIRED,
+    features: FEATURE_NEEDS,
+    satisfied,
+  });
   const cms = read(env, "CONTENT_RUNTIME") === "cms";
-  for (const [feature, definition] of Object.entries(RUNTIME_FEATURES)) {
-    const absent = (definition.needs as readonly RuntimeName[]).filter(
-      (name) => !has(name),
-    );
-    features[feature as RuntimeFeature] = {
-      state:
-        absent.length || ("cms" in definition && !cms)
-          ? "unavailable"
-          : "available",
-      missing: absent,
-    };
-  }
-  return { ok: missing.length === 0, missing, features };
+  for (const [feature, definition] of Object.entries(RUNTIME_FEATURES))
+    if ("cms" in definition && !cms)
+      report.features[feature as RuntimeFeature].state = "unavailable";
+  return report;
 }
 
 let reported = false;
