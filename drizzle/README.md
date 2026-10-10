@@ -25,7 +25,7 @@ nobody runs remote D1 commands by hand. for local proof, use `pnpm test:migratio
 
 - every `historical` file is applied. the 2026-08-24 bootstrap recorded 40 names in the D1 ledger without replaying them, then applied `0043_admin_auth_v2.sql` once through wrangler (`manifest.json:22`).
 - `0003_reconcile.sql` and `0004_drop_dead_tables.sql` are recorded as applied. their destructive statements are comments (`0003_reconcile.sql:48-51`, `0004_drop_dead_tables.sql:10-16`), so recording them dropped nothing. their header comments about applying by hand are stale, and the checksum lock keeps both files as written. that the 0003 fts objects exist live rests on that file's own comment (`0003_reconcile.sql:11-12`).
-- `0044_copy_agents_project_page_content.sql` is the one `migrations` record. deploy run 35144354076 applied it on 2026-09-16.
+- `migrations` holds 1 record. deploy run 35144354076 applied `0044_copy_agents_project_page_content.sql` on 2026-09-16.
 
 editing a recorded file fails `verifyManifest` (`scripts/ci/migration-policy.mjs:53-78`).
 
@@ -40,16 +40,16 @@ editing a recorded file fails `verifyManifest` (`scripts/ci/migration-policy.mjs
 
 admin binds the database (`apps/admin/wrangler.toml:45-49`, the only config with `migrations_dir`) but reads nothing from it. www (`apps/www/wrangler.toml:40-43`), ingest, newsletter and weekly-email bind it too.
 
-`scripts/ci/d1-schema-docs.test.mjs` checks this file against the manifest, the migrations and schema.ts.
+`scripts/ci/d1-schema-docs.test.mjs` checks this file against the manifest, the migrations, schema.ts, deployed sql and the cited quarantine docs.
 
 ## table classification
 
-each schema.ts table has one class, taken in this order: live, quarantined, baseline, unreferenced. deployed sql means a `FROM`, `INTO`, `UPDATE`, `JOIN`, `TABLE` or `EXISTS` reference in non-test code under `apps/*/src` or `workers/*/src`.
+each schema.ts table has one class, taken in this order: live, quarantined, baseline, unreferenced. deployed sql means an uppercase `FROM`, `INTO`, `UPDATE`, `JOIN`, `TABLE` or `EXISTS` followed by the whole table name, in source under `apps/*/src` or `workers/*/src` other than tests and fixtures. a quarantine source is a commented `DROP TABLE` in a migration, or a paragraph of a cited doc that calls the table quarantined.
 
 | class        | count | meaning                                                                              |
 | ------------ | ----- | ------------------------------------------------------------------------------------ |
 | live         | 9     | deployed sql reads or writes it                                                      |
-| quarantined  | 11    | no deployed sql; a migration comment or a ledger entry marks it dead and holds drops |
+| quarantined  | 11    | no deployed sql; a quarantine source marks it dead and holds drops                   |
 | baseline     | 9     | predates drizzle, with no `CREATE TABLE` in `drizzle/migrations` and no deployed sql |
 | unreferenced | 23    | a migration in this directory creates it; no deployed sql                            |
 
@@ -73,8 +73,8 @@ this classification proposes no drops. dropping any table is a destructive produ
 | `favorite_numbers`             | quarantined  | pre-drizzle | commented drop at `0004_drop_dead_tables.sql:15`                                                                  |
 | `business_data`                | baseline     | pre-drizzle | none                                                                                                              |
 | `analytics_events`             | quarantined  | pre-drizzle | commented drop at `0004_drop_dead_tables.sql:16`; ledger A-21                                                     |
-| `ops_snapshots`                | quarantined  | pre-drizzle | ledger A-21                                                                                                       |
-| `code_health`                  | quarantined  | pre-drizzle | ledger A-21                                                                                                       |
+| `ops_snapshots`                | quarantined  | pre-drizzle | ledger A-21 (`docs/worker-inventory.md:204-208`)                                                                  |
+| `code_health`                  | quarantined  | pre-drizzle | ledger A-21 (`docs/worker-inventory.md:204-208`)                                                                  |
 | `daily_rollups`                | baseline     | pre-drizzle | none                                                                                                              |
 | `email_queue`                  | live         | pre-drizzle | `workers/weekly-email/src/index.ts:48`                                                                            |
 | `service_registry`             | unreferenced | 0001        | none                                                                                                              |
