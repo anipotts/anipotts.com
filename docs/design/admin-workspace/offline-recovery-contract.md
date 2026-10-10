@@ -10,7 +10,11 @@ activate an operational backup or change the current production stores.
 
 The version-one adapter requires all eight current editorial Durable Object SQL
 tables and all three current content publication D1 tables, with their exact
-named columns. It preserves every supplied row and exact source, snapshot,
+named columns. Its version-one record path format is pinned to
+`content/public/pages`, `content/public/projects` and `content/public/writing`;
+like the declared SQL columns, this pin is self-contained and tested against the
+canonical mapping on supported source bases. It requires no newer production
+layout helper or package build. It preserves every supplied row and exact source, snapshot,
 conflict and receipt string, including Unicode, BOM and CRLF bytes. It retains
 immutable retry identities independently of the bounded hot receipt cache,
 publication history and active pointers, hidden publication snapshots, private

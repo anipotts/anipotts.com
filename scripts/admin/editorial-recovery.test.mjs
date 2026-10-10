@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import {
   RECOVERY_SCHEMA,
@@ -724,4 +724,92 @@ test("offline publication timestamp compatibility retains canonical minute, leap
     snapshot.editorial.tables.direct_publication_intents[0].publishedAt = value;
     assert.doesNotThrow(() => exportOfflineRecovery(snapshot), value);
   }
+});
+
+test("version-one offline record paths match canonical identities without a production helper dependency", async () => {
+  const identities = [
+    { kind: "page", id: "home" },
+    { kind: "work", id: "synthetic-work" },
+    { kind: "writing", id: "synthetic-writing" },
+  ];
+  const expected = [
+    "content/public/pages/home.md",
+    "content/public/projects/synthetic-work.md",
+    "content/public/writing/synthetic-writing.md",
+  ];
+  const helper = new URL("packages/content/src/editorial/layout.ts", root);
+  if (existsSync(helper)) {
+    const { editorialRecordPath } = await import(helper.href);
+    assert.deepEqual(identities.map(editorialRecordPath), expected);
+  } else {
+    // Older supported source bases own the same mapping directly in source.ts.
+    // Pin only that baseline's path expression; never import its provider graph.
+    const canonicalSource = read(
+      "packages/content/src/editorial/source.ts",
+    ).replace(/\s+/gu, "");
+    assert.ok(
+      canonicalSource.includes(
+        'record.kind==="page"?"pages":record.kind==="work"?"projects":"writing"',
+      ),
+    );
+    assert.ok(
+      canonicalSource.includes(
+        "return`content/public/${directory}/${record.id}.md`;",
+      ),
+    );
+  }
+  const snapshot = {
+    schema: RECOVERY_SCHEMA,
+    applicationRevision: "d".repeat(40),
+    contentSchemaVersion: 1,
+    editorial: {
+      tables: Object.fromEntries(
+        Object.keys(RECOVERY_TABLES.editorial).map((table) => [table, []]),
+      ),
+      kv: [],
+      alarmAt: null,
+    },
+    content: {
+      tables: Object.fromEntries(
+        Object.keys(RECOVERY_TABLES.content).map((table) => [table, []]),
+      ),
+    },
+    publicMedia: [],
+  };
+  snapshot.content.tables.editorial_published_inventory.push({
+    singleton: 1,
+    version: 0,
+  });
+  for (const path of expected) {
+    const draft = {
+      key: path,
+      source: "Synthetic format pin\r\n",
+      baseCommit: "a".repeat(40),
+      baseFileHash: null,
+      revision: 1,
+      updatedAt: 1,
+      discardedAt: null,
+    };
+    snapshot.editorial.tables.drafts.push(draft);
+    snapshot.editorial.tables.revisions.push({
+      key: path,
+      revision: 1,
+      snapshot: JSON.stringify(draft),
+    });
+  }
+  assert.doesNotThrow(() => exportOfflineRecovery(snapshot));
+  for (const path of [
+    "content/public/work/synthetic-work.md",
+    "content/public/pages/arbitrary.md",
+    "content/public/writing/../escaped.md",
+  ]) {
+    const invalid = clone(snapshot);
+    invalid.editorial.tables.drafts[0].key = path;
+    assert.throws(() => exportOfflineRecovery(invalid), /record/);
+  }
+  // Closure pin applies even on a combined tree where the newer helper exists.
+  assert.doesNotMatch(
+    read("scripts/admin/editorial-recovery.mjs"),
+    /from\s+["'][^"']*packages\//u,
+  );
 });

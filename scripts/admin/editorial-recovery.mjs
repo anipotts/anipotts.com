@@ -4,7 +4,6 @@ import {
   createDecipheriv,
   randomBytes,
 } from "node:crypto";
-import { editorialRecordPath } from "../../packages/content/src/editorial/layout.ts";
 
 // Offline supplied-snapshot adapter only. No filesystem, provider, fetch, alarms,
 // operational configuration or production restore capability belongs here.
@@ -199,7 +198,12 @@ function record(kind, id) {
       !["home", "work", "writing", "systems", "newsletter"].includes(id))
   )
     fail("record");
-  return editorialRecordPath({ kind, id });
+  // Version-one portable format pin, like the named SQL columns above. The
+  // offline adapter must not require a newer production helper on older bases.
+  const directory = { page: "pages", work: "projects", writing: "writing" }[
+    kind
+  ];
+  return `content/public/${directory}/${id}.md`;
 }
 function recordKey(key) {
   const match =
