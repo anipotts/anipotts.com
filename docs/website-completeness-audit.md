@@ -11,6 +11,11 @@ owner sign-in. Finance and a persistent personal agent remain future ideas.
 Published wording stays unchanged. Coding-agent authoring support is software
 scope; this assessment does not authorize publishing new prose.
 
+Ani's October 10 approval at 04:59:49 UTC limits the current phase to source
+preparation. Production approval and subsequent deployment remain separately
+gated. See the [source preparation record](website-source-preparation.md) for
+the validated integration tree and exact repair heads.
+
 The assessment covers this repository, accessible website chat history, GitHub
 pull requests/checks/deployment records and the separate agents/labs repository
 records. The cloud environment cannot inspect uncommitted Mac worktrees. Their
@@ -76,6 +81,11 @@ compatible patch candidates were identified for root YAML, smol-toml, source-map
 AJV 6, Sharp and AI SDK provider utilities. Their inspected paths are build/test
 tooling. Deployed editorial parsing already pins patched YAML 2.8.3.
 
+All six compatible patches are now applied in the source candidate. Frozen
+installation and full validation pass. Its fresh audit reports four remaining
+advisories: one low, one moderate and two high, with no critical advisory.
+This does not change the default-branch alert inventory until integration.
+
 KaTeX needs a parent-compatible upgrade rather than forcing its next major.
 The http-cache-semantics and braces advisories provide no patched version;
 their inspected uses are remote-image build caching and fixed lint-staged
@@ -106,10 +116,12 @@ of complete dependency remediation or demonstrated deployed exploitation.
   not establish raster decode, complete compressed-payload validation,
   sanitized derivatives or original/crop provenance.
 
-The remaining software checkpoint passed full integrated `pnpm validate` and
-affected public/admin build, lint, typecheck and tests after the final CSS fixes.
-The public suite passed 188 tests; the admin unit suite passed 2,203 tests and
-its editorial Worker suite passed 98 tests. A task-owned browser exercised
+The combined software and infrastructure checkpoint passed full integrated
+`pnpm validate`: build, formatting, lint, typechecking, policy and package tests.
+Content passed 202 tests; admin unit tests passed 2,279 tests in 174 files, its
+Astro suite passed 79 tests and its editorial Worker suite passed 98 tests.
+The CSP suite passed two tests with one skipped. Public tests also passed.
+A task-owned browser exercised
 long shared labels and persisted navigation state at 320, 390 and 1,440 pixels
 against synthetic published data, with no page errors or horizontal overflow.
 This used system Chromium 151; the repository's matching Playwright browser
