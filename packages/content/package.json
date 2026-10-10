@@ -8,6 +8,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     "./editorial/direct-publication": "./src/editorial/direct-publication.ts",
+    "./editorial/layout": "./src/editorial/layout.ts",
     "./editorial/publication-contract": "./src/editorial/publication-contract.ts",
     "./editorial/record": "./src/editorial/record.ts",
     "./editorial/snapshot": "./src/editorial/snapshot.ts",
@@ -46,7 +47,7 @@
   "scripts": {
     "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc",
     "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.contract.json",
     "test": "vitest run",
     "prebuild": "node ../../scripts/content/generate-public-content.mjs --root ../..",
     "pretypecheck": "node ../../scripts/content/generate-public-content.mjs --root ../.."

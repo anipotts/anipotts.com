@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { listEditorialSources } from "../../packages/content/src/editorial/layout.ts";
 
 const dist = (root, path) =>
   pathToFileURL(join(root, "packages/content/dist", path)).href;
@@ -24,32 +25,24 @@ export const SEED_ID_PREFIX = "git-seed";
 export const seedPublicationId = (record) =>
   `${SEED_ID_PREFIX}.${record.kind}.${record.id}`;
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const directories = { pages: "page", projects: "work", writing: "writing" };
 const mediaPattern = /\/images\/editorial\/([a-f0-9]{64}\.(?:jpg|png|webp))/gu;
 
-/** Mirrors apps/www/src/lib/bundled-sources.ts and the admin baseline glob. */
+/** Walks content/public with the layout in packages/content/src/editorial/layout.ts.
+ * apps/admin/src/lib/editorial-source-equivalence.test.ts holds the admin
+ * baseline glob to this record set. */
 export function bundledEntries(root, contract) {
   const entries = [];
   const skipped = [];
-  for (const [directory, kind] of Object.entries(directories)) {
-    const base = join(root, "content/public", directory);
-    for (const file of readdirSync(base).sort()) {
-      if (!file.endsWith(".md")) continue;
-      const path = `content/public/${directory}/${file}`;
-      const record = contract.editorialRecordSchema.safeParse({
-        kind,
-        id: file.slice(0, -3),
-      });
-      if (!record.success) {
-        skipped.push({ path, reason: "not_an_editorial_record" });
-        continue;
-      }
-      entries.push({
-        path,
-        record: record.data,
-        source: readFileSync(join(base, file), "utf8"),
-      });
+  for (const { kind, id, path, source } of listEditorialSources(root, {
+    readdirSync,
+    readFileSync,
+  })) {
+    const record = contract.editorialRecordSchema.safeParse({ kind, id });
+    if (!record.success) {
+      skipped.push({ path, reason: "not_an_editorial_record" });
+      continue;
     }
+    entries.push({ path, record: record.data, source });
   }
   return { entries, skipped };
 }
