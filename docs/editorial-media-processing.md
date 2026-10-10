@@ -53,12 +53,22 @@ commands and browser crop integration are not claimed by this API contract.
 A real local workerd probe showed the stock PNG codec's memory alone reaching
 about 146 MB at 16 MP. A worst-case 2 MP prototype exceeded 128 MiB before the
 application. A 1 MP noisy PNG and 5 MiB padded JPEG sequence, retaining original,
-derivative and storage chunks, peaked around 108 MiB in the small probe.
-That leaves limited reserve for the full Admin/DO application and concurrent
-requests. A successful local response does not prove the cloud memory ceiling.
+derivative and storage chunks, produced a preliminary estimate around108MiB.
+Calibration with separate8MiB JS and WASM allocations showed that this local
+runtime's backing-store counter excludes WASM linear memory. Their measured
+sum is therefore appropriate here, but end-of-operation snapshots do not
+establish transient peaks or cloud compatibility.
+A subsequent actual built Admin/SQLite-DO probe completed normalization,
+orientation and stored-parent crop. With processing buffers deliberately held,
+its warmed-codec estimates reached about148MiB for WebP and167MiB for rotated
+JPEG at1MP. Garbage collection and enforced cloud limits were not qualified.
+A safe peak-memory bound for the full application is not established.
+A successful local response does not
+prove the cloud memory ceiling.
 
-Full built-Worker/DO packaging, peak memory, failure atomicity and owner-boundary
-checks remain required before activation. Wall time and profiler sampling span
+Full built-Worker/DO packaging and functional tests pass in the isolated lane;
+worst-case peak-memory and cloud resource qualification remain required
+before activation. Wall time and profiler sampling span
 are not Cloudflare charged CPU; the actual account allowance remains unqueried.
 Preserving 16 MP processing needs a different qualified implementation or an
 approved existing processing service. No billing, binding, CPU setting, feature
