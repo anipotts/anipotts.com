@@ -26,6 +26,26 @@ pull requests/checks/deployment records and the separate agents/labs repository
 records. The cloud environment cannot inspect uncommitted Mac worktrees. Their
 private drafts and canonical integration preview remain untouched.
 
+## Latest completion checkpoint
+
+The exact521 release at1ccc08da is live on www/admin, with visible/absent
+share-card and signed-in read acceptance passed. The510/520 source merge8a
+selected no deployments. External512 source merge988b has exact release
+validation passed but its four Worker release waits at Production; its runtime
+code is not claimed live. Execution/approval provenance remains unproven.
+
+Historical full candidate77367571/tree38fad09a passed. Main988b incorporation
+preserved that tree. New513 functional/regression changes require another combined
+pass; the first rerun found a TypeScript overload error in its new regression.
+Literal-call repair now passes full Astro check and201 reader tests. Fresh516 and523 required checks passed. See the
+[bounded packet](website-next-source-batch.md) for exact heads and scope.
+
+Draft522 retains CLI/settings/bounded media admission;524 is assembly evidence.
+Neither supersedes missing full media decode/crop provenance, complete recovery,
+real data-source access or live draft-write acceptance. Agent-owned software
+work remains active; user permission/access/device boundaries are distinguished
+in the packet. Published wording and CMS data remain unchanged.
+
 ## Demonstrated baseline
 
 - Full `pnpm validate` passes in the configured cloud toolchain.

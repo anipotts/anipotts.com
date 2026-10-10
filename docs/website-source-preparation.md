@@ -4,30 +4,35 @@ October 10, 2026. Source preparation is approved; production approval and
 deployment are held separately. This chat has merged no source repairs into
 main or deployed. Published wording and production CMS data are unchanged.
 
-## Latest validated candidate
+## Current candidate and evidence
 
-Current main: `8a197427f13417e7b38875fe96cb914b68b29e3a`.
-Fresh full `pnpm validate` passed on `1322cf58c29c213141c7e6db8ac32e80fff4ab3d`,
-Git tree `b3cfbfc16e2771c23666478b5f6402c9beab6100`.
-Normal incorporation of that main produced
-`f87d9a5ae82a3e6ee844ed7f5a14ee34ddda8f67` with the identical tree.
+Current main is `988b7edfebe26593725216c08ff715d2e5bb67b2`, following an
+external #512 source merge. Its four Worker release remains at the initial
+Production gate, not proven deployed. This chat merged no PR into main and
+approved no Production release.
 
-This run covers #510's final `0a900ecb` guard/CI repair, #512's `3b30fff`
-runtime fix, #515's `9e43f734` real contract typechecking and #523's
-`ee234053` direct-theme documentation repair, plus the earlier assembled
-feature/infrastructure/dependency work. Frozen install, policy/migration checks,
-formatting, six builds, four lint tasks, fourteen typecheck tasks and fourteen
-test tasks passed. Content: 202 tests; admin unit: 2,279 / 174 files; Astro: 79;
-editorial: 98; CSP: two passed and one skipped. No source drift remained.
-Log: `/tmp/anipotts-next-candidate-validation.log`.
+Historical full validation passed on `77367571709dd1d24793991db33720d816eed6c5`,
+tree `38fad09a77371060f236ab559dc35fd3199d60fe`. Subsequent strict-main988b
+incorporation preserved that tree. Later #513 generated-route regression and
+state-scope normalization change the executable/lock tree. A new combined run
+caught a TypeScript overload union in that new regression; literal-call repair now passes full Astro check and201 reader tests; fresh
+combined validation remains required.
+The previous pass is historical evidence, not proof of the changed candidate.
 
-The later #515 `bcf27246` and #523 `c8de4a10` refreshes incorporate new main
-without implementation changes; their fresh exact-head checks are pending.
-React #507 remains separately owned and excluded. This candidate uses React
-19.2.8; no result here is validation of a future combined React 19.3 graph.
-The latest documentation-only updates do not change executable source.
+Standalone #513/#514 restore main's state Node22 scope. The broader assembly
+retains #509's separate state Node26 update and #523's newer tools, restoring the
+previous combined lock byte-identically. Reader
+branches must normalize that importer to the then-current main after each
+approved source merge. #507 is separately owned and excluded; the assembly
+uses React19.2.8.
 
-## Initial checkpoint (historical)
+See [the bounded packet](website-next-source-batch.md) for exact heads, terminal
+checks, independent review, deployment scopes and unresolved conditions.
+#513/#514/#515/#518/#522/#524 remain draft-held. #516's current-main required
+checks and111 independent focused tests passed; #523's fresh checks passed.
+No readiness or green checks grant merge/deploy authority.
+
+## Initial checkpoint (historical; not current-head proof)
 
 Base main: `f9992c59e0b3f8748e4ff44e3fab3e4f7447c455`.
 
@@ -150,29 +155,33 @@ jobs skipped, with no pending approvals. This is actual no-deployment evidence.
 Neither this chat nor the executor cancelled a run. `cancel-in-progress: false`
 preserves the active release, while GitHub retains only one pending run.
 
-Another owner merged #510 and its #520 ancestry as `8a197427` on main.
+GitHub auto-merge was enabled on #510 at 05:28:01 UTC by account `anipotts`;
+repair checks subsequently satisfied that inherited setting. It merged at
+06:01:33 UTC as `8a197427`, incorporating #520 ancestry. The actual human/agent
+enabler and approval provenance remain unproven. This chat neither enabled
+auto-merge nor directly merged, and observed execution does not establish authority.
 Both PRs are marked merged. [Deploy 38029505907](https://github.com/anipotts/anipotts.com/actions/runs/38029505907)
 completed successfully with exact validation/summary passing and Production plus
 all six deploy jobs skipped. Production remains `1ccc08da`; this chat merged
 neither PR and approved no deployment. Do not propose duplicate #520/#510 merges.
 
 For any later approved source integration, retain these orders:
-#517 → #520 → #510; #520 → #512 → #516; #514 → #513 → #509 timer repair;
-#515 → #518. #519 is independently reviewable documentation. #523 is the
+#517 → #520 → #510 (completed); #520 → #512 → #516; #509 → #514 → #513;
+#515 → #518. #519 merged; its cardinality correction is prepared in #524. #523 is the
 dependency/theme repair. #522 follows its shared content/runtime prerequisites.
 If #507 is included, validate the final React 19.3 graph with #523 and the feature
 changes before seeking joint source approval. No individual green PR substitutes
 for that final tree validation.
 
 For #507 at refreshed `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba`, the separate
-owner has refreshed current main; its prior `529d1a7c` checks passed and
-new-head checks are running. Independent lockfile review confirms only the
+owner has refreshed current main; exact-head Build, Security Review and
+CodeQL all passed. No review threads remain; auto-merge is off. Independent lockfile review confirms only the
 admin importer changes, with React/react-dom and their types aligned at 19.3.
 With live www at `1ccc08da`, its prospective plan selects admin only, no workers
 or D1 changes, schema `0044`. It has no source prerequisite on #524. Prefer a
 separate admin dependency approval packet from the #520 → #510 source-only
 packet; fresh exact-head checks and later explicit merge/release approval are
-still required. Combining it with feature/dependency branches requires fresh
+still required before execution. Combining it with feature/dependency branches requires fresh
 validation of that combined graph.
 
 The fresh validation above supersedes the earlier run for the later runtime,
