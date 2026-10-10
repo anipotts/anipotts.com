@@ -7,6 +7,14 @@
  * Durable Objects untouched. Each route keeps its own checks.
  */
 
+import {
+  createRuntimeReporter,
+  evaluateRuntimeContract as evaluate,
+  read,
+  satisfied,
+  type RuntimeReportWithFeatures,
+} from "@anipotts/runtime-contract";
+
 type Source = "vars" | "durable_objects" | "secret";
 type Check = "idFromName" | "getByName" | "text";
 
@@ -38,25 +46,12 @@ export const RUNTIME_FEATURES = {
 } as const satisfies Record<string, readonly RuntimeName[]>;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
-type RuntimeContractReport = {
-  ok: boolean;
-  missing: RuntimeName[];
-  features: Record<
-    RuntimeFeature,
-    { state: "available" | "unavailable"; missing: RuntimeName[] }
-  >;
-};
+type RuntimeContractReport = RuntimeReportWithFeatures<
+  RuntimeName,
+  RuntimeFeature
+>;
 type RuntimeEntry = "fetch";
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
-
-function read(values: unknown, name: string): unknown {
-  if (!values || typeof values !== "object") return undefined;
-  try {
-    return (values as Record<string, unknown>)[name];
-  } catch {
-    return undefined;
-  }
-}
 
 /** A read credential must not grant publish authority through key reuse. */
 export function hasDistinctStateReadKey(env: unknown): boolean {
@@ -69,63 +64,26 @@ export function hasDistinctStateReadKey(env: unknown): boolean {
   );
 }
 
-function satisfied(env: unknown, name: RuntimeName): boolean {
-  if (name === "STATE_READ_KEY") return hasDistinctStateReadKey(env);
-  const { check } = RUNTIME_CONTRACT[name];
-  const value = read(env, name);
-  if (check === "text") return typeof value === "string" && !!value.trim();
-  return typeof read(value, check) === "function";
-}
-
 /** Pure: reads each contract name at most once and never throws. */
 export function evaluateRuntimeContract(env: unknown): RuntimeContractReport {
-  const results = new Map<RuntimeName, boolean>();
-  const has = (name: RuntimeName) => {
-    let result = results.get(name);
-    if (result === undefined) {
-      result = satisfied(env, name);
-      results.set(name, result);
-    }
-    return result;
-  };
-  const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
-  const features = {} as RuntimeContractReport["features"];
-  for (const feature of Object.keys(RUNTIME_FEATURES) as RuntimeFeature[]) {
-    const needs: readonly RuntimeName[] = RUNTIME_FEATURES[feature];
-    const absent = needs.filter((name) => !has(name));
-    features[feature] = {
-      state: absent.length ? "unavailable" : "available",
-      missing: absent,
-    };
-  }
-  return { ok: missing.length === 0, missing, features };
+  return evaluate<RuntimeName, RuntimeFeature>(env, {
+    contract: RUNTIME_CONTRACT,
+    required: RUNTIME_REQUIRED,
+    features: RUNTIME_FEATURES,
+    satisfied: (values, name) =>
+      name === "STATE_READ_KEY"
+        ? hasDistinctStateReadKey(values)
+        : satisfied(RUNTIME_CONTRACT, values, name),
+  });
 }
 
 /** Returns a reporter that logs one structured line from the first request it sees. */
 export function createRuntimeContractReporter(
   sink: RuntimeLogSink = console,
 ): (env: unknown, entry: RuntimeEntry) => void {
-  let reported = false;
-  return (env, entry) => {
-    if (reported) return;
-    reported = true;
-    try {
-      const report = evaluateRuntimeContract(env);
-      const degraded =
-        !report.ok ||
-        Object.values(report.features).some(
-          (feature) => feature.state === "unavailable",
-        );
-      const line = JSON.stringify({
-        event: "runtime_contract",
-        worker: "state",
-        entry,
-        ...report,
-      });
-      if (degraded) sink.warn(line);
-      else sink.info(line);
-    } catch {
-      // Reporting is diagnostic only and must never affect request handling.
-    }
-  };
+  return createRuntimeReporter<RuntimeEntry>(
+    "state",
+    evaluateRuntimeContract,
+    sink,
+  );
 }
