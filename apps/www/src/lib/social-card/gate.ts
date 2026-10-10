@@ -10,12 +10,6 @@ import { publicVersionHeaders } from "../published-runtime";
 // Cards are painted at build time for the writing published then, so a card
 // file can outlive its article. Under the content store the card is served
 // only while the article it names is public at the current inventory.
-const bundled = import.meta.glob("../../../../../content/public/writing/*.md", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
-
 const CARD = /^\/social\/writing-([a-z0-9]+(?:-[a-z0-9]+)*)\.png$/u;
 
 /** The article slug a per-article card names, or null for any other path. */
@@ -32,23 +26,15 @@ function publicSlug(id: string, source: string): string | null {
   }
 }
 
-/** Public writing slugs at one inventory: bundled records overlaid by their
- * complete published records, then filtered for visibility, the same order
- * the listings use. */
+/** Public writing slugs from the active CMS inventory only. Build-time card
+ * files never establish publication or resurrect an absent article. */
 export function publicWritingSlugs(
   publications: readonly PublishedSnapshot[],
 ): Set<string> {
-  const sources = new Map<string, string>();
-  for (const [path, source] of Object.entries(bundled)) {
-    const id = /\/([^/]+)\.md$/u.exec(path)?.[1];
-    if (id) sources.set(id, source);
-  }
-  for (const publication of publications)
-    if (publication.record.kind === "writing")
-      sources.set(publication.record.id, publication.source);
   const slugs = new Set<string>();
-  for (const [id, source] of sources) {
-    const slug = publicSlug(id, source);
+  for (const publication of publications) {
+    if (publication.record.kind !== "writing") continue;
+    const slug = publicSlug(publication.record.id, publication.source);
     if (slug) slugs.add(slug);
   }
   return slugs;
