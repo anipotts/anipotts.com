@@ -29,6 +29,39 @@ export type RecoveryRead<T> =
   | { status: RecoveryProblem; candidates?: { label: string; value: T }[] };
 export type RecoveryValidator<T> = (value: unknown) => T | null;
 export type RecoveryLock = <T>(task: () => T | Promise<T>) => Promise<T>;
+
+/** Downloads retain this tab's edits even when storage failed. Stored strings
+ * stay opaque; downloading does not acknowledge or retry any server operation. */
+export function exportBrowserRecoveryCopy<T>(
+  currentCopy: {
+    key: string | null;
+    kind: "draft" | "new-writing";
+    payload: T;
+  },
+  readStored?: () => string,
+): string {
+  let entries: Record<string, string> = {};
+  let storedStatus: "complete" | "unavailable" = "unavailable";
+  if (readStored) {
+    try {
+      entries = JSON.parse(readStored()).entries;
+      storedStatus = "complete";
+    } catch {
+      // Denied browser storage must not prevent downloading the current copy.
+    }
+  }
+  return JSON.stringify(
+    {
+      format: "anipotts.browser-recovery-export",
+      version: 1,
+      entries,
+      currentCopy,
+      storedStatus,
+    },
+    null,
+    2,
+  );
+}
 export const utf8Bytes = (value: string) =>
   new TextEncoder().encode(value).byteLength;
 export function versionedRecoveryKey(legacyKey: string) {

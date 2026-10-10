@@ -2,6 +2,7 @@ import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   protectedAdminJson,
+  protectedSessionIsLocked,
   watchProtectedSession,
 } from "../../lib/protected-admin-json";
 import { dispatchEditorialRecordCreated } from "../../lib/editorial-inventory-events";
@@ -25,10 +26,11 @@ import {
   type NewWritingRecovery,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
-import type {
-  BrowserRecovery,
-  RecoveryProblem,
-  RecoveryRead,
+import {
+  exportBrowserRecoveryCopy,
+  type BrowserRecovery,
+  type RecoveryProblem,
+  type RecoveryRead,
 } from "../../lib/browser-recovery";
 import {
   BrowserRecoveryNotice,
@@ -452,22 +454,32 @@ function NewWritingForm({
           </Link>
         )}
         {loggedOut && <Banner status="warning" title="Session ended" />}
-        {recoveryProblem && !loggedOut && (
+        {(recoveryProblem || recoveryFailed) && !loggedOut && (
           <BrowserRecoveryNotice
-            problem={recoveryProblem}
-            onDownload={
-              recoveryChannel.current
-                ? () => {
-                    try {
-                      downloadBrowserRecovery(
-                        recoveryChannel.current!.export(),
-                      );
-                    } catch {
-                      setRecoveryProblem("unavailable");
-                    }
-                  }
-                : undefined
-            }
+            problem={recoveryProblem ?? "unavailable"}
+            onDownload={() => {
+              try {
+                if (protectedSessionIsLocked() || !active.current) return;
+                const channel = recoveryChannel.current;
+                const contents = exportBrowserRecoveryCopy(
+                  {
+                    key: recoveryKey,
+                    kind: "new-writing",
+                    payload: {
+                      title,
+                      slug,
+                      customSlug,
+                      request: request.current,
+                    },
+                  },
+                  channel ? () => channel.export() : undefined,
+                );
+                if (protectedSessionIsLocked() || !active.current) return;
+                downloadBrowserRecovery(contents);
+              } catch {
+                setRecoveryProblem("unavailable");
+              }
+            }}
             candidates={
               recoveryRead.status === "changed"
                 ? recoveryRead.candidates?.map(({ label, value }) => ({
@@ -494,9 +506,6 @@ function NewWritingForm({
                 : []
             }
           />
-        )}
-        {recoveryFailed && !recoveryProblem && !loggedOut && (
-          <Banner status="warning" title="Browser recovery unavailable" />
         )}
         {error && !taken && (
           <Banner
