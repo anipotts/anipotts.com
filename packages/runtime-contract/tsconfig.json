@@ -1,0 +1,17 @@
+{
+  "extends": "../../config/typescript/base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": [],
+    "allowJs": false,
+    "noEmit": true,
+    "incremental": false,
+    "declaration": true,
+    "isolatedDeclarations": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noImplicitReturns": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "src/**/*.test.ts"]
+}
