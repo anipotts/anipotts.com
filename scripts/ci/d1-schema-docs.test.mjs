@@ -31,9 +31,12 @@ const CREATE_TABLE =
 // apps/*/src or workers/*/src, has a script or astro extension, and is not a
 // test or fixture: no *.test.* or *.spec.* name, no test, tests, __tests__,
 // fixture, fixtures or __fixtures__ directory, and no "fixture" in its name.
-// A table is referenced when an uppercase FROM, INTO, UPDATE, JOIN, TABLE or
-// EXISTS keyword is followed by whitespace, an optional quote and the whole
-// table identifier. The capture runs to the end of the identifier, so
+// D1 sql lives in the string passed to prepare(), so only string and template
+// literal contents are searched; // and /* */ comments never count, whatever
+// their case. literalSpans finds those contents. A table is referenced when,
+// inside one literal, an uppercase FROM, INTO, UPDATE, JOIN, TABLE or EXISTS
+// keyword is followed by whitespace, an optional quote and the whole table
+// identifier. The capture runs to the end of the identifier, so
 // newsletter_events_archive never counts as newsletter_events, and lowercase
 // prose such as "imported from projects" never counts. SQL in this repo uses
 // uppercase keywords and literal table names.
@@ -42,6 +45,12 @@ const NOT_DEPLOYED =
   /\.(?:test|spec)\.|(?:^|\/)(?:test|tests|__tests__|fixtures?|__fixtures__)\/|fixture[^/]*$/i;
 const SQL_REFERENCE =
   /\b(?:FROM|INTO|UPDATE|JOIN|TABLE|EXISTS)\s+[`"[]?([A-Za-z0-9_]+)\b/g;
+
+// A "/" starts a regex literal, not a division, after one of these
+// characters, after one of these keywords, or at the start of the file.
+const REGEX_AFTER_CHAR = /[(,=:[!&|?{};+\-*%<>~^]/;
+const REGEX_AFTER_WORD =
+  /\b(?:return|typeof|instanceof|case|do|else|in|of|new|delete|void|throw|yield|await)$/;
 
 // Quarantine sources. A migration line that comments out a DROP TABLE marks
 // that table dead. So does a paragraph or table row of a doc the readme
@@ -87,16 +96,122 @@ function isDeployedSource(path) {
   return SOURCE_EXT.test(path) && !NOT_DEPLOYED.test(path);
 }
 
+// One pass over js, ts or astro text. Returns the [start, end) offsets of
+// every quoted string's contents and every static chunk of a template
+// literal, in source order. It skips // and /* */ comments and regex
+// literals, and follows ${} substitutions so strings nested in them count.
+// A quoted string ends at its closing quote or at the end of its line.
+// `open` is true when the text ends inside a template or block comment.
+function literalSpans(text) {
+  const spans = [];
+  const substitutions = []; // brace depth inside each open ${
+  let prev = -1; // index of the last significant code character
+  let i = 0;
+  let open = false;
+
+  const template = () => {
+    const start = i;
+    while (i < text.length) {
+      if (text[i] === "\\") {
+        i += 2;
+      } else if (text[i] === "`") {
+        spans.push([start, i]);
+        prev = i;
+        i += 1;
+        return;
+      } else if (text[i] === "$" && text[i + 1] === "{") {
+        spans.push([start, i]);
+        substitutions.push(0);
+        prev = i + 1;
+        i += 2;
+        return;
+      } else {
+        i += 1;
+      }
+    }
+    spans.push([start, text.length]);
+    open = true;
+  };
+
+  const startsRegex = () => {
+    if (prev === -1) return true;
+    if (REGEX_AFTER_CHAR.test(text[prev])) return true;
+    return (
+      /[A-Za-z0-9_$]/.test(text[prev]) &&
+      REGEX_AFTER_WORD.test(text.slice(Math.max(0, prev - 11), prev + 1))
+    );
+  };
+
+  // Returns the index just past a regex literal starting at i, or -1 when
+  // the line ends first, in which case the "/" is a division.
+  const regexEnd = () => {
+    let inClass = false;
+    for (let j = i + 1; j < text.length; j += 1) {
+      const c = text[j];
+      if (c === "\n") return -1;
+      if (c === "\\") j += 1;
+      else if (c === "[") inClass = true;
+      else if (c === "]") inClass = false;
+      else if (c === "/" && !inClass) {
+        j += 1;
+        while (j < text.length && /[a-z]/.test(text[j])) j += 1;
+        return j;
+      }
+    }
+    return -1;
+  };
+
+  while (i < text.length) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (c === "/" && next === "/") {
+      const end = text.indexOf("\n", i);
+      i = end === -1 ? text.length : end;
+    } else if (c === "/" && next === "*") {
+      const end = text.indexOf("*/", i + 2);
+      if (end === -1) open = true;
+      i = end === -1 ? text.length : end + 2;
+    } else if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < text.length && text[j] !== c && text[j] !== "\n")
+        j += text[j] === "\\" ? 2 : 1;
+      spans.push([i + 1, Math.min(j, text.length)]);
+      prev = Math.min(j, text.length - 1);
+      i = j + 1;
+    } else if (c === "`") {
+      i += 1;
+      template();
+    } else if (c === "}" && substitutions.at(-1) === 0) {
+      substitutions.pop();
+      i += 1;
+      template();
+    } else if (c === "/" && startsRegex() && regexEnd() !== -1) {
+      i = regexEnd();
+      prev = i - 1;
+    } else {
+      if (substitutions.length > 0 && c === "{")
+        substitutions[substitutions.length - 1] += 1;
+      if (substitutions.length > 0 && c === "}")
+        substitutions[substitutions.length - 1] -= 1;
+      if (!/\s/.test(c)) prev = i;
+      i += 1;
+    }
+  }
+  return { spans, open: open || substitutions.length > 0 };
+}
+
 function deployedReferences(sources, tables) {
   const references = new Map();
   for (const path of Object.keys(sources).sort()) {
     if (!isDeployedSource(path)) continue;
     const text = sources[path];
-    for (const match of text.matchAll(SQL_REFERENCE)) {
-      const name = match[1];
-      if (!tables.has(name) || references.has(name)) continue;
-      const line = text.slice(0, match.index).split("\n").length;
-      references.set(name, `${path}:${line}`);
+    for (const [start, end] of literalSpans(text).spans) {
+      for (const match of text.slice(start, end).matchAll(SQL_REFERENCE)) {
+        const name = match[1];
+        if (!tables.has(name) || references.has(name)) continue;
+        const line = text.slice(0, start + match.index).split("\n").length;
+        references.set(name, `${path}:${line}`);
+      }
     }
   }
   return references;
@@ -426,28 +541,70 @@ assert.deepEqual(
   ["notes_fts", "scratch"],
 );
 
-// The deployed sql rule: uppercase keyword, whole identifier, no tests or
-// fixtures.
+// The deployed sql rule: uppercase keyword, whole identifier, inside a string
+// or template literal, no comments, no tests or fixtures.
+const prepared = 'db.prepare("SELECT * FROM rate_limits");';
 assert.deepEqual(
   [
     ...deployedReferences(
       {
-        "workers/a/src/index.ts":
-          'db.prepare("SELECT id FROM newsletter_events_archive");\n// rows imported from rate_limits\nINSERT OR IGNORE INTO `email_queue` (id) VALUES (?)',
-        "workers/a/src/index.test.ts": "SELECT * FROM rate_limits",
-        "apps/b/src/fixtures/rows.ts": "SELECT * FROM rate_limits",
-        "apps/b/src/lib/data-fixture-reader.ts": "SELECT * FROM rate_limits",
-        "apps/b/src/test/helpers.ts": "SELECT * FROM rate_limits",
-        "apps/b/src/styles/site.css": "/* SELECT * FROM rate_limits */",
+        "workers/a/src/index.ts": [
+          'db.prepare("SELECT id FROM newsletter_events_archive");',
+          "// TODO: DELETE FROM rate_limits once retired",
+          '/* retired: db.prepare("SELECT * FROM rate_limits"), */',
+          'const note = "rows imported from rate_limits";',
+          'const url = "https://example.com/a"; // FROM rate_limits',
+          "const half = total / 2; // FROM rate_limits",
+          'db.prepare(`INSERT OR IGNORE INTO "email_queue" (id) VALUES (${id})`);',
+        ].join("\n"),
+        "workers/a/src/index.test.ts": prepared,
+        "apps/b/src/fixtures/rows.ts": prepared,
+        "apps/b/src/lib/data-fixture-reader.ts": prepared,
+        "apps/b/src/test/helpers.ts": prepared,
+        "apps/b/src/styles/site.css": prepared,
       },
       new Set(["newsletter_events", "rate_limits", "email_queue"]),
     ),
   ],
-  [["email_queue", "workers/a/src/index.ts:3"]],
+  [["email_queue", "workers/a/src/index.ts:7"]],
+);
+
+// literalSpans keeps its place past regex literals, divisions, ${}
+// substitutions with nested strings, escapes and a quoted string cut off by
+// its line end. Misreading any of them hides a later query.
+assert.deepEqual(
+  [
+    ...deployedReferences(
+      {
+        "workers/a/src/index.ts": [
+          "const quotes = /[`\"']/g; const slash = /\\//;",
+          "const label = 'it\\'s fine';",
+          "const broken = 'unterminated",
+          'db.prepare(`SELECT ${ids.map(() => "?").join(", ")} AS ids FROM newsletter_events`);',
+          'return /"/.test(x) ? db.prepare("SELECT * FROM email_queue") : null;',
+          'const half = total / 2; db.prepare("DELETE FROM rate_limits"); const third = n / 3;',
+        ].join("\n"),
+      },
+      new Set(["newsletter_events", "email_queue", "rate_limits"]),
+    ),
+  ],
+  [
+    ["newsletter_events", "workers/a/src/index.ts:4"],
+    ["email_queue", "workers/a/src/index.ts:5"],
+    ["rate_limits", "workers/a/src/index.ts:6"],
+  ],
 );
 assert.ok(
   Object.keys(real.sources).length > 0 &&
     Object.keys(real.sources).every(isDeployedSource),
+);
+// Every deployed source ends outside any template literal or block comment,
+// so no literal swallows the rest of a file.
+assert.deepEqual(
+  Object.keys(real.sources).filter(
+    (path) => literalSpans(real.sources[path]).open,
+  ),
+  [],
 );
 assert.ok(Object.keys(real.docs).length > 0);
 
@@ -475,6 +632,20 @@ const dataOnlyRecord = {
   ...real.manifest.migrations[0],
   file: "0045_seed_example_page_content.sql",
 };
+const weeklyEmail = "workers/weekly-email/src/index.ts";
+const emailQueueQuery = real.sources[weeklyEmail]?.match(
+  /"[^"\n]*\bFROM email_queue\b[^"\n]*"/,
+);
+assert.ok(emailQueueQuery, `${weeklyEmail} no longer queries email_queue`);
+const retireEmailQueue = (wrap) => ({
+  sources: {
+    ...real.sources,
+    [weeklyEmail]: real.sources[weeklyEmail].replace(
+      emailQueueQuery[0],
+      wrap(emailQueueQuery[0]),
+    ),
+  },
+});
 
 const mutations = [
   [
@@ -695,7 +866,7 @@ const mutations = [
       sources: {
         ...real.sources,
         "workers/newsletter/src/preferences.ts":
-          "SELECT * FROM newsletter_preferences WHERE subscriber_id = ?",
+          'export const read = (db) => db.prepare("SELECT * FROM newsletter_preferences WHERE subscriber_id = ?");',
       },
     },
     /newsletter_preferences is unreferenced but deployed sql references it at workers\/newsletter\/src\/preferences\.ts:1/,
@@ -747,6 +918,19 @@ const mutations = [
     { readme: setRow(real.readme, "atoms", "unreferenced") },
     /atoms is unreferenced but predates drizzle/,
   ],
+
+  // Comments are not deployed sql: a live row whose only query is commented
+  // out loses its reference.
+  [
+    "the only email_queue query is block-commented out",
+    retireEmailQueue((query) => `/* retired: ${query}, */ "SELECT 1"`),
+    /readme: email_queue is live but no deployed sql references it/,
+  ],
+  [
+    "the only email_queue query moves into a line comment",
+    retireEmailQueue((query) => `"SELECT 1", // was ${query}`),
+    /readme: email_queue is live but no deployed sql references it/,
+  ],
 ];
 
 for (const [label, overrides, expected] of mutations) {
@@ -760,14 +944,31 @@ for (const [label, overrides, expected] of mutations) {
 }
 
 // Tests and fixtures never make a table live.
+const readsPreferences =
+  'db.prepare("SELECT * FROM newsletter_preferences").all();';
 assert.deepEqual(
   findings({
     ...real,
     sources: {
       ...real.sources,
-      "workers/newsletter/src/index.test.ts":
-        "SELECT * FROM newsletter_preferences",
-      "apps/admin/src/fixtures/rows.ts": "SELECT * FROM newsletter_preferences",
+      "workers/newsletter/src/index.test.ts": readsPreferences,
+      "apps/admin/src/fixtures/rows.ts": readsPreferences,
+    },
+  }),
+  [],
+);
+
+// Comments in deployed source never make a table live, whatever their case.
+assert.deepEqual(
+  findings({
+    ...real,
+    sources: {
+      ...real.sources,
+      "workers/newsletter/src/note.ts": [
+        "// TODO: DELETE FROM newsletter_preferences once retired",
+        `/* ${readsPreferences} */`,
+        "export {};",
+      ].join("\n"),
     },
   }),
   [],

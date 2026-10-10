@@ -44,7 +44,7 @@ admin binds the database (`apps/admin/wrangler.toml:45-49`, the only config with
 
 ## table classification
 
-each schema.ts table has one class, taken in this order: live, quarantined, baseline, unreferenced. deployed sql means an uppercase `FROM`, `INTO`, `UPDATE`, `JOIN`, `TABLE` or `EXISTS` followed by the whole table name, in source under `apps/*/src` or `workers/*/src` other than tests and fixtures. a quarantine source is a commented `DROP TABLE` in a migration, or a paragraph of a cited doc that calls the table quarantined.
+each schema.ts table has one class, taken in this order: live, quarantined, baseline, unreferenced. deployed sql means an uppercase `FROM`, `INTO`, `UPDATE`, `JOIN`, `TABLE` or `EXISTS` followed by the whole table name inside a string or template literal, where `prepare()` sql lives, in source under `apps/*/src` or `workers/*/src` other than tests and fixtures. `//` and `/* */` comments never count, so a commented-out query or an uppercase todo does not change a class. a quarantine source is a commented `DROP TABLE` in a migration, or a paragraph of a cited doc that calls the table quarantined.
 
 | class        | count | meaning                                                                              |
 | ------------ | ----- | ------------------------------------------------------------------------------------ |
