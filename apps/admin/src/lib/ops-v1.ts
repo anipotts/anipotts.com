@@ -17,32 +17,34 @@
  * never echoed into the message, the UI or a log.
  */
 
-export const OPS_V1_VERSION = "ops_v1";
-export const OPS_V1_STATES = [
-  "ok",
-  "degraded",
-  "failing",
-  "stale",
-  "asleep",
-  "unknown",
-] as const;
-export const OPS_V1_KINDS = [
-  "job",
-  "service",
-  "host",
-  "backup",
-  "web",
-] as const;
-export const OPS_V1_HOSTS = ["ap-mini", "ap-pro", "cloudflare"] as const;
-/** How launchd starts a job, read from its plist. `sampled` is a host row. */
-export const OPS_V1_TRIGGERS = [
-  "interval",
-  "calendar",
-  "keepalive",
-  "watch",
-  "manual",
-  "sampled",
-] as const;
+import {
+  OPS_V1_VERSION,
+  OPS_V1_STATES,
+  OPS_V1_KINDS,
+  OPS_V1_HOSTS,
+  OPS_V1_TRIGGERS,
+  OPS_V1_BOUNDS_DATA,
+  OPS_ID_PATTERN,
+  OPS_TRIGGER_PATTERN,
+  OPS_HOST_PATTERN,
+  OPS_FIELD_PATTERN,
+  OPS_TIMESTAMP_PATTERN,
+  OPS_CATALOG_REQUIRED,
+  OPS_CATALOG_OPTIONAL,
+  OPS_CATALOG_IGNORED,
+  OPS_STATUS_REQUIRED,
+  OPS_STATUS_OPTIONAL,
+  OPS_HOST_FIELDS,
+  OPS_ROOT_KEYS,
+} from "./generated/ops";
+
+export {
+  OPS_V1_VERSION,
+  OPS_V1_STATES,
+  OPS_V1_KINDS,
+  OPS_V1_HOSTS,
+  OPS_V1_TRIGGERS,
+};
 
 export type OpsState = (typeof OPS_V1_STATES)[number];
 export type OpsKind = (typeof OPS_V1_KINDS)[number];
@@ -52,25 +54,12 @@ export type OpsTrigger = (typeof OPS_V1_TRIGGERS)[number];
 
 /** Client bounds. The contract caps the transport at 64 KB. */
 export const OPS_V1_BOUNDS = {
-  maxBytes: 64 * 1024,
-  maxEntries: 500,
-  id: /^[a-z0-9][a-z0-9.-]{0,63}$/,
-  nameMax: 120,
-  groupMax: 64,
-  detailMax: 160,
-  runbookMax: 512,
-  scheduleMax: 64,
-  /** One year. A budget longer than that is not a freshness budget. */
-  budgetMaxSeconds: 366 * 24 * 60 * 60,
-  exitMin: -(2 ** 31),
-  exitMax: 2 ** 31 - 1,
-  runsMax: 2 ** 31 - 1,
-  trigger: /^[a-z][a-z0-9_-]{0,31}$/,
-  host: /^[a-z0-9][a-z0-9-]{0,31}$/,
-  /** Ten years of uptime. */
-  uptimeMaxSeconds: 10 * 366 * 24 * 60 * 60,
-  /** A field name worth naming in a drift notice. */
-  fieldName: /^[a-z][a-z0-9_]{0,31}$/,
+  ...OPS_V1_BOUNDS_DATA,
+  id: new RegExp(OPS_ID_PATTERN),
+  trigger: new RegExp(OPS_TRIGGER_PATTERN),
+  host: new RegExp(OPS_HOST_PATTERN),
+  fieldName: new RegExp(OPS_FIELD_PATTERN),
+  /** UI memory bound for a drift notice. */
   maxUnknownFields: 16,
 } as const;
 
@@ -134,45 +123,16 @@ function fail(): never {
   throw new OpsSnapshotError();
 }
 
-const ENTRY_KEYS = [
-  "id",
-  "name",
-  "group",
-  "kind",
-  "host",
-  "freshness_budget_s",
-  "runbook",
-  "schedule",
-] as const;
-const ENTRY_OPTIONAL_KEYS = ["trigger"] as const;
+const ENTRY_KEYS = OPS_CATALOG_REQUIRED;
+const ENTRY_OPTIONAL_KEYS = OPS_CATALOG_OPTIONAL;
 /** Fields System still sends that admin accepts and never reads, so they
  * raise no drift notice and System can drop them without breaking the
  * snapshot. `owner` is System's retired owner taxonomy (memory, system/chief,
  * life/chief); nothing in admin shows it. */
-const ENTRY_IGNORED_KEYS = ["owner"] as const;
-const ROW_KEYS = [
-  "state",
-  "detail",
-  "last_success_at",
-  "last_run_at",
-  "last_exit",
-] as const;
-const ROW_OPTIONAL_KEYS = [
-  "runs",
-  "interval_s",
-  "last_duration_s",
-  "next_run_at",
-  "disk_percent",
-  "uptime_s",
-  "awake",
-] as const;
-const ROOT_KEYS = [
-  "version",
-  "generated_at",
-  "catalog",
-  "status",
-  "counts",
-] as const;
+const ENTRY_IGNORED_KEYS = OPS_CATALOG_IGNORED;
+const ROW_KEYS = OPS_STATUS_REQUIRED;
+const ROW_OPTIONAL_KEYS = [...OPS_STATUS_OPTIONAL, ...OPS_HOST_FIELDS];
+const ROOT_KEYS = OPS_ROOT_KEYS;
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail();
@@ -256,7 +216,7 @@ export function member<T extends string>(
   return value as T;
 }
 
-const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const TIMESTAMP = new RegExp(OPS_TIMESTAMP_PATTERN);
 
 /** UTC `YYYY-MM-DDTHH:MM:SSZ` that names a real instant. */
 export function timestamp(value: unknown): string {
@@ -426,7 +386,7 @@ function statusRows(
   if (!Array.isArray(value) || value.length > OPS_V1_BOUNDS.maxEntries) fail();
   const rows = new Map<string, OpsStatusRow>();
   for (const item of value) {
-    const body = known(item, ["id", ...ROW_KEYS], ROW_OPTIONAL_KEYS, drift);
+    const body = known(item, ROW_KEYS, ROW_OPTIONAL_KEYS, drift);
     const id = body.id;
     if (typeof id !== "string" || !catalogIds.has(id) || rows.has(id)) fail();
     rows.set(id, row(body, notAfter));
