@@ -60,7 +60,7 @@ gate failure is separate from software validation.
 | #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                          | www/admin                                   |
 | #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                           | www/admin                                   |
 | #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; fresh light/S/Q pass; refreshed main/515                       | www/admin                                   |
-| #522 | `7b5a8fca91a1e9ce87526a59252da13248a0ba8e` | feature draft;27 CLI/offline tests pass; fresh remote checks required | broader feature; recalculate before release |
+| #522 | `0e32ae7a1dfcd93df03e6e21d9e706bd4142a10d` | feature draft;27 CLI/offline tests pass; fresh remote checks required | broader feature; recalculate before release |
 | #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                        | all six                                     |
 
 None of these existing plans selects D1 changes or remote migration; schema
