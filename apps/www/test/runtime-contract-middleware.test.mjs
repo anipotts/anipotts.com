@@ -170,7 +170,7 @@ test("dynamic routes report the contract once per isolate without blocking", asy
 test("the report is logged before a page request needs the missing binding", async () => {
   const { onRequest, lines } = loadMiddleware();
   // Page requests already fail without ASSETS; the contract adds no new status.
-  await assert.rejects(onRequest(context("/links", { env: {} }), next));
+  await assert.rejects(onRequest(context("/404", { env: {} }), next));
   assert.equal(lines.warn.length, 1);
   assert.deepEqual(JSON.parse(lines.warn[0]).missing, ["ASSETS"]);
 });
