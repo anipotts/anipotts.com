@@ -424,6 +424,8 @@ export const PATH_RULES = Object.freeze(
     target(
       "target.runtime-contract",
       { prefix: "packages/runtime-contract/" },
+      "www",
+      "admin",
       "ingest",
       "newsletter",
       "state",
