@@ -94,6 +94,16 @@ Open the same record in production Admin to inspect the saved fields, actual-pag
 preview, media and review diff. Browser preview remains the way to inspect
 rendered output; the CLI does not claim visual acceptance.
 
+## Media processing preparation
+
+The existing uploader retains its current limits. An additive server normalization
+and crop API is being qualified separately; see the
+[media processing contract](editorial-media-processing.md) for owner/CSRF rules,
+immutable identities and measured limits. It remains held source preparation.
+Neither an API response nor a software deployment authorizes publishing an image
+or changing a draft. The CLI commands above cover record authoring; binary media
+CLI commands and default browser integration are not claimed.
+
 ## Discuss and review before publication
 
 Preparing a review is read-only:
