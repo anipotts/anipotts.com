@@ -1,4 +1,9 @@
 /// <reference types="astro/client" />
+import {
+  evaluateRuntimeContract as evaluate,
+  read,
+  satisfied,
+} from "@anipotts/runtime-contract";
 import { GIT_SHA } from "./patterns";
 
 /** Closed admin runtime configuration contract.
@@ -8,6 +13,9 @@ import { GIT_SHA } from "./patterns";
  * Cloudflare Access answers every unauthenticated probe at the edge, so no
  * release smoke reaches the Worker and a startup rejection would ship green
  * and lock the owner out. Each surface keeps its own fail-closed checks.
+ *
+ * The shared evaluator in @anipotts/runtime-contract runs the checks. Admin
+ * keeps its flag, getPut and build identity checks and the disabled state.
  */
 
 type Source =
@@ -113,6 +121,11 @@ export const RUNTIME_FEATURES = {
 >;
 
 type RuntimeFeature = keyof typeof RUNTIME_FEATURES;
+type RuntimeFeatureSpec = {
+  flags: readonly RuntimeName[];
+  requires?: readonly RuntimeName[];
+  needs: readonly RuntimeName[];
+};
 type RuntimeFeatureState = "available" | "disabled" | "unavailable";
 type RuntimeContractReport = {
   ok: boolean;
@@ -125,36 +138,24 @@ type RuntimeContractReport = {
 type RuntimeEntry = "fetch" | "durable_object";
 type RuntimeLogSink = Pick<Console, "info" | "warn">;
 
-const unreadable = Symbol("unreadable");
-
-function read(
-  values: unknown,
-  name: string,
-  onError: unknown = undefined,
-): unknown {
-  if (!values || typeof values !== "object") return undefined;
-  try {
-    return (values as Record<string, unknown>)[name];
-  } catch {
-    return onError;
-  }
-}
-
-function satisfied(env: unknown, name: RuntimeName, release: string) {
+function adminSatisfied(env: unknown, name: RuntimeName, release: string) {
   const { check } = RUNTIME_CONTRACT[name];
   if (check === "sha") return GIT_SHA.test(release);
-  const value = read(env, name, unreadable);
-  if (check === "getPut")
+  if (check === "getPut") {
+    const value = read(env, name);
     return (
       typeof read(value, "get") === "function" &&
       typeof read(value, "put") === "function"
     );
-  if (check === "text") return typeof value === "string" && !!value.trim();
-  if (check === "flag") return value === "true";
-  return typeof read(value, check) === "function";
+  }
+  if (check === "flag") return read(env, name) === "true";
+  return satisfied(RUNTIME_CONTRACT, env, name);
 }
 
-/** Pure: reads each contract name at most once and never throws. */
+/** Pure: reads each contract name at most once and never throws. Each
+ * feature's flags are read when the evaluator reaches that feature, so a
+ * switched-off feature never reads its storage and reports disabled.
+ */
 export function evaluateRuntimeContract(
   env: unknown,
   release: string,
@@ -163,33 +164,37 @@ export function evaluateRuntimeContract(
   const has = (name: RuntimeName) => {
     let result = results.get(name);
     if (result === undefined) {
-      result = satisfied(env, name, release);
+      result = adminSatisfied(env, name, release);
       results.set(name, result);
     }
     return result;
   };
-  const missing = RUNTIME_REQUIRED.filter((name) => !has(name));
-  const features = {} as RuntimeContractReport["features"];
-  for (const [feature, spec] of Object.entries(RUNTIME_FEATURES)) {
-    const { flags, needs } = spec;
-    const requires: readonly RuntimeName[] =
-      "requires" in spec ? spec.requires : [];
-    const enabled = (flags as readonly RuntimeName[]).every(has);
-    const absent: RuntimeName[] = enabled
-      ? [...requires, ...(needs as readonly RuntimeName[])].filter(
-          (name) => !has(name),
-        )
-      : [];
-    features[feature as RuntimeFeature] = {
-      state: !enabled
-        ? "disabled"
-        : absent.length
-          ? "unavailable"
-          : "available",
-      missing: absent,
-    };
-  }
-  return { ok: missing.length === 0, missing, features };
+  const disabled: RuntimeFeature[] = [];
+  const features = {} as Record<RuntimeFeature, readonly RuntimeName[]>;
+  for (const [feature, spec] of Object.entries(RUNTIME_FEATURES) as [
+    RuntimeFeature,
+    RuntimeFeatureSpec,
+  ][])
+    Object.defineProperty(features, feature, {
+      enumerable: true,
+      get() {
+        if (spec.flags.every(has))
+          return [...(spec.requires ?? []), ...spec.needs];
+        disabled.push(feature);
+        return [];
+      },
+    });
+  const report: RuntimeContractReport = evaluate<RuntimeName, RuntimeFeature>(
+    env,
+    {
+      contract: RUNTIME_CONTRACT,
+      required: RUNTIME_REQUIRED,
+      features,
+      satisfied: (_env, name) => has(name),
+    },
+  );
+  for (const feature of disabled) report.features[feature].state = "disabled";
+  return report;
 }
 
 let reported = false;
