@@ -1,16 +1,19 @@
 /**
- * Drizzle ORM schema for anipotts-db (Cloudflare D1 / SQLite).
+ * historical drizzle orm model of anipotts-db (cloudflare D1 / sqlite).
  *
- * THE canonical schema source. Defines all regular tables that exist in
- * the live database, including rate_limits (created by SQL migration, not
- * auto-created at runtime).
+ * the deploy authority is drizzle/migrations/manifest.json, which
+ * .github/workflows/deploy.yml applies with `wrangler d1 migrations apply`
+ * (automatic_remote_apply is true). nothing imports this file at runtime;
+ * drizzle.config.ts and knip read it by path.
  *
- * Out-of-ORM objects (Drizzle cannot express them) live in the companion
- * migration drizzle/migrations/0003_reconcile.sql:
- *   - thoughts_fts (FTS5 virtual table)
- *   - thoughts_fts_insert / thoughts_fts_delete / thoughts_fts_update triggers
- * Companion migrations are applied manually via `wrangler d1 execute`,
- * never auto-run. See drizzle/README.md.
+ * not modeled here:
+ *   - admin_proof_events, created by drizzle/migrations/0012_admin_proof_events.sql
+ *   - thoughts_fts (fts5 virtual table) and its thoughts_fts_insert,
+ *     thoughts_fts_delete and thoughts_fts_update triggers, created by
+ *     drizzle/migrations/0003_reconcile.sql
+ *
+ * rate_limits and 20 other tables predate drizzle and have no CREATE TABLE
+ * in drizzle/migrations. see drizzle/README.md for the table classification.
  */
 
 import {
@@ -447,7 +450,7 @@ export const emailQueue = sqliteTable(
 // ---------------------------------------------------------------------------
 // 21. service_registry (declarative state for platform-managed services)
 // ---------------------------------------------------------------------------
-// First table authored via @anipotts/services-platform. Tracks one row per
+// Created by drizzle/migrations/0001_service_registry.sql. Tracks one row per
 // service (mini-api, reel, etc.). status_checks.service_id joins here.
 
 export const serviceRegistry = sqliteTable(
