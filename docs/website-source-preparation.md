@@ -16,6 +16,12 @@ Subsequent merges of the four scoped repair heads produced
 `8ec2212e3ee53c1baccf2d6b63014a140676f312`.
 The final documentation update does not change executable source.
 
+GitHub CodeQL subsequently flagged case sensitivity in the test helper that
+extracts the local `Nav.astro` script. The extraction now matches tags without
+case sensitivity; all five pointer/navigation tests and formatting checks pass.
+This test-only correction is also pushed to #522. Production code is unchanged
+from the full validation tree; refreshed CodeQL checks remain necessary.
+
 This candidate integrates the approved chains:
 
 - #517 → #520 → #510, and #520 → #512 → #516.
@@ -75,6 +81,10 @@ publication or owner-session acceptance.
 ## Integration and deployment hold
 
 Ready source checkpoints still require their exact-head GitHub checks and review.
+The nine finished infrastructure drafts (#510, #512–#520 except #511) were
+advanced individually to review after combined validation, with prerequisites
+advanced before consumers. The repaired dependency PRs #509/#523 were already
+ready. The incomplete feature and combined review artifacts #522/#524 stay draft.
 This record does not authorize merging main, changing protection, approving
 Production or deploying. Re-read protection and validate the final integrated
 head before any later approved merge. Do not substitute the combined candidate
@@ -85,6 +95,32 @@ PR #521 merged as `1ccc08da95b7cddd0f766bf86f436c56341eb5fc`; its
 is waiting for Production approval. Main's subsequent #508 release at `f9992c59`
 is pending behind it. The production-release concurrency group does not cancel
 the active release.
+
+The #521 release log explicitly selects **www and admin**, schema `0044`, with
+all four worker targets false and no D1 change. Its only source changes gate
+writing social cards on active published CMS inventory and add regression tests.
+The queued `f9992c59` delta consists only of #508's root ESLint package/lock update.
+It does not supersede the held release. After successful #521 deployment and
+live public health at `1ccc08da`, its planner should select no deployment because
+there is no cumulative public diff. Verify that result when the queued run starts;
+do not assume it while health remains older or unavailable.
+
+The smallest later production approval packet is the existing #521 release for
+both sites, with separate approval at the Production gate and selected deploy
+jobs. Require successful exact-www release smoke, provider-confirmed admin
+release/schema identity and denied unauthenticated owner routes. The editorial
+admin lane intentionally skips the generic service-identity smoke; its boundary
+check does not prove a signed-in human owner session. Live absent/visible card
+GET/HEAD behavior and signed-in owner acceptance are still missing. Verify them
+read-only against existing content, without publishing prose or mutating CMS.
+
+For any later approved source integration, retain these orders:
+#517 → #520 → #510; #520 → #512 → #516; #514 → #513 → #509 timer repair;
+#515 → #518. #519 is independently reviewable documentation. #523 is the
+dependency/theme repair. #522 follows its shared content/runtime prerequisites.
+If #507 is included, validate the final React 19.3 graph with #523 and the feature
+changes before seeking joint source approval. No individual green PR substitutes
+for that final tree validation.
 
 For #507 at `c1a646460f5192d83cc2b3260218acc3f17bb6df`, recommend waiting
 for coordinated release approval despite green checks. Its two changed files
