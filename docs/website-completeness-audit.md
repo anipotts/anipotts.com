@@ -49,6 +49,10 @@ including105 revisions through the real canonical SQL schemas. Independent
 review and omitted-table/missing-media mutation proofs pass. Application tasks
 were cached in the final run; new CLI/recovery tests ran afresh. Live consistent
 capture, provider exporters/importers and operational backup remain unfinished.
+The final test-only follow-up derives its synthetic content path from record
+identity, clearing the scanner's literal-key fixture finding without changing
+the scanner. Both PR diffs pass local Security Review and27 CLI/offline tests
+pass again; production executable blobs still match61008624.
 Fresh #509, #516 and #523 required checks passed. See the
 [bounded packet](website-next-source-batch.md) for exact heads and scope.
 

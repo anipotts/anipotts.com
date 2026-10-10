@@ -60,7 +60,7 @@ gate failure is separate from software validation.
 | #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                          | www/admin                                   |
 | #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                           | www/admin                                   |
 | #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; fresh light/S/Q pass; refreshed main/515                       | www/admin                                   |
-| #522 | `0e32ae7a1dfcd93df03e6e21d9e706bd4142a10d` | feature draft;27 CLI/offline tests pass; fresh remote checks required | broader feature; recalculate before release |
+| #522 | `93b437ab3bfd978333c5a5477c6bcd904ce84503` | feature draft;27 CLI/offline tests pass; fresh remote checks required | broader feature; recalculate before release |
 | #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                        | all six                                     |
 
 None of these existing plans selects D1 changes or remote migration; schema
@@ -139,8 +139,14 @@ reader branches match main Node22; the broader assembly retains509's separate
 Node26 update and523's newer tools, with the previous combined lock byte-identical.
 The current tree includes the nine-file browser recovery repair and four-file
 offline recovery adapter/test/doc increment.
-Later packet-only updates preserve executable blobs; the exact full-run log is
-`/tmp/anipotts-offline-recovery-combined-validation.log`.
+Later packet updates preserve production executable blobs. A test-only follow-up
+derives the synthetic content path from its record identity after the static
+scanner flagged its literal `key` assignment. The scanner is unchanged; both
+complete PR diffs pass local Security Review, and the updated CLI/offline suite
+passes27 tests. The only non-doc difference from61008624 is that fixture change.
+Proofs: `/tmp/anipotts-offline-recovery-combined-validation.log` and
+`/tmp/offline-recovery-ci-integrated-proof.log`. Remote draft Build gates remain
+intentional failures; fresh Security Review must finish on the final heads.
 
 522 is retained as a separate feature draft, not superseded by524. Native CLI,
 shared settings and bounded media admission are implemented in source. Real
