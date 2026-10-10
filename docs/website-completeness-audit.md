@@ -123,8 +123,11 @@ of complete dependency remediation or demonstrated deployed exploitation.
   not establish raster decode, complete compressed-payload validation,
   sanitized derivatives or original/crop provenance.
 
-The combined software and infrastructure checkpoint passed full integrated
-`pnpm validate`: build, formatting, lint, typechecking, policy and package tests.
+The updated combined software and infrastructure checkpoint passed fresh full
+`pnpm validate` at `1322cf58`, including the final schema-doc/CI guard, runtime
+contract, actual type-assertion compiler and theme instruction repairs. Incorporating
+main `8a197427` preserved its exact tree. Build, formatting, lint, typechecking,
+policy and package tests passed.
 Content passed 202 tests; admin unit tests passed 2,279 tests in 174 files, its
 Astro suite passed 79 tests and its editorial Worker suite passed 98 tests.
 The CSP suite passed two tests with one skipped. Public tests also passed.

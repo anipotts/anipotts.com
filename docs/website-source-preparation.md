@@ -4,7 +4,30 @@ October 10, 2026. Source preparation is approved; production approval and
 deployment are held separately. This chat has merged no source repairs into
 main or deployed. Published wording and production CMS data are unchanged.
 
-## Reviewed candidate
+## Latest validated candidate
+
+Current main: `8a197427f13417e7b38875fe96cb914b68b29e3a`.
+Fresh full `pnpm validate` passed on `1322cf58c29c213141c7e6db8ac32e80fff4ab3d`,
+Git tree `b3cfbfc16e2771c23666478b5f6402c9beab6100`.
+Normal incorporation of that main produced
+`f87d9a5ae82a3e6ee844ed7f5a14ee34ddda8f67` with the identical tree.
+
+This run covers #510's final `0a900ecb` guard/CI repair, #512's `3b30fff`
+runtime fix, #515's `9e43f734` real contract typechecking and #523's
+`ee234053` direct-theme documentation repair, plus the earlier assembled
+feature/infrastructure/dependency work. Frozen install, policy/migration checks,
+formatting, six builds, four lint tasks, fourteen typecheck tasks and fourteen
+test tasks passed. Content: 202 tests; admin unit: 2,279 / 174 files; Astro: 79;
+editorial: 98; CSP: two passed and one skipped. No source drift remained.
+Log: `/tmp/anipotts-next-candidate-validation.log`.
+
+The later #515 `bcf27246` and #523 `c8de4a10` refreshes incorporate new main
+without implementation changes; their fresh exact-head checks are pending.
+React #507 remains separately owned and excluded. This candidate uses React
+19.2.8; no result here is validation of a future combined React 19.3 graph.
+The latest documentation-only updates do not change executable source.
+
+## Initial checkpoint (historical)
 
 Base main: `f9992c59e0b3f8748e4ff44e3fab3e4f7447c455`.
 
@@ -127,6 +150,12 @@ jobs skipped, with no pending approvals. This is actual no-deployment evidence.
 Neither this chat nor the executor cancelled a run. `cancel-in-progress: false`
 preserves the active release, while GitHub retains only one pending run.
 
+Another owner merged #510 and its #520 ancestry as `8a197427` on main.
+Both PRs are marked merged. [Deploy 38029505907](https://github.com/anipotts/anipotts.com/actions/runs/38029505907)
+completed successfully with exact validation/summary passing and Production plus
+all six deploy jobs skipped. Production remains `1ccc08da`; this chat merged
+neither PR and approved no deployment. Do not propose duplicate #520/#510 merges.
+
 For any later approved source integration, retain these orders:
 #517 → #520 → #510; #520 → #512 → #516; #514 → #513 → #509 timer repair;
 #515 → #518. #519 is independently reviewable documentation. #523 is the
@@ -135,8 +164,9 @@ If #507 is included, validate the final React 19.3 graph with #523 and the featu
 changes before seeking joint source approval. No individual green PR substitutes
 for that final tree validation.
 
-For #507 at `529d1a7c15a65c1a0393715dae3b4517ef106884`, the separate
-owner has refreshed current main. Independent lockfile review confirms only the
+For #507 at refreshed `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba`, the separate
+owner has refreshed current main; its prior `529d1a7c` checks passed and
+new-head checks are running. Independent lockfile review confirms only the
 admin importer changes, with React/react-dom and their types aligned at 19.3.
 With live www at `1ccc08da`, its prospective plan selects admin only, no workers
 or D1 changes, schema `0044`. It has no source prerequisite on #524. Prefer a
@@ -145,11 +175,9 @@ packet; fresh exact-head checks and later explicit merge/release approval are
 still required. Combining it with feature/dependency branches requires fresh
 validation of that combined graph.
 
-The broader candidate's full validation predates #512's later `3b30fff` runtime
-fix, #510's later `5ac3d0f` guard expansion and the subsequent guard repair.
-That earlier full run is not validation of those later trees. See the
-[next source batch packet](website-next-source-batch.md) for current scoped
-heads, checks and remaining review conditions.
+The fresh validation above supersedes the earlier run for the later runtime,
+guard and typechecking fixes. See the [next source batch packet](website-next-source-batch.md)
+for current scoped heads, checks and remaining approval conditions.
 
 The website is not comprehensively complete or live-verified. Full media decoding
 and crop provenance, Knowledge/Health source acceptance, backup/restore proof,
