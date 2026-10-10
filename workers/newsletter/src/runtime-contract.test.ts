@@ -336,3 +336,113 @@ describe("newsletter wrangler.toml runtime contract drift", () => {
     for (const name of used) expect(name in RUNTIME_CONTRACT).toBe(true);
   });
 });
+
+// Golden records captured from the per-worker evaluator before the shared
+// runtime-contract package. Each line must stay byte-equal: same level, key
+// order, feature order and missing order.
+type GoldenCase = [
+  name: string,
+  env: () => unknown,
+  entry: "fetch" | "queue",
+  level: "info" | "warn",
+  line: string,
+];
+const GOLDEN: GoldenCase[] = [
+  [
+    "a complete deployment",
+    () => completeEnv(),
+    "fetch",
+    "info",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"fetch","ok":true,"missing":[],"features":{"confirmation_email":{"state":"available","missing":[]},"issue_delivery":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing DB",
+    () => without("DB"),
+    "queue",
+    "warn",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"queue","ok":false,"missing":["DB"],"features":{"confirmation_email":{"state":"available","missing":[]},"issue_delivery":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing RESEND_API_KEY",
+    () => without("RESEND_API_KEY"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"fetch","ok":true,"missing":[],"features":{"confirmation_email":{"state":"unavailable","missing":["RESEND_API_KEY"]},"issue_delivery":{"state":"unavailable","missing":["RESEND_API_KEY"]}}}',
+  ],
+  [
+    "a missing NEWSLETTER_MAILING_ADDRESS",
+    () => without("NEWSLETTER_MAILING_ADDRESS"),
+    "queue",
+    "warn",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"queue","ok":true,"missing":[],"features":{"confirmation_email":{"state":"available","missing":[]},"issue_delivery":{"state":"unavailable","missing":["NEWSLETTER_MAILING_ADDRESS"]}}}',
+  ],
+  [
+    "a missing NEWSLETTER_BASE_URL",
+    () => without("NEWSLETTER_BASE_URL"),
+    "fetch",
+    "info",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"fetch","ok":true,"missing":[],"features":{"confirmation_email":{"state":"available","missing":[]},"issue_delivery":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing NEWSLETTER_FROM",
+    () => without("NEWSLETTER_FROM"),
+    "queue",
+    "info",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"queue","ok":true,"missing":[],"features":{"confirmation_email":{"state":"available","missing":[]},"issue_delivery":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing NEWSLETTER_REPLY_TO",
+    () => without("NEWSLETTER_REPLY_TO"),
+    "fetch",
+    "info",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"fetch","ok":true,"missing":[],"features":{"confirmation_email":{"state":"available","missing":[]},"issue_delivery":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a null env",
+    () => null,
+    "queue",
+    "warn",
+    '{"event":"runtime_contract","worker":"newsletter","entry":"queue","ok":false,"missing":["DB"],"features":{"confirmation_email":{"state":"unavailable","missing":["RESEND_API_KEY"]},"issue_delivery":{"state":"unavailable","missing":["RESEND_API_KEY","NEWSLETTER_MAILING_ADDRESS"]}}}',
+  ],
+];
+
+describe("newsletter runtime contract golden records", () => {
+  for (const [name, env, entry, level, line] of GOLDEN) {
+    it(`logs the exact record for ${name}`, () => {
+      const calls: [string, string][] = [];
+      const report = createRuntimeContractReporter({
+        info: (text: string) => void calls.push(["info", text]),
+        warn: (text: string) => void calls.push(["warn", text]),
+      });
+      report(env(), entry);
+      report(env(), entry);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe(level);
+      expect(calls[0]?.[1]).toBe(line);
+    });
+
+    it(`evaluates the exact report for ${name}`, () => {
+      const prefix = `{"event":"runtime_contract","worker":"newsletter","entry":"${entry}",`;
+      expect(line.startsWith(prefix)).toBe(true);
+      const report = evaluateRuntimeContract(env());
+      expect(Object.keys(report)).toEqual(["ok", "missing", "features"]);
+      expect(JSON.stringify(report)).toBe(`{${line.slice(prefix.length)}`);
+    });
+  }
+
+  it("reads each env name in contract order", () => {
+    const reads: PropertyKey[] = [];
+    const env = new Proxy(completeEnv(), {
+      get(target, key) {
+        reads.push(key);
+        return Reflect.get(target, key);
+      },
+    });
+    evaluateRuntimeContract(env);
+    expect(reads).toEqual([
+      "DB",
+      "RESEND_API_KEY",
+      "NEWSLETTER_MAILING_ADDRESS",
+    ]);
+  });
+});

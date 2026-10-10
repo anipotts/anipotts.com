@@ -292,3 +292,74 @@ describe("weekly email wrangler.toml runtime contract drift", () => {
     ]);
   });
 });
+
+// Golden records captured from the per-worker evaluator before the shared
+// runtime-contract package. Each line must stay byte-equal: same level, key
+// order, feature order and missing order.
+type GoldenCase = [
+  name: string,
+  env: () => unknown,
+  entry: "fetch" | "scheduled",
+  level: "info" | "warn",
+  line: string,
+];
+const GOLDEN: GoldenCase[] = [
+  [
+    "a complete deployment",
+    () => completeEnv(),
+    "scheduled",
+    "info",
+    '{"event":"runtime_contract","worker":"weekly-email","entry":"scheduled","ok":true,"missing":[]}',
+  ],
+  [
+    "a missing DB",
+    () => ({}),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"weekly-email","entry":"fetch","ok":false,"missing":["DB"]}',
+  ],
+  [
+    "a null env",
+    () => null,
+    "scheduled",
+    "warn",
+    '{"event":"runtime_contract","worker":"weekly-email","entry":"scheduled","ok":false,"missing":["DB"]}',
+  ],
+];
+
+describe("weekly email runtime contract golden records", () => {
+  for (const [name, env, entry, level, line] of GOLDEN) {
+    it(`logs the exact record for ${name}`, () => {
+      const calls: [string, string][] = [];
+      const report = createRuntimeContractReporter({
+        info: (text: string) => void calls.push(["info", text]),
+        warn: (text: string) => void calls.push(["warn", text]),
+      });
+      report(env(), entry);
+      report(env(), entry);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe(level);
+      expect(calls[0]?.[1]).toBe(line);
+    });
+
+    it(`evaluates the exact report for ${name}`, () => {
+      const prefix = `{"event":"runtime_contract","worker":"weekly-email","entry":"${entry}",`;
+      expect(line.startsWith(prefix)).toBe(true);
+      const report = evaluateRuntimeContract(env());
+      expect(Object.keys(report)).toEqual(["ok", "missing"]);
+      expect(JSON.stringify(report)).toBe(`{${line.slice(prefix.length)}`);
+    });
+  }
+
+  it("reads each env name in contract order", () => {
+    const reads: PropertyKey[] = [];
+    const env = new Proxy(completeEnv(), {
+      get(target, key) {
+        reads.push(key);
+        return Reflect.get(target, key);
+      },
+    });
+    evaluateRuntimeContract(env);
+    expect(reads).toEqual(["DB"]);
+  });
+});
