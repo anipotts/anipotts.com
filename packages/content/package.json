@@ -53,14 +53,14 @@
   },
   "dependencies": {
     "@anipotts/types": "workspace:*",
-    "marked": "^18.0.12",
+    "marked": "^18.0.14",
     "yaml": "2.8.3",
     "zod": "^3.24.2",
     "unified": "^11.0.5",
     "remark-parse": "^11.0.0",
     "remark-gfm": "^4.0.1",
     "remark-rehype": "^11.1.2",
-    "remark-smartypants": "^3.0.2",
+    "remark-smartypants": "^3.0.3",
     "rehype-sanitize": "6.0.0",
     "rehype-stringify": "^10.0.1",
     "github-slugger": "^2.0.0"
