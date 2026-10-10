@@ -7,8 +7,8 @@
  * namespace or parameter properties): node loads it directly, with type
  * stripping, from scripts/content/*.mjs before any package build. Vite glob
  * literals and Astro collection loader bases cannot import it, so
- * apps/admin/src/lib/editorial-source-equivalence.test.ts holds both apps'
- * source-loader literals to it. Public social-card availability reads only
+ * apps/admin/src/lib/editorial-source-equivalence.test.ts and the public app's
+ * editorial-source-layout.test.mjs hold source-loader literals to it. Public social-card availability reads only
  * the CMS inventory, separately from these build-time source loaders. */
 
 export const EDITORIAL_CONTENT_ROOT = "content/public";
