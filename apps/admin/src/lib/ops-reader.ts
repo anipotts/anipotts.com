@@ -269,7 +269,8 @@ export type OpsStatusState = {
   hop?: Exclude<ReaderHop, "unissued">;
 };
 
-type Timer = ReturnType<typeof setTimeout>;
+// Browser timers return numbers; Node-backed tests return timer objects.
+type Timer = number | ReturnType<typeof setTimeout>;
 
 export type OpsStatusOptions = {
   session: PrivateReaderSession;
