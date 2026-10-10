@@ -124,6 +124,10 @@ jobs:
         if: github.event.pull_request.draft == false && needs.classify.outputs.local_dev_changed == 'true'
         run: pnpm test:admin-preview && pnpm test:dev-servers
 
+      - name: Validate owner editorial CLI contracts
+        if: github.event.pull_request.draft == false
+        run: pnpm test:editorial-cli
+
       - name: Validate affected packages once
         if: github.event.pull_request.draft == false && needs.classify.outputs.docs_only != 'true'
         env:

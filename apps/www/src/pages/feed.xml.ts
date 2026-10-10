@@ -2,22 +2,23 @@ import { publicContentContext } from "../lib/content";
 import { inlinePlainText } from "@anipotts/content/public/inline";
 import rss from "@astrojs/rss";
 import type { APIRoute } from "astro";
-import { siteConfig } from "@anipotts/content/public";
+import { siteConfig, resolveSiteSettings } from "@anipotts/content/public/site";
+import { publishedSiteSettings } from "../lib/site-settings";
 import { publishedWriting, writingSlug } from "../lib/content";
 
 export const prerender = false;
 
 export const GET: APIRoute = async (context) => {
-  const writingEntries = (
-    await publishedWriting(publicContentContext(context.locals))
-  ).slice(0, 50);
+  const content = publicContentContext(context.locals);
+  const settings = resolveSiteSettings(await publishedSiteSettings(content));
+  const writingEntries = (await publishedWriting(content)).slice(0, 50);
   const latestPublication = Math.max(
     0,
     ...writingEntries.map((entry) => entry.data.published_at?.getTime() ?? 0),
   );
   return rss({
     title: siteConfig.displayName,
-    description: siteConfig.feedDescription,
+    description: settings.seo.feedDescription,
     site: context.site ?? siteConfig.url,
     items: writingEntries.map((t) => ({
       title: t.data.title,

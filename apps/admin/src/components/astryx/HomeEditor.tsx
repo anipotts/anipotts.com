@@ -1179,7 +1179,7 @@ function HomeEditorImpl({
       destinationId = configuredSlug;
     fields = editorialFields(record, parsed.data);
     values = fields.map((field) =>
-      String(parsed.document.getIn(field.path) ?? ""),
+      String(parsed.document.getIn(field.path) ?? field.defaultValue ?? ""),
     );
     if (record.kind === "page" && record.id === "home") {
       const sections = metadata.sections;
@@ -2459,6 +2459,9 @@ function HomeEditorImpl({
                           {index === 0 ? "Introduction" : "Section labels"}
                         </Text>
                       )}
+                    {field.group && (
+                      <Text weight="semibold">{field.group}</Text>
+                    )}
                     {record.kind === "work" && parseable && (
                       <ProjectFieldControls
                         data={projectSectionData}

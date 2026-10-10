@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
 import { installPointerModality } from "../src/scripts/pointer-modality.ts";
@@ -129,4 +130,75 @@ test("touch press rings are absent and keyboard outlines remain defined", () => 
     /html\[data-touch-input\] :where\(a, button, summary\):focus-visible/,
   );
   assert.doesNotMatch(css, /html\[data-touch-input\] :where\([^)]*input/);
+});
+
+test("persisted navigation adopts incoming publication labels and current-page state", () => {
+  const source = readFileSync(
+    new URL("../src/components/Nav.astro", import.meta.url),
+    "utf8",
+  );
+  const script = stripTypeScriptTypes(
+    source
+      .match(/<script>([\s\S]*?)<\/script>/)[1]
+      .replace(/^\s*import\b[\s\S]*?;/gmu, ""),
+  );
+  function link(href, text, current = null) {
+    const attributes = new Map([
+      ["href", href],
+      ["data-preserved", "true"],
+    ]);
+    if (current) attributes.set("aria-current", current);
+    return {
+      textContent: text,
+      getAttribute: (name) => attributes.get(name) ?? null,
+      setAttribute: (name, value) => attributes.set(name, value),
+      removeAttribute: (name) => attributes.delete(name),
+    };
+  }
+  const links = [
+    link("/work", "work", "page"),
+    link("/writing", "writing"),
+    link("/systems", "systems"),
+  ];
+  const listeners = new Map();
+  const nav = { querySelectorAll: () => links, addEventListener() {} };
+  const document = {
+    documentElement: { dataset: {} },
+    getElementById: (id) => (id === "primary-nav" ? nav : null),
+    addEventListener: (name, callback) => listeners.set(name, callback),
+  };
+  runInNewContext(script, {
+    document,
+    matchMedia: () => ({ addEventListener() {} }),
+    savedTheme: () => "light",
+    resolvedTheme: () => "light",
+    saveTheme() {},
+    themedUrl: (value) => value,
+  });
+  const next = [
+    link("/work", "Synthetic projects"),
+    link("/writing", "書く ✍️", "page"),
+    link("/other", "Unrelated link", "page"),
+  ];
+  listeners.get("astro:before-swap")({
+    newDocument: { querySelectorAll: () => next },
+  });
+  assert.equal(links[0].textContent, "Synthetic projects");
+  assert.equal(links[0].getAttribute("aria-current"), null);
+  assert.equal(links[1].textContent, "書く ✍️");
+  assert.equal(links[1].getAttribute("aria-current"), "page");
+  assert.equal(links[2].textContent, "systems");
+  assert.equal(links[2].getAttribute("aria-current"), null);
+  assert.equal(links[0].getAttribute("data-preserved"), "true");
+  listeners.get("astro:before-swap")({
+    newDocument: {
+      querySelectorAll: () => [
+        link("/work", "work", "page"),
+        link("/writing", "writing"),
+      ],
+    },
+  });
+  assert.equal(links[0].getAttribute("aria-current"), "page");
+  assert.equal(links[1].getAttribute("aria-current"), null);
+  assert.equal(links[1].textContent, "writing");
 });

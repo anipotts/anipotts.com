@@ -231,6 +231,11 @@ Follow the approved [Quiet Precision delivery contract](docs/design/admin-worksp
 Content is the only editorial workspace, and production admin is the normal
 authoring environment. Support articles and projects, existing page copy, shared
 navigation/footer text, SEO and media. Layouts and executable behavior stay in code.
+For coding-agent draft editing and reviewed publication, follow
+[the owner editorial workflow](docs/agent-editorial-workflow.md). `pnpm editorial --help`
+describes the native client. Use the existing human Access session; software release
+authority does not authorize publishing prose. Preserve unrelated metadata and
+source, retain retry identities, and distinguish private save from live publication.
 
 Public content defaults, normalizers, validators, settings, and homepage summary
 helpers live in `@anipotts/content/public`. Canonical frontmatter schemas are

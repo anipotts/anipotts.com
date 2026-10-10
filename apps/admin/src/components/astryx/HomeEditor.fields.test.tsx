@@ -320,3 +320,62 @@ custom: retained`,
   expect(data.custom).toBe("retained");
   expect(data.title).toBe("Synthetic project");
 });
+
+it("shows shared defaults without changing source and saves a settings edit in the home draft", async () => {
+  let saved = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes("/csrf"))
+        return jsonResponse(JSON.stringify({ csrf: "test" }));
+      if (url.includes("/save?")) {
+        saved = JSON.parse(String(options?.body)).source;
+        return jsonResponse(
+          JSON.stringify({
+            ok: true,
+            draft: { ...snapshot(saved).draft, revision: 2 },
+          }),
+        );
+      }
+      return jsonResponse(JSON.stringify(snapshot(homeSource)));
+    }),
+  );
+  window.history.replaceState(null, "", "/content/home/home");
+  await act(async () =>
+    root.render(<HomeEditor record={{ kind: "page", id: "home" }} />),
+  );
+  const field = (text: string) => {
+    const label = Array.from(host.querySelectorAll("label")).find(
+      (label) => label.textContent === text,
+    );
+    expect(label, text).toBeDefined();
+    return document.getElementById(label!.htmlFor) as HTMLTextAreaElement;
+  };
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(host.textContent).toContain("Shared navigation"),
+    );
+  });
+  expect(field("Work navigation label").value).toBe("work");
+  expect(field("Footer prompt").value).toBe("have a question?");
+  expect(saved).toBe("");
+  await act(async () => {
+    const input = field("Work navigation label");
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(input, "Synthetic projects");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => {
+    await vi.waitFor(() => expect(saved).toContain("Synthetic projects"), {
+      timeout: 3000,
+    });
+  });
+  const metadata = parseEditorialSource(saved).data as Record<string, unknown>;
+  expect(metadata.site_settings).toEqual({
+    navigation: { work: "Synthetic projects" },
+  });
+  expect(saved).toContain("custom: retained");
+  expect(saved).toContain("Synthetic body.");
+});

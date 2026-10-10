@@ -7,7 +7,13 @@ import { ClientRouter } from "astro:transitions";
 import Nav from "../components/Nav.astro";
 import Footer from "../components/Footer.astro";
 import PageCurrent from "../components/PageCurrent.astro";
-import { siteConfig } from "@anipotts/content/public";
+import {
+  siteConfig,
+  resolveSiteSettings,
+  type SiteSettings,
+} from "@anipotts/content/public/site";
+import { publicContentContext } from "../lib/content";
+import { publishedSiteSettings } from "../lib/site-settings";
 import { personId, websiteId } from "../lib/identity";
 import {
   CARD_HEIGHT,
@@ -17,6 +23,7 @@ import {
 } from "../lib/social-card/routes";
 
 interface Props {
+  siteSettings?: SiteSettings;
   title: string;
   description: string;
   path: string;
@@ -41,10 +48,18 @@ const {
   detail = false,
   adminEntry = false,
 } = Astro.props;
+const settings = resolveSiteSettings(
+  "siteSettings" in Astro.props
+    ? Astro.props.siteSettings
+    : !Astro.isPrerendered && !adminEntry
+      ? await publishedSiteSettings(publicContentContext(Astro.locals))
+      : undefined,
+);
 const description = inlinePlainText(rawDescription);
 const canonical =
   canonicalUrl ?? `${siteConfig.url}${path === "/" ? "" : path}`;
-const fullTitle = path === "/" ? title : `${title} / ${siteConfig.displayName}`;
+const fullTitle =
+  path === "/" ? title : `${title} / ${settings.seo.titleSuffix}`;
 // Every route uses the approved canonical brand card.
 const cardUrl = `${siteConfig.url}${cardPath(SITE_CARD)}?v=corner-1`;
 
@@ -227,7 +242,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   </head>
   <body>
     {!detail && !adminEntry && <PageCurrent />}
-    <Nav />
+    <Nav items={settings.navigation} />
     <main
       class:list={[
         adminEntry ? "admin-entry-mount" : "frame page",
@@ -239,7 +254,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     >
       <slot />
     </main>
-    {!adminEntry && <Footer />}
+    {!adminEntry && <Footer settings={settings.footer} />}
     <script>
       import "../scripts/writing-transitions";
       import "../scripts/admin-transitions";
