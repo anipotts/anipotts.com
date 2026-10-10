@@ -93,6 +93,9 @@ importers:
       '@anipotts/content':
         specifier: workspace:*
         version: link:../../packages/content
+      '@anipotts/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
       '@astrojs/cloudflare':
         specifier: ^14.3.3
         version: 14.3.3(@types/node@26.6.4)(astro@7.3.5(@astrojs/markdown-remark@7.3.1)(@types/node@26.6.4)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.3(@cloudflare/workers-types@5.20260928.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.2)))(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.0))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.142.0(@cloudflare/workers-types@5.20260928.1)(@types/node@26.6.4))(yaml@2.9.0)
@@ -262,6 +265,9 @@ importers:
       '@anipotts/content':
         specifier: workspace:*
         version: link:../../packages/content
+      '@anipotts/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
       '@astrojs/cloudflare':
         specifier: ^14.3.3
         version: 14.3.3(@types/node@26.6.5)(astro@7.3.5(@astrojs/markdown-remark@7.3.1)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.3(@cloudflare/workers-types@5.20260928.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.2)))(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.0))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.142.0(@cloudflare/workers-types@5.20260928.1)(@types/node@26.6.5))(yaml@2.9.0)
@@ -389,6 +395,12 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/runtime-contract:
+    devDependencies:
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/types:
     devDependencies:
       typescript:
@@ -396,6 +408,10 @@ importers:
         version: 5.9.3
 
   workers/ingest:
+    dependencies:
+      '@anipotts/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260928.1
@@ -408,6 +424,10 @@ importers:
         version: 4.142.0(@cloudflare/workers-types@5.20260928.1)
 
   workers/newsletter:
+    dependencies:
+      '@anipotts/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260928.1
@@ -421,6 +441,9 @@ importers:
 
   workers/state:
     dependencies:
+      '@anipotts/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
       '@anipotts/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -442,6 +465,10 @@ importers:
         version: 4.142.0(@cloudflare/workers-types@5.20260928.1)(@types/node@26.6.4)
 
   workers/weekly-email:
+    dependencies:
+      '@anipotts/runtime-contract':
+        specifier: workspace:*
+        version: link:../../packages/runtime-contract
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260928.1

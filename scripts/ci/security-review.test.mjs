@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { classifyRelease } from "./release-policy.mjs";
 import {
   isSensitivePath,
   requiresSecurityReview,
@@ -53,6 +55,66 @@ expectSensitive("package.json", true);
 expectSensitive("docs/platform-architecture.md", false);
 expectSensitive("apps/www/src/pages/index.astro", false);
 expectSensitive("apps/admin/README.md", false);
+
+// Protected surfaces, CI policy and local development inputs, and tooling
+// roots are scanned too. Markdown inputs stay unscanned.
+for (const file of [
+  ".worktreeinclude",
+  "config/release-train.json",
+  "apps/admin/test/wrangler.jsonc",
+  "packages/runtime-contract/src/index.ts",
+  ".npmrc",
+  "tsconfig.json",
+  "e2e.www.config.ts",
+  ".claude/settings.json",
+  ".codex/config.toml",
+  ".github/dependabot.yml",
+  ".husky/pre-commit",
+  "drizzle.config.ts",
+]) {
+  expectSensitive(file, true);
+  assert.ok(
+    reviewFiles(
+      [file],
+      () => `const token = "${"ghp_" + "a".repeat(30)}";`,
+    ).some((finding) => finding.rule === "github-token"),
+    `literal credential must be detected in ${file}`,
+  );
+}
+for (const file of [
+  "CLAUDE.md",
+  "docs/worker-inventory.md",
+  "docs/local-admin-preview-thread-prompt.md",
+])
+  expectSensitive(file, false);
+
+// Every tracked file a change to which needs approval by name, or runs the
+// CI policy or local development suites, is scanned unless it is Markdown.
+// Route approval depends on the git status, which Security Review does not
+// see, so a modified page stays unscanned (above).
+const base = { sourceSha: "a".repeat(40), eventName: "pull_request" };
+const unscanned = [];
+for (const file of execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
+  .split("\0")
+  .filter(Boolean)) {
+  if (file.endsWith(".md")) continue;
+  let release;
+  try {
+    release = classifyRelease([`M\t${file}`], base);
+  } catch {
+    // Historical migrations cannot be modified; they are scanned by prefix.
+    if (!isSensitivePath(file)) unscanned.push(file);
+    continue;
+  }
+  if (
+    (release.risk === "approval" ||
+      release.ci_policy_changed ||
+      release.local_dev_changed) &&
+    !isSensitivePath(file)
+  )
+    unscanned.push(file);
+}
+assert.deepEqual(unscanned, [], "approval and policy inputs must be scanned");
 
 assert.equal(
   requiresSecurityReview([
