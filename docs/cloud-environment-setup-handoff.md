@@ -3,7 +3,7 @@
 Paste the following into the Codex **Edit build** setup chat. That chat must
 apply supported environment settings, not merely modify repository documents.
 The website completion chat can read configuration but has no configuration
-write tool. On October 10, enforced revision 5 still allowed only the package
+write tool. On October 10, the latest enforced revision 10 still allowed only the package
 manager preset and `cdn.playwright.dev`, with no secret bindings or identities.
 
 > Finish configuring and publish the existing `build` cloud environment for
@@ -41,7 +41,7 @@ manager preset and `cdn.playwright.dev`, with no secret bindings or identities.
 > This is environment setup only. Do not merge website PRs, approve Production,
 > deploy, alter DNS or Access, publish CMS content, send messages, change billing
 > or remove resources. The website's source preparation is approved, while its
-> existing Production release and subsequent deployments remain separately held.
+> exact #521 release has completed; subsequent deployments remain separately held.
 > Finish with the published configuration version, fresh verification results
 > and any concrete remaining owner action. If a required setting cannot be
 > changed by your tools, identify that exact setting and where to apply it;

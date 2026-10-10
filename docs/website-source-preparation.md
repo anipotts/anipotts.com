@@ -98,43 +98,34 @@ Production or deploying. Re-read protection and validate the final integrated
 head before any later approved merge. Do not substitute the combined candidate
 for the user's canonical Mac preview.
 
-PR #521 merged as `1ccc08da95b7cddd0f766bf86f436c56341eb5fc`; its
-[Deploy run](https://github.com/anipotts/anipotts.com/actions/runs/38025022414)
-is waiting for Production approval. Main's subsequent #508 release at `f9992c59`
-is pending behind it. The production-release concurrency group does not cancel
-the active release.
+PR #521 deployed successfully as `1ccc08da95b7cddd0f766bf86f436c56341eb5fc`
+in [run 38025022414](https://github.com/anipotts/anipotts.com/actions/runs/38025022414).
+Ani approved exactly this release; the separate React repair chat
+`01a12428-da0c-70de-b963-580d74b9e0fb` was its sole executor. This chat
+performed no Production approval or deployment. Later source merges and
+production releases remain separately gated.
 
-The #521 release log explicitly selects **www and admin**, schema `0044`, with
-all four worker targets false and no D1 change. Its only source changes gate
-writing social cards on active published CMS inventory and add regression tests.
-The queued `f9992c59` delta consists only of #508's root ESLint package/lock update.
-It does not supersede the held release. After successful #521 deployment and
-live public health at `1ccc08da`, its planner should select no deployment because
-there is no cumulative public diff. Verify that result when the queued run starts;
-do not assume it while health remains older or unavailable.
+Both www and admin report this exact release and schema `0044`. Provider
+versions are www `c9ce3c80-221f-4e33-b13e-80fcdc5de79d` and admin
+`5d7adf9d-5431-44e8-8cc5-90b30557b4e7`. All four separate workers were
+skipped; no D1 migration or CMS write occurred. Eight anonymous private-route
+denials passed. Live GET/HEAD returned 200 PNG for `awareness-is-alpha` and
+404 with `no-store` for the absent `jpegmafia-is-our-kanye-west` and
+`may-your-intelligence-be-ever-reliable` cards.
 
-The smallest later production approval packet is the existing #521 release for
-both sites, with separate approval at the Production gate and selected deploy
-jobs. Require successful exact-www release smoke, provider-confirmed admin
-release/schema identity and denied unauthenticated owner routes. The editorial
-admin lane intentionally skips the generic service-identity smoke; its boundary
-check does not prove a signed-in human owner session. Live absent/visible card
-GET/HEAD behavior and signed-in owner acceptance are still missing. Verify them
-read-only against existing content, without publishing prose or mutating CMS.
+The executor also verified the existing owner's signed-in read journey: five
+page records, the unchanged home editor, preview revision 105 and loaded history,
+plus the public awareness article. These checks need not be repeated by Ani.
+Write acceptance still needs a named disposable or intended record and explicit
+scope for draft saving, publication or unpublishing; no write was exercised.
 
-At 05:28:41 UTC Ani approved exactly the #521 production packet: existing run,
-`1ccc08da`, www/admin only, no worker, D1 or CMS writes. The React repair chat
-`01a12428-da0c-70de-b963-580d74b9e0fb` claimed single-executor ownership; this
-chat acknowledged and performs no duplicate approval or deployment. This lifts
-the hold only for that exact release. Its deployed acceptance is still pending.
-
-After another agent merged #517, GitHub cancelled the pending `f9992c59` run
-and replaced it with [38027502965](https://github.com/anipotts/anipotts.com/actions/runs/38027502965)
-at `23750222`. This chat did not cancel either run. GitHub retains one pending
-run in this concurrency group; `cancel-in-progress: false` preserves the active
-release but does not retain every pending run. The #521 run remains unchanged.
-Verify the replacement run's classification after #521; the cancelled ESLint
-run cannot provide a no-deployment result.
+GitHub automatically replaced pending tooling run `38025809196` with
+[38027502965](https://github.com/anipotts/anipotts.com/actions/runs/38027502965)
+at `2375022277c28286461666d765ed5f44a7083cd1`. The replacement completed
+successfully: exact validation and summary passed, Production and all six deploy
+jobs skipped, with no pending approvals. This is actual no-deployment evidence.
+Neither this chat nor the executor cancelled a run. `cancel-in-progress: false`
+preserves the active release, while GitHub retains only one pending run.
 
 For any later approved source integration, retain these orders:
 #517 → #520 → #510; #520 → #512 → #516; #514 → #513 → #509 timer repair;
@@ -144,14 +135,21 @@ If #507 is included, validate the final React 19.3 graph with #523 and the featu
 changes before seeking joint source approval. No individual green PR substitutes
 for that final tree validation.
 
-For #507 at `c1a646460f5192d83cc2b3260218acc3f17bb6df`, recommend waiting
-for coordinated release approval despite green checks. Its two changed files
-select admin deployment under current main's classifier. The planner may also
-select www when live health is unavailable or reports an outdated public source.
-No migration or worker target is selected by that dependency diff. There is no
-source prerequisite between #507 and these repairs, but merging queues another
-protected production release. If later combined with this candidate, revalidate
-the combined React 19.3 tree before approval.
+For #507 at `529d1a7c15a65c1a0393715dae3b4517ef106884`, the separate
+owner has refreshed current main. Independent lockfile review confirms only the
+admin importer changes, with React/react-dom and their types aligned at 19.3.
+With live www at `1ccc08da`, its prospective plan selects admin only, no workers
+or D1 changes, schema `0044`. It has no source prerequisite on #524. Prefer a
+separate admin dependency approval packet from the #520 → #510 source-only
+packet; fresh exact-head checks and later explicit merge/release approval are
+still required. Combining it with feature/dependency branches requires fresh
+validation of that combined graph.
+
+The broader candidate's full validation predates #512's later `3b30fff` runtime
+fix, #510's later `5ac3d0f` guard expansion and the subsequent guard repair.
+That earlier full run is not validation of those later trees. See the
+[next source batch packet](website-next-source-batch.md) for current scoped
+heads, checks and remaining review conditions.
 
 The website is not comprehensively complete or live-verified. Full media decoding
 and crop provenance, Knowledge/Health source acceptance, backup/restore proof,

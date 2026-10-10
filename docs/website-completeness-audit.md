@@ -103,8 +103,10 @@ of complete dependency remediation or demonstrated deployed exploitation.
 - [PR521](https://github.com/anipotts/anipotts.com/pull/521) passed required
   exact-head checks and merged as `1ccc08da95b7cddd0f766bf86f436c56341eb5fc`.
   [Deploy38025022414](https://github.com/anipotts/anipotts.com/actions/runs/38025022414)
-  passed exact release validation and awaits the configured Production reviewer.
-  This is merged, not deployed or live-verified evidence.
+  completed successfully for both www and admin at that exact source, schema
+  `0044`, with all separate workers skipped and no D1 or CMS writes. Live
+  visible/absent share-card GET/HEAD checks and the signed-in owner read journey
+  passed. Draft-save/publication acceptance has not been exercised.
 - The owner [agent editorial workflow](agent-editorial-workflow.md) and native
   CLI now support private drafts/history, explicit reviewed publication and
   exact-operation reconciliation using existing human Access credentials.
