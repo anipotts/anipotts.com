@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { classifyRelease } from "./release-policy.mjs";
+import { isBroadChangeLine } from "./path-manifest.mjs";
+import { classifyRelease, unclassifiedPaths } from "./release-policy.mjs";
 import { changedFiles } from "./changed-files.mjs";
 
 function run(command, args) {
@@ -31,6 +32,44 @@ if (changes.length === 0) {
   process.exit(0);
 }
 
+// CI fails Classify release on any path no rule names. Untracked files never
+// reach CI, so they only warn; .codex-workspaces/ holds nested agent worktrees.
+// Partition by record so a staged delete of an untracked path still counts.
+const untracked = new Set(
+  workingTree
+    ? execFileSync(
+        "git",
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+        {
+          encoding: "utf8",
+        },
+      )
+        .split("\0")
+        .filter(Boolean)
+        .map((path) => `A\t${path}`)
+    : [],
+);
+for (const path of unclassifiedPaths(
+  changes.filter((line) => untracked.has(line)),
+)) {
+  console.warn(
+    `changed scope: warning: untracked path is unclassified; ci only sees committed files: ${path}`,
+  );
+}
+const unclassified = unclassifiedPaths(
+  changes.filter((line) => !untracked.has(line)),
+);
+if (unclassified.length > 0) {
+  console.error(
+    [
+      "changed scope: tracked or committed paths match no release rule:",
+      ...unclassified.map((path) => `  ${path}`),
+      "add a rule in scripts/ci/path-manifest.mjs, which scripts/ci/release-policy.mjs applies; ci Classify release fails on these.",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
 const release = classifyRelease(changes, {
   sourceSha: git("rev-parse", "HEAD"),
   eventName: "local",
@@ -43,11 +82,7 @@ console.log(
   `changed scope: ${targets.join(",") || "non-deployable"}${workingTree ? " including working tree" : " (commits only)"}`,
 );
 
-const broad = changes.some((line) =>
-  /\t(?:\.github\/|config\/|scripts\/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|packages\/(?:lib|types)\/)/u.test(
-    line,
-  ),
-);
+const broad = changes.some(isBroadChangeLine);
 
 if (
   broad ||

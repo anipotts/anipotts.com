@@ -1,34 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
-
-const DEPENDENCY_ROOTS = new Set([
-  "package.json",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
-  "turbo.json",
-]);
-
-const SENSITIVE_PREFIXES = [
-  ".github/workflows/",
-  "apps/admin/src/pages/api/",
-  "apps/admin/src/pages/auth/",
-  "apps/admin/src/editorial/",
-  "apps/admin/src/lib/",
-  "apps/admin/src/data/",
-  "patches/",
-  "drizzle/migrations/",
-  "packages/content/",
-  "packages/lib/",
-  "scripts/",
-  "workers/",
-];
-
-const SENSITIVE_EXACT_FILES = new Set([
-  "apps/admin/src/middleware.ts",
-  "apps/admin/wrangler.toml",
-  "apps/www/wrangler.toml",
-]);
+import { firstRule } from "./path-manifest.mjs";
 
 const SECRET_PATTERNS = [
   {
@@ -121,11 +94,10 @@ export function reviewFiles(files, readFile = readFileSync) {
   return findings;
 }
 
+// Which files are scanned is a row kind in scripts/ci/path-manifest.mjs.
 export function isSensitivePath(file) {
-  if (!file || file.endsWith(".md")) return false;
-  if (DEPENDENCY_ROOTS.has(file)) return true;
-  if (SENSITIVE_EXACT_FILES.has(file)) return true;
-  return SENSITIVE_PREFIXES.some((prefix) => file.startsWith(prefix));
+  if (!file) return false;
+  return firstRule("sensitive", file)?.sensitive === true;
 }
 
 function scanForSecrets(file, content) {
