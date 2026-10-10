@@ -13,6 +13,8 @@ import {
   selectedConditions,
 } from "./d1-migration-conditions.mjs";
 import { classifySql, loadManifest, sha256 } from "./migration-policy.mjs";
+// Replays the golden release corpus, so test:release-policy runs it.
+import "./path-manifest.test.mjs";
 import {
   classifyRelease,
   githubOutputs,
