@@ -11,6 +11,7 @@ import {
 import { basename, join, relative, resolve } from "node:path";
 import { format } from "prettier";
 import { parse } from "yaml";
+import { listEditorialSources } from "../../packages/content/src/editorial/layout.ts";
 import { isPublishedWriting } from "../../packages/content/src/public/visibility.ts";
 import {
   projectSchema,
@@ -21,10 +22,6 @@ import {
 const rootArgument = process.argv.indexOf("--root");
 const ROOT =
   rootArgument < 0 ? process.cwd() : resolve(process.argv[rootArgument + 1]);
-const SOURCE_ROOT = join(ROOT, "content/public");
-const PROJECTS_ROOT = join(SOURCE_ROOT, "projects");
-const WRITING_ROOT = join(SOURCE_ROOT, "writing");
-const PAGES_ROOT = join(SOURCE_ROOT, "pages");
 const GENERATED_TS = join(ROOT, "packages/content/src/public/generated.ts");
 const CHECK = process.argv.includes("--check");
 
@@ -38,8 +35,19 @@ const pageExports = {
   systems: ["DEFAULT_SYSTEMS_CONTENT", "SystemsPage"],
 };
 
-const projects = markdownFiles(PROJECTS_ROOT).map(projectRecord);
-const writing = markdownFiles(WRITING_ROOT).map(writingRecord);
+// One walk of content/public, in layout order. A missing directory lists as
+// empty here; the canonical page check below still fails closed.
+const sourceFiles = listEditorialSources(ROOT, {
+  readdirSync: (dir) => (existsSync(dir) ? readdirSync(dir) : []),
+  readFileSync,
+});
+const markdownFiles = (kind) =>
+  sourceFiles
+    .filter((entry) => entry.kind === kind)
+    .map((entry) => join(ROOT, entry.path));
+
+const projects = markdownFiles("work").map(projectRecord);
+const writing = markdownFiles("writing").map(writingRecord);
 for (const [surface, entries] of Object.entries({ projects, writing })) {
   const slugs = new Set();
   for (const entry of entries) {
@@ -53,7 +61,7 @@ for (const [surface, entries] of Object.entries({ projects, writing })) {
   }
 }
 const pages = Object.fromEntries(
-  markdownFiles(PAGES_ROOT).map((file) => {
+  markdownFiles("page").map((file) => {
     const key = basename(file, ".md");
     const { frontmatter } = parseMarkdown(file);
     if (!pageExports[key]) throw new Error(`unknown public page: ${key}`);
@@ -65,13 +73,8 @@ for (const key of Object.keys(pageExports)) {
   if (!pages[key]) throw new Error(`missing canonical public page: ${key}`);
 }
 
-const sourceFiles = [
-  ...markdownFiles(PAGES_ROOT),
-  ...markdownFiles(PROJECTS_ROOT),
-  ...markdownFiles(WRITING_ROOT),
-];
 const sourceManifest = Object.fromEntries(
-  sourceFiles.map((file) => [sourceRef(file), sha256(readFileSync(file))]),
+  sourceFiles.map(({ path }) => [path, sha256(readFileSync(join(ROOT, path)))]),
 );
 const sourceHash = sha256(
   JSON.stringify(
@@ -103,14 +106,6 @@ for (const [file, value] of outputs) {
 }
 
 if (drift) process.exitCode = 1;
-
-function markdownFiles(dir) {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((file) => file.endsWith(".md"))
-    .sort()
-    .map((file) => join(dir, file));
-}
 
 function parseMarkdown(file) {
   const raw = readFileSync(file, "utf8");
