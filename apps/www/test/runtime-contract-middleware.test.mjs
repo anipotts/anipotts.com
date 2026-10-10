@@ -42,7 +42,19 @@ function loadMiddleware({ dev = false } = {}) {
     error: (line) => lines.error.push(String(line)),
     log: (line) => lines.info.push(String(line)),
   };
-  const contract = compile("../src/lib/runtime-contract.ts", [], {}, console);
+  const contract = compile(
+    "../src/lib/runtime-contract.ts",
+    [],
+    {
+      "@anipotts/runtime-contract": compile(
+        import.meta.resolve("@anipotts/runtime-contract"),
+        [],
+        {},
+        console,
+      ),
+    },
+    console,
+  );
   const headers = compile("../src/lib/security-headers.ts", [], {}, console);
   const { onRequest } = compile(
     "../src/middleware.ts",
@@ -157,7 +169,7 @@ test("dynamic routes report the contract once per isolate without blocking", asy
 
 test("the report is logged before a page request needs the missing binding", async () => {
   const { onRequest, lines } = loadMiddleware();
-  // Static page requests still fail without ASSETS; the contract adds no status.
+  // Page requests already fail without ASSETS; the contract adds no new status.
   await assert.rejects(onRequest(context("/404", { env: {} }), next));
   assert.equal(lines.warn.length, 1);
   assert.deepEqual(JSON.parse(lines.warn[0]).missing, ["ASSETS"]);
