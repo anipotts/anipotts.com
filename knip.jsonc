@@ -51,7 +51,7 @@
       ],
     },
     "packages/lib": {
-      // drizzle.config.ts reads the canonical schema by path.
+      // drizzle.config.ts reads the historical Drizzle model by path.
       "entry": ["src/db/schema.ts"],
     },
     "workers/state": {
