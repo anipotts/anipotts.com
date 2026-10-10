@@ -333,3 +333,151 @@ test("CMS dependencies are available only under exactly cms", () => {
     missing: ["CONTENT_DB", "CONTENT_MEDIA"],
   });
 });
+
+// Golden records: the exact line each environment logs today. Any change to
+// evaluation or reporting has to keep every line byte for byte.
+const GOLDEN_PREFIX =
+  '{"event":"runtime_contract","app":"www","entry":"middleware","release":"';
+const GOLDEN_SHA = /^[a-f0-9]{40}$/;
+
+function throwingEnv() {
+  return new Proxy(
+    {},
+    {
+      get() {
+        throw new Error(`private provider failure ${CANARY}`);
+      },
+    },
+  );
+}
+
+const GOLDEN = [
+  [
+    "a complete environment",
+    () => completeEnv(),
+    RELEASE,
+    "info",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "ASSETS missing",
+    () => completeEnv({ ASSETS: undefined }),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":false,"missing":["ASSETS"],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "NEWSLETTER_QUEUE missing",
+    () => completeEnv({ NEWSLETTER_QUEUE: undefined }),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"unavailable","missing":["NEWSLETTER_QUEUE"]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "RESEND_WEBHOOK_SECRET blank",
+    () => completeEnv({ RESEND_WEBHOOK_SECRET: "   " }),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"unavailable","missing":["RESEND_WEBHOOK_SECRET"]}}}',
+  ],
+  [
+    "DB without a prepare method",
+    () => completeEnv({ DB: { prepare: CANARY } }),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"unavailable","missing":["DB"]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"unavailable","missing":["DB"]},"resend_webhook":{"state":"unavailable","missing":["DB"]}}}',
+  ],
+  [
+    "CONTENT_RUNTIME legacy",
+    () => completeEnv({ CONTENT_RUNTIME: "legacy" }),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"unavailable","missing":[]},"published_media":{"state":"unavailable","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "CONTENT_DB and CONTENT_MEDIA missing",
+    () => completeEnv({ CONTENT_DB: undefined, CONTENT_MEDIA: undefined }),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"unavailable","missing":["CONTENT_DB"]},"published_media":{"state":"unavailable","missing":["CONTENT_DB","CONTENT_MEDIA"]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a null environment",
+    () => null,
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":false,"missing":["ASSETS"],"features":{"database":{"state":"unavailable","missing":["DB"]},"published_content":{"state":"unavailable","missing":["CONTENT_DB"]},"published_media":{"state":"unavailable","missing":["CONTENT_DB","CONTENT_MEDIA"]},"confirmation_email":{"state":"unavailable","missing":["DB","NEWSLETTER_QUEUE"]},"resend_webhook":{"state":"unavailable","missing":["DB","RESEND_WEBHOOK_SECRET"]}}}',
+  ],
+  [
+    "a throwing environment proxy",
+    () => throwingEnv(),
+    RELEASE,
+    "warn",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":false,"missing":["ASSETS"],"features":{"database":{"state":"unavailable","missing":["DB"]},"published_content":{"state":"unavailable","missing":["CONTENT_DB"]},"published_media":{"state":"unavailable","missing":["CONTENT_DB","CONTENT_MEDIA"]},"confirmation_email":{"state":"unavailable","missing":["DB","NEWSLETTER_QUEUE"]},"resend_webhook":{"state":"unavailable","missing":["DB","RESEND_WEBHOOK_SECRET"]}}}',
+  ],
+  [
+    "ASSETS as a function with a fetch method",
+    () =>
+      completeEnv({
+        ASSETS: Object.assign(function assets() {}, { fetch() {} }),
+      }),
+    RELEASE,
+    "info",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a function-typed environment",
+    () => Object.assign(function env() {}, completeEnv()),
+    RELEASE,
+    "info",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"0123456789abcdef0123456789abcdef01234567","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a release that is not a commit",
+    () => completeEnv(),
+    `not-a-sha ${CANARY}`,
+    "info",
+    '{"event":"runtime_contract","app":"www","entry":"middleware","release":"dev","ok":true,"missing":[],"features":{"database":{"state":"available","missing":[]},"published_content":{"state":"available","missing":[]},"published_media":{"state":"available","missing":[]},"confirmation_email":{"state":"available","missing":[]},"resend_webhook":{"state":"available","missing":[]}}}',
+  ],
+];
+
+test("golden runtime_contract records stay byte-equal", async () => {
+  for (const [name, env, release, level, expected] of GOLDEN) {
+    const reportRuntimeContract = await loadReporter();
+    const log = sink();
+    reportRuntimeContract(env(), release, log);
+    reportRuntimeContract(env(), release, log);
+    const other = level === "info" ? "warn" : "info";
+    assert.equal(log.lines[other].length, 0, name);
+    assert.equal(log.lines[level].length, 1, name);
+    assert.equal(log.lines[level][0], expected, name);
+    const label = GOLDEN_SHA.test(release) ? release : "dev";
+    assert.ok(expected.startsWith(`${GOLDEN_PREFIX}${label}",`), name);
+    assert.equal(
+      `{${expected.slice(GOLDEN_PREFIX.length + label.length + 2)}`,
+      JSON.stringify(evaluateRuntimeContract(env())),
+      name,
+    );
+  }
+});
+
+test("evaluation reads each environment name exactly once", () => {
+  const reads = new Map();
+  const env = new Proxy(completeEnv(), {
+    get(target, key) {
+      reads.set(key, (reads.get(key) ?? 0) + 1);
+      return Reflect.get(target, key);
+    },
+  });
+  evaluateRuntimeContract(env);
+  assert.deepEqual([...reads.keys()].sort(), [
+    "ASSETS",
+    "CONTENT_DB",
+    "CONTENT_MEDIA",
+    "CONTENT_RUNTIME",
+    "DB",
+    "NEWSLETTER_QUEUE",
+    "RESEND_WEBHOOK_SECRET",
+  ]);
+  for (const [name, count] of reads) assert.equal(count, 1, name);
+});

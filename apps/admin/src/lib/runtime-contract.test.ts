@@ -825,3 +825,229 @@ describe("admin wrangler.toml runtime contract drift", () => {
         expect(name in RUNTIME_CONTRACT).toBe(true);
   });
 });
+
+// Golden records: the exact line each environment logs today, from either
+// entry. Any change to evaluation or reporting keeps every line byte for byte.
+// Each report is the line after its event, app, entry and release fields.
+function everyReaderFlag(): Record<string, unknown> {
+  return {
+    ...completeEnv(),
+    PRIVATE_READER_HEALTH_ENABLED: "true",
+    PRIVATE_READER_KNOWLEDGE_ENABLED: "true",
+    PRIVATE_READER_CANARY_ENABLED: "true",
+    // Synthetic and short, like the audience above.
+    PRIVATE_READER_CANARY_ACCESS_AUD: "synthetic-aud-c3",
+    PRIVATE_READER_CANARY_CLIENT_ID: "synthetic-client-c3",
+  };
+}
+
+function throwingContentDb(): Record<string, unknown> {
+  const env = completeEnv();
+  Object.defineProperty(env, "CONTENT_DB", {
+    enumerable: true,
+    get() {
+      throw new Error("offline storage");
+    },
+  });
+  return env;
+}
+
+function hostileEnv() {
+  return new Proxy(
+    {},
+    {
+      get() {
+        throw new Error("hostile env");
+      },
+      has() {
+        throw new Error("hostile env");
+      },
+    },
+  );
+}
+
+const GOLDEN: [
+  name: string,
+  env: () => unknown,
+  release: string,
+  level: "info" | "warn",
+  label: string,
+  report: string,
+][] = [
+  [
+    "a complete deployment",
+    () => completeEnv(),
+    release,
+    "info",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"available","missing":[]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "ACCESS_POLICY_AUD missing",
+    () => without("ACCESS_POLICY_AUD"),
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":false,"missing":["ACCESS_POLICY_AUD"],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"available","missing":[]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "A-34 as today: reader flags on with a blank signing key",
+    () => ({ ...completeEnv(), PRIVATE_READER_SIGNING_KEY: "" }),
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"available","missing":[]},"private_reader":{"state":"unavailable","missing":["PRIVATE_READER_SIGNING_KEY"]},"private_reader_ops":{"state":"unavailable","missing":["PRIVATE_READER_SIGNING_KEY"]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "the ops flag on while PRIVATE_READER_ENABLED is off",
+    () => ({ ...completeEnv(), PRIVATE_READER_ENABLED: "false" }),
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"available","missing":[]},"private_reader":{"state":"disabled","missing":[]},"private_reader_ops":{"state":"unavailable","missing":["PRIVATE_READER_ENABLED"]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "every reader flag on with the canary configured",
+    () => everyReaderFlag(),
+    release,
+    "info",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"available","missing":[]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"available","missing":[]},"private_reader_knowledge":{"state":"available","missing":[]},"private_reader_canary":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "the canary on without its audience and client id",
+    () => ({ ...completeEnv(), PRIVATE_READER_CANARY_ENABLED: "true" }),
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"available","missing":[]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"unavailable","missing":["PRIVATE_READER_CANARY_ACCESS_AUD","PRIVATE_READER_CANARY_CLIENT_ID"]}}}',
+  ],
+  [
+    "editorial switched off",
+    () => ({ ...completeEnv(), EDITORIAL_ENABLED: "false" }),
+    release,
+    "info",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"disabled","missing":[]},"editorial_publishing":{"state":"disabled","missing":[]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "the publishing kill switch off",
+    () => ({ ...completeEnv(), EDITORIAL_PUBLISH_ENABLED: "false" }),
+    release,
+    "info",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"disabled","missing":[]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "a dev release",
+    () => completeEnv(),
+    "dev",
+    "warn",
+    "dev",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"unavailable","missing":["PUBLIC_RELEASE_SHA"]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "a release that is not a commit",
+    () => completeEnv(),
+    "<script>v9</script>",
+    "warn",
+    "dev",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"available","missing":[]},"editorial_publishing":{"state":"unavailable","missing":["PUBLIC_RELEASE_SHA"]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "a throwing CONTENT_DB getter",
+    () => throwingContentDb(),
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":true,"missing":[],"features":{"editorial":{"state":"unavailable","missing":["CONTENT_DB"]},"editorial_publishing":{"state":"unavailable","missing":["CONTENT_DB"]},"private_reader":{"state":"available","missing":[]},"private_reader_ops":{"state":"available","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "a null environment",
+    () => null,
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":false,"missing":["ASSETS","ACCESS_TEAM_DOMAIN","ACCESS_POLICY_AUD"],"features":{"editorial":{"state":"disabled","missing":[]},"editorial_publishing":{"state":"disabled","missing":[]},"private_reader":{"state":"disabled","missing":[]},"private_reader_ops":{"state":"disabled","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+  [
+    "a hostile environment proxy",
+    () => hostileEnv(),
+    release,
+    "warn",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    '{"ok":false,"missing":["ASSETS","ACCESS_TEAM_DOMAIN","ACCESS_POLICY_AUD"],"features":{"editorial":{"state":"disabled","missing":[]},"editorial_publishing":{"state":"disabled","missing":[]},"private_reader":{"state":"disabled","missing":[]},"private_reader_ops":{"state":"disabled","missing":[]},"private_reader_health":{"state":"disabled","missing":[]},"private_reader_knowledge":{"state":"disabled","missing":[]},"private_reader_canary":{"state":"disabled","missing":[]}}}',
+  ],
+];
+
+describe("admin runtime contract golden records", () => {
+  beforeEach(() => vi.resetModules());
+
+  for (const [name, env, release, level, label, report] of GOLDEN)
+    for (const entry of ["fetch", "durable_object"] as const)
+      it(`${name} from ${entry}`, async () => {
+        const { evaluateRuntimeContract, reportRuntimeContract } =
+          await import("./runtime-contract");
+        const log = { info: vi.fn(), warn: vi.fn() };
+        reportRuntimeContract(env(), entry, release, log);
+        reportRuntimeContract(env(), entry, release, log);
+        expect(log[level === "info" ? "warn" : "info"]).not.toHaveBeenCalled();
+        expect(log[level]).toHaveBeenCalledTimes(1);
+        expect(log[level].mock.calls[0][0]).toBe(
+          `{"event":"runtime_contract","app":"admin","entry":"${entry}","release":"${label}",${report.slice(1)}`,
+        );
+        expect(JSON.stringify(evaluateRuntimeContract(env(), release))).toBe(
+          report,
+        );
+      });
+
+  function reads(values: Record<string, unknown>) {
+    const names: string[] = [];
+    evaluateRuntimeContract(
+      new Proxy(values, {
+        get(target, key) {
+          names.push(String(key));
+          return Reflect.get(target, key);
+        },
+      }),
+      release,
+    );
+    return names;
+  }
+
+  it("reads each name once, in feature order, with every flag on", () => {
+    expect(reads(everyReaderFlag())).toEqual([
+      "ASSETS",
+      "ACCESS_TEAM_DOMAIN",
+      "ACCESS_POLICY_AUD",
+      "EDITORIAL_ENABLED",
+      "EDITORIAL",
+      "CONTENT_DB",
+      "EDITORIAL_PUBLISH_ENABLED",
+      "CONTENT_MEDIA",
+      "PRIVATE_READER_ENABLED",
+      "PRIVATE_READER_SIGNING_KEY",
+      "PRIVATE_READER_OPS_ENABLED",
+      "PRIVATE_READER_HEALTH_ENABLED",
+      "PRIVATE_READER_KNOWLEDGE_ENABLED",
+      "PRIVATE_READER_CANARY_ENABLED",
+      "PRIVATE_READER_CANARY_ACCESS_AUD",
+      "PRIVATE_READER_CANARY_CLIENT_ID",
+    ]);
+  });
+
+  it("never reads a switched-off feature's storage or later flags", () => {
+    expect(reads({ ...completeEnv(), EDITORIAL_ENABLED: "false" })).toEqual([
+      "ASSETS",
+      "ACCESS_TEAM_DOMAIN",
+      "ACCESS_POLICY_AUD",
+      "EDITORIAL_ENABLED",
+      "PRIVATE_READER_ENABLED",
+      "PRIVATE_READER_SIGNING_KEY",
+      "PRIVATE_READER_OPS_ENABLED",
+      "PRIVATE_READER_HEALTH_ENABLED",
+      "PRIVATE_READER_KNOWLEDGE_ENABLED",
+      "PRIVATE_READER_CANARY_ENABLED",
+    ]);
+  });
+});
