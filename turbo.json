@@ -93,7 +93,13 @@
     },
     "@anipotts/content#typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "tsconfig*.json", "package.json"],
+      "inputs": [
+        "$TURBO_ROOT$/content/public/**",
+        "$TURBO_ROOT$/scripts/content/generate-public-content.mjs",
+        "src/**",
+        "tsconfig*.json",
+        "package.json"
+      ],
       "outputs": []
     },
     "@anipotts/admin#test": {
