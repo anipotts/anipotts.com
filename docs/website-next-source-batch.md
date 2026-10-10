@@ -35,18 +35,18 @@ B/S/Q means Build, Security Review and CodeQL. Historical green checks on a
 head behind main are not current-main readiness. A draft's intentional Build
 gate failure is separate from software validation.
 
-| PR   | Source head                                | Current checks/disposition                                | Own delta against current main              |
-| ---- | ------------------------------------------ | --------------------------------------------------------- | ------------------------------------------- |
-| #507 | `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba` | previous B/S/Q pass; now behind; separate owner           | admin                                       |
-| #509 | `d698b76e3e47f557139f7fb1192a7e1d517a8b57` | fresh Build running; S/Q pass                             | admin/state                                 |
-| #512 | `f99e1351187898116b8a4f2dffdbb9ef89478308` | merged as988b; Production held                            | four Workers                                |
-| #513 | `f25395ccc81e9e617fd96eaf1ce47f12a20b8e6a` | draft; full admin typecheck and201 tests pass             | admin                                       |
-| #514 | `8000c2dfee697b0f06205e77fd50397ec797cb7a` | draft; strict-base refresh/state scope repair in progress | inherited state edit until repair           |
-| #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                              | www/admin                                   |
-| #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review               | www/admin                                   |
-| #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; refreshed main and515; checks pending              | www/admin                                   |
-| #522 | `ba6d8cc2f5cf3b462af06745a3f78a674c36cc81` | feature draft; refreshed main; checks pending             | broader feature; recalculate before release |
-| #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                            | all six                                     |
+| PR   | Source head                                | Current checks/disposition                                      | Own delta against current main              |
+| ---- | ------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------- |
+| #507 | `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba` | previous B/S/Q pass; now behind; separate owner                 | admin                                       |
+| #509 | `d698b76e3e47f557139f7fb1192a7e1d517a8b57` | fresh Build running; S/Q pass                                   | admin/state                                 |
+| #512 | `f99e1351187898116b8a4f2dffdbb9ef89478308` | merged as988b; Production held                                  | four Workers                                |
+| #513 | `f25395ccc81e9e617fd96eaf1ce47f12a20b8e6a` | draft; full admin typecheck and201 tests pass                   | admin                                       |
+| #514 | `5b60c9173b1e53f92d3f465f1d61cca2b6fe8e97` | draft; fresh light/drift/S/Q pass; full typecheck/169tests pass | admin                                       |
+| #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                    | www/admin                                   |
+| #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                     | www/admin                                   |
+| #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; refreshed main and515; checks pending                    | www/admin                                   |
+| #522 | `ba6d8cc2f5cf3b462af06745a3f78a674c36cc81` | feature draft; refreshed main; checks pending                   | broader feature; recalculate before release |
+| #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                  | all six                                     |
 
 None of these existing plans selects D1 changes or remote migration; schema
 stays `0044`. Targets describe source deltas. Final deployment may include
