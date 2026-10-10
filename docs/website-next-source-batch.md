@@ -29,6 +29,21 @@ Later automatic refreshes enabled auto-merge on #513/#515; this chat returned
 both to draft and verified auto-merge off. #514/#518 were also held as drafts.
 No later Production release has been authorized here.
 
+The waiting run is exactly38031295743 at988b7edf. The global
+`production-release` concurrency group has `cancel-in-progress:false`; manual
+dispatch shares this queue and the Production gates. No later release can pass
+until this active run ends through an explicitly approved decision. No cancel,
+reject, approval or replacement was performed by this chat.
+
+An independent read-only prospective507 witness against988b produced tree
+`9576d09e25cc3d6800c9c150ae1e78b06d89352b`: the event diff is admin package/lock
+only. Although cumulative source differences from live1ccc include the four
+Worker changes, the current planner cumulatively adds only www. Its final plan
+selects admin only, not those Workers or D1. Withdrawing512 would therefore not
+deploy its Worker changes or mark them released. Recompute on507's actual fresh
+integration commit. Sequence507 before516 when preserving an admin-only packet;
+unreleased516 public-app changes could otherwise add www cumulatively.
+
 ## Exact source packets
 
 B/S/Q means Build, Security Review and CodeQL. Historical green checks on a
@@ -45,7 +60,7 @@ gate failure is separate from software validation.
 | #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                    | www/admin                                   |
 | #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                     | www/admin                                   |
 | #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; fresh light/S/Q pass; refreshed main/515                 | www/admin                                   |
-| #522 | `ba6d8cc2f5cf3b462af06745a3f78a674c36cc81` | feature draft; fresh light/S/Q pass; refreshed main             | broader feature; recalculate before release |
+| #522 | `e5ce6212b3c043608d8120e0b106d70a47ed7452` | feature draft; fresh light/S/Q pass; recovery repair included   | broader feature; recalculate before release |
 | #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                  | all six                                     |
 
 None of these existing plans selects D1 changes or remote migration; schema
