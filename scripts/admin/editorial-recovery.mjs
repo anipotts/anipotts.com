@@ -22,10 +22,18 @@ const requestId = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/iu;
 function timestamp(value) {
   if (typeof value !== "string" || value.length > 64) return false;
   const match =
-    /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.exec(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):?(\d{2}))$/u.exec(
       value,
     );
   if (!match || !Number.isFinite(Date.parse(value))) return false;
+  if (
+    Number(match[4]) > 23 ||
+    Number(match[5]) > 59 ||
+    Number(match[6] ?? 0) > 59 ||
+    Number(match[7] ?? 0) > 23 ||
+    Number(match[8] ?? 0) > 59
+  )
+    return false;
   const year = Number(match[1]),
     month = Number(match[2]),
     day = Number(match[3]);

@@ -551,6 +551,21 @@ test("offline validation rejects missing store planes, historical/media/publicat
     (s) =>
       (s.content.tables.editorial_published_revisions[0].published_at =
         "2026-02-30T00:00:00.000Z"),
+    (s) =>
+      (s.content.tables.editorial_published_revisions[0].published_at =
+        "2026-10-10T24:00:00.000Z"),
+    (s) =>
+      (s.content.tables.editorial_published_revisions[0].published_at =
+        "2026-10-10T23:60:00.000Z"),
+    (s) =>
+      (s.content.tables.editorial_published_revisions[0].published_at =
+        "2026-10-10T23:59:60.000Z"),
+    (s) =>
+      (s.content.tables.editorial_published_revisions[0].published_at =
+        "2026-10-10T23:59:59.000+24:00"),
+    (s) =>
+      (s.content.tables.editorial_published_revisions[0].published_at =
+        "2026-10-10T23:59:59.000+00:60"),
     (s) => (s.contentSchemaVersion = 2),
     (s) =>
       (s.content.tables.editorial_published_revisions[0].content_schema_version = 2),
@@ -695,4 +710,18 @@ test("offline bounds reject excess bytes, entries and nesting, while maximum med
     17,
   ).toString("base64");
   assert.throws(() => exportOfflineRecovery(snapshot), /media_hash/);
+});
+
+test("offline publication timestamp compatibility retains canonical minute, leap-day and compact-offset formats", () => {
+  for (const value of [
+    "2026-10-10T12:00Z",
+    "2026-10-10T12:00:00+0200",
+    "2024-02-29T23:59:59.000+02:30",
+  ]) {
+    const snapshot = fixture();
+    for (const receipt of snapshot.content.tables.editorial_published_revisions)
+      receipt.published_at = value;
+    snapshot.editorial.tables.direct_publication_intents[0].publishedAt = value;
+    assert.doesNotThrow(() => exportOfflineRecovery(snapshot), value);
+  }
 });
