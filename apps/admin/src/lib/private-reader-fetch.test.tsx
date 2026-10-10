@@ -10,8 +10,11 @@ import {
   PRIVATE_READER_ROUTES,
   PrivateReaderError,
   createPrivateDataReader,
+  exactScope,
   privateReaderPath,
   readerFetch,
+  readerGet,
+  type BearerSource,
 } from "./private-reader-fetch";
 import type { PrivateReaderSession } from "./private-reader-client";
 let createPrivateReaderSession: typeof import("./private-reader-client").createPrivateReaderSession;
@@ -559,6 +562,198 @@ describe("System reader bounds", () => {
   });
 });
 
+describe("one reader transport", () => {
+  const { opsSnapshot, opsEvents } = PRIVATE_READER_ROUTES;
+
+  it("raw mode returns the 200 or 304 Response; json mode fails a 304", async () => {
+    const { fetcher, calls } = network((_url, init) =>
+      new Headers(init.headers).has("if-none-match")
+        ? new Response(null, { status: 304 })
+        : json({ fresh: true }),
+    );
+    const session = makeSession(fetcher);
+    await session.start();
+    const fresh = await readerGet(session, opsSnapshot, "raw", {
+      fetch: fetcher,
+    });
+    expect(fresh.status).toBe(200);
+    expect(await fresh.json()).toEqual({ fresh: true });
+    const same = await readerGet(session, opsSnapshot, "raw", {
+      fetch: fetcher,
+      headers: { "If-None-Match": '"v1"' },
+    });
+    expect(same.status).toBe(304);
+    // The bearer goes first; the caller's header follows it.
+    expect(calls[1]!.init.headers).toEqual({
+      Authorization: "Bearer synthetic.jws.1",
+      "If-None-Match": '"v1"',
+    });
+    expect(Object.keys(calls[1]!.init.headers as object)).toEqual([
+      "Authorization",
+      "If-None-Match",
+    ]);
+    await expect(
+      readerGet(session, "/v1/data/status", "json", {
+        fetch: fetcher,
+        headers: { "If-None-Match": '"v1"' },
+      }),
+    ).rejects.toMatchObject({ status: 304, failure: "unavailable" });
+    session.logout();
+  });
+
+  it("raw mode throws any other status, after one renewal on 401", async () => {
+    const statuses = [401, 503];
+    const { fetcher, calls } = network(
+      () => new Response(null, { status: statuses.shift() }),
+    );
+    const session = makeSession(fetcher);
+    await session.start();
+    await expect(
+      readerGet(session, opsSnapshot, "raw", { fetch: fetcher }),
+    ).rejects.toMatchObject({ status: 503, failure: "unavailable" });
+    expect(
+      calls.map((call) => new Headers(call.init.headers).get("authorization")),
+    ).toEqual(["Bearer synthetic.jws.1", "Bearer synthetic.jws.2"]);
+    session.logout();
+  });
+
+  it("raw mode reaches only the ops routes, with their exact params", async () => {
+    const { fetcher, calls } = network(() => json({}));
+    const session = makeSession(fetcher);
+    await session.start();
+    for (const path of [
+      `${opsSnapshot}?x=1`,
+      `${opsSnapshot}?wait=25`,
+      `${opsSnapshot}x`,
+      `${opsSnapshot}#x`,
+      opsEvents,
+      `${opsEvents}?after=0`,
+      `${opsEvents}?limit=500`,
+      `${opsEvents}?after=0&after=1&limit=500`,
+      `${opsEvents}?after=0&limit=500&wait=25&wait=1`,
+      `${opsEvents}?after=0&limit=500&device=pro`,
+      "/v1/ops/",
+      `//evil.example${opsSnapshot}`,
+      `https://evil.example${opsSnapshot}`,
+      "/v1/data/status",
+      `/v1/data/records/${recordId}?body_offset=0&body_limit=32000`,
+      "/v1/health/daily?days=7",
+      "/v1/data/entities/ent-sample",
+    ])
+      await expect(
+        readerGet(session, path, "raw", { fetch: fetcher }),
+        path,
+      ).rejects.toMatchObject({ failure: "malformed" });
+    expect(calls).toHaveLength(0);
+    for (const path of [
+      opsSnapshot,
+      `${opsEvents}?after=0&limit=500`,
+      `${opsEvents}?after=12&limit=500&wait=25`,
+      `${opsEvents}?limit=500&after=3&wait=0`,
+    ])
+      await readerGet(session, path, "raw", { fetch: fetcher });
+    expect(calls.map((call) => call.url.href)).toEqual([
+      `${PRIVATE_READER_ORIGIN}/v1/ops/snapshot`,
+      `${PRIVATE_READER_ORIGIN}/v1/ops/events?after=0&limit=500`,
+      `${PRIVATE_READER_ORIGIN}/v1/ops/events?after=12&limit=500&wait=25`,
+      `${PRIVATE_READER_ORIGIN}/v1/ops/events?limit=500&after=3&wait=0`,
+    ]);
+    session.logout();
+  });
+
+  it("json mode never reaches an ops route", async () => {
+    const { fetcher, calls } = network(() => json({}));
+    const session = makeSession(fetcher);
+    await session.start();
+    for (const path of [
+      opsSnapshot,
+      `${opsEvents}?after=0&limit=500`,
+      `${opsEvents}?after=0&limit=500&wait=25`,
+    ]) {
+      await expect(
+        readerFetch(session, path, { fetch: fetcher }),
+        path,
+      ).rejects.toMatchObject({ failure: "malformed" });
+      await expect(
+        readerGet(session, path, "json", { fetch: fetcher }),
+        path,
+      ).rejects.toMatchObject({ failure: "malformed" });
+    }
+    expect(calls).toHaveLength(0);
+    session.logout();
+  });
+
+  it("readerFetch sends the bearer alone, whatever its options carry", async () => {
+    const { fetcher, calls } = network();
+    const session = makeSession(fetcher);
+    await session.start();
+    const options = { fetch: fetcher, headers: { "X-Scope": "ops:read" } };
+    await readerFetch(session, "/v1/data/status", options);
+    expect(calls[0]!.init.headers).toEqual({
+      Authorization: "Bearer synthetic.jws.1",
+    });
+    session.logout();
+  });
+
+  it("keeps the shared constants module import-free", () => {
+    // The server credential route and the browser readers both import it,
+    // so it must pull in neither signing code nor React. (A variable path
+    // keeps Vite from turning the URL into an asset URL.)
+    const file = "./generated/private-reader.ts";
+    const source = readFileSync(
+      fileURLToPath(new URL(file, import.meta.url)),
+      "utf8",
+    );
+    expect(source).not.toMatch(
+      /^\s*import\b|\bfrom\s+["']|\brequire\(|\bimport\(/m,
+    );
+  });
+
+  it("exactScope passes only its one scope and clears anything else as denied", () => {
+    const source = (state: ReturnType<BearerSource["getState"]>) => {
+      const deny = vi.fn();
+      const session: BearerSource = {
+        bearer: () => "synthetic",
+        renew: async () => state,
+        deny,
+        getState: () => state,
+      };
+      return { session, deny };
+    };
+    const ready = (scope: string[]) =>
+      source({
+        status: "ready",
+        credential: { credential: "synthetic", scope, expiresAt: 0 },
+      });
+
+    const exact = ready(["ops:read"]);
+    expect(() => exactScope(exact.session, "ops:read")()).not.toThrow();
+    expect(exact.deny).not.toHaveBeenCalled();
+    // Not ready: no credential to refuse; the transport reports expiry.
+    const idle = source({ status: "idle" });
+    expect(() => exactScope(idle.session, "ops:read")()).not.toThrow();
+    expect(idle.deny).not.toHaveBeenCalled();
+
+    for (const scope of [
+      ["ops:read", "data:read"],
+      ["data:read"],
+      ["OPS:READ"],
+      [],
+    ]) {
+      const other = ready(scope);
+      let thrown: unknown;
+      try {
+        exactScope(other.session, "ops:read")();
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown, String(scope)).toBeInstanceOf(PrivateReaderError);
+      expect(thrown).toMatchObject({ status: 403, failure: "forbidden" });
+      expect(other.deny).toHaveBeenCalledTimes(1);
+    }
+  });
+});
+
 describe("revision history cap", () => {
   const revisions = (count: number) =>
     Array.from({ length: count }, (_, index) => ({
@@ -1037,6 +1232,7 @@ describe("private Data workspace", () => {
     for (const file of [
       "./private-reader-fetch.ts",
       "./private-reader-client.ts",
+      "./generated/private-reader.ts",
       "../components/data/DataWorkspace.tsx",
       "../components/data/DataNotices.tsx",
       "../components/data/RecordsView.tsx",

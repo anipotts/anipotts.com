@@ -5,16 +5,17 @@ import {
 import {
   PRIVATE_READER_BOUNDS,
   PRIVATE_READER_ROUTES,
-  PrivateReaderError,
+  exactScope,
   readerFetch,
+  type BearerSource,
 } from "./private-reader-fetch";
-import { readEditorialCsrf } from "./editorial-client";
-import { trackPrivateSession } from "./private-session-store";
-import { strictReaders } from "./strict-json";
 import {
   PRIVATE_READER_HEALTH_PATH,
   PRIVATE_READER_HEALTH_SCOPES,
 } from "./generated/private-reader";
+import { readEditorialCsrf } from "./editorial-client";
+import { trackPrivateSession } from "./private-session-store";
+import { strictReaders } from "./strict-json";
 
 /**
  * Browser reads of System's daily health summary, `GET /v1/health/daily`
@@ -34,6 +35,9 @@ import {
  * anything else rejects the whole reply. No other health field is ever read.
  */
 export const HEALTH_DAILY_PATH = PRIVATE_READER_ROUTES.health;
+/** The health issuance route and its one scope come from the pinned System
+ * contract (lib/generated/private-reader.ts), which imports nothing, so the
+ * client gets them without signing code. */
 export const HEALTH_CREDENTIAL_ENDPOINT = PRIVATE_READER_HEALTH_PATH;
 export const HEALTH_SCOPE = PRIVATE_READER_HEALTH_SCOPES[0];
 /** The ranges the view offers, in days. System serves 1 to 90. */
@@ -183,21 +187,6 @@ export function parseHealthDaily(value: unknown, days: number): HealthDaily {
   return { observedAt, days, items };
 }
 
-type BearerSource = Pick<
-  PrivateReaderSession,
-  "bearer" | "renew" | "deny" | "getState"
->;
-
-/** True only for a credential whose scope is exactly `health:read`. */
-function healthScoped(session: BearerSource): boolean {
-  const state = session.getState();
-  return (
-    state.status === "ready" &&
-    state.credential.scope.length === 1 &&
-    state.credential.scope[0] === HEALTH_SCOPE
-  );
-}
-
 /**
  * One `GET /v1/health/daily?days=` through the shared reader fetch (one
  * bearer, CORS, no-store, no referrer, a 401 renews once). Before every
@@ -212,12 +201,7 @@ export async function readHealthDaily(
   const path = healthDailyPath(days);
   const body = await readerFetch(session, path, {
     ...options,
-    beforeSend: () => {
-      if (session.getState().status === "ready" && !healthScoped(session)) {
-        session.deny();
-        throw new PrivateReaderError(403, "forbidden");
-      }
-    },
+    beforeSend: exactScope(session, HEALTH_SCOPE),
   });
   return parseHealthDaily(body, days);
 }

@@ -151,6 +151,39 @@ describe("ops snapshot read", () => {
     ).rejects.toMatchObject({ failure: "forbidden" });
   });
 
+  it("checks the scope again before the renewed send after a 401", async () => {
+    // The first credential is ops:read; the renewal hands back a Data one.
+    // Nothing may go out with it.
+    let issued = 0;
+    const sent: string[] = [];
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        if (String(input) === OPS_CREDENTIAL_ENDPOINT) {
+          issued++;
+          return Response.json({
+            credential: `cred-${issued}`,
+            scope: issued === 1 ? ["ops:read"] : ["data:read", "activity:read"],
+            expiresAt: Math.floor(Date.now() / 1000) + 60,
+          });
+        }
+        sent.push(header(init, "Authorization")!);
+        return new Response(null, { status: 401 });
+      },
+    ) as unknown as typeof globalThis.fetch;
+    const session = createPrivateReaderSession({
+      fetch,
+      csrf: async () => "csrf-token",
+      endpoint: OPS_CREDENTIAL_ENDPOINT,
+    });
+    await session.start();
+    await expect(
+      readOpsSnapshot(session, null, { fetch }),
+    ).rejects.toMatchObject({ failure: "forbidden" });
+    expect(sent).toEqual(["Bearer cred-1"]);
+    expect(issued).toBe(2);
+    expect(session.getState()).toEqual({ status: "cleared", reason: "denied" });
+  });
+
   it("renews once on 401, then clears the session on a second 401", async () => {
     const h = harness();
     await h.session.start();
