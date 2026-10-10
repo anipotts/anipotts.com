@@ -24,6 +24,8 @@ for (const path of [
   "writing.html",
   "work.html",
   "systems.html",
+  "links.html",
+  "business.html",
   "feed.xml",
   "sitemap.xml",
   "search-index.json",
@@ -67,6 +69,8 @@ const pages = [
   "/work",
   "/writing",
   "/systems",
+  "/links",
+  "/business",
   ...visible.map(({ slug }) => `/work/${slug}`),
   ...published.map(({ slug }) => `/writing/${slug}`),
 ];

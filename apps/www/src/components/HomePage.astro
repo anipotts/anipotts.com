@@ -12,7 +12,7 @@ import type { CollectionEntry } from "astro:content";
 import { projectSlug, writingSlug } from "../lib/content";
 import { byRankThenSlug } from "../lib/listing-order";
 import { personIdentity, websiteId } from "../lib/identity";
-import { siteConfig } from "@anipotts/content/public";
+import { siteConfig, resolveSiteSettings } from "@anipotts/content/public/site";
 
 type Props = {
   cmsHome: CollectionEntry<"home">["data"];
@@ -21,6 +21,7 @@ type Props = {
   preview?: boolean;
 };
 const { cmsHome, allWork, allWriting } = Astro.props;
+const settings = resolveSiteSettings(cmsHome.site_settings);
 const intro = cmsHome.sections.intro;
 const work = cmsHome.sections.past_work;
 const writing = cmsHome.sections.latest_thoughts;
@@ -73,8 +74,9 @@ const profileLd = {
 ---
 
 <Shell
-  title={siteConfig.homepageTitle}
-  description={siteConfig.description}
+  title={settings.seo.homepageTitle}
+  description={settings.seo.description}
+  siteSettings={cmsHome.site_settings}
   path="/"
   jsonLd={profileLd}
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}

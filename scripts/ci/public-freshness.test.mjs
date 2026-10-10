@@ -23,6 +23,7 @@ assert.ok(
 // Git defaults. The built-Worker suite separately proves real inventory reads,
 // hidden-record suppression, version headers and database failure behavior.
 const ts = createRequire(resolve("apps/www/package.json"))("typescript");
+const sharedSite = await import("../../packages/content/dist/public/site.js");
 const writing = [
   {
     id: "older",
@@ -52,7 +53,8 @@ async function exercise(file, fail = false) {
   const snapshot = { inventoryVersion: 7 };
   let contexts = 0,
     writingReads = 0,
-    projectReads = 0;
+    projectReads = 0,
+    settingsReads = 0;
   const imports = {
     "../lib/content": {
       publicContentContext(input) {
@@ -87,6 +89,19 @@ async function exercise(file, fail = false) {
         url: "https://example.test",
         displayName: "Fixture",
         feedDescription: "Fixture feed",
+      },
+    },
+    "@anipotts/content/public/site": sharedSite,
+    "../lib/site-settings": {
+      async publishedSiteSettings(context) {
+        assert.equal(
+          context,
+          snapshot,
+          `${file} settings share its request snapshot`,
+        );
+        settingsReads++;
+        if (fail) throw new Error("synthetic publication read failure");
+        return { seo: { feed_description: "Fixture CMS feed" } };
       },
     },
     "@anipotts/content/public/inline": { inlinePlainText: (value) => value },
@@ -124,9 +139,11 @@ async function exercise(file, fail = false) {
   assert.equal(contexts, 1, `${file} creates one shared request context`);
   assert.equal(writingReads, 1, `${file} reads published writing once`);
   assert.equal(projectReads, file === "sitemap.xml.ts" ? 1 : 0);
+  assert.equal(settingsReads, file === "feed.xml.ts" ? 1 : 0);
   return result;
 }
 const rss = await exercise("feed.xml.ts");
+assert.equal(rss.description, "Fixture CMS feed");
 assert.match(
   rss.customData,
   /<lastBuildDate>Sun, 01 Feb 2026 00:00:00 GMT<\/lastBuildDate>/,

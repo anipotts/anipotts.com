@@ -75,6 +75,7 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 it("restores only the server-provided account and preserves legacy unscoped data without adopting it", async () => {
   sessionStorage.setItem(
@@ -189,6 +190,148 @@ it("retains creation operation identity after an ambiguous network failure", asy
       .request!.id,
   ).toBe(ids[0]);
   expect(titleField().value).toBe("Retry me");
+});
+
+it("downloads current creation fields and its ambiguous retry identity after storage denial", async () => {
+  let requestId: string | undefined;
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (url.includes("csrf"))
+      return jsonResponse(JSON.stringify({ csrf: "test" }), { status: 200 });
+    requestId = JSON.parse(String(options?.body)).requestId;
+    throw new TypeError("synthetic network failure");
+  });
+  vi.stubGlobal("fetch", fetcher);
+  await render();
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("synthetic quota denial");
+  });
+  await type("Newest 雨 e\u0301 title");
+  await act(async () => {
+    host
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+  expect(requestId).toBeTruthy();
+  const before = fetcher.mock.calls.length;
+  const originalGetItem = Storage.prototype.getItem;
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+    this: Storage,
+    name,
+  ) {
+    if (name.startsWith("editorial-recovery:v"))
+      throw new Error("synthetic recovery read denial");
+    return originalGetItem.call(this, name);
+  });
+  class DownloadURL extends URL {
+    static createObjectURL = vi.fn(
+      (_blob: Blob) => "blob:synthetic-current-copy",
+    );
+    static revokeObjectURL = vi.fn();
+  }
+  vi.stubGlobal("URL", DownloadURL);
+  const download = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => {});
+  await act(async () => {
+    Array.from(host.querySelectorAll("button"))
+      .find((button) => button.textContent === "Download recovery copies")!
+      .click();
+  });
+  expect(download).toHaveBeenCalledOnce();
+  const blob = DownloadURL.createObjectURL.mock.calls[0][0];
+  const contents = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+  const bundle = JSON.parse(contents);
+  expect(bundle.currentCopy).toEqual({
+    key: newWritingRecoveryKey("owner"),
+    kind: "new-writing",
+    payload: {
+      title: "Newest 雨 e\u0301 title",
+      slug: "newest-e-title",
+      customSlug: false,
+      request: {
+        key: JSON.stringify(["Newest 雨 e\u0301 title", "newest-e-title"]),
+        id: requestId,
+      },
+    },
+  });
+  expect(bundle.storedStatus).toBe("unavailable");
+  expect(fetcher.mock.calls).toHaveLength(before);
+  vi.restoreAllMocks();
+});
+
+it("locks creation without offering plaintext download when storage denial prevents session admission", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+    throw new Error("synthetic storage unavailable");
+  });
+  await render();
+  expect(titleField()).toBeNull();
+  expect(host.textContent).toContain("Session ended");
+  expect(host.textContent).not.toContain("Download recovery copies");
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("offers current-copy download when no recovery storage key was available", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  await render("");
+  await type("Current fields remain available");
+  expect(host.textContent).toContain("Download recovery copies");
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it.each(["expired", "logout"] as const)(
+  "removes current-copy download when creation session is %s",
+  async (reason) => {
+    await render();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("synthetic quota denial");
+    });
+    await type("Private creation fields before lock");
+    expect(host.textContent).toContain("Download recovery copies");
+    const { lockProtectedSession } =
+      await import("../../lib/protected-admin-json");
+    await act(async () => lockProtectedSession(reason));
+    expect(titleField()).toBeNull();
+    expect(host.textContent).not.toContain("Download recovery copies");
+    expect(host.textContent).not.toContain(
+      "Private creation fields before lock",
+    );
+    expect(host.textContent).toContain("Session ended");
+    vi.restoreAllMocks();
+  },
+);
+
+it("refuses plaintext creation download after a persisted logout before its event arrives", async () => {
+  await render();
+  const originalSetItem = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("synthetic quota denial");
+  });
+  await type("Private creation fields before delayed logout");
+  const action = Array.from(host.querySelectorAll("button")).find(
+    (button) => button.textContent === "Download recovery copies",
+  )!;
+  class DownloadURL extends URL {
+    static createObjectURL = vi.fn((_blob: Blob) => "blob:must-not-download");
+    static revokeObjectURL = vi.fn();
+  }
+  vi.stubGlobal("URL", DownloadURL);
+  originalSetItem.call(
+    localStorage,
+    recoveryLogoutKey,
+    "synthetic-next-logout",
+  );
+  await act(async () => action.click());
+  expect(DownloadURL.createObjectURL).not.toHaveBeenCalled();
+  expect(titleField()).toBeNull();
+  expect(host.textContent).toContain("Session ended");
 });
 
 it("announces the created draft so open libraries list it without a reload", async () => {

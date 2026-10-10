@@ -25,6 +25,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Check draft diff
         run: git diff --check "origin/${{ github.event.pull_request.base.ref }}"...HEAD
+      - name: Verify pinned System contracts offline
+        run: node scripts/ci/check-system-contracts.mjs && node --test scripts/ci/check-system-contracts.test.mjs
 
   classify:
     name: Classify release
@@ -100,6 +102,10 @@ jobs:
         if: github.event.pull_request.draft == false
         run: pnpm install --frozen-lockfile
 
+      - name: Verify pinned System contracts offline
+        if: github.event.pull_request.draft == false
+        run: pnpm check:system-contracts
+
       - name: Generate canonical content projections
         if: github.event.pull_request.draft == false
         run: pnpm content:generate
@@ -127,6 +133,10 @@ jobs:
       - name: Validate local development
         if: github.event.pull_request.draft == false && needs.classify.outputs.local_dev_changed == 'true'
         run: pnpm test:admin-preview && pnpm test:dev-servers
+
+      - name: Validate owner editorial CLI contracts
+        if: github.event.pull_request.draft == false
+        run: pnpm test:editorial-cli
 
       - name: Validate affected packages once
         if: github.event.pull_request.draft == false && needs.classify.outputs.docs_only != 'true'

@@ -5,6 +5,7 @@ import {
   type RecoveryLock,
   versionedRecoveryKey,
   recoveryLogoutGenerationKey,
+  exportBrowserRecoveryCopy,
 } from "./browser-recovery";
 import {
   recoveryKey,
@@ -54,6 +55,46 @@ const snapshot = {
 function channel(local: Storage, lock = mutex()) {
   return new BrowserRecovery(local, key, "draft", validateRecovery, lock);
 }
+
+it("downloads current edits and retry identity separately from opaque stored copies", () => {
+  const local = storage();
+  const unknown = '{ "version": 99, "private": "opaque 雨\\r\\n" }';
+  local.setItem(versionedRecoveryKey(key), unknown);
+  local.setItem(key, JSON.stringify({ ...snapshot, source: "stale legacy" }));
+  const before = { ...local };
+  const current = { ...snapshot, source: "Newest e\u0301 雨\r\n" };
+  const recovery = channel(local);
+  const bundle = JSON.parse(
+    exportBrowserRecoveryCopy({ key, kind: "draft", payload: current }, () =>
+      recovery.export(),
+    ),
+  );
+  expect(bundle.currentCopy).toEqual({ key, kind: "draft", payload: current });
+  expect(bundle.entries[versionedRecoveryKey(key)]).toBe(unknown);
+  expect(bundle.entries[key]).toBe(before[key]);
+  expect(bundle.storedStatus).toBe("complete");
+  expect({ ...local }).toEqual(before);
+});
+
+it("keeps the current copy downloadable without storage, even above recovery limits", () => {
+  const current = { ...snapshot, source: "雨".repeat(MAX_SOURCE_BYTES) };
+  for (const reader of [
+    undefined,
+    () => {
+      throw new Error("synthetic storage denial");
+    },
+  ]) {
+    const bundle = JSON.parse(
+      exportBrowserRecoveryCopy(
+        { key, kind: "draft", payload: current },
+        reader,
+      ),
+    );
+    expect(bundle.currentCopy.payload).toEqual(current);
+    expect(bundle.entries).toEqual({});
+    expect(bundle.storedStatus).toBe("unavailable");
+  }
+});
 
 it("reads legacy exact bytes and pending identity without any write, then writes v2 without touching legacy", async () => {
   const local = storage();

@@ -1,6 +1,14 @@
 import type { EditorialRecord } from "@anipotts/content/editorial/record";
+import {
+  navItems,
+  siteConfig,
+  siteLinks,
+  footerProfileDefaults,
+} from "@anipotts/content/public/site";
 export type EditorialField = {
   label: string;
+  defaultValue?: string;
+  group?: string;
   path: string[];
   rich?: boolean;
   /** Explicit per-field markdown marker for source-preserving rich edits. */
@@ -93,6 +101,61 @@ export function editorialFields(
       {
         label: "Writing section label",
         path: ["sections", "latest_thoughts", "label"],
+      },
+      ...navItems.map((item, index) => ({
+        label: `${item.name[0]!.toUpperCase()}${item.name.slice(1)} navigation label`,
+        path: ["site_settings", "navigation", item.name],
+        defaultValue: item.name,
+        ...(index === 0 ? { group: "Shared navigation" } : {}),
+      })),
+      {
+        label: "Footer prompt",
+        path: ["site_settings", "footer", "prompt"],
+        defaultValue: "have a question?",
+        group: "Shared footer",
+      },
+      ...Object.entries(footerProfileDefaults).flatMap(([key, link]) => [
+        {
+          label: `${link.title} label`,
+          path: ["site_settings", "footer", "profiles", key, "label"],
+          defaultValue: link.label,
+        },
+        {
+          label: `${link.title} URL`,
+          path: ["site_settings", "footer", "profiles", key, "href"],
+          defaultValue: link.href,
+        },
+      ]),
+      {
+        label: "RSS label",
+        path: ["site_settings", "footer", "rss_label"],
+        defaultValue: siteLinks.rss.label,
+      },
+      {
+        label: "Admin link label",
+        path: ["site_settings", "footer", "admin_label"],
+        defaultValue: siteLinks.admin.label,
+      },
+      {
+        label: "Homepage search title",
+        path: ["site_settings", "seo", "homepage_title"],
+        defaultValue: siteConfig.homepageTitle,
+        group: "Shared search and feeds",
+      },
+      {
+        label: "Homepage search description",
+        path: ["site_settings", "seo", "description"],
+        defaultValue: siteConfig.description,
+      },
+      {
+        label: "Search title suffix",
+        path: ["site_settings", "seo", "title_suffix"],
+        defaultValue: siteConfig.displayName,
+      },
+      {
+        label: "Feed description",
+        path: ["site_settings", "seo", "feed_description"],
+        defaultValue: siteConfig.feedDescription,
       },
     ];
   if (record.id === "newsletter")

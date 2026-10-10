@@ -1,18 +1,21 @@
 ---
 import { Icon } from "astro-icon/components";
 import { siteConfig, siteLinks } from "@anipotts/content/public";
-import { creatorLinks } from "../lib/identity";
+import { resolveSiteSettings } from "@anipotts/content/public/site";
 import BrandMark from "@anipotts/brand/BrandMark.astro";
-const links = { ...siteLinks, ...creatorLinks };
+interface Props {
+  settings?: ReturnType<typeof resolveSiteSettings>["footer"];
+}
+const settings = Astro.props.settings ?? resolveSiteSettings().footer;
+const links = {
+  ...settings.profiles,
+  rss: settings.rss,
+  admin: settings.admin,
+};
 const footerLinks = (
   ["github", "x", "linkedin", "instagram", "tiktok", "rss", "admin"] as const
 ).map((key) => ({ key, link: links[key] }));
-const externalProfiles = [
-  "github",
-  "x",
-  "linkedin",
-  ...Object.keys(creatorLinks),
-];
+const externalProfiles = ["github", "x", "linkedin", "instagram", "tiktok"];
 ---
 
 <footer id="contact" class="frame foot">
@@ -26,7 +29,7 @@ const externalProfiles = [
       <BrandMark />
     </a>
     <div class="contact-copy">
-      <span>have a question?</span>
+      <span>{settings.prompt}</span>
       <a href={siteLinks.email.href} class="contact-email">{siteConfig.email}</a
       >
     </div>
@@ -108,6 +111,7 @@ const externalProfiles = [
   }
 
   .contact-copy > span {
+    overflow-wrap: anywhere;
     color: var(--ink-muted);
     font-size: var(--p-small);
   }

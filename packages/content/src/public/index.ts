@@ -37,19 +37,40 @@ export { parseMarkdownBlocks } from "./markdown.js";
 export { analyzePublicCopy } from "./public-copy.js";
 
 export type {
-  CmsWritingContent,
-  HomepageMention,
-  HomepageRichSummarySegment,
-  HomepageRichSummarySentence,
-  HomepageRichSummarySimpleSegment,
-  ListingBucketContent,
-  ListingPageContent,
-  SystemsPageContent,
   PublicCopyContext,
   PublicCopyFinding,
   PublicCopyRule,
 } from "@anipotts/types";
+export type {
+  Homepage,
+  HomepageMention,
+  ListingPage,
+  ListingPage as ListingPageContent,
+  NewsletterPage,
+  SystemsPage,
+  SystemsPage as SystemsPageContent,
+  WorkPage,
+  WorkPageBucket,
+  WorkPageBucket as ListingBucketContent,
+} from "./pages.js";
+export type { ProjectFrontmatter, WritingFrontmatter } from "./schema.js";
+export type {
+  HomepageRichSummarySegment,
+  HomepageRichSummarySentence,
+  HomepageRichSummarySimpleSegment,
+  ProjectProjection,
+  WritingProjection,
+  WritingProjection as CmsWritingContent,
+} from "./projections.js";
 export type { InlineSegment, MarkdownBlock } from "./markdown.js";
-export { siteConfig, siteLinks, navItems } from "./site.js";
+export {
+  siteConfig,
+  siteLinks,
+  navItems,
+  footerProfileDefaults,
+  siteSettingsSchema,
+  resolveSiteSettings,
+} from "./site.js";
+export type { SiteSettings } from "./site.js";
 export { workflowProviders } from "./providers.js";
 export { isPublicProject, isPublishedWriting } from "./visibility.js";

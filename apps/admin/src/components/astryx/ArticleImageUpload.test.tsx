@@ -38,6 +38,32 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+it.each([
+  ["image_too_large", "Choose a smaller crop or image."],
+  ["unsupported_image", "Choose a valid JPEG, PNG or WebP image."],
+  ["unknown_provider_error", "Couldn’t save the image. Try again."],
+])(
+  "explains server image refusal %s without displaying provider details",
+  async (error, message) => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(JSON.stringify({ csrf: "test-only" })),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          JSON.stringify({ error, detail: "private provider details" }),
+          { status: 400 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const file = new File([new Uint8Array([1])], "synthetic.png", {
+      type: "image/png",
+    });
+    await expect(uploadEditorialImage(file)).rejects.toThrow(message);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  },
+);
 it.each([false, true])(
   "upload completion after unmount=%s cannot alter a closed inspector",
   async (unmount) => {
