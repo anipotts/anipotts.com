@@ -5,19 +5,42 @@ import {
   EDITORIAL_DIRECTORIES,
 } from "@anipotts/content/editorial/layout";
 import * as contract from "@anipotts/content/editorial/source";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bundledEntries } from "../../../../scripts/content/content-d1-seed.mjs";
 import { bundledEditorialSources } from "./editorial-published-base";
+import {
+  hiddenWritingCard,
+  publicWritingSlugs,
+} from "../../../www/src/lib/social-card/gate";
+import type { PublishedSnapshot } from "@anipotts/content/editorial/direct-publication";
+
+const { readInventory } = vi.hoisted(() => ({ readInventory: vi.fn() }));
+vi.mock(
+  "@anipotts/content/editorial/direct-publication",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@anipotts/content/editorial/direct-publication")
+    >()),
+    getPublishedInventory: readInventory,
+  }),
+);
+// The gate's version-header dependency reaches the Cloudflare runtime. Keep
+// that transport outside this suite while exercising the actual gate code.
+vi.mock("../../../www/src/lib/published-runtime", () => ({
+  publicVersionHeaders: (version: number) => ({
+    "X-Content-Version": String(version),
+  }),
+}));
 
 // Vite and Astro compile glob literals, so they cannot share the node
-// walker's table. This test holds both apps' literals to the same record set
-// instead: the admin baseline glob is compiled here, and the www social-card
-// glob and every content collection loader base are pinned as text. The www
-// glob's module reaches cloudflare:workers and cannot load under this runner.
+// walker's table. This test holds both apps' source loaders to the same record
+// set instead: the admin baseline glob is compiled here and every content
+// collection loader base is pinned as text. Public social-card availability is
+// CMS-authoritative: its bundled-source glob stays absent, and the behavioral
+// checks below exercise its decisions with a synthetic active inventory.
 // This suite is admin's, so a www-only diff does not run it.
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const ADMIN_GLOB = "../../../../content/public/**/*.md";
-const WWW_GLOB = "../../../../../content/public/writing/*.md";
 const APPS = [
   {
     name: "admin",
@@ -126,17 +149,13 @@ describe("editorial source layout", () => {
     expect(globBase(ADMIN_GLOB, file)).toBe(`${root}content/public/`);
   });
 
-  it("pins the www social-card glob literal to the walker's writing directory", () => {
+  it("keeps www social-card availability in the active CMS inventory", () => {
     const file = new URL("src/lib/social-card/gate.ts", wwwApp);
-    expect(globLiterals(file)).toEqual([WWW_GLOB]);
-    const cut = WWW_GLOB.lastIndexOf("/") + 1;
-    const base = new URL(WWW_GLOB.slice(0, cut), file);
-    expect(layoutDirectory(base)).toBe("writing");
-    expect(
-      matched(base, WWW_GLOB.slice(cut)).map(
-        (name) => `${EDITORIAL_CONTENT_ROOT}/writing/${name}`,
-      ),
-    ).toEqual(walkedPaths("writing"));
+    const text = readFileSync(file, "utf8");
+    expect(globLiterals(file)).toEqual([]);
+    expect(text).toContain("await getPublishedInventory(db)");
+    expect(text).toContain("publicWritingSlugs(publications).has(slug)");
+    expect(text).not.toContain("bundledWritingSources");
   });
 
   for (const app of APPS)
@@ -176,4 +195,83 @@ describe("editorial source layout", () => {
       expect(outside).toEqual(app.outside);
       expect([...read].sort()).toEqual([...directories].sort());
     });
+});
+
+function publishedWriting(
+  source: string,
+  id = "synthetic-article",
+): PublishedSnapshot {
+  return {
+    contentSchemaVersion: 1,
+    publicationId: "synthetic-publication",
+    record: { kind: "writing", id },
+    source,
+    revision: 1,
+    sourceSha256: "0".repeat(64),
+    publishedAt: "2026-10-01T00:00:00.000Z",
+  };
+}
+
+const writingSource = (status: string, slug = "cms-article") =>
+  `---\ntitle: Synthetic article\nsummary: Synthetic summary\nslug: ${slug}\nstatus: ${status}\npublished_at: 2026-10-01\nscheduled_at: 2026-10-02\n---\nSynthetic body.\n`;
+
+describe("CMS-authoritative writing social cards", () => {
+  it("cannot resurrect bundled writing when the active CMS inventory is empty", async () => {
+    const writing = bundledEditorialSources().find(
+      (entry) => entry.record.kind === "writing",
+    );
+    expect(writing).toBeDefined();
+    const data = contract.parseEditorialSource(writing!.source).data as {
+      slug?: unknown;
+    };
+    const slug = String(data.slug ?? writing!.record.id);
+    const database = {} as Parameters<typeof hiddenWritingCard>[0];
+    readInventory.mockResolvedValueOnce({ version: 7, publications: [] });
+    const response = await hiddenWritingCard(database, slug);
+    expect(response?.status).toBe(404);
+    expect(response?.headers.get("X-Content-Version")).toBe("7");
+    expect(readInventory).toHaveBeenLastCalledWith(database);
+  });
+
+  it("takes the route slug from the active CMS source, without retaining the old route", () => {
+    const publication = publishedWriting(
+      writingSource("published", "new-cms-route"),
+      "old-route",
+    );
+    expect([...publicWritingSlugs([publication])]).toEqual(["new-cms-route"]);
+    expect(publicWritingSlugs([publication]).has("old-route")).toBe(false);
+  });
+
+  it.each(["draft", "scheduled"])(
+    "does not serve cards for %s CMS writing",
+    async (status) => {
+      const database = {} as Parameters<typeof hiddenWritingCard>[0];
+      const publications = [publishedWriting(writingSource(status))];
+      readInventory.mockResolvedValueOnce({ version: 8, publications });
+      expect(publicWritingSlugs(publications).size).toBe(0);
+      expect((await hiddenWritingCard(database, "cms-article"))?.status).toBe(
+        404,
+      );
+    },
+  );
+
+  it("admits a card only when valid published writing is present in the active inventory", async () => {
+    const database = {} as Parameters<typeof hiddenWritingCard>[0];
+    readInventory.mockResolvedValueOnce({
+      version: 9,
+      publications: [publishedWriting(writingSource("published"))],
+    });
+    expect(await hiddenWritingCard(database, "cms-article")).toBeNull();
+  });
+
+  it("ignores malformed writing and non-writing records", () => {
+    const malformed = publishedWriting(
+      "---\nstatus: published\n---\nMissing required metadata.\n",
+    );
+    const work: PublishedSnapshot = {
+      ...publishedWriting(writingSource("published")),
+      record: { kind: "work", id: "synthetic-work" },
+    };
+    expect(publicWritingSlugs([malformed, work]).size).toBe(0);
+  });
 });
