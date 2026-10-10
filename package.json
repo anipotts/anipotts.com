@@ -129,13 +129,16 @@
       "browserslist@<4.28.7": "4.28.9",
       "postcss@<8.5.23": "8.5.28",
       "ws@>=8 <8.21.0": "8.21.3",
-      "smol-toml@<1.7.1": "1.7.1",
       "devalue@<5.9.2": "5.9.4",
       "baseline-browser-mapping@<2.11.0": "2.11.25",
       "js-yaml@>=4 <4.3.2": "4.3.2",
       "brace-expansion@<1.1.16": "1.1.21",
       "@humanfs/node@<0.16.8": "0.16.8",
-      "sharp@<0.35.4": "0.35.4"
+      "smol-toml@>=1 <1.9.0": "1.9.0",
+      "sharp@>=0.35 <0.35.5": "0.35.5",
+      "source-map-js@>=1 <1.2.2": "1.2.2",
+      "ajv@>=6 <6.14.0": "6.14.0",
+      "@ai-sdk/provider-utils@>=5 <5.0.1": "5.0.1"
     },
     "patchedDependencies": {
       "@astryxdesign/core@0.4.6": "patches/@astryxdesign__core@0.4.6.patch"
@@ -156,6 +159,6 @@
     "turbo": "^2.11.7",
     "typescript": "^5.7.0",
     "wrangler": "^4.148.0",
-    "yaml": "2.8.2"
+    "yaml": "2.8.3"
   }
 }
