@@ -16,7 +16,7 @@ migrations for `anipotts-db`, the Cloudflare D1 (sqlite) database that admin own
 ## how a migration ships
 
 1. add `drizzle/migrations/NNNN_name.sql` and its `migrations` record. `scripts/ci/migration-policy.mjs:22-47` rates the sql: only `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN` and `INSERT OR IGNORE` are automatic. anything else needs approval.
-2. a ready pr runs "Validate migration inventory and replay" (`.github/workflows/ci.yml:150-152`): the ledger bootstrap and schema docs tests, local replay, and the site and publication migration proofs.
+2. a ready pr runs "Validate migration inventory and replay" (`.github/workflows/ci.yml:166-168`): the ledger bootstrap and schema docs tests, local replay, and the site and publication migration proofs. the light schema docs test also runs on every ready pr (`.github/workflows/ci.yml:119-121`), so changes to deployed sql or quarantine docs are checked without requiring migration replay.
 3. after merge, `.github/workflows/deploy.yml` stops unless the migration is eligible and `config/release-train.json` sets `automatic_migrations` to `enabled_safe_additive` (`deploy.yml:162-166`). the `production-gate` job (`deploy.yml:172-253`) waits for Production approval, rejects schema drift, captures a D1 time travel bookmark, checks preconditions, runs `wrangler d1 migrations apply anipotts-db --remote --config apps/admin/wrangler.toml`, checks postconditions and verifies the new schema fingerprint.
 
 nobody runs remote D1 commands by hand. for local proof, use `pnpm test:migration-local` and `pnpm test:site-migrations`.
@@ -44,7 +44,7 @@ admin binds the database (`apps/admin/wrangler.toml:45-49`, the only config with
 
 ## table classification
 
-each schema.ts table has one class, taken in this order: live, quarantined, baseline, unreferenced. deployed sql means an uppercase `FROM`, `INTO`, `UPDATE`, `JOIN`, `TABLE` or `EXISTS` followed by the whole table name inside a string or template literal, where `prepare()` sql lives, in source under `apps/*/src` or `workers/*/src` other than tests and fixtures. `//` and `/* */` comments never count, so a commented-out query or an uppercase todo does not change a class. a quarantine source is a commented `DROP TABLE` in a migration, or a paragraph of a cited doc that calls the table quarantined.
+each schema.ts table has one class, taken in this order: live, quarantined, baseline, unreferenced. deployed sql means a `FROM`, `INTO`, `UPDATE`, `JOIN`, `TABLE` or `EXISTS` keyword followed by the whole table name in a source string or template literal under `apps/*/src` or `workers/*/src`, other than tests and fixtures. matching requires a recognizable sql statement, ignores keyword case, and excludes code comments, sql comments and single-quoted sql values; astro checks use server frontmatter. a quarantine source is a commented `DROP TABLE` in a migration, or a paragraph of a cited doc that calls the table quarantined.
 
 | class        | count | meaning                                                                              |
 | ------------ | ----- | ------------------------------------------------------------------------------------ |

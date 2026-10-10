@@ -3,6 +3,8 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
+import { parse } from "yaml";
 import { loadManifest } from "./migration-policy.mjs";
 
 const README_PATH = "drizzle/README.md";
@@ -31,26 +33,19 @@ const CREATE_TABLE =
 // apps/*/src or workers/*/src, has a script or astro extension, and is not a
 // test or fixture: no *.test.* or *.spec.* name, no test, tests, __tests__,
 // fixture, fixtures or __fixtures__ directory, and no "fixture" in its name.
-// D1 sql lives in the string passed to prepare(), so only string and template
-// literal contents are searched; // and /* */ comments never count, whatever
-// their case. literalSpans finds those contents. A table is referenced when,
-// inside one literal, an uppercase FROM, INTO, UPDATE, JOIN, TABLE or EXISTS
-// keyword is followed by whitespace, an optional quote and the whole table
-// identifier. The capture runs to the end of the identifier, so
-// newsletter_events_archive never counts as newsletter_events, and lowercase
-// prose such as "imported from projects" never counts. SQL in this repo uses
-// uppercase keywords and literal table names.
+// A table is referenced when a SQL keyword is followed by whitespace, an
+// optional quote and the whole table identifier in a source string or template
+// literal. TypeScript's existing parser excludes code comments; keyword case
+// is ignored, as in SQLite. Recognizable SQL statements exclude prose; SQL
+// comments and single-quoted values are masked. Template expressions keep a
+// placeholder between pieces so a dynamic table name cannot be invented.
 const SOURCE_EXT = /\.(?:[cm]?[jt]sx?|astro)$/;
 const NOT_DEPLOYED =
   /\.(?:test|spec)\.|(?:^|\/)(?:test|tests|__tests__|fixtures?|__fixtures__)\/|fixture[^/]*$/i;
+const SQL_STATEMENT =
+  /^\s*(?:SELECT|INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|WITH|PRAGMA)\b/i;
 const SQL_REFERENCE =
-  /\b(?:FROM|INTO|UPDATE|JOIN|TABLE|EXISTS)\s+[`"[]?([A-Za-z0-9_]+)\b/g;
-
-// A "/" starts a regex literal, not a division, after one of these
-// characters, after one of these keywords, or at the start of the file.
-const REGEX_AFTER_CHAR = /[(,=:[!&|?{};+\-*%<>~^]/;
-const REGEX_AFTER_WORD =
-  /\b(?:return|typeof|instanceof|case|do|else|in|of|new|delete|void|throw|yield|await)$/;
+  /\b(?:FROM|INTO|UPDATE|JOIN|TABLE|EXISTS)\s+[`"[]?([A-Za-z0-9_]+)\b/gi;
 
 // Quarantine sources. A migration line that comments out a DROP TABLE marks
 // that table dead. So does a paragraph or table row of a doc the readme
@@ -96,123 +91,50 @@ function isDeployedSource(path) {
   return SOURCE_EXT.test(path) && !NOT_DEPLOYED.test(path);
 }
 
-// One pass over js, ts or astro text. Returns the [start, end) offsets of
-// every quoted string's contents and every static chunk of a template
-// literal, in source order. It skips // and /* */ comments and regex
-// literals, and follows ${} substitutions so strings nested in them count.
-// A quoted string ends at its closing quote or at the end of its line.
-// `open` is true when the text ends inside a template or block comment.
-function literalSpans(text) {
-  const spans = [];
-  const substitutions = []; // brace depth inside each open ${
-  let prev = -1; // index of the last significant code character
-  let i = 0;
-  let open = false;
-
-  const template = () => {
-    const start = i;
-    while (i < text.length) {
-      if (text[i] === "\\") {
-        i += 2;
-      } else if (text[i] === "`") {
-        spans.push([start, i]);
-        prev = i;
-        i += 1;
-        return;
-      } else if (text[i] === "$" && text[i + 1] === "{") {
-        spans.push([start, i]);
-        substitutions.push(0);
-        prev = i + 1;
-        i += 2;
-        return;
-      } else {
-        i += 1;
-      }
-    }
-    spans.push([start, text.length]);
-    open = true;
-  };
-
-  const startsRegex = () => {
-    if (prev === -1) return true;
-    if (REGEX_AFTER_CHAR.test(text[prev])) return true;
-    return (
-      /[A-Za-z0-9_$]/.test(text[prev]) &&
-      REGEX_AFTER_WORD.test(text.slice(Math.max(0, prev - 11), prev + 1))
-    );
-  };
-
-  // Returns the index just past a regex literal starting at i, or -1 when
-  // the line ends first, in which case the "/" is a division.
-  const regexEnd = () => {
-    let inClass = false;
-    for (let j = i + 1; j < text.length; j += 1) {
-      const c = text[j];
-      if (c === "\n") return -1;
-      if (c === "\\") j += 1;
-      else if (c === "[") inClass = true;
-      else if (c === "]") inClass = false;
-      else if (c === "/" && !inClass) {
-        j += 1;
-        while (j < text.length && /[a-z]/.test(text[j])) j += 1;
-        return j;
-      }
-    }
-    return -1;
-  };
-
-  while (i < text.length) {
-    const c = text[i];
-    const next = text[i + 1];
-    if (c === "/" && next === "/") {
-      const end = text.indexOf("\n", i);
-      i = end === -1 ? text.length : end;
-    } else if (c === "/" && next === "*") {
-      const end = text.indexOf("*/", i + 2);
-      if (end === -1) open = true;
-      i = end === -1 ? text.length : end + 2;
-    } else if (c === '"' || c === "'") {
-      let j = i + 1;
-      while (j < text.length && text[j] !== c && text[j] !== "\n")
-        j += text[j] === "\\" ? 2 : 1;
-      spans.push([i + 1, Math.min(j, text.length)]);
-      prev = Math.min(j, text.length - 1);
-      i = j + 1;
-    } else if (c === "`") {
-      i += 1;
-      template();
-    } else if (c === "}" && substitutions.at(-1) === 0) {
-      substitutions.pop();
-      i += 1;
-      template();
-    } else if (c === "/" && startsRegex() && regexEnd() !== -1) {
-      i = regexEnd();
-      prev = i - 1;
-    } else {
-      if (substitutions.length > 0 && c === "{")
-        substitutions[substitutions.length - 1] += 1;
-      if (substitutions.length > 0 && c === "}")
-        substitutions[substitutions.length - 1] -= 1;
-      if (!/\s/.test(c)) prev = i;
-      i += 1;
-    }
-  }
-  return { spans, open: open || substitutions.length > 0 };
+function deployedSourceFile(path, text) {
+  // Astro server code lives in frontmatter. Keeping its opening line as
+  // whitespace preserves source line numbers and excludes HTML prose.
+  const code = path.endsWith(".astro")
+    ? (text.match(/^---[^\S\r\n]*\r?\n[\s\S]*?\r?\n---/)?.[0] ?? "").replace(
+        /^---|---$/g,
+        "   ",
+      )
+    : text;
+  return ts.createSourceFile(path, code, ts.ScriptTarget.Latest, true);
 }
 
 function deployedReferences(sources, tables) {
   const references = new Map();
   for (const path of Object.keys(sources).sort()) {
     if (!isDeployedSource(path)) continue;
-    const text = sources[path];
-    for (const [start, end] of literalSpans(text).spans) {
-      for (const match of text.slice(start, end).matchAll(SQL_REFERENCE)) {
-        const name = match[1];
-        if (!tables.has(name) || references.has(name)) continue;
-        const line = text.slice(0, start + match.index).split("\n").length;
-        references.set(name, `${path}:${line}`);
+    const source = deployedSourceFile(path, sources[path]);
+    const visit = (node) => {
+      if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node)) {
+        const literal = ts.isTemplateExpression(node)
+          ? node.head.text +
+            node.templateSpans
+              .map((span) => ` __dynamic_sql_expression__ ${span.literal.text}`)
+              .join("")
+          : node.text;
+        // SQLite strings escape apostrophes by doubling them. Mask them
+        // before line comments, so a value containing '--' stays a value.
+        const sql = literal.replace(
+          /'(?:''|[^'])*'|--[^\r\n]*|\/\*[\s\S]*?\*\//g,
+          (part) => part.replace(/[^\r\n]/g, " "),
+        );
+        if (SQL_STATEMENT.test(sql))
+          for (const match of sql.matchAll(SQL_REFERENCE)) {
+            const name = match[1].toLowerCase();
+            if (!tables.has(name) || references.has(name)) continue;
+            const line =
+              source.getLineAndCharacterOfPosition(node.getStart(source)).line +
+              1;
+            references.set(name, `${path}:${line}`);
+          }
       }
-    }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
   }
   return references;
 }
@@ -369,7 +291,15 @@ function classFindings({ rows, modeled, migrationSql, sources, docs }) {
   return problems;
 }
 
-function findings({ readme, schema, manifest, migrationSql, sources, docs }) {
+function findings({
+  readme,
+  schema,
+  manifest,
+  migrationSql,
+  sources,
+  docs,
+  knip,
+}) {
   const problems = [];
   const tables = [...schema.matchAll(/sqliteTable\(\s*"([a-z0-9_]+)"/g)].map(
     (match) => match[1],
@@ -432,6 +362,25 @@ function findings({ readme, schema, manifest, migrationSql, sources, docs }) {
   );
 
   const preDrizzle = tables.filter((name) => !created.has(name)).length;
+  for (const [pattern, expected, meaning] of [
+    [/\b(\d+) tables predate drizzle\b/, preDrizzle, "pre-drizzle"],
+    [
+      /\b(\d+) tables come from migrations in this directory\b/,
+      tables.length - preDrizzle,
+      "migration-created",
+    ],
+    [
+      /\bmanifest's (\d+) tables\b/,
+      manifest.bootstrap.schema_objects.tables,
+      "bootstrap",
+    ],
+  ]) {
+    const count = readme.match(pattern)?.[1];
+    if (Number(count) !== expected)
+      problems.push(
+        `readme: ${meaning} prose count ${count} disagrees with ${expected}`,
+      );
+  }
   const allowedCounts = new Set([
     tables.length,
     manifest.bootstrap.schema_objects.tables,
@@ -458,13 +407,30 @@ function findings({ readme, schema, manifest, migrationSql, sources, docs }) {
   }
   if (!header.includes("manifest.json"))
     problems.push("schema header: missing pointer to manifest.json");
+  if (/canonical schema/i.test(knip))
+    problems.push("knip: still claims canonical schema authority");
   if (/services-platform/.test(schema))
     problems.push("schema: credits the removed services-platform package");
+  const unmodeledEntries = header.split(/^\s*\*\s+-\s+/m).slice(1);
   for (const [name, file] of created) {
     if (modeled.has(name)) continue;
     if (!namesTable(header, name))
       problems.push(
         `schema header: does not name unmodeled table ${name} (${file})`,
+      );
+    if (
+      !unmodeledEntries.some(
+        (entry) =>
+          namesTable(entry, name) &&
+          [
+            ...entry.matchAll(
+              /\bdrizzle\/migrations\/(\d{4}_[a-z0-9_]+\.sql)\b/g,
+            ),
+          ].some(([, origin]) => origin === file),
+      )
+    )
+      problems.push(
+        `schema header: unmodeled table ${name} must cite its creation migration ${file} in its own entry`,
       );
     if (!namesTable(readme, name))
       problems.push(`readme: does not name unmodeled table ${name} (${file})`);
@@ -522,6 +488,7 @@ const real = {
   migrationSql: readMigrationSql(),
   sources: readSources(),
   docs: readDocs(readmeText),
+  knip: readFileSync("knip.jsonc", "utf8"),
 };
 
 assert.deepEqual(findings(real), []);
@@ -541,7 +508,7 @@ assert.deepEqual(
   ["notes_fts", "scratch"],
 );
 
-// The deployed sql rule: uppercase keyword, whole identifier, inside a string
+// The deployed SQL rule: whole identifier inside a SQL statement string
 // or template literal, no comments, no tests or fixtures.
 const prepared = 'db.prepare("SELECT * FROM rate_limits");';
 assert.deepEqual(
@@ -569,7 +536,7 @@ assert.deepEqual(
   [["email_queue", "workers/a/src/index.ts:7"]],
 );
 
-// literalSpans keeps its place past regex literals, divisions, ${}
+// The TypeScript parser keeps its place past regex literals, divisions, ${}
 // substitutions with nested strings, escapes and a quoted string cut off by
 // its line end. Misreading any of them hides a later query.
 assert.deepEqual(
@@ -598,11 +565,14 @@ assert.ok(
   Object.keys(real.sources).length > 0 &&
     Object.keys(real.sources).every(isDeployedSource),
 );
-// Every deployed source ends outside any template literal or block comment,
-// so no literal swallows the rest of a file.
+// Every deployed source ends outside any template literal or block comment.
+// TypeScript diagnostics preserve the upstream lexical-consumption proof
+// without maintaining a second hand-written JavaScript tokenizer.
 assert.deepEqual(
-  Object.keys(real.sources).filter(
-    (path) => literalSpans(real.sources[path]).open,
+  Object.keys(real.sources).filter((path) =>
+    deployedSourceFile(path, real.sources[path]).parseDiagnostics.some(
+      (diagnostic) => [1010, 1160].includes(diagnostic.code),
+    ),
   ),
   [],
 );
@@ -632,6 +602,7 @@ const dataOnlyRecord = {
   ...real.manifest.migrations[0],
   file: "0045_seed_example_page_content.sql",
 };
+
 const weeklyEmail = "workers/weekly-email/src/index.ts";
 const emailQueueQuery = real.sources[weeklyEmail]?.match(
   /"[^"\n]*\bFROM email_queue\b[^"\n]*"/,
@@ -744,6 +715,92 @@ const mutations = [
       schema: `${real.schema}\nexport const extra = sqliteTable("extra_table", {});\n`,
     },
     /no classification row for extra_table/,
+  ],
+
+  [
+    "readme swaps pre-drizzle and migration-created prose counts",
+    {
+      readme: real.readme.replace(
+        "21 tables predate drizzle and 31 tables come from migrations",
+        "31 tables predate drizzle and 21 tables come from migrations",
+      ),
+    },
+    [
+      /pre-drizzle prose count 31 disagrees with 21/,
+      /migration-created prose count 21 disagrees with 31/,
+    ],
+  ],
+  [
+    "readme uses the modeled total for the bootstrap count",
+    {
+      readme: real.readme.replace(
+        "manifest's 64 tables",
+        "manifest's 52 tables",
+      ),
+    },
+    /bootstrap prose count 52 disagrees with 64/,
+  ],
+  [
+    "schema header gives admin_proof_events another table's origin",
+    {
+      schema: withHeader((head) =>
+        head.replace(
+          "0012_admin_proof_events.sql",
+          "0001_service_registry.sql",
+        ),
+      ),
+    },
+    /unmodeled table admin_proof_events must cite its creation migration 0012_admin_proof_events\.sql/,
+  ],
+  [
+    "schema header gives the virtual table another table's origin",
+    {
+      schema: withHeader((head) =>
+        head.replace("0003_reconcile.sql", "0012_admin_proof_events.sql"),
+      ),
+    },
+    /unmodeled table thoughts_fts must cite its creation migration 0003_reconcile\.sql/,
+  ],
+
+  [
+    "lowercase deployed sql starts reading an unreferenced table",
+    {
+      sources: {
+        ...real.sources,
+        "workers/newsletter/src/preferences.ts":
+          'db.prepare("select * from newsletter_preferences where subscriber_id = ?");',
+      },
+    },
+    /newsletter_preferences is unreferenced but deployed sql references it/,
+  ],
+  [
+    "deployed template sql after interpolation reads an unreferenced table",
+    {
+      sources: {
+        ...real.sources,
+        "workers/newsletter/src/preferences.ts":
+          "db.prepare(`SELECT ${columns} FROM newsletter_preferences WHERE subscriber_id = ?`);",
+      },
+    },
+    /newsletter_preferences is unreferenced but deployed sql references it/,
+  ],
+
+  [
+    "Astro frontmatter reads an unreferenced table",
+    {
+      sources: {
+        ...real.sources,
+        "apps/www/src/pages/query.astro":
+          '---\nconst query = db.prepare("select * from newsletter_preferences");\n---\n<p>Example</p>',
+      },
+    },
+    /newsletter_preferences is unreferenced but deployed sql references it/,
+  ],
+
+  [
+    "knip reclaims canonical schema authority",
+    { knip: real.knip.replace("historical Drizzle model", "canonical schema") },
+    /knip: still claims canonical schema authority/,
   ],
 
   // F1: CREATE VIRTUAL TABLE objects count as migration-created tables.
@@ -866,7 +923,7 @@ const mutations = [
       sources: {
         ...real.sources,
         "workers/newsletter/src/preferences.ts":
-          'export const read = (db) => db.prepare("SELECT * FROM newsletter_preferences WHERE subscriber_id = ?");',
+          'db.prepare("SELECT * FROM newsletter_preferences WHERE subscriber_id = ?");',
       },
     },
     /newsletter_preferences is unreferenced but deployed sql references it at workers\/newsletter\/src\/preferences\.ts:1/,
@@ -918,7 +975,6 @@ const mutations = [
     { readme: setRow(real.readme, "atoms", "unreferenced") },
     /atoms is unreferenced but predates drizzle/,
   ],
-
   // Comments are not deployed sql: a live row whose only query is commented
   // out loses its reference.
   [
@@ -942,6 +998,31 @@ for (const [label, overrides, expected] of mutations) {
     );
   }
 }
+
+// Tests, fixtures, code/SQL comments, SQL values and prose never make a table live.
+assert.deepEqual(
+  findings({
+    ...real,
+    sources: {
+      ...real.sources,
+      "workers/newsletter/src/index.test.ts":
+        "SELECT * FROM newsletter_preferences",
+      "apps/admin/src/fixtures/rows.ts": "SELECT * FROM newsletter_preferences",
+      "workers/newsletter/src/comment-only.ts":
+        "// SELECT * FROM newsletter_preferences\n/* SELECT * FROM newsletter_preferences */",
+      "apps/www/src/pages/prose.astro":
+        '<p>"SELECT * FROM newsletter_preferences"</p>',
+      "workers/newsletter/src/sql-comment.ts":
+        'db.prepare("/* SELECT * FROM newsletter_preferences */ SELECT 1");',
+      "workers/newsletter/src/sql-line-comment.ts":
+        'db.prepare("SELECT 1 -- SELECT * FROM newsletter_preferences");',
+      "workers/newsletter/src/prose.ts":
+        'const message = "imported from newsletter_preferences";',
+      "workers/newsletter/src/sql-value.ts": `db.prepare("SELECT '-- FROM newsletter_preferences', 'from newsletter_preferences'");`,
+    },
+  }),
+  [],
+);
 
 // Tests and fixtures never make a table live.
 const readsPreferences =
@@ -972,6 +1053,51 @@ assert.deepEqual(
     },
   }),
   [],
+);
+
+// Source and quarantine-doc changes need this light guard even when the
+// release classifier correctly leaves migration replay disabled.
+function hasReadyDocsGuard(workflow) {
+  return workflow.jobs.ci.steps.some(
+    (step) =>
+      step.run?.trim() === "node scripts/ci/d1-schema-docs.test.mjs" &&
+      step.if === "github.event.pull_request.draft == false",
+  );
+}
+const ci = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+assert.ok(
+  hasReadyDocsGuard(ci),
+  "ready CI must always run the schema-doc guard",
+);
+const guardIndex = ci.jobs.ci.steps.findIndex(
+  (step) => step.run?.trim() === "node scripts/ci/d1-schema-docs.test.mjs",
+);
+assert.ok(
+  !hasReadyDocsGuard({
+    jobs: {
+      ci: {
+        steps: ci.jobs.ci.steps.filter((_, index) => index !== guardIndex),
+      },
+    },
+  }),
+  "removing the independent guard must fail the wiring check",
+);
+assert.ok(
+  !hasReadyDocsGuard({
+    jobs: {
+      ci: {
+        steps: ci.jobs.ci.steps.map((step, index) =>
+          index === guardIndex
+            ? {
+                ...step,
+                if: `${step.if} && needs.classify.outputs.migration_preflight_required == 'true'`,
+              }
+            : step,
+        ),
+      },
+    },
+  }),
+  "ordinary source changes must not depend on the migration replay flag",
 );
 
 console.log("D1 schema docs tests passed");
