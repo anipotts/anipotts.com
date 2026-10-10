@@ -683,14 +683,17 @@ describe("one reader transport", () => {
         fetch: fetcher,
       });
       expect(response.status).toBe(200);
-      for (const [rejectedPath, mode] of [
-        ["/v1/ops/events?after=12&limit=500&wait=25", "raw"],
-        [path, "json"],
-      ] as const) {
-        await expect(
-          pinnedReaderGet(session, rejectedPath, mode, { fetch: fetcher }),
-        ).rejects.toMatchObject({ failure: "malformed" });
-      }
+      await expect(
+        pinnedReaderGet(
+          session,
+          "/v1/ops/events?after=12&limit=500&wait=25",
+          "raw",
+          { fetch: fetcher },
+        ),
+      ).rejects.toMatchObject({ failure: "malformed" });
+      await expect(
+        pinnedReaderGet(session, path, "json", { fetch: fetcher }),
+      ).rejects.toMatchObject({ failure: "malformed" });
       expect(calls.map((call) => call.url.href)).toEqual([
         `${PRIVATE_READER_ORIGIN}${path}`,
       ]);
