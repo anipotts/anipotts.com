@@ -741,7 +741,27 @@ test("Markdown text mentioning a private image is not a public media reference",
 
 test("healthy empty CMS and partial CMS never resurrect bundled publications", async () => {
   const db = emptyDatabase();
+  const card = "/social/writing-awareness-is-alpha.png";
+  let assetReads = 0;
+  const oldCardAssets = {
+    async fetch() {
+      assetReads++;
+      return new Response("old bundled social card");
+    },
+  };
+  const hiddenCard = async (inventoryVersion) => {
+    for (const method of ["GET", "HEAD"]) {
+      const response = await serve(card, cms(db, { ASSETS: oldCardAssets }), {
+        method,
+        headers: { "if-none-match": "*" },
+      });
+      assert.equal(response.status, 404, method);
+      version(response, inventoryVersion);
+    }
+    assert.equal(assetReads, 0, "hidden cards never reach the old asset");
+  };
   try {
+    await hiddenCard(0);
     for (const path of ["/", "/work", "/writing", "/systems"]) {
       const response = await serve(path, cms(db, { ASSETS: staleAssets }));
       assert.equal(response.status, 503, path);
@@ -786,6 +806,23 @@ test("healthy empty CMS and partial CMS never resurrect bundled publications", a
     }
     for (const path of ["/writing/awareness-is-alpha", "/work/chainedchat"])
       assert.equal((await serve(path, cms(db))).status, 404, path);
+    await hiddenCard(
+      seedFixture.records.filter((row) => row.record.kind === "page").length,
+    );
+    // Activating this article alone admits its card. Drafting it hides the
+    // card again without reading the still-deployed asset or honoring '*'.
+    db.publish({ text: original });
+    assert.equal(
+      (await serve(card, cms(db, { ASSETS: oldCardAssets }))).status,
+      200,
+    );
+    assert.equal(assetReads, 1);
+    assetReads = 0;
+    db.publish({ text: edit(original, { status: "draft" }) });
+    await hiddenCard(
+      seedFixture.records.filter((row) => row.record.kind === "page").length +
+        2,
+    );
   } finally {
     db.close();
   }
