@@ -25,6 +25,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Check draft diff
         run: git diff --check "origin/${{ github.event.pull_request.base.ref }}"...HEAD
+      - name: Verify pinned System contracts offline
+        run: node scripts/ci/check-system-contracts.mjs && node --test scripts/ci/check-system-contracts.test.mjs
 
   classify:
     name: Classify release
@@ -99,6 +101,10 @@ jobs:
       - name: Install dependencies
         if: github.event.pull_request.draft == false
         run: pnpm install --frozen-lockfile
+
+      - name: Verify pinned System contracts offline
+        if: github.event.pull_request.draft == false
+        run: pnpm check:system-contracts
 
       - name: Generate canonical content projections
         if: github.event.pull_request.draft == false

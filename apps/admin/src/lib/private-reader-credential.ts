@@ -5,6 +5,32 @@ import {
   privateJson,
   readEditorialJson,
 } from "./editorial-security";
+import {
+  PRIVATE_READER_PATH,
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_HEALTH_PATH,
+  PRIVATE_READER_ISSUER,
+  PRIVATE_READER_AUDIENCE,
+  PRIVATE_READER_SCOPES,
+  PRIVATE_READER_OPS_SCOPES,
+  PRIVATE_READER_HEALTH_SCOPES,
+  PRIVATE_READER_MAX_LIFETIME_SECONDS,
+  PRIVATE_READER_MAX_BODY_BYTES as MAX_BODY_BYTES,
+  PRIVATE_READER_ALGORITHM,
+  PRIVATE_READER_TOKEN_TYPE,
+} from "./generated/private-reader";
+
+export {
+  PRIVATE_READER_PATH,
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_HEALTH_PATH,
+  PRIVATE_READER_ISSUER,
+  PRIVATE_READER_AUDIENCE,
+  PRIVATE_READER_SCOPES,
+  PRIVATE_READER_OPS_SCOPES,
+  PRIVATE_READER_HEALTH_SCOPES,
+  PRIVATE_READER_MAX_LIFETIME_SECONDS,
+} from "./generated/private-reader";
 
 /**
  * Short private reader delegation for the tailnet reader on ap-mini.
@@ -14,20 +40,6 @@ import {
  * grant, never by request headers, so this reads no device, principal or scope
  * header. It reuses the owner middleware verified, verifying only without one.
  */
-export const PRIVATE_READER_PATH = "/api/private-reader/credential";
-/** Separate issuance for the Observability Status view. */
-export const PRIVATE_READER_OPS_PATH = "/api/private-reader/ops-credential";
-/** Separate issuance for the Data Health view. */
-export const PRIVATE_READER_HEALTH_PATH =
-  "/api/private-reader/health-credential";
-export const PRIVATE_READER_ISSUER = "https://admin.anipotts.com";
-export const PRIVATE_READER_AUDIENCE = "https://ap-mini.tail060490.ts.net";
-/** Server selected. Client-requested scopes are ignored. */
-export const PRIVATE_READER_SCOPES = ["data:read", "activity:read"] as const;
-/** Ops credentials carry only this scope and never a Data scope. */
-export const PRIVATE_READER_OPS_SCOPES = ["ops:read"] as const;
-/** Health credentials carry only the daily health summary scope. */
-export const PRIVATE_READER_HEALTH_SCOPES = ["health:read"] as const;
 
 /**
  * Each mode has its own path, fixed scope set and switch, so an
@@ -50,8 +62,6 @@ export const PRIVATE_READER_MODES = {
   },
 } as const;
 export type PrivateReaderMode = keyof typeof PRIVATE_READER_MODES;
-export const PRIVATE_READER_MAX_LIFETIME_SECONDS = 60;
-const MAX_BODY_BYTES = 1024;
 
 export type PrivateReaderConfig = {
   ACCESS_TEAM_DOMAIN?: string;
@@ -148,10 +158,10 @@ export async function privateReaderSigningKey(value: string | undefined) {
       jwk.kty !== "EC" ||
       jwk.crv !== "P-256" ||
       typeof jwk.d !== "string" ||
-      (jwk.alg !== undefined && jwk.alg !== "ES256")
+      (jwk.alg !== undefined && jwk.alg !== PRIVATE_READER_ALGORITHM)
     )
       return null;
-    return await importJWK(jwk, "ES256");
+    return await importJWK(jwk, PRIVATE_READER_ALGORITHM);
   } catch {
     // Never echo key parser details.
     return null;
@@ -208,7 +218,10 @@ export async function privateReaderCredentialApi(
     email: owner.email,
     scope: scope.join(" "),
   })
-    .setProtectedHeader({ alg: "ES256", typ: "JWT" })
+    .setProtectedHeader({
+      alg: PRIVATE_READER_ALGORITHM,
+      typ: PRIVATE_READER_TOKEN_TYPE,
+    })
     .setIssuer(PRIVATE_READER_ISSUER)
     .setAudience(PRIVATE_READER_AUDIENCE)
     .setSubject(owner.subject)

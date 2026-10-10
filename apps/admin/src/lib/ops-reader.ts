@@ -1,5 +1,9 @@
 import type { PrivateReaderSession } from "./private-reader-client";
 import {
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_OPS_SCOPES,
+} from "./generated/private-reader";
+import {
   PRIVATE_READER_ORIGIN,
   PrivateReaderError,
   privateReaderInit,
@@ -50,9 +54,8 @@ import {
  * flag is set in no deploy yet, and tests use fixtures only.
  */
 export const OPS_SNAPSHOT_PATH = "/v1/ops/snapshot";
-/** Mirrors PRIVATE_READER_OPS_PATH without pulling signing code into the client. */
-export const OPS_CREDENTIAL_ENDPOINT = "/api/private-reader/ops-credential";
-export const OPS_SCOPE = "ops:read";
+export const OPS_CREDENTIAL_ENDPOINT = PRIVATE_READER_OPS_PATH;
+export const OPS_SCOPE = PRIVATE_READER_OPS_SCOPES[0];
 export const OPS_POLL_MS = 30_000;
 export const OPS_READ_TIMEOUT_MS = 10_000;
 /** The events fallback interval: after an error, after repeated short
@@ -266,7 +269,8 @@ export type OpsStatusState = {
   hop?: Exclude<ReaderHop, "unissued">;
 };
 
-type Timer = ReturnType<typeof setTimeout>;
+// Browser timers return numbers; Node-backed tests return timer objects.
+type Timer = number | ReturnType<typeof setTimeout>;
 
 export type OpsStatusOptions = {
   session: PrivateReaderSession;
