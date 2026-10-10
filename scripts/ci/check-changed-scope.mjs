@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
+import { isBroadChangeLine } from "./path-manifest.mjs";
 import { classifyRelease, unclassifiedPaths } from "./release-policy.mjs";
 import { changedFiles } from "./changed-files.mjs";
 
@@ -63,7 +64,7 @@ if (unclassified.length > 0) {
     [
       "changed scope: tracked or committed paths match no release rule:",
       ...unclassified.map((path) => `  ${path}`),
-      "add a rule in scripts/ci/release-policy.mjs; ci Classify release fails on these.",
+      "add a rule in scripts/ci/path-manifest.mjs, which scripts/ci/release-policy.mjs applies; ci Classify release fails on these.",
     ].join("\n"),
   );
   process.exit(1);
@@ -81,11 +82,7 @@ console.log(
   `changed scope: ${targets.join(",") || "non-deployable"}${workingTree ? " including working tree" : " (commits only)"}`,
 );
 
-const broad = changes.some((line) =>
-  /\t(?:\.github\/|config\/|scripts\/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|packages\/(?:lib|types)\/)/u.test(
-    line,
-  ),
-);
+const broad = changes.some(isBroadChangeLine);
 
 if (
   broad ||
