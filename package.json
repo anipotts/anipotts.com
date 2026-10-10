@@ -84,7 +84,8 @@
     "review": "node scripts/dev/review.mjs",
     "review:status": "node scripts/dev/review.mjs status",
     "review:doctor": "node scripts/dev/review.mjs doctor",
-    "review:queue": "node scripts/dev/integration-queue.mjs list"
+    "review:queue": "node scripts/dev/integration-queue.mjs list",
+    "check:system-contracts": "node scripts/ci/check-system-contracts.mjs && node --test scripts/ci/check-system-contracts.test.mjs"
   },
   "lint-staged": {
     "apps/www/**/*.{astro,ts,tsx}": [
