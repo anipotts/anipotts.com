@@ -18,6 +18,26 @@ inside the opt-in boundary, never install its reset on the document root.
 See `docs/design/admin-workspace/openai-components.md` at the repository root
 for coverage, intentional differences and the migration sequence.
 
+## Theme generation
+
+Run `pnpm theme:build` to regenerate the editorial theme and `pnpm theme:check`
+to verify its outputs, from `apps/admin`. These scripts use the repository's
+theme wrapper with the installed CLI. Core and Neutral remain at 0.4.6; the CLI
+is 0.6.5.
+
+For direct theme commands, including commands copied from generated headers,
+set the scoped Jiti transform environment on each invocation:
+
+```bash
+JITI_TRANSFORM_MODULES='["@astryxdesign/theme-neutral"]' pnpm exec astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css
+JITI_TRANSFORM_MODULES='["@astryxdesign/theme-neutral"]' pnpm exec astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css --check
+```
+
+This lets the CLI observe Neutral's authored input through its adaptation
+recorder. Its compatibility guard remains active and rejects unsupported
+adaptations. Use the wrapper scripts for normal work; the environment is needed
+only for direct theme compiler commands. Never hand-edit generated theme files.
+
 <!-- ASTRYX:START -->
 
 Astryx v0.4.6 · 158 components
