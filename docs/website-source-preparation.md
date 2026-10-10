@@ -81,7 +81,7 @@ publication or owner-session acceptance.
 ## Integration and deployment hold
 
 Ready source checkpoints still require their exact-head GitHub checks and review.
-The nine finished infrastructure drafts (#510, #512–#520 except #511) were
+The ten finished infrastructure drafts (#510 and #512–#520) were
 advanced individually to review after combined validation, with prerequisites
 advanced before consumers. The repaired dependency PRs #509/#523 were already
 ready. The incomplete feature and combined review artifacts #522/#524 stay draft.
