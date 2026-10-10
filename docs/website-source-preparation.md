@@ -11,13 +11,17 @@ external #512 source merge. Its four Worker release remains at the initial
 Production gate, not proven deployed. This chat merged no PR into main and
 approved no Production release.
 
-Historical full validation passed on `77367571709dd1d24793991db33720d816eed6c5`,
-tree `38fad09a77371060f236ab559dc35fd3199d60fe`. Subsequent strict-main988b
-incorporation preserved that tree. Later #513 generated-route regression and
-state-scope normalization change the executable/lock tree. A new combined run
-caught a TypeScript overload union in that new regression; literal-call repair now passes full Astro check and201 reader tests; fresh
-combined validation remains required.
-The previous pass is historical evidence, not proof of the changed candidate.
+Fresh full `pnpm validate` passed on exact
+`6d1e30d5750a8a1badb3835ddf26ff52b8b9de0e`, tree
+`ad4a496d56e2ada8a4862c8466a3be7d990336f4`. It includes current main988b and
+all strict refreshed heads. The new generated-route regression's initial
+TypeScript overload error is repaired with literal raw/json calls.
+Six builds, four lint tasks, fourteen typechecks and fourteen test tasks pass
+with normal Turbo caching. Admin2280tests/174files, Astro79, editorial98,
+content202, www192; CSP2pass/1skip. Frozen install passed. The tree stayed clean
+through validation. Log: `/tmp/anipotts-final-reader-combined-validation.log`.
+Historical77367571 success is no longer substituted for this changed tree.
+Later packet-only documentation updates preserve every executable blob.
 
 Standalone #513/#514 restore main's state Node22 scope. The broader assembly
 retains #509's separate state Node26 update and #523's newer tools, restoring the

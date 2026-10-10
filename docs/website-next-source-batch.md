@@ -44,8 +44,8 @@ gate failure is separate from software validation.
 | #514 | `5b60c9173b1e53f92d3f465f1d61cca2b6fe8e97` | draft; fresh light/drift/S/Q pass; full typecheck/169tests pass | admin                                       |
 | #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                    | www/admin                                   |
 | #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                     | www/admin                                   |
-| #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; refreshed main and515; checks pending                    | www/admin                                   |
-| #522 | `ba6d8cc2f5cf3b462af06745a3f78a674c36cc81` | feature draft; refreshed main; checks pending                   | broader feature; recalculate before release |
+| #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; fresh light/S/Q pass; refreshed main/515                 | www/admin                                   |
+| #522 | `ba6d8cc2f5cf3b462af06745a3f78a674c36cc81` | feature draft; fresh light/S/Q pass; refreshed main             | broader feature; recalculate before release |
 | #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                  | all six                                     |
 
 None of these existing plans selects D1 changes or remote migration; schema
@@ -105,15 +105,18 @@ No green PR or batch recommendation authorizes execution.
 
 ## Combined draft and completion gaps
 
-Draft524 assembles source; it is not a bulk merge/release request. Historical
-full validation passed on `77367571709dd1d24793991db33720d816eed6c5`, tree
-`38fad09a77371060f236ab559dc35fd3199d60fe`, with2279admin/79Astro/98editorial/
-202content/192www tests and six builds. Main988b incorporation preserved that
-tree. Later513 generated-route and regression changes require a new full pass;
-the first rerun exposed the test overload failure described above, now repaired.
-Standalone reader branches match main Node22; the broader assembly retains509's
-separate Node26 update and523's newer tools, with the previous lock byte-identical.
-Do not cite the old pass as proof of the changed candidate.
+Draft524 assembles source; it is not a bulk merge/release request. Fresh full
+validation passed on exact `6d1e30d5750a8a1badb3835ddf26ff52b8b9de0e`, tree
+`ad4a496d56e2ada8a4862c8466a3be7d990336f4`, including current main988b.
+Policy/migration checks, formatting, six builds, four lint tasks, fourteen
+typechecks and fourteen test tasks pass using normal Turbo caching:
+2280admin/79Astro/98editorial/202content/192www; CSP2pass/1skip.
+The new reader overload regression is repaired, not cast away. Standalone
+reader branches match main Node22; the broader assembly retains509's separate
+Node26 update and523's newer tools, with the previous combined lock byte-identical.
+Only two reader source/test files plus three packet docs differ from77367571.
+Later packet-only updates preserve executable blobs; the exact full-run log is
+`/tmp/anipotts-final-reader-combined-validation.log`.
 
 522 is retained as a separate feature draft, not superseded by524. Native CLI,
 shared settings and bounded media admission are implemented in source. Real
@@ -131,7 +134,7 @@ reads need not be repeated. Finance/persistent personal agent remain future
 scope. Staging currently aliases production; retirement needs fresh provider
 inventory and separate DNS/resource authority.
 
-Cloud enforced revision10 still lacks website/Cloudflare hosts and identities.
+Cloud enforced revision11 still lacks website/Cloudflare hosts and identities.
 This chat has no configuration-write or cross-chat send tool; no direct delivery
 is claimed. Paste the [setup handoff](cloud-environment-setup-handoff.md) into
 Edit build, publish settings and verify a fresh enforced configuration.

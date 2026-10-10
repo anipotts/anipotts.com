@@ -28,23 +28,27 @@ private drafts and canonical integration preview remain untouched.
 
 ## Latest completion checkpoint
 
-The exact521 release at1ccc08da is live on www/admin, with visible/absent
-share-card and signed-in read acceptance passed. The510/520 source merge8a
-selected no deployments. External512 source merge988b has exact release
-validation passed but its four Worker release waits at Production; its runtime
-code is not claimed live. Execution/approval provenance remains unproven.
+The exact #521 release at `1ccc08da` is live on www/admin, with visible/absent
+share-card and signed-in read acceptance passed. The #510/#520 source merge
+`8a197427` selected no deployments. External #512 source merge `988b7edf` passed
+exact release validation, but its four Worker release waits at Production; its
+runtime code is not claimed live. Executor and approval provenance remain
+unproven.
 
-Historical full candidate77367571/tree38fad09a passed. Main988b incorporation
-preserved that tree. New513 functional/regression changes require another combined
-pass; the first rerun found a TypeScript overload error in its new regression.
-Literal-call repair now passes full Astro check and201 reader tests. Fresh516 and523 required checks passed. See the
+Fresh full validation passed at `6d1e30d5`, tree
+`ad4a496d56e2ada8a4862c8466a3be7d990336f4`: six builds, four lint tasks,
+fourteen typechecks and fourteen test tasks. Admin passed 2,280 tests, Astro 79,
+editorial 98, content 202 and www 192; CSP passed two with one skipped. The new
+reader regression's initial overload error is fixed with literal calls.
+Fresh #516 and #523 required checks passed. See the
 [bounded packet](website-next-source-batch.md) for exact heads and scope.
 
-Draft522 retains CLI/settings/bounded media admission;524 is assembly evidence.
-Neither supersedes missing full media decode/crop provenance, complete recovery,
-real data-source access or live draft-write acceptance. Agent-owned software
-work remains active; user permission/access/device boundaries are distinguished
-in the packet. Published wording and CMS data remain unchanged.
+Draft #522 retains CLI/settings/bounded media admission; #524 is assembly
+evidence. Neither closes full media decode/crop provenance, complete recovery,
+real data-source access or live draft-write acceptance. Knowledge and Health
+views exist; connecting their canonical sources is separate from implementing
+the UI. Agent-owned software work remains active. Published wording and CMS
+data remain unchanged.
 
 ## Demonstrated baseline
 
@@ -70,17 +74,17 @@ network policy.
 
 ## Findings and completion conditions
 
-| Area                  | Finding                                                                                                                                                                                                       | Completion evidence needed                                                                                                                                                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Writing share images  | Bundled social cards could remain public when their writing record was absent from an empty/partial active CMS inventory. Fixed by gating solely on active published CMS writing.                             | PR521 exact-head checks, release receipt and live absent/visible card behavior. Ordinary unpublish already wrote a hidden active revision; it was not the absent-record bug.                                                       |
-| Agent authoring       | Existing owner editorial APIs are present, but a clean native CLI and complete agent workflow documentation are missing at baseline.                                                                          | Owner-session client, bounded reads, CSRF/CAS writes, separate immutable review/publication, focused tests and authenticated live acceptance without changing existing prose.                                                      |
-| Shared site settings  | Navigation/footer and shared identity/SEO defaults are code-owned at baseline, despite the approved editing contract. Per-record metadata editing does not provide shared shell editing.                      | Backwards-compatible CMS settings, actual admin editing, common public rendering and default-preservation tests.                                                                                                                   |
-| Media                 | Signature checks do not establish valid decoded images or bound pixels; original/derived crop provenance is incomplete.                                                                                       | Container/pixel bounds are a useful improvement, but full server decode/re-encoding and durable crop provenance require a reviewed runtime-compatible implementation.                                                              |
-| Data                  | Records/Sources and ops reader are enabled in source. Knowledge and Health flags are unset. Knowledge displays “Not built yet”; Health has no demonstrated complete weight/sleep/heart-rate/HRV collectors.   | Exact owner/source authorization, reader/collector availability, provenance and fresh real-source acceptance. New health credential issuance remains a separate auth action.                                                       |
-| Recovery              | Dated inventory records a nightly content-D1 export, without demonstrated draft-history and R2-media coverage; external copy and restore-drill proof are incomplete. Browser recovery retains plaintext JSON. | Current backup inventory, protected destination/key setup, complete reference-checked export and isolated restore proof; pending-browser-input protection. Do not change System jobs or key custody under a software-only release. |
-| Publication lifecycle | Multi-record atomic batches, scheduled activation and published slug changes are unsupported.                                                                                                                 | These were explicitly deferred by the later single-record milestone in direct-cms-publication.md. Broader delivery-contract targets remain open; source must continue to refuse partial or unreviewed effects.                     |
-| Device acceptance     | Source/tests and deployment evidence do not close outstanding physical mobile keyboard, touch/safe-area and resume acceptance cases.                                                                          | Focused real-device acceptance at the released revision, preserving private drafts.                                                                                                                                                |
-| Host cleanup          | Source and dated inventory map staging to the same production Worker/data. Wildcard/legacy hosts and old Vercel claims need a fresh provider inventory.                                                       | Read-only DNS/Worker/Access/Vercel verification followed by scoped retirement approval. A current Vercel project still lists apex/www domain claims; that alone does not establish DNS traffic routing.                            |
+| Area                  | Finding                                                                                                                                                                                                                                                                                             | Completion evidence needed                                                                                                                                                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Writing share images  | Bundled social cards could remain public when their writing record was absent from an empty/partial active CMS inventory. Fixed by gating solely on active published CMS writing.                                                                                                                   | PR521 exact-head checks, release receipt and live absent/visible card behavior. Ordinary unpublish already wrote a hidden active revision; it was not the absent-record bug.                                                                   |
+| Agent authoring       | Existing owner editorial APIs are present, but a clean native CLI and complete agent workflow documentation are missing at baseline.                                                                                                                                                                | Owner-session client, bounded reads, CSRF/CAS writes, separate immutable review/publication, focused tests and authenticated live acceptance without changing existing prose.                                                                  |
+| Shared site settings  | Navigation/footer and shared identity/SEO defaults are code-owned at baseline, despite the approved editing contract. Per-record metadata editing does not provide shared shell editing.                                                                                                            | Backwards-compatible CMS settings, actual admin editing, common public rendering and default-preservation tests.                                                                                                                               |
+| Media                 | Signature checks do not establish valid decoded images or bound pixels; original/derived crop provenance is incomplete.                                                                                                                                                                             | Container/pixel bounds are a useful improvement, but full server decode/re-encoding and durable crop provenance require a reviewed runtime-compatible implementation.                                                                          |
+| Data                  | Records/Sources and ops are enabled in source. Knowledge and Health UI/read clients are implemented with synthetic coverage, but their production source flags remain unset. Health displays only approved collected metrics; additional metrics depend on System/device collection and provenance. | Verify canonical reader/entity/health contracts, provenance and exact owner/source/network grant, then live read acceptance. Health credential issuance remains a separate auth approval. System/device collectors are not missing website UI. |
+| Recovery              | Dated inventory records a nightly content-D1 export, without demonstrated draft-history and R2-media coverage; external copy and restore-drill proof are incomplete. Browser recovery retains plaintext JSON.                                                                                       | Current backup inventory, protected destination/key setup, complete reference-checked export and isolated restore proof; pending-browser-input protection. Do not change System jobs or key custody under a software-only release.             |
+| Publication lifecycle | Multi-record atomic batches, scheduled activation and published slug changes are unsupported.                                                                                                                                                                                                       | These were explicitly deferred by the later single-record milestone in direct-cms-publication.md. Broader delivery-contract targets remain open; source must continue to refuse partial or unreviewed effects.                                 |
+| Device acceptance     | Source/tests and deployment evidence do not close outstanding physical mobile keyboard, touch/safe-area and resume acceptance cases.                                                                                                                                                                | Focused real-device acceptance at the released revision, preserving private drafts.                                                                                                                                                            |
+| Host cleanup          | Source and dated inventory map staging to the same production Worker/data. Wildcard/legacy hosts and old Vercel claims need a fresh provider inventory.                                                                                                                                             | Read-only DNS/Worker/Access/Vercel verification followed by scoped retirement approval. A current Vercel project still lists apex/www domain claims; that alone does not establish DNS traffic routing.                                        |
 
 ## Staging
 
