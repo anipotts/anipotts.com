@@ -105,8 +105,8 @@ describe("generated projections keep their key sets", () => {
   });
 });
 
-// Type half. vitest run does not typecheck and the package tsconfig excludes
-// tests, so these lines only fail under a tsconfig that includes this file.
+// Type half. The package typecheck compiles this file through
+// tsconfig.contract.json; Vitest alone does not evaluate these assertions.
 describe("public entry types consumers read", () => {
   it("homepage mention", () => {
     expectTypeOf<HomepageMention>().toHaveProperty("logoSrc");
