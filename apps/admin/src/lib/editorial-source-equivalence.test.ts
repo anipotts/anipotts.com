@@ -10,15 +10,24 @@ import { bundledEntries } from "../../../../scripts/content/content-d1-seed.mjs"
 import { bundledEditorialSources } from "./editorial-published-base";
 
 // Vite and Astro compile glob literals, so they cannot share the node
-// walker's table. This test holds admin's literals to the same record set
-// instead: the baseline glob is compiled here and the content collection
-// loader bases are pinned as text. www pins its own literals in
-// apps/www/test/editorial-source-layout.test.mjs, so www-only edits run them.
+// walker's table. This test holds both apps' literals to the same record set
+// instead: the admin baseline glob is compiled here, and the www social-card
+// glob and every content collection loader base are pinned as text. The www
+// glob's module reaches cloudflare:workers and cannot load under this runner.
+// This suite is admin's, so a www-only diff does not run it.
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
-const app = new URL("../../", import.meta.url);
 const ADMIN_GLOB = "../../../../content/public/**/*.md";
-// Collection loaders that read outside content/public on purpose.
-const NON_LAYOUT_LOADER_BASES = ["content/editorial/newsletter/"];
+const WWW_GLOB = "../../../../../content/public/writing/*.md";
+const APPS = [
+  {
+    name: "admin",
+    url: new URL("../../", import.meta.url),
+    // Collection loaders that read outside content/public on purpose.
+    outside: ["content/editorial/newsletter/"],
+  },
+  { name: "www", url: new URL("../../../www/", import.meta.url), outside: [] },
+] as const;
+const wwwApp = APPS[1].url;
 
 // The same literal as editorial-published-base.ts, from the same directory,
 // so every file the admin glob sees is listed, records or not.
@@ -68,6 +77,15 @@ function matched(base: URL, pattern: string) {
 
 describe("editorial source layout", () => {
   const walked = bundledEntries(root, contract);
+  const walkedPaths = (directory: string) =>
+    [
+      ...walked.entries.map((entry: { path: string }) => entry.path),
+      ...walked.skipped.map((entry: { path: string }) => entry.path),
+    ]
+      .filter((path) =>
+        path.startsWith(`${EDITORIAL_CONTENT_ROOT}/${directory}/`),
+      )
+      .sort();
 
   it("finds the same records and sources with the admin glob and the node walker", () => {
     const glob = bundledEditorialSources();
@@ -108,45 +126,54 @@ describe("editorial source layout", () => {
     expect(globBase(ADMIN_GLOB, file)).toBe(`${root}content/public/`);
   });
 
-  it("pins every admin collection loader base to a layout directory", () => {
-    const text = readFileSync(new URL("src/content.config.ts", app), "utf8");
-    const loaders = [
-      ...text.matchAll(
-        /glob\(\s*\{\s*pattern:\s*"([^"]+)",\s*base:\s*"([^"]+)",?\s*\}\s*\)/gu,
+  it("pins the www social-card glob literal to the walker's writing directory", () => {
+    const file = new URL("src/lib/social-card/gate.ts", wwwApp);
+    expect(globLiterals(file)).toEqual([WWW_GLOB]);
+    const cut = WWW_GLOB.lastIndexOf("/") + 1;
+    const base = new URL(WWW_GLOB.slice(0, cut), file);
+    expect(layoutDirectory(base)).toBe("writing");
+    expect(
+      matched(base, WWW_GLOB.slice(cut)).map(
+        (name) => `${EDITORIAL_CONTENT_ROOT}/writing/${name}`,
       ),
-    ].map(([, pattern, base]) => ({ pattern: pattern!, base: base! }));
-    // A loader this pattern cannot read fails here instead of going unchecked.
-    expect(loaders.length).toBe(text.match(/\bglob\(/gu)?.length ?? 0);
-    const walkedPaths = (directory: string) =>
-      [
-        ...walked.entries.map((entry: { path: string }) => entry.path),
-        ...walked.skipped.map((entry: { path: string }) => entry.path),
-      ]
-        .filter((path) =>
-          path.startsWith(`${EDITORIAL_CONTENT_ROOT}/${directory}/`),
-        )
-        .sort();
-    const read = new Set<string>();
-    const outside: string[] = [];
-    for (const { pattern, base } of loaders) {
-      // Astro resolves a loader base against the project root, not the file.
-      const url = new URL(base.endsWith("/") ? base : `${base}/`, app);
-      const directory = layoutDirectory(url);
-      if (!directory) {
-        outside.push(fileURLToPath(url).slice(root.length));
-        continue;
-      }
-      read.add(directory);
-      const paths = matched(url, pattern).map(
-        (name) => `${EDITORIAL_CONTENT_ROOT}/${directory}/${name}`,
-      );
-      expect(paths.length, `${base}/${pattern}`).toBeGreaterThan(0);
-      if (pattern === "*.md") expect(paths).toEqual(walkedPaths(directory));
-      else
-        for (const path of paths)
-          expect(walkedPaths(directory)).toContain(path);
-    }
-    expect(outside).toEqual(NON_LAYOUT_LOADER_BASES);
-    expect([...read].sort()).toEqual([...directories].sort());
+    ).toEqual(walkedPaths("writing"));
   });
+
+  for (const app of APPS)
+    it(`pins every ${app.name} collection loader base to a layout directory`, () => {
+      const text = readFileSync(
+        new URL("src/content.config.ts", app.url),
+        "utf8",
+      );
+      const loaders = [
+        ...text.matchAll(
+          /glob\(\s*\{\s*pattern:\s*"([^"]+)",\s*base:\s*"([^"]+)",?\s*\}\s*\)/gu,
+        ),
+      ].map(([, pattern, base]) => ({ pattern: pattern!, base: base! }));
+      // A loader this pattern cannot read fails here instead of going unchecked.
+      expect(loaders.length).toBe(text.match(/\bglob\(/gu)?.length ?? 0);
+      expect(loaders.length).toBeGreaterThan(0);
+      const read = new Set<string>();
+      const outside: string[] = [];
+      for (const { pattern, base } of loaders) {
+        // Astro resolves a loader base against the project root, not the file.
+        const url = new URL(base.endsWith("/") ? base : `${base}/`, app.url);
+        const directory = layoutDirectory(url);
+        if (!directory) {
+          outside.push(fileURLToPath(url).slice(root.length));
+          continue;
+        }
+        read.add(directory);
+        const paths = matched(url, pattern).map(
+          (name) => `${EDITORIAL_CONTENT_ROOT}/${directory}/${name}`,
+        );
+        expect(paths.length, `${base}/${pattern}`).toBeGreaterThan(0);
+        if (pattern === "*.md") expect(paths).toEqual(walkedPaths(directory));
+        else
+          for (const path of paths)
+            expect(walkedPaths(directory)).toContain(path);
+      }
+      expect(outside).toEqual(app.outside);
+      expect([...read].sort()).toEqual([...directories].sort());
+    });
 });
