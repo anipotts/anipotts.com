@@ -29,7 +29,8 @@ export type PrivateReaderState =
 export type PrivateReaderClearReason =
   "logout" | "expired" | "denied" | "unavailable";
 
-type Timer = ReturnType<typeof setTimeout>;
+// Browser timers return numbers; Node-backed tests return timer objects.
+type Timer = number | ReturnType<typeof setTimeout>;
 
 export type PrivateReaderSessionOptions = {
   fetch: typeof fetch;
