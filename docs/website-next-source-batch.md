@@ -38,7 +38,7 @@ gate failure is separate from software validation.
 | PR   | Source head                                | Current checks/disposition                                      | Own delta against current main              |
 | ---- | ------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------- |
 | #507 | `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba` | previous B/S/Q pass; now behind; separate owner                 | admin                                       |
-| #509 | `d698b76e3e47f557139f7fb1192a7e1d517a8b57` | fresh Build running; S/Q pass                                   | admin/state                                 |
+| #509 | `d698b76e3e47f557139f7fb1192a7e1d517a8b57` | fresh B/S/Q pass, current main                                  | admin/state                                 |
 | #512 | `f99e1351187898116b8a4f2dffdbb9ef89478308` | merged as988b; Production held                                  | four Workers                                |
 | #513 | `f25395ccc81e9e617fd96eaf1ce47f12a20b8e6a` | draft; full admin typecheck and201 tests pass                   | admin                                       |
 | #514 | `5b60c9173b1e53f92d3f465f1d61cca2b6fe8e97` | draft; fresh light/drift/S/Q pass; full typecheck/169tests pass | admin                                       |
@@ -102,6 +102,13 @@ Reader order is509 →514 →513; scope and lock must be normalized to then-curr
 main after each approved merge. #523 is a separate all-six dependency/theme
 packet. Do not advance main while another exact-head packet awaits execution.
 No green PR or batch recommendation authorizes execution.
+
+Exact required Build evidence: [#509](https://github.com/anipotts/anipotts.com/actions/runs/38031743084/job/114153980489),
+[#516](https://github.com/anipotts/anipotts.com/actions/runs/38031614077/job/114153581997),
+[#523](https://github.com/anipotts/anipotts.com/actions/runs/38031721727/job/114153925628).
+Security Review, aggregate CodeQL and all language analyzers also passed on each
+listed exact head. No workflow rerun, cancellation or source merge was performed
+to obtain these results.
 
 ## Combined draft and completion gaps
 

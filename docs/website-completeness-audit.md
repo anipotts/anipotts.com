@@ -40,7 +40,7 @@ Fresh full validation passed at `6d1e30d5`, tree
 fourteen typechecks and fourteen test tasks. Admin passed 2,280 tests, Astro 79,
 editorial 98, content 202 and www 192; CSP passed two with one skipped. The new
 reader regression's initial overload error is fixed with literal calls.
-Fresh #516 and #523 required checks passed. See the
+Fresh #509, #516 and #523 required checks passed. See the
 [bounded packet](website-next-source-batch.md) for exact heads and scope.
 
 Draft #522 retains CLI/settings/bounded media admission; #524 is assembly

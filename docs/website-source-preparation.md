@@ -33,7 +33,7 @@ uses React19.2.8.
 See [the bounded packet](website-next-source-batch.md) for exact heads, terminal
 checks, independent review, deployment scopes and unresolved conditions.
 #513/#514/#515/#518/#522/#524 remain draft-held. #516's current-main required
-checks and111 independent focused tests passed; #523's fresh checks passed.
+checks and111 independent focused tests passed; #509 and #523's fresh checks passed.
 No readiness or green checks grant merge/deploy authority.
 
 ## Initial checkpoint (historical; not current-head proof)
