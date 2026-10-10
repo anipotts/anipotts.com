@@ -35,20 +35,28 @@ exact release validation, but its four Worker release waits at Production; its
 runtime code is not claimed live. Executor and approval provenance remain
 unproven.
 
-Fresh full validation passed at `03d2216a`, tree
-`295445d411da0c8fa28d1a8fc6d279e9fc5cdfd9`: six builds, four lint tasks,
+Fresh full validation passed at `61008624`, tree
+`965ad7afe45d5323af1ff788618d2a7e833e618e`: six builds, four lint tasks,
 fourteen typechecks and fourteen test tasks. Admin passed 2,296 tests, Astro 79,
 editorial 98, content 202 and www 192; CSP passed two with one skipped. The new
 reader regression's initial overload error is fixed with literal calls.
 Recovery downloads now capture buffered editor text and retry identity while
 preserving opaque stored entries.110 focused tests, compiler checks and a
 stored-only export mutation passed; independent review found no blockers.
-Full-store reference-checked export and synthetic restore remain software work.
+Supplied-snapshot export/reference validation, caller-key authenticated
+encryption and suspended synthetic restore now pass27 CLI/fixture tests,
+including105 revisions through the real canonical SQL schemas. Independent
+review and omitted-table/missing-media mutation proofs pass. Application tasks
+were cached in the final run; new CLI/recovery tests ran afresh. Live consistent
+capture, provider exporters/importers and operational backup remain unfinished.
 Fresh #509, #516 and #523 required checks passed. See the
 [bounded packet](website-next-source-batch.md) for exact heads and scope.
 
 Draft #522 retains CLI/settings/bounded media admission; #524 is assembly
-evidence. Neither closes full media decode/crop provenance, complete recovery,
+evidence. Isolated media research a15335f5 passed100 focused tests, compiler/build
+and local Worker proofs, but has no qualified production memory/CPU bound and
+is excluded from the assembly. Neither draft closes deployed media processing,
+complete operational recovery,
 real data-source access or live draft-write acceptance. Knowledge and Health
 views exist; connecting their canonical sources is separate from implementing
 the UI. Agent-owned software work remains active. Published wording and CMS

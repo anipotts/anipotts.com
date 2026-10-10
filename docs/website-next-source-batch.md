@@ -50,18 +50,18 @@ B/S/Q means Build, Security Review and CodeQL. Historical green checks on a
 head behind main are not current-main readiness. A draft's intentional Build
 gate failure is separate from software validation.
 
-| PR   | Source head                                | Current checks/disposition                                      | Own delta against current main              |
-| ---- | ------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------- |
-| #507 | `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba` | previous B/S/Q pass; now behind; separate owner                 | admin                                       |
-| #509 | `d698b76e3e47f557139f7fb1192a7e1d517a8b57` | fresh B/S/Q pass, current main                                  | admin/state                                 |
-| #512 | `f99e1351187898116b8a4f2dffdbb9ef89478308` | merged as988b; Production held                                  | four Workers                                |
-| #513 | `f25395ccc81e9e617fd96eaf1ce47f12a20b8e6a` | draft; full admin typecheck and201 tests pass                   | admin                                       |
-| #514 | `5b60c9173b1e53f92d3f465f1d61cca2b6fe8e97` | draft; fresh light/drift/S/Q pass; full typecheck/169tests pass | admin                                       |
-| #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                    | www/admin                                   |
-| #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                     | www/admin                                   |
-| #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; fresh light/S/Q pass; refreshed main/515                 | www/admin                                   |
-| #522 | `e5ce6212b3c043608d8120e0b106d70a47ed7452` | feature draft; fresh light/S/Q pass; recovery repair included   | broader feature; recalculate before release |
-| #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                  | all six                                     |
+| PR   | Source head                                | Current checks/disposition                                            | Own delta against current main              |
+| ---- | ------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------- |
+| #507 | `5abafb4b4d8c3d8207a3cb863c5e3a580c45b4ba` | previous B/S/Q pass; now behind; separate owner                       | admin                                       |
+| #509 | `d698b76e3e47f557139f7fb1192a7e1d517a8b57` | fresh B/S/Q pass, current main                                        | admin/state                                 |
+| #512 | `f99e1351187898116b8a4f2dffdbb9ef89478308` | merged as988b; Production held                                        | four Workers                                |
+| #513 | `f25395ccc81e9e617fd96eaf1ce47f12a20b8e6a` | draft; full admin typecheck and201 tests pass                         | admin                                       |
+| #514 | `5b60c9173b1e53f92d3f465f1d61cca2b6fe8e97` | draft; fresh light/drift/S/Q pass; full typecheck/169tests pass       | admin                                       |
+| #515 | `a58a5d68c9a984f268f14914e70e1637f0c4d898` | fresh B/S/Q pass; draft held                                          | www/admin                                   |
+| #516 | `1b67cce0914fa68866163d22438af9ad12ac0a80` | fresh B/S/Q pass, current main, peer review                           | www/admin                                   |
+| #518 | `6eeec4c89af9a3aef1b2e79b82c9a59343258147` | draft; fresh light/S/Q pass; refreshed main/515                       | www/admin                                   |
+| #522 | `7b5a8fca91a1e9ce87526a59252da13248a0ba8e` | feature draft;27 CLI/offline tests pass; fresh remote checks required | broader feature; recalculate before release |
+| #523 | `f61add4d71b4d4bd77b9ac6c9f342e320f0ae1e5` | fresh B/S/Q pass, current main                                        | all six                                     |
 
 None of these existing plans selects D1 changes or remote migration; schema
 stays `0044`. Targets describe source deltas. Final deployment may include
@@ -128,17 +128,19 @@ to obtain these results.
 ## Combined draft and completion gaps
 
 Draft524 assembles source; it is not a bulk merge/release request. Fresh full
-validation passed on exact `03d2216a08a27f7714e69b28d02bf1ced1a25be7`, tree
-`295445d411da0c8fa28d1a8fc6d279e9fc5cdfd9`, including current main988b.
+validation passed on exact `61008624dc2013759c065f2665f18e04f244dc2b`, tree
+`965ad7afe45d5323af1ff788618d2a7e833e618e`, including current main988b.
 Policy/migration checks, formatting, six builds, four lint tasks, fourteen
 typechecks and fourteen test tasks pass using normal Turbo caching:
-2296admin/79Astro/98editorial/202content/192www; CSP2pass/1skip.
+2296admin/79Astro/98editorial/202content/192www; CSP2pass/1skip. Unchanged
+application tasks were cached; new27 CLI/offline tests ran afresh.
 The new reader overload regression is repaired, not cast away. Standalone
 reader branches match main Node22; the broader assembly retains509's separate
 Node26 update and523's newer tools, with the previous combined lock byte-identical.
-The current tree additionally includes the nine-file browser recovery repair.
+The current tree includes the nine-file browser recovery repair and four-file
+offline recovery adapter/test/doc increment.
 Later packet-only updates preserve executable blobs; the exact full-run log is
-`/tmp/anipotts-recovery-combined-validation.log`.
+`/tmp/anipotts-offline-recovery-combined-validation.log`.
 
 522 is retained as a separate feature draft, not superseded by524. Native CLI,
 shared settings and bounded media admission are implemented in source. Real
@@ -152,8 +154,13 @@ about148–167MiB at1MP. Unqualified garbage collection, transient peaks and clo
 limits prevent a safe processing-limit claim.
 Browser recovery now captures current buffered input and retry identity;
 110 focused tests, compiler checks, mutation proof and independent review pass.
-Full-store export/reference validation and synthetic restore continue as
-agent-owned software work. Operational recovery requires provider proof. These are not tasks
+Supplied-snapshot export/reference validation, caller-key AES-GCM envelopes and
+suspended synthetic restore pass27 tests, including105 revisions in canonical
+SQLite schemas. Independent review and omitted-table/missing-public-media
+mutations pass. A standalone522 dependency defect was fixed and27 tests pass
+without518's helper or installed packages. Live consistent capture, provider
+export/import adapters and operational recovery remain unfinished software and
+integration work; this is not operational backup proof. These are not tasks
 for Ani to manually verify in lieu of fixing software.
 
 User-only boundaries are named-record private draft-save permission; separate

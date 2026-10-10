@@ -1,6 +1,8 @@
 # Editorial media processing: held source preparation
 
-This is an additive processing API under qualification. Existing uploads retain
+This describes isolated research commit a15335f5, not routes implemented in the
+current522/524 source candidates or proven deployed on production. Keep the
+prototype isolated: it has no qualified production resource bound. Existing uploads retain
 10 MiB / 16-megapixel admission and existing media stays readable. The default
 browser uploader is unchanged. The processing API is not a production receipt
 or proof that every existing upload can be decoded safely.
@@ -60,7 +62,7 @@ sum is therefore appropriate here, but end-of-operation snapshots do not
 establish transient peaks or cloud compatibility.
 A subsequent actual built Admin/SQLite-DO probe completed normalization,
 orientation and stored-parent crop. With processing buffers deliberately held,
-its warmed-codec estimates reached about148MiB for WebP and167MiB for rotated
+its final warmed-codec estimates reached148.80MiB for WebP and168.83MiB for rotated
 JPEG at1MP. Garbage collection and enforced cloud limits were not qualified.
 A safe peak-memory bound for the full application is not established.
 A successful local response does not

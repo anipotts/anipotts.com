@@ -12,14 +12,17 @@ Production gate, not proven deployed. This chat merged no PR into main and
 approved no Production release.
 
 Fresh full `pnpm validate` passed on exact
-`03d2216a08a27f7714e69b28d02bf1ced1a25be7`, tree
-`295445d411da0c8fa28d1a8fc6d279e9fc5cdfd9`. It includes current main988b and
+`61008624dc2013759c065f2665f18e04f244dc2b`, tree
+`965ad7afe45d5323af1ff788618d2a7e833e618e`. It includes current main988b and
 all strict refreshed heads. The new generated-route regression's initial
 TypeScript overload error is repaired with literal raw/json calls.
 Six builds, four lint tasks, fourteen typechecks and fourteen test tasks pass
-with normal Turbo caching. Admin2296tests/174files, Astro79, editorial98,
+with normal Turbo caching (the unchanged application tasks were cached).
+Admin2296tests/174files, Astro79, editorial98,
 content202, www192; CSP2pass/1skip. Frozen install passed. The tree stayed clean
-through validation. Log: `/tmp/anipotts-recovery-combined-validation.log`.
+through validation. The27 CLI/offline tests ran afresh, including105 revisions
+restored through canonical SQLite schemas. Log:
+`/tmp/anipotts-offline-recovery-combined-validation.log`.
 Historical77367571 and6d1e30d5 success is not substituted for this changed tree.
 Later packet-only documentation updates preserve every executable blob.
 
@@ -29,10 +32,20 @@ without sending a save or retry. Session guards suppress plaintext downloads
 after logout or expiry. Independent source review found no blockers;110 focused
 tests, full compiler checks and a stored-only export mutation passed. This
 closes the browser-download defect, not full-store backup/restore coverage.
-Reference-checked synthetic export/restore work continues in an isolated lane.
+The four-file offline adapter at4bb272c1 covers supplied state across eight
+editorial and three publication tables, exact media chunks/references, preserved
+receipts and suspended pending intents. Caller-key AES-GCM envelopes reject
+tampering.27 tests, two meaningful reference/table mutations and independent
+review pass. A discovered dependency on518's layout helper was removed;
+standalone522 also passes without that helper or installed dependencies.
+See [the offline contract](design/admin-workspace/offline-recovery-contract.md).
+This implements supplied-snapshot validation and synthetic restore, not live
+consistent capture, provider export/import, key custody or operational backups.
 Media decoding remains isolated under qualification; the current10MiB/16MP
 upload path is unchanged. The held API document describes that prototype, not
-an implementation included in this validated tree.
+an implementation included in this validated tree. Isolated media research
+commit a15335f5 passed100 focused tests and compiler/build/local Worker proofs,
+but remains unqualified and excluded. No safe processing limit is established.
 
 Standalone #513/#514 restore main's state Node22 scope. The broader assembly
 retains #509's separate state Node26 update and #523's newer tools, restoring the
