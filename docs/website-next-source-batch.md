@@ -130,7 +130,9 @@ shared settings and bounded media admission are implemented in source. Real
 pixel decoding, sanitized derivatives and durable crop provenance are agent
 software work, currently under isolated resource qualification: stock WASM
 codecs at16MP exceed Workers128MiB in the measured PNG probe. No smaller
-default upload cap is activated; full built-Worker qualification is pending.
+default upload cap is activated. The actual built-Worker/DO functional probe
+passed, but possible overlapping WASM/backing-store counters and unmeasured
+transient peaks prevent a safe processing-limit claim.
 Browser recovery now captures current buffered input and retry identity;
 110 focused tests, compiler checks, mutation proof and independent review pass.
 Full-store export/reference validation and synthetic restore continue as
