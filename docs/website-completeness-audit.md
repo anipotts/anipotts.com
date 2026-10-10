@@ -16,6 +16,11 @@ preparation. Production approval and subsequent deployment remain separately
 gated. See the [source preparation record](website-source-preparation.md) for
 the validated integration tree and exact repair heads.
 
+At 05:28:41 UTC Ani separately approved the existing #521 release at
+`1ccc08da`, www/admin only. The designated React repair chat is its single
+executor; this chat performs no duplicate approval or deployment. All subsequent
+production releases remain separately gated.
+
 The assessment covers this repository, accessible website chat history, GitHub
 pull requests/checks/deployment records and the separate agents/labs repository
 records. The cloud environment cannot inspect uncommitted Mac worktrees. Their

@@ -1,8 +1,8 @@
 # Website source preparation
 
 October 10, 2026. Source preparation is approved; production approval and
-deployment are held separately. No changes from this preparation have merged
-to main or deployed. Published wording and production CMS data are unchanged.
+deployment are held separately. This chat has merged no source repairs into
+main or deployed. Published wording and production CMS data are unchanged.
 
 ## Reviewed candidate
 
@@ -20,7 +20,15 @@ GitHub CodeQL subsequently flagged case sensitivity in the test helper that
 extracts the local `Nav.astro` script. The extraction now matches tags without
 case sensitivity; all five pointer/navigation tests and formatting checks pass.
 This test-only correction is also pushed to #522. Production code is unchanged
-from the full validation tree; refreshed CodeQL checks remain necessary.
+from the full validation tree; refreshed CodeQL checks passed on both #522 and
+#524 at their corrected heads.
+
+Another agent subsequently merged #517 into main at
+`2375022277c28286461666d765ed5f44a7083cd1` and refreshed #512 to
+`489e7c8a8d553b9c49c46216ecdf68e2b3421ce5`. Both were merged into this
+isolated candidate at `41dd460c30118653106e34795f8700523b29ef5e`, with no
+tree change relative to `0d124a4e`. Existing PR branches are left to the active
+integration owner; ownership clarification is pending.
 
 This candidate integrates the approved chains:
 
@@ -113,6 +121,20 @@ admin lane intentionally skips the generic service-identity smoke; its boundary
 check does not prove a signed-in human owner session. Live absent/visible card
 GET/HEAD behavior and signed-in owner acceptance are still missing. Verify them
 read-only against existing content, without publishing prose or mutating CMS.
+
+At 05:28:41 UTC Ani approved exactly the #521 production packet: existing run,
+`1ccc08da`, www/admin only, no worker, D1 or CMS writes. The React repair chat
+`01a12428-da0c-70de-b963-580d74b9e0fb` claimed single-executor ownership; this
+chat acknowledged and performs no duplicate approval or deployment. This lifts
+the hold only for that exact release. Its deployed acceptance is still pending.
+
+After another agent merged #517, GitHub cancelled the pending `f9992c59` run
+and replaced it with [38027502965](https://github.com/anipotts/anipotts.com/actions/runs/38027502965)
+at `23750222`. This chat did not cancel either run. GitHub retains one pending
+run in this concurrency group; `cancel-in-progress: false` preserves the active
+release but does not retain every pending run. The #521 run remains unchanged.
+Verify the replacement run's classification after #521; the cancelled ESLint
+run cannot provide a no-deployment result.
 
 For any later approved source integration, retain these orders:
 #517 → #520 → #510; #520 → #512 → #516; #514 → #513 → #509 timer repair;
