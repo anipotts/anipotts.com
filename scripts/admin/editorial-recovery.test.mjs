@@ -18,9 +18,9 @@ import {
 const root = new URL("../../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 const clone = (value) => structuredClone(value);
-const key = "content/public/writing/synthetic-recovery.md";
-const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const record = { kind: "writing", id: "synthetic-recovery" };
+const key = `content/public/${record.kind}/${record.id}.md`;
+const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const revisionSource = (revision, media) =>
   `\uFEFF---\r\nstatus: published\r\ntitle: Synthetic recovery\r\n---\r\nRevision ${revision}: café 🌱\r\n![fixture](/images/editorial/${media})\r\n`;
 const publishedAt = "2026-10-10T00:00:00.000Z";
