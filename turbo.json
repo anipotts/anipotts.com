@@ -91,6 +91,17 @@
       ],
       "outputs": ["dist/**", "src/public/generated.ts"]
     },
+    "@anipotts/content#typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_ROOT$/content/public/**",
+        "$TURBO_ROOT$/scripts/content/generate-public-content.mjs",
+        "src/**",
+        "tsconfig*.json",
+        "package.json"
+      ],
+      "outputs": []
+    },
     "@anipotts/admin#test": {
       "dependsOn": ["build"],
       "inputs": ["src/**", "test/**", "vitest*.config.ts", "package.json"],
