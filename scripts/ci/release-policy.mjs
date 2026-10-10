@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { inspectMigrationChanges } from "./migration-policy.mjs";
+import { firstRule, matchingRules } from "./path-manifest.mjs";
 
 export const DEPLOY_TARGETS = [
   "www",
@@ -11,109 +12,6 @@ export const DEPLOY_TARGETS = [
   "newsletter",
   "state",
   "weekly_email",
-];
-
-const MIGRATION_PREFLIGHT_PATHS = [
-  /^apps\/admin\/migrations\/content-publication\//,
-  /^packages\/content\/src\/editorial\/(?:direct-publication|publication-contract)(?:\.test)?\.ts$/,
-  /^scripts\/ci\/content-publication-/,
-  /^drizzle\/migrations\//,
-  /^drizzle\/meta\//,
-  /^drizzle\/README\.md$/,
-  /^apps\/admin\/wrangler\.toml$/,
-  /^scripts\/ci\/(?:d1-|migration-|site-migrations)/,
-];
-
-const ADMIN_CORE_PATCH = "patches/@astryxdesign__core@0.4.6.patch";
-
-const CI_POLICY_PATHS = [
-  // These documents are inputs to the guidance invariants in test:workspace.
-  /^(?:AGENTS|CLAUDE|README)\.md$/,
-  /^docs\/(?:platform-architecture\.md|design\/admin-workspace\/quiet-precision-delivery\.md)$/,
-  /^\.(?:gitignore|prettierignore)$/,
-  /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
-  /^\.github\/editorial-publisher\.pem$/,
-  /^\.coderabbit\.yaml$/,
-  /^e2e\.(?:admin|www)\.config\.ts$/,
-  /^knip\.jsonc$/,
-  /^\.github\/workflows\//,
-  /^config\//,
-  /^scripts\/ci\//,
-  /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
-  // Turbo global dependencies and pnpm install settings change every package.
-  /^(?:\.npmrc|\.prettierrc|tsconfig\.json)$/,
-];
-
-const PUBLIC_BROWSER_PATHS = [
-  /^e2e\.www\.config\.ts$/,
-  /^scripts\/ci\/public-e2e-(?:server|migrations)\.mjs$/,
-  /^apps\/www\/test\/e2e\//,
-  /^packages\/content\/src\/editorial\//,
-  /^apps\/admin\/migrations\/content-publication\//,
-  /^scripts\/content\/(?:seed-content-d1|content-d1-seed)\.mjs$/,
-  /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/,
-  // pnpm settings live in either pnpm-workspace.yaml or .npmrc.
-  /^\.npmrc$/,
-];
-
-const LOCAL_DEV_PATHS = [
-  /^\.claude\/launch\.json$/,
-  /^\.codex\//,
-  /^\.claude\/settings\.json$/,
-  /^\.nvmrc$/,
-  /^docs\/local-development\.md$/,
-  /^scripts\/(?:codex-action$|dev\/)/,
-];
-
-const APPROVAL_PATHS = [
-  /^\.github\/editorial-publisher\.pem$/,
-  /^\.github\/workflows\//,
-  /^apps\/admin-solid\//,
-  /^config\/release-train\.json$/,
-  /^drizzle\/migrations\/manifest\.json$/,
-  /^scripts\/ci\/(?:branch-protection|d1-migration-conditions|d1-schema-fingerprint|migration-local-proof|migration-policy|release-policy|release-smoke|worker-version)\.mjs$/,
-  /^apps\/admin\/src\/middleware\.ts$/,
-  /^apps\/admin\/src\/lib\/access-identity\.ts$/,
-  /^apps\/admin\/src\/pages\/auth\//,
-  /(?:^|\/)(?:wrangler\.(?:toml|jsonc)|_routes\.json)$/,
-  /(?:^|\/)(?:credentials?|secrets?)(?:\.|\/)/i,
-  /^workers\/(?:ingest|newsletter|state|weekly-email)\//,
-  // Environment template beside local secrets; classified by name only.
-  /^\.env\.example$/,
-  // Lists the ignored secret files copied into new agent worktrees, so a
-  // change alters what agents receive. It holds path patterns, not values, so
-  // owner review is the control; security-review's literal-secret scan is not.
-  /^\.worktreeinclude$/,
-];
-
-const KNOWN_SAFE_ROOTS = [
-  /^\.codex\/config\.toml$/,
-  /^\.claude\/settings\.json$/,
-  /^\.claude\/launch\.json$/,
-  /^\.codex\/environments\/environment\.toml$/,
-  /^\.(?:gitignore|prettierignore)$/,
-  /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
-  /^\.coderabbit\.yaml$/,
-  /^e2e\.(?:admin|www)\.config\.ts$/,
-  /^knip\.jsonc$/,
-  /^apps\/(?:admin|www)\//,
-  /^packages\//,
-  /^content\/public\//,
-  /^content\/publication\.json$/,
-  /^drizzle\/seeds\/public-content\.json$/,
-  /^scripts\//,
-  /^config\//,
-  /^drizzle\/migrations\//,
-  /^\.github\/(?:ISSUE_TEMPLATE|CODEOWNERS)/,
-  /^(?:\.nvmrc|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/,
-  // Editor, formatter, install and launcher settings with no deploy output.
-  /^\.(?:editorconfig|npmrc|posthog-events\.json|prettierrc)$/,
-  /^\.github\/dependabot\.yml$/,
-  /^\.husky\/pre-commit$/,
-  /^\.vscode\/(?:extensions|settings)\.json$/,
-  /^(?:drizzle\.config\.ts|solo\.yml|tsconfig\.json)$/,
-  // Historical drizzle-kit journal; migrations/manifest.json is the authority.
-  /^drizzle\/meta\/_journal\.json$/,
 ];
 
 function parseChange(line) {
@@ -131,14 +29,9 @@ function parseChange(line) {
   return [{ status, path: parts.at(-1) }];
 }
 
+// Path rules live in scripts/ci/path-manifest.mjs; this file applies them.
 export function isReleaseIgnored(path) {
-  if (path.startsWith("content/public/")) return false;
-  return (
-    path.endsWith(".md") ||
-    path.startsWith("docs/") ||
-    path.startsWith(".github/ISSUE_TEMPLATE/") ||
-    path === "LICENSE"
-  );
+  return firstRule("ignored", path)?.ignored === true;
 }
 
 export function computeDeployTargets(paths) {
@@ -148,64 +41,22 @@ export function computeDeployTargets(paths) {
 
   for (const path of paths) {
     if (!path || isReleaseIgnored(path)) continue;
-    // Shared Astro integrations run inside both app builds.
-    const astroBuildConfig = path.startsWith("config/astro/");
-    if (
-      astroBuildConfig ||
-      path.startsWith("apps/www/") ||
-      path.startsWith("content/public/") ||
-      path.startsWith("packages/content/src/public/") ||
-      path === "packages/content/package.json" ||
-      path === "packages/content/src/index.ts" ||
-      path.startsWith("packages/brand/")
-    ) {
-      targets.www = true;
-    }
-
-    if (
-      astroBuildConfig ||
-      /^apps\/www\/src\/(?:components|layouts|styles|lib|scripts)\//.test(
-        path,
-      ) ||
-      path === ADMIN_CORE_PATCH ||
-      path.startsWith("apps/admin/") ||
-      path.startsWith("content/public/") ||
-      path.startsWith("packages/content/") ||
-      path.startsWith("packages/lib/") ||
-      path.startsWith("packages/brand/") ||
-      path.startsWith("packages/types/")
-    ) {
-      targets.admin = true;
-    }
-
-    if (path.startsWith("packages/types/")) targets.state = true;
-
-    for (const worker of ["ingest", "newsletter", "state", "weekly-email"]) {
-      if (path.startsWith(`workers/${worker}/`)) {
-        targets[worker.replace("-", "_")] = true;
-      }
+    for (const rule of matchingRules("target", path)) {
+      for (const target of rule.targets) targets[target] = true;
     }
   }
 
   return targets;
 }
 
-function routeContractChanged(change) {
-  return (
-    /^[ADR]/.test(change.status) &&
-    /^apps\/(?:admin|www)\/src\/pages\//.test(change.path)
-  );
+function riskRule(change) {
+  return firstRule("risk", change.path, change.status);
 }
 
 // One test for both CI and local scope checks, so they cannot disagree on
 // which paths no rule names.
 function isUnclassified(change) {
-  return (
-    !isReleaseIgnored(change.path) &&
-    !APPROVAL_PATHS.some((pattern) => pattern.test(change.path)) &&
-    !routeContractChanged(change) &&
-    !KNOWN_SAFE_ROOTS.some((pattern) => pattern.test(change.path))
-  );
+  return !isReleaseIgnored(change.path) && !riskRule(change);
 }
 
 export function unclassifiedPaths(changeLines) {
@@ -220,10 +71,8 @@ export function classifyRelease(changeLines, options = {}) {
   const changes = changeLines.filter(Boolean).flatMap(parseChange);
   const paths = changes.map((change) => change.path);
   const deployTargets = computeDeployTargets(paths);
-  const deletedMigrations = changes.filter(
-    (change) =>
-      change.status.startsWith("D") &&
-      /^drizzle\/migrations\/\d{4}_.+\.sql$/.test(change.path),
+  const deletedMigrations = changes.filter((change) =>
+    firstRule("removed-migration", change.path, change.status),
   );
   const migration = inspectMigrationChanges(
     changes
@@ -250,17 +99,11 @@ export function classifyRelease(changeLines, options = {}) {
 
   for (const change of changes) {
     if (isReleaseIgnored(change.path)) continue;
-    if (APPROVAL_PATHS.some((pattern) => pattern.test(change.path))) {
+    const rule = riskRule(change);
+    if (rule?.risk === "approval") {
       risk = "approval";
-      reasons.push(`protected surface: ${change.path}`);
-      continue;
-    }
-    if (routeContractChanged(change)) {
-      risk = "approval";
-      reasons.push(`route contract changed: ${change.path}`);
-      continue;
-    }
-    if (isUnclassified(change)) {
+      reasons.push(`${rule.reason}: ${change.path}`);
+    } else if (!rule) {
       unclassified = true;
       reasons.push(`unclassified path: ${change.path}`);
     }
@@ -268,6 +111,10 @@ export function classifyRelease(changeLines, options = {}) {
   // Fail closed: an unclassified path stays unknown whatever sorts after it.
   if (unclassified) risk = "unknown";
 
+  const flagged = (name) =>
+    paths.some((path) =>
+      matchingRules("flag", path).some((rule) => rule.flag === name),
+    );
   const hasDeployTarget = Object.values(deployTargets).some(Boolean);
   const docsOnly = changes.length > 0 && paths.every(isReleaseIgnored);
   if (risk === "none" && hasDeployTarget) risk = "automatic";
@@ -279,18 +126,10 @@ export function classifyRelease(changeLines, options = {}) {
     source_sha: sourceSha,
     risk,
     docs_only: docsOnly,
-    migration_preflight_required: paths.some((path) =>
-      MIGRATION_PREFLIGHT_PATHS.some((pattern) => pattern.test(path)),
-    ),
-    ci_policy_changed: paths.some((path) =>
-      CI_POLICY_PATHS.some((pattern) => pattern.test(path)),
-    ),
-    public_browser_changed: paths.some((path) =>
-      PUBLIC_BROWSER_PATHS.some((pattern) => pattern.test(path)),
-    ),
-    local_dev_changed: paths.some((path) =>
-      LOCAL_DEV_PATHS.some((pattern) => pattern.test(path)),
-    ),
+    migration_preflight_required: flagged("migration_preflight_required"),
+    ci_policy_changed: flagged("ci_policy_changed"),
+    public_browser_changed: flagged("public_browser_changed"),
+    local_dev_changed: flagged("local_dev_changed"),
     deploy_targets: deployTargets,
     d1_changed: migration.changed,
     migration_risk: migration.risk,
