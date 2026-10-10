@@ -12,16 +12,27 @@ Production gate, not proven deployed. This chat merged no PR into main and
 approved no Production release.
 
 Fresh full `pnpm validate` passed on exact
-`6d1e30d5750a8a1badb3835ddf26ff52b8b9de0e`, tree
-`ad4a496d56e2ada8a4862c8466a3be7d990336f4`. It includes current main988b and
+`03d2216a08a27f7714e69b28d02bf1ced1a25be7`, tree
+`295445d411da0c8fa28d1a8fc6d279e9fc5cdfd9`. It includes current main988b and
 all strict refreshed heads. The new generated-route regression's initial
 TypeScript overload error is repaired with literal raw/json calls.
 Six builds, four lint tasks, fourteen typechecks and fourteen test tasks pass
-with normal Turbo caching. Admin2280tests/174files, Astro79, editorial98,
+with normal Turbo caching. Admin2296tests/174files, Astro79, editorial98,
 content202, www192; CSP2pass/1skip. Frozen install passed. The tree stayed clean
-through validation. Log: `/tmp/anipotts-final-reader-combined-validation.log`.
-Historical77367571 success is no longer substituted for this changed tree.
+through validation. Log: `/tmp/anipotts-recovery-combined-validation.log`.
+Historical77367571 and6d1e30d5 success is not substituted for this changed tree.
 Later packet-only documentation updates preserve every executable blob.
+
+The nine-file recovery repair, isolated at22fcda83 and transferred into the
+editorial branch at36325a62, captures current buffered edits and retry identity
+without sending a save or retry. Session guards suppress plaintext downloads
+after logout or expiry. Independent source review found no blockers;110 focused
+tests, full compiler checks and a stored-only export mutation passed. This
+closes the browser-download defect, not full-store backup/restore coverage.
+Reference-checked synthetic export/restore work continues in an isolated lane.
+Media decoding remains isolated under qualification; the current10MiB/16MP
+upload path is unchanged. The held API document describes that prototype, not
+an implementation included in this validated tree.
 
 Standalone #513/#514 restore main's state Node22 scope. The broader assembly
 retains #509's separate state Node26 update and #523's newer tools, restoring the

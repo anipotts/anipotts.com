@@ -113,24 +113,28 @@ to obtain these results.
 ## Combined draft and completion gaps
 
 Draft524 assembles source; it is not a bulk merge/release request. Fresh full
-validation passed on exact `6d1e30d5750a8a1badb3835ddf26ff52b8b9de0e`, tree
-`ad4a496d56e2ada8a4862c8466a3be7d990336f4`, including current main988b.
+validation passed on exact `03d2216a08a27f7714e69b28d02bf1ced1a25be7`, tree
+`295445d411da0c8fa28d1a8fc6d279e9fc5cdfd9`, including current main988b.
 Policy/migration checks, formatting, six builds, four lint tasks, fourteen
 typechecks and fourteen test tasks pass using normal Turbo caching:
-2280admin/79Astro/98editorial/202content/192www; CSP2pass/1skip.
+2296admin/79Astro/98editorial/202content/192www; CSP2pass/1skip.
 The new reader overload regression is repaired, not cast away. Standalone
 reader branches match main Node22; the broader assembly retains509's separate
 Node26 update and523's newer tools, with the previous combined lock byte-identical.
-Only two reader source/test files plus three packet docs differ from77367571.
+The current tree additionally includes the nine-file browser recovery repair.
 Later packet-only updates preserve executable blobs; the exact full-run log is
-`/tmp/anipotts-final-reader-combined-validation.log`.
+`/tmp/anipotts-recovery-combined-validation.log`.
 
 522 is retained as a separate feature draft, not superseded by524. Native CLI,
 shared settings and bounded media admission are implemented in source. Real
 pixel decoding, sanitized derivatives and durable crop provenance are agent
 software work, currently under isolated resource qualification: stock WASM
-codecs at16MP may exceed Workers128MiB. Recovery export/restore and browser
-recovery safeguards also require software/provider proof. These are not tasks
+codecs at16MP exceed Workers128MiB in the measured PNG probe. No smaller
+default upload cap is activated; full built-Worker qualification is pending.
+Browser recovery now captures current buffered input and retry identity;
+110 focused tests, compiler checks, mutation proof and independent review pass.
+Full-store export/reference validation and synthetic restore continue as
+agent-owned software work. Operational recovery requires provider proof. These are not tasks
 for Ani to manually verify in lieu of fixing software.
 
 User-only boundaries are named-record private draft-save permission; separate
@@ -141,7 +145,7 @@ reads need not be repeated. Finance/persistent personal agent remain future
 scope. Staging currently aliases production; retirement needs fresh provider
 inventory and separate DNS/resource authority.
 
-Cloud enforced revision11 still lacks website/Cloudflare hosts and identities.
+Cloud enforced revision12 still lacks website/Cloudflare hosts and identities.
 This chat has no configuration-write or cross-chat send tool; no direct delivery
 is claimed. Paste the [setup handoff](cloud-environment-setup-handoff.md) into
 Edit build, publish settings and verify a fresh enforced configuration.

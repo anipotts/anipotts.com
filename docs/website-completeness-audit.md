@@ -35,11 +35,15 @@ exact release validation, but its four Worker release waits at Production; its
 runtime code is not claimed live. Executor and approval provenance remain
 unproven.
 
-Fresh full validation passed at `6d1e30d5`, tree
-`ad4a496d56e2ada8a4862c8466a3be7d990336f4`: six builds, four lint tasks,
-fourteen typechecks and fourteen test tasks. Admin passed 2,280 tests, Astro 79,
+Fresh full validation passed at `03d2216a`, tree
+`295445d411da0c8fa28d1a8fc6d279e9fc5cdfd9`: six builds, four lint tasks,
+fourteen typechecks and fourteen test tasks. Admin passed 2,296 tests, Astro 79,
 editorial 98, content 202 and www 192; CSP passed two with one skipped. The new
 reader regression's initial overload error is fixed with literal calls.
+Recovery downloads now capture buffered editor text and retry identity while
+preserving opaque stored entries.110 focused tests, compiler checks and a
+stored-only export mutation passed; independent review found no blockers.
+Full-store reference-checked export and synthetic restore remain software work.
 Fresh #509, #516 and #523 required checks passed. See the
 [bounded packet](website-next-source-batch.md) for exact heads and scope.
 

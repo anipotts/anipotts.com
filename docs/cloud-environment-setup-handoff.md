@@ -3,7 +3,7 @@
 Paste the following into the Codex **Edit build** setup chat. That chat must
 apply supported environment settings, not merely modify repository documents.
 The website completion chat can read configuration but has no configuration
-write tool. On October 10, the latest enforced revision 11 still allowed only the package
+write tool. On October 10, the latest enforced revision 12 still allowed only the package
 manager preset and `cdn.playwright.dev`, with no secret bindings or identities.
 
 > Finish configuring and publish the existing `build` cloud environment for
