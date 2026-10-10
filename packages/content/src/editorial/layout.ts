@@ -8,7 +8,8 @@
  * stripping, from scripts/content/*.mjs before any package build. Vite glob
  * literals and Astro collection loader bases cannot import it, so
  * apps/admin/src/lib/editorial-source-equivalence.test.ts holds both apps'
- * literals to it. */
+ * source-loader literals to it. Public social-card availability reads only
+ * the CMS inventory, separately from these build-time source loaders. */
 
 export const EDITORIAL_CONTENT_ROOT = "content/public";
 
