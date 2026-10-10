@@ -139,7 +139,7 @@ test("persisted navigation adopts incoming publication labels and current-page s
   );
   const script = stripTypeScriptTypes(
     source
-      .match(/<script>([\s\S]*?)<\/script>/)[1]
+      .match(/<script>([\s\S]*?)<\/script>/iu)[1]
       .replace(/^\s*import\b[\s\S]*?;/gmu, ""),
   );
   function link(href, text, current = null) {
