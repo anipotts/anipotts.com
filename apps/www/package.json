@@ -18,6 +18,7 @@
   "dependencies": {
     "@anipotts/content": "workspace:*",
     "@anipotts/brand": "workspace:*",
+    "@anipotts/runtime-contract": "workspace:*",
     "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/rss": "^4.0.19",
     "@fontsource-variable/instrument-sans": "^5.2.8",
