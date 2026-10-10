@@ -122,6 +122,10 @@ jobs:
         if: github.event.pull_request.draft == false
         run: pnpm format:check && pnpm test:path-hygiene
 
+      - name: Validate D1 schema documentation
+        if: github.event.pull_request.draft == false
+        run: node scripts/ci/d1-schema-docs.test.mjs
+
       - name: Validate CI and release policy
         if: github.event.pull_request.draft == false && needs.classify.outputs.ci_policy_changed == 'true'
         run: pnpm test:workspace && pnpm test:deploy-targets && pnpm test:workflows && pnpm test:security-review && pnpm test:release-policy && pnpm test:release-smoke
