@@ -44,7 +44,7 @@ Public pages serve published records from the `anipotts-content` D1 store. `CONT
 | `packages/lib`                  | The Drizzle migration schema                                          |
 | `packages/brand`                | Marks, fonts, shared tokens and typography                            |
 | `packages/control-plane-runner` | Local relay client, journal and proof outbox                          |
-| `packages/runtime-contract`     | Worker runtime binding contract evaluator and log reporter            |
+| `packages/runtime-contract`     | Shared runtime binding contract evaluator for www, admin and Workers  |
 
 The old database-first public readers, fallback datasets, Solid-only services and unused package exports are removed. The admin-control entrypoint is gone from `packages/lib`; Astro admin reads its own contracts, and root Drizzle tooling still consumes the database schema. Worker and runner implementations remain in their own active packages.
 
