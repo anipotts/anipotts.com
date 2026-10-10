@@ -985,14 +985,14 @@ function expectRelease(lines, expected) {
 const workers = ["ingest", "newsletter", "state", "weekly_email"];
 const bothApps = ["www", "admin"];
 const coverage = {
-  // The shared runtime contract deploys every worker that depends on it.
+  // The shared runtime contract deploys every app and worker that depends on it.
   "packages/runtime-contract/package.json": {
     risk: "approval",
-    targets: workers,
+    targets: [...bothApps, ...workers],
   },
   "packages/runtime-contract/src/index.ts": {
     risk: "approval",
-    targets: workers,
+    targets: [...bothApps, ...workers],
   },
   "packages/runtime-contract/README.md": { risk: "none", docsOnly: true },
   // www reads the editorial contracts and the content dist build.
