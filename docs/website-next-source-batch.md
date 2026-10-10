@@ -131,8 +131,10 @@ pixel decoding, sanitized derivatives and durable crop provenance are agent
 software work, currently under isolated resource qualification: stock WASM
 codecs at16MP exceed Workers128MiB in the measured PNG probe. No smaller
 default upload cap is activated. The actual built-Worker/DO functional probe
-passed, but possible overlapping WASM/backing-store counters and unmeasured
-transient peaks prevent a safe processing-limit claim.
+passed. An allocation calibration established disjoint WASM/backing-store
+counters for this runtime; held-buffer warmed-codec estimates still reached
+about148–167MiB at1MP. Unqualified garbage collection, transient peaks and cloud
+limits prevent a safe processing-limit claim.
 Browser recovery now captures current buffered input and retry identity;
 110 focused tests, compiler checks, mutation proof and independent review pass.
 Full-store export/reference validation and synthetic restore continue as
