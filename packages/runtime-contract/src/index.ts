@@ -7,9 +7,11 @@
  * caller. Reporting is log only. It never throws, blocks a request or
  * changes a response.
  *
- * The source is the package: no build, no runtime dependencies and erasable
- * TypeScript only, so Node type stripping, Bun, esbuild and each worker's
- * tsc all load it directly.
+ * The source is the package: no emitted build, no runtime dependencies and
+ * erasable TypeScript only, so Node type stripping, Bun, esbuild and each
+ * worker's tsc all load it directly. The build script only typechecks; it
+ * exists so turbo's ^build edge carries this source into its dependents'
+ * task hashes.
  */
 
 /** "text" needs a non-blank string; any other check names a binding method. */
@@ -117,7 +119,12 @@ export function evaluateRuntimeContract<
   const has = (name: Name): boolean => {
     let result = results.get(name);
     if (result === undefined) {
-      result = check(env, name);
+      // A throwing target rule reads as missing, like a throwing getter.
+      try {
+        result = check(env, name);
+      } catch {
+        result = false;
+      }
       results.set(name, result);
     }
     return result;
