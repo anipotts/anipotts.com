@@ -355,3 +355,138 @@ describe("state wrangler.toml runtime contract drift", () => {
     for (const name of used) expect(name in RUNTIME_CONTRACT).toBe(true);
   });
 });
+
+// Golden records captured from the per-worker evaluator before the shared
+// runtime-contract package. Each line must stay byte-equal: same level, key
+// order, feature order and missing order.
+function reusedReadKey() {
+  const env = completeEnv();
+  env.STATE_READ_KEY = env.STATE_PUBLISH_KEY;
+  return env;
+}
+
+type GoldenCase = [
+  name: string,
+  env: () => unknown,
+  entry: "fetch",
+  level: "info" | "warn",
+  line: string,
+];
+const GOLDEN: GoldenCase[] = [
+  [
+    "a complete deployment",
+    () => completeEnv(),
+    "fetch",
+    "info",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing LINK_VAULT",
+    () => without("LINK_VAULT"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":false,"missing":["LINK_VAULT"],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing CODE_STATS",
+    () => without("CODE_STATS"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":false,"missing":["CODE_STATS"],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing COMMAND_RELAY",
+    () => without("COMMAND_RELAY"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"unavailable","missing":["COMMAND_RELAY"]}}}',
+  ],
+  [
+    "a missing ALLOWED_ORIGINS",
+    () => without("ALLOWED_ORIGINS"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"unavailable","missing":["ALLOWED_ORIGINS"]},"publish":{"state":"available","missing":[]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing STATE_PUBLISH_KEY",
+    () => without("STATE_PUBLISH_KEY"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"unavailable","missing":["STATE_PUBLISH_KEY"]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing STATE_READ_KEY",
+    () => without("STATE_READ_KEY"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"unavailable","missing":["STATE_READ_KEY"]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a missing CONTROL_PLANE_DEVICE_PUBLIC_JWK",
+    () => without("CONTROL_PLANE_DEVICE_PUBLIC_JWK"),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"available","missing":[]},"control_connect":{"state":"unavailable","missing":["CONTROL_PLANE_DEVICE_PUBLIC_JWK"]}}}',
+  ],
+  [
+    "a reused read key",
+    () => reusedReadKey(),
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":true,"missing":[],"features":{"cors":{"state":"available","missing":[]},"publish":{"state":"available","missing":[]},"private_read":{"state":"unavailable","missing":["STATE_READ_KEY"]},"control_connect":{"state":"available","missing":[]}}}',
+  ],
+  [
+    "a null env",
+    () => null,
+    "fetch",
+    "warn",
+    '{"event":"runtime_contract","worker":"state","entry":"fetch","ok":false,"missing":["LINK_VAULT","CODE_STATS"],"features":{"cors":{"state":"unavailable","missing":["ALLOWED_ORIGINS"]},"publish":{"state":"unavailable","missing":["STATE_PUBLISH_KEY"]},"private_read":{"state":"unavailable","missing":["STATE_READ_KEY"]},"control_connect":{"state":"unavailable","missing":["COMMAND_RELAY","CONTROL_PLANE_DEVICE_PUBLIC_JWK"]}}}',
+  ],
+];
+
+describe("state runtime contract golden records", () => {
+  for (const [name, env, entry, level, line] of GOLDEN) {
+    it(`logs the exact record for ${name}`, () => {
+      const calls: [string, string][] = [];
+      const report = createRuntimeContractReporter({
+        info: (text: string) => void calls.push(["info", text]),
+        warn: (text: string) => void calls.push(["warn", text]),
+      });
+      report(env(), entry);
+      report(env(), entry);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.[0]).toBe(level);
+      expect(calls[0]?.[1]).toBe(line);
+    });
+
+    it(`evaluates the exact report for ${name}`, () => {
+      const prefix = `{"event":"runtime_contract","worker":"state","entry":"${entry}",`;
+      expect(line.startsWith(prefix)).toBe(true);
+      const report = evaluateRuntimeContract(env());
+      expect(Object.keys(report)).toEqual(["ok", "missing", "features"]);
+      expect(JSON.stringify(report)).toBe(`{${line.slice(prefix.length)}`);
+    });
+  }
+
+  it("reads each env name in contract order", () => {
+    const reads: PropertyKey[] = [];
+    const env = new Proxy(completeEnv(), {
+      get(target, key) {
+        reads.push(key);
+        return Reflect.get(target, key);
+      },
+    });
+    evaluateRuntimeContract(env);
+    expect(reads).toEqual([
+      "LINK_VAULT",
+      "CODE_STATS",
+      "ALLOWED_ORIGINS",
+      "STATE_PUBLISH_KEY",
+      "STATE_READ_KEY",
+      "STATE_PUBLISH_KEY",
+      "COMMAND_RELAY",
+      "CONTROL_PLANE_DEVICE_PUBLIC_JWK",
+    ]);
+  });
+});
