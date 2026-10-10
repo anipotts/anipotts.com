@@ -157,16 +157,16 @@ catalog watches any worker.
 
 ### Pages projects
 
-| Project                                | Domains                                                                   | Reach on 2026-09-23 | Status | Next action                                                                                                              |
-| -------------------------------------- | ------------------------------------------------------------------------- | ------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `anipotts-www`                         | `anipotts-www.pages.dev`                                                  | 522                 | ghost  | needs Ani: delete it with the `anipotts-www` worker (A-36.11)                                                            |
-| `openproof`                            | `openproof.pages.dev`                                                     | 200                 | ghost  | needs Ani, with the openproof workers; it is Git-connected and was modified about a week ago, so confirm first (A-36.13) |
-| `openproof-monitor`                    | `openproof-monitor.pages.dev`                                             | 200                 | ghost  | needs Ani, with the openproof workers (A-36.13)                                                                          |
-| `kalshit`                              | `kalshit.pages.dev`                                                       | 200                 | ghost  | needs Ani: no Projects registry entry and no local checkout                                                              |
-| `claudemon`                            | `claudemon.pages.dev`, `app.claudemon.com`, `staging.claudemon.com`       | 200                 | ghost  | claudemon's owner                                                                                                        |
-| `claudemon-awareness`                  | `claudemon-awareness.pages.dev`                                           | 200                 | ghost  | claudemon's owner                                                                                                        |
-| `nikkyla`                              | `nikkyla.com`, `www` and `preview`                                        | 200                 | live   | its owner                                                                                                                |
-| `pottammal-home` and four family sites | `pottammal.com` and its `arnav`, `aryan`, `anna` and `antonio` subdomains | 200                 | live   | its owner                                                                                                                |
+| Project               | Domains                                                             | Reach on 2026-09-23 | Status | Next action                                                                                                              |
+| --------------------- | ------------------------------------------------------------------- | ------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `anipotts-www`        | `anipotts-www.pages.dev`                                            | 522                 | ghost  | needs Ani: delete it with the `anipotts-www` worker (A-36.11)                                                            |
+| `openproof`           | `openproof.pages.dev`                                               | 200                 | ghost  | needs Ani, with the openproof workers; it is Git-connected and was modified about a week ago, so confirm first (A-36.13) |
+| `openproof-monitor`   | `openproof-monitor.pages.dev`                                       | 200                 | ghost  | needs Ani, with the openproof workers (A-36.13)                                                                          |
+| `kalshit`             | `kalshit.pages.dev`                                                 | 200                 | ghost  | needs Ani: no Projects registry entry and no local checkout                                                              |
+| `claudemon`           | `claudemon.pages.dev`, `app.claudemon.com`, `staging.claudemon.com` | 200                 | ghost  | claudemon's owner                                                                                                        |
+| `claudemon-awareness` | `claudemon-awareness.pages.dev`                                     | 200                 | ghost  | claudemon's owner                                                                                                        |
+| `nikkyla`             | `nikkyla.com`, `www` and `preview`                                  | 200                 | live   | its owner                                                                                                                |
+| family websites       | managed outside this repository                                     | 200                 | live   | their owners                                                                                                             |
 
 ### D1, KV, R2 and queues
 

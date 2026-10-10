@@ -158,6 +158,29 @@ describe("evaluateRuntimeContract", () => {
     assert.equal(text.includes("provider detail"), false);
   });
 
+  it("reports a throwing target rule as missing and asks it once", () => {
+    const seen: string[] = [];
+    const report = evaluateRuntimeContract(completeEnv(), {
+      contract: CONTRACT,
+      required: REQUIRED,
+      features: FEATURES,
+      satisfied: (env, name) => {
+        seen.push(name);
+        if (name === "DB")
+          throw new Error("rule exploded with provider detail");
+        return satisfied(CONTRACT, env, name);
+      },
+    });
+    assert.deepEqual(seen, ["DB", "MAIN_KEY", "SIDE_KEY"]);
+    assert.equal(report.ok, false);
+    assert.deepEqual(report.missing, ["DB"]);
+    assert.deepEqual(report.features.both, {
+      state: "unavailable",
+      missing: ["DB"],
+    });
+    assert.equal(JSON.stringify(report).includes("provider detail"), false);
+  });
+
   it("never copies configuration values into the report", () => {
     const env = completeEnv();
     const text = JSON.stringify(withFeatures(env));
