@@ -3,6 +3,7 @@ import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   AdminRequestError,
+  protectedSessionIsLocked,
   watchProtectedSession,
 } from "../../lib/protected-admin-json";
 import { EditorToolBoundary } from "./EditorToolBoundary";
@@ -85,10 +86,11 @@ import {
   BrowserRecoveryNotice,
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
-import type {
-  BrowserRecovery,
-  RecoveryProblem,
-  RecoveryRead,
+import {
+  exportBrowserRecoveryCopy,
+  type BrowserRecovery,
+  type RecoveryProblem,
+  type RecoveryRead,
 } from "../../lib/browser-recovery";
 import type { RecoverySnapshot } from "../../lib/home-autosave";
 import { RichTextField } from "./RichTextField";
@@ -2094,12 +2096,32 @@ function HomeEditorImpl({
             <BrowserRecoveryNotice
               problem={recoveryProblem}
               onDownload={
-                recoveryChannel.current
+                editor.current
                   ? () => {
                       try {
-                        downloadBrowserRecovery(
-                          recoveryChannel.current!.export(),
+                        if (
+                          protectedSessionIsLocked() ||
+                          sessionLocked.current ||
+                          !editor.current
+                        )
+                          return;
+                        // Capture pending title/body input without sending or
+                        // retrying a save, including when storage is denied.
+                        flushLocal();
+                        const controller = editor.current;
+                        if (!controller || sessionLocked.current) return;
+                        const channel = recoveryChannel.current;
+                        const contents = exportBrowserRecoveryCopy(
+                          {
+                            key: recoveryStorageKey.current,
+                            kind: "draft",
+                            payload: controller.recovery(),
+                          },
+                          channel ? () => channel.export() : undefined,
                         );
+                        if (protectedSessionIsLocked() || sessionLocked.current)
+                          return;
+                        downloadBrowserRecovery(contents);
                       } catch {
                         setRecoveryProblem("unavailable");
                       }
