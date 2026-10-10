@@ -1,21 +1,34 @@
 ---
 import { Icon } from "astro-icon/components";
 import Shell from "../layouts/Shell.astro";
-import { navItems, siteLinks, siteConfig } from "@anipotts/content/public";
+import {
+  siteLinks,
+  siteConfig,
+  resolveSiteSettings,
+} from "@anipotts/content/public";
 import { isExternalDestination } from "../lib/link-destination";
+import { publicContentContext } from "../lib/content";
+import { publishedSiteSettings } from "../lib/site-settings";
+
+export const prerender = false;
+const siteSettings = await publishedSiteSettings(
+  publicContentContext(Astro.locals),
+);
+const settings = resolveSiteSettings(siteSettings);
 
 // Only rows that leave the site open a new tab and carry the outbound glyph;
 // the nav paths and the mailto: row stay in the current tab, unmarked.
 const links = [
-  ...navItems.map(({ name, path }) => ({ label: name, href: path })),
+  ...settings.navigation.map(({ name, path }) => ({ label: name, href: path })),
   siteLinks.email,
-  siteLinks.github,
-  siteLinks.linkedin,
-  siteLinks.x,
+  settings.footer.profiles.github,
+  settings.footer.profiles.linkedin,
+  settings.footer.profiles.x,
 ].map((link) => ({ ...link, external: isExternalDestination(link.href) }));
 ---
 
 <Shell
+  siteSettings={siteSettings}
   title="links"
   description={`useful links for ${siteConfig.displayName}.`}
   path="/links"
@@ -79,6 +92,8 @@ const links = [
     font-size: var(--control-size);
     font-weight: var(--control-weight);
     line-height: var(--control-leading);
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
   nav a:focus-visible {
     border-color: var(--interactive);

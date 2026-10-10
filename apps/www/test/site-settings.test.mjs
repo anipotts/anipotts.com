@@ -47,7 +47,13 @@ test("one reviewed home publication changes shared shell and feed without changi
       },
     }),
   });
-  for (const path of ["/", "/work", "/writing/awareness-is-alpha"]) {
+  for (const path of [
+    "/",
+    "/work",
+    "/links",
+    "/business",
+    "/writing/awareness-is-alpha",
+  ]) {
     const response = await serve(path, contentEnv(db));
     assert.equal(response.status, 200, path);
     const html = await response.text();
