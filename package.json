@@ -147,7 +147,7 @@
     "ai": "7.0.0",
     "drizzle-kit": "^0.31.11",
     "e2e": "0.16.0",
-    "eslint": "^9",
+    "eslint": "^10",
     "husky": "^9.1.7",
     "lint-staged": "^16.3.3",
     "playwright": "1.63.0",
