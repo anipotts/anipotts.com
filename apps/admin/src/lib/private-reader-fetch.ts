@@ -12,6 +12,7 @@ import {
 import { ENTITY_ID } from "./data-routes";
 import { discardBody } from "./response-body";
 import { fetchReader } from "./reader-reach";
+import { PRIVATE_READER_AUDIENCE } from "./generated/private-reader";
 import type { DataReader } from "./data-read-session";
 import {
   usePrivateReaderState,
@@ -28,7 +29,7 @@ import {
  * `cache: "no-store"` on every request, and nothing is written to Web Storage,
  * IndexedDB, Cache Storage or a service worker.
  */
-export const PRIVATE_READER_ORIGIN = "https://ap-mini.tail060490.ts.net";
+export const PRIVATE_READER_ORIGIN = PRIVATE_READER_AUDIENCE;
 
 /**
  * Proposed relative GET routes from the System consolidation handoff

@@ -11,6 +11,10 @@ import {
 import { readEditorialCsrf } from "./editorial-client";
 import { trackPrivateSession } from "./private-session-store";
 import { strictReaders } from "./strict-json";
+import {
+  PRIVATE_READER_HEALTH_PATH,
+  PRIVATE_READER_HEALTH_SCOPES,
+} from "./generated/private-reader";
 
 /**
  * Browser reads of System's daily health summary, `GET /v1/health/daily`
@@ -30,11 +34,8 @@ import { strictReaders } from "./strict-json";
  * anything else rejects the whole reply. No other health field is ever read.
  */
 export const HEALTH_DAILY_PATH = PRIVATE_READER_ROUTES.health;
-/** Mirrors PRIVATE_READER_HEALTH_PATH without pulling signing code into the
- * client. */
-export const HEALTH_CREDENTIAL_ENDPOINT =
-  "/api/private-reader/health-credential";
-export const HEALTH_SCOPE = "health:read";
+export const HEALTH_CREDENTIAL_ENDPOINT = PRIVATE_READER_HEALTH_PATH;
+export const HEALTH_SCOPE = PRIVATE_READER_HEALTH_SCOPES[0];
 /** The ranges the view offers, in days. System serves 1 to 90. */
 export const HEALTH_RANGES = [7, 30, 90] as const;
 export type HealthRange = (typeof HEALTH_RANGES)[number];

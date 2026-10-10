@@ -32,8 +32,20 @@ import { OPS_V1_BOUNDS } from "../../lib/ops-v1";
 import { recordHost } from "../../lib/data-record";
 import { recordNaming, type Naming } from "../../lib/naming";
 import { sentenceCase } from "../../lib/sentence-case";
+import {
+  SOURCE_CONNECTORS,
+  SOURCE_COLLECTIONS,
+  SOURCE_STATUSES,
+  SOURCE_TRANSPORTS,
+} from "../../lib/generated/personal-context-source";
 
 export { effectiveDate } from "../../lib/data-record";
+export {
+  SOURCE_CONNECTORS,
+  SOURCE_COLLECTIONS,
+  SOURCE_STATUSES,
+  SOURCE_TRANSPORTS,
+} from "../../lib/generated/personal-context-source";
 
 type Item = Record<string, unknown>;
 
@@ -203,46 +215,15 @@ export function recordMark(record: DataRecord, now?: number): RecordMark {
 /** System's source catalog vocabulary. Each optional field is read only
  * when its value is one of these; anything else reads as absent, so the
  * row falls back to what its id and counts say. */
-export const SOURCE_CONNECTORS = [
-  "browsing",
-  "messages",
-  "contacts",
-  "mail",
-  "calendar",
-  "notes",
-  "media",
-  "agent_transcripts",
-  "code",
-  "health",
-  "legacy_vaults",
-  "other",
-] as const;
 export type SourceConnector = (typeof SOURCE_CONNECTORS)[number];
 /** System's `collection` (system#236). Its fourth value, "unknown" (the
  * catalog entry names none), reads null here, as an older reader's absent
  * key does: nothing is derived from it. */
-export const SOURCE_COLLECTIONS = ["live", "one_shot", "discovered"] as const;
 export type SourceCollection = (typeof SOURCE_COLLECTIONS)[number];
-export const SOURCE_STATUSES = [
-  "discovered",
-  "unavailable",
-  "pending",
-  "partial",
-  "current",
-  "failed",
-  "excluded",
-  "paused",
-] as const;
 export type SourceStatus = (typeof SOURCE_STATUSES)[number];
 /** A status as read: System's own word, `unknown` for a value outside
  * SOURCE_STATUSES, or null when the reader sent none (an older reader). */
 export type SourceStatusRead = SourceStatus | "unknown";
-export const SOURCE_TRANSPORTS = [
-  "launchd",
-  "push",
-  "manual",
-  "derived",
-] as const;
 export type SourceTransport = (typeof SOURCE_TRANSPORTS)[number];
 
 export type DataSourceRow = {

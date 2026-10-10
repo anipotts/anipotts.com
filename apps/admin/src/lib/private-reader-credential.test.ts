@@ -21,6 +21,41 @@ import {
   type PrivateReaderConfig,
   type PrivateReaderMode,
 } from "./private-reader-credential";
+import * as readerContract from "./generated/private-reader";
+
+describe("canonical reader protocol adapter", () => {
+  it("keeps mode paths and scope sets pinned to generated contract constants", () => {
+    expect(PRIVATE_READER_ISSUER).toBe(readerContract.PRIVATE_READER_ISSUER);
+    expect(PRIVATE_READER_AUDIENCE).toBe(
+      readerContract.PRIVATE_READER_AUDIENCE,
+    );
+    expect(PRIVATE_READER_MODES.data.path).toBe(
+      readerContract.PRIVATE_READER_PATH,
+    );
+    expect(PRIVATE_READER_MODES.ops.path).toBe(
+      readerContract.PRIVATE_READER_OPS_PATH,
+    );
+    expect(PRIVATE_READER_MODES.health.path).toBe(
+      readerContract.PRIVATE_READER_HEALTH_PATH,
+    );
+    expect(PRIVATE_READER_MODES.data.scope).toBe(
+      readerContract.PRIVATE_READER_SCOPES,
+    );
+    expect(PRIVATE_READER_MODES.ops.scope).toBe(
+      readerContract.PRIVATE_READER_OPS_SCOPES,
+    );
+    expect(PRIVATE_READER_MODES.health.scope).toBe(
+      readerContract.PRIVATE_READER_HEALTH_SCOPES,
+    );
+    const data = new Set<string>(PRIVATE_READER_MODES.data.scope);
+    const ops = new Set<string>(PRIVATE_READER_MODES.ops.scope);
+    const health = new Set<string>(PRIVATE_READER_MODES.health.scope);
+    expect(
+      [...ops].filter((scope) => data.has(scope) || health.has(scope)),
+    ).toEqual([]);
+    expect([...health].filter((scope) => data.has(scope))).toEqual([]);
+  });
+});
 
 // Synthetic, throwaway keys generated per run. No real key exists.
 const team = "https://fixture-team.cloudflareaccess.com";
