@@ -18,9 +18,13 @@
 //   removed-migration  a deleted migration file needs approval
 //   flag               any matching row sets its output, docs included
 //   target             any matching row selects its deploy targets, for
-//                      paths that are not release-ignored
+//                      paths that are not release-ignored. a matching row
+//                      marked final decides alone, so the general rows do
+//                      not apply to the paths it carves out
 //   sensitive          the first matching row decides whether Security
-//                      Review scans the file
+//                      Review scans the file. rows derived at the end of
+//                      the table add every protected surface, CI policy
+//                      and local development input, and tooling root
 //   broad              any matching row makes check:changed run validate
 //
 // scripts/ci/path-manifest.test.mjs replays a golden corpus against these
@@ -57,6 +61,10 @@ const target = (id, matcher, ...targets) => ({
   ...matcher,
   targets,
 });
+const finalTarget = (id, matcher, ...targets) => ({
+  ...target(id, matcher, ...targets),
+  final: true,
+});
 const sensitive = (id, matcher, value = true) => ({
   id,
   kind: "sensitive",
@@ -70,8 +78,51 @@ const broad = (id, matcher, extra = {}) => ({
   ...extra,
 });
 
+// Security Review also scans every file that decides how a release, CI or
+// local agent tooling behaves: each protected surface matched by name, each
+// CI policy and local development input, and the editor, install and
+// launcher roots. withScannedRows appends a sensitive row for each, after
+// the written ones, so a new rule of those kinds is scanned too. Markdown
+// still is not, and the route contract row stays out because Security
+// Review sees file names, not git statuses.
+const TOOLING_ROOTS = [
+  "safe.editor-settings",
+  "safe.dependabot",
+  "safe.husky",
+  "safe.vscode",
+  "safe.root-tooling",
+];
+const SCANNED_FLAGS = ["ci_policy_changed", "local_dev_changed"];
+const MATCHERS = ["prefix", "exact", "suffix", "pattern"];
+
+function scannedAlso(rule) {
+  if (rule.kind === "risk")
+    return (
+      (rule.risk === "approval" && rule.status === undefined) ||
+      TOOLING_ROOTS.includes(rule.id)
+    );
+  return rule.kind === "flag" && SCANNED_FLAGS.includes(rule.flag);
+}
+
+function withScannedRows(rows) {
+  const scanned = rows
+    .filter(scannedAlso)
+    .map((rule) =>
+      sensitive(
+        `sensitive.from.${rule.id}`,
+        Object.fromEntries(
+          MATCHERS.filter((key) => rule[key] !== undefined).map((key) => [
+            key,
+            rule[key],
+          ]),
+        ),
+      ),
+    );
+  return [...rows, ...scanned];
+}
+
 export const PATH_RULES = Object.freeze(
-  [
+  withScannedRows([
     // Release-ignored paths. Canonical public Markdown still deploys.
     ignored("ignored.public-content", { prefix: "content/public/" }, false),
     ignored("ignored.markdown", { suffix: ".md" }, true),
@@ -114,6 +165,8 @@ export const PATH_RULES = Object.freeze(
       "approval.workers",
       /^workers\/(?:ingest|newsletter|state|weekly-email)\//,
     ),
+    // The runtime contract the deployed workers evaluate, shared as a package.
+    approval("approval.runtime-contract", /^packages\/runtime-contract\//),
     // Environment template beside local secrets; classified by name only.
     approval("approval.env-template", /^\.env\.example$/),
     // Lists the ignored secret files copied into new agent worktrees, so a
@@ -198,6 +251,9 @@ export const PATH_RULES = Object.freeze(
       "preflight.migration-scripts",
       /^scripts\/ci\/(?:d1-|migration-|site-migrations)/,
     ),
+    // The historical drizzle model of anipotts-db describes the migrated
+    // schema, so a change runs the migration preflight suites.
+    preflight("preflight.lib-db", /^packages\/lib\/src\/db\//),
 
     // ci_policy_changed
     // These documents are inputs to the guidance invariants in test:workspace.
@@ -206,6 +262,8 @@ export const PATH_RULES = Object.freeze(
       "ci.guidance-docs",
       /^docs\/(?:platform-architecture\.md|design\/admin-workspace\/quiet-precision-delivery\.md)$/,
     ),
+    // test:workspace checks its retained workers against the workspace.
+    ciPolicy("ci.worker-inventory", /^docs\/worker-inventory\.md$/),
     ciPolicy("ci.ignore-files", /^\.(?:gitignore|prettierignore)$/),
     ciPolicy(
       "ci.astryx-patch",
@@ -255,6 +313,15 @@ export const PATH_RULES = Object.freeze(
     localDev("local.nvmrc", /^\.nvmrc$/),
     localDev("local.docs", /^docs\/local-development\.md$/),
     localDev("local.scripts", /^scripts\/(?:codex-action$|dev\/)/),
+    // test:admin-preview reads the preview scripts, its thread prompt and the
+    // agent guide. AGENTS.md links to CLAUDE.md, so an edit made through the
+    // link shows in a diff as CLAUDE.md.
+    localDev("local.admin-scripts", /^scripts\/admin\//),
+    localDev(
+      "local.admin-preview-prompt",
+      /^docs\/local-admin-preview-thread-prompt\.md$/,
+    ),
+    localDev("local.agent-guide", /^(?:AGENTS|CLAUDE)\.md$/),
 
     // Deploy targets. Shared Astro integrations run inside both app builds.
     target("target.astro-config", { prefix: "config/astro/" }, "www", "admin"),
@@ -272,17 +339,28 @@ export const PATH_RULES = Object.freeze(
       "www",
       "admin",
     ),
+    // www imports the package entry, the public projections and the
+    // editorial contracts at runtime, and its build seeds a fixture database
+    // through them. Every other content source file selects www too: the
+    // import walk in path-manifest.test.mjs runs only on ci_policy changes,
+    // so a www change that starts importing another content module passes its
+    // own CI, and this fallback keeps the next edit to that module from
+    // leaving www stale. packages/content/src/admin/ stays admin only, since
+    // public-app-boundary.test.mjs, which every www change runs, forbids www
+    // from importing it.
     target(
-      "target.public-content-package",
-      { prefix: "packages/content/src/public/" },
+      "target.content-source",
+      { pattern: /^packages\/content\/src\/(?!admin\/)/ },
       "www",
     ),
+    // The package manifest www resolves and the config of the dist build it
+    // imports.
     target(
-      "target.content-package-entry",
+      "target.content-package-build",
       {
         exact: [
           "packages/content/package.json",
-          "packages/content/src/index.ts",
+          "packages/content/tsconfig.json",
         ],
       },
       "www",
@@ -295,8 +373,62 @@ export const PATH_RULES = Object.freeze(
     ),
     target("target.admin-app", { prefix: "apps/admin/" }, "admin"),
     target("target.content-package", { prefix: "packages/content/" }, "admin"),
+    // Content scripts run inside both builds: the content package prebuild
+    // generates the public projections, and the www build seeds its fixture
+    // database.
+    target(
+      "target.content-scripts",
+      { prefix: "scripts/content/" },
+      "www",
+      "admin",
+    ),
+    // Scripts the app builds import, or run as a build step.
+    target(
+      "target.build-identity-scripts",
+      {
+        exact: [
+          "scripts/dev/admin-preview-identity.mjs",
+          "scripts/dev/review-state.mjs",
+        ],
+      },
+      "www",
+      "admin",
+    ),
+    target(
+      "target.admin-build-scripts",
+      {
+        exact: [
+          "scripts/ci/admin-route-inventory.mjs",
+          "scripts/dev/admin-local-owner-host.mjs",
+          "scripts/dev/editorial-public-assets.mjs",
+          "scripts/dev/editorial-updates.mjs",
+          "scripts/dev/public-content-hot-reload.mjs",
+        ],
+      },
+      "admin",
+    ),
+    target(
+      "target.www-build-scripts",
+      { exact: ["scripts/ci/public-built-output.test.mjs"] },
+      "www",
+    ),
+    // The historical drizzle model of anipotts-db is no deploy input: no
+    // workspace depends on @anipotts/lib, and migrations/manifest.json
+    // decides what a release applies. This final row decides alone, so
+    // target.lib does not select admin for these paths.
+    finalTarget("target.lib-db", { prefix: "packages/lib/src/db/" }),
     target("target.lib", { prefix: "packages/lib/" }, "admin"),
     target("target.types", { prefix: "packages/types/" }, "admin", "state"),
+    // Every workspace that depends on @anipotts/runtime-contract. The
+    // manifest test keeps this list equal to the package's dependents.
+    target(
+      "target.runtime-contract",
+      { prefix: "packages/runtime-contract/" },
+      "ingest",
+      "newsletter",
+      "state",
+      "weekly_email",
+    ),
     target("target.ingest", { prefix: "workers/ingest/" }, "ingest"),
     target(
       "target.newsletter",
@@ -362,7 +494,7 @@ export const PATH_RULES = Object.freeze(
     ),
     broad("broad.lib", { prefix: "packages/lib/" }),
     broad("broad.types", { prefix: "packages/types/" }),
-  ].map((rule) => Object.freeze(rule)),
+  ]).map((rule) => Object.freeze(rule)),
 );
 
 const RULES_BY_KIND = new Map();
@@ -396,9 +528,14 @@ export function firstRule(kind, path, status = "M") {
   return rulesOfKind(kind).find((rule) => matchesChange(rule, path, status));
 }
 
-/** Every row of a kind that matches, in table order. */
+/** Every row of a kind that matches, in table order. A matching final row
+ * decides alone: it is the only row returned. */
 export function matchingRules(kind, path, status = "M") {
-  return rulesOfKind(kind).filter((rule) => matchesChange(rule, path, status));
+  const rules = rulesOfKind(kind).filter((rule) =>
+    matchesChange(rule, path, status),
+  );
+  const decisive = rules.find((rule) => rule.final);
+  return decisive ? [decisive] : rules;
 }
 
 /** Whether one local change line escalates check:changed to validate. */
