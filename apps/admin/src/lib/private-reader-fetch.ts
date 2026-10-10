@@ -13,6 +13,7 @@ import { ENTITY_ID } from "./data-routes";
 import { discardBody } from "./response-body";
 import { fetchReader } from "./reader-reach";
 import { PRIVATE_READER_AUDIENCE } from "./generated/private-reader";
+import { OPS_EVENTS_PATH } from "./generated/ops";
 import type { DataReader } from "./data-read-session";
 import {
   usePrivateReaderState,
@@ -55,7 +56,7 @@ export const PRIVATE_READER_ROUTES = {
    * their own ops:read credential. Raw mode only: their bodies have their
    * own caps, and the snapshot answers 304. */
   opsSnapshot: "/v1/ops/snapshot",
-  opsEvents: "/v1/ops/events",
+  opsEvents: OPS_EVENTS_PATH,
 } as const;
 
 /** Verifier outcomes, by HTTP status. `expired` is local: no live bearer. */

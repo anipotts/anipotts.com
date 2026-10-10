@@ -661,6 +661,46 @@ describe("one reader transport", () => {
     session.logout();
   });
 
+  it("moves the events builder and raw gate together when the generated pin changes", async () => {
+    const changedPath = "/v1/ops/events-next";
+    vi.doMock("./generated/ops", async () => ({
+      ...(await vi.importActual<typeof import("./generated/ops")>(
+        "./generated/ops",
+      )),
+      OPS_EVENTS_PATH: changedPath,
+    }));
+    vi.resetModules();
+    const { fetcher, calls } = network(() => json({}));
+    const session = makeSession(fetcher);
+    try {
+      const { opsEventsPath } = await import("./ops-events");
+      const { readerGet: pinnedReaderGet } =
+        await import("./private-reader-fetch");
+      await session.start();
+      const path = opsEventsPath(12, 500, 25);
+      expect(path).toBe(`${changedPath}?after=12&limit=500&wait=25`);
+      const response = await pinnedReaderGet(session, path, "raw", {
+        fetch: fetcher,
+      });
+      expect(response.status).toBe(200);
+      for (const [rejectedPath, mode] of [
+        ["/v1/ops/events?after=12&limit=500&wait=25", "raw"],
+        [path, "json"],
+      ] as const) {
+        await expect(
+          pinnedReaderGet(session, rejectedPath, mode, { fetch: fetcher }),
+        ).rejects.toMatchObject({ failure: "malformed" });
+      }
+      expect(calls.map((call) => call.url.href)).toEqual([
+        `${PRIVATE_READER_ORIGIN}${path}`,
+      ]);
+    } finally {
+      session.logout();
+      vi.doUnmock("./generated/ops");
+      vi.resetModules();
+    }
+  });
+
   it("json mode never reaches an ops route", async () => {
     const { fetcher, calls } = network(() => json({}));
     const session = makeSession(fetcher);
