@@ -260,6 +260,28 @@ describe("ops status polling", () => {
     });
   const flush = () => vi.advanceTimersByTimeAsync(0);
 
+  it("cancels an injected browser timer handle of zero when the tab hides", () => {
+    const h = harness();
+    const cleared: number[] = [];
+    const controller = createOpsStatusController({
+      session: h.session,
+      fetch: h.fetch,
+      isHidden: () => hidden,
+      setTimer: () => 0,
+      clearTimer(timer) {
+        if (typeof timer !== "number")
+          throw new Error("Expected browser timer");
+        cleared.push(timer);
+      },
+    });
+    controller.start();
+    hidden = true;
+    controller.visibilityChanged();
+    expect(cleared).toEqual([0]);
+    expect(h.snapshotRequests).toHaveLength(0);
+    controller.dispose();
+  });
+
   it("reads at start, then every 30 seconds with If-None-Match, handling 304", async () => {
     const h = harness();
     const controller = controllerFor(h);

@@ -1098,7 +1098,7 @@ describe("private Data workspace", () => {
       now: () => clock,
       setTimer: (callback, ms) => {
         timers.push({ callback, ms });
-        return timers.length as unknown as ReturnType<typeof setTimeout>;
+        return timers.length;
       },
       clearTimer: () => {},
     });
