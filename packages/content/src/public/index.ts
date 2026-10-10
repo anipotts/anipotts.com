@@ -50,6 +50,14 @@ export type {
   PublicCopyRule,
 } from "@anipotts/types";
 export type { InlineSegment, MarkdownBlock } from "./markdown.js";
-export { siteConfig, siteLinks, navItems } from "./site.js";
+export {
+  siteConfig,
+  siteLinks,
+  navItems,
+  footerProfileDefaults,
+  siteSettingsSchema,
+  resolveSiteSettings,
+} from "./site.js";
+export type { SiteSettings } from "./site.js";
 export { workflowProviders } from "./providers.js";
 export { isPublicProject, isPublishedWriting } from "./visibility.js";

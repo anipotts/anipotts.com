@@ -62,10 +62,19 @@ export async function uploadEditorialImage(
     headers: { "Content-Type": "application/json", "X-Editorial-CSRF": csrf },
     body: JSON.stringify({ base64 }),
   });
-  if (!response.ok)
-    throw new ImageInputError("Couldn’t save the image. Try again.");
   const result = await response.json();
   signal.throwIfAborted();
+  if (!response.ok) {
+    if (result.error === "image_too_large")
+      throw new ImageInputError(
+        "This image exceeds the upload size or pixel limit. Choose a smaller crop or image.",
+      );
+    if (result.error === "unsupported_image")
+      throw new ImageInputError(
+        "This image could not be read. Choose a valid JPEG, PNG or WebP image.",
+      );
+    throw new ImageInputError("Couldn’t save the image. Try again.");
+  }
   if (!result.ok || !editorialMediaId.test(result.media?.id))
     throw new ImageInputError("Couldn’t save the image. Try again.");
   return editorialMediaPrefix + result.media.id;
