@@ -151,6 +151,39 @@ describe("ops snapshot read", () => {
     ).rejects.toMatchObject({ failure: "forbidden" });
   });
 
+  it("checks the scope again before the renewed send after a 401", async () => {
+    // The first credential is ops:read; the renewal hands back a Data one.
+    // Nothing may go out with it.
+    let issued = 0;
+    const sent: string[] = [];
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        if (String(input) === OPS_CREDENTIAL_ENDPOINT) {
+          issued++;
+          return Response.json({
+            credential: `cred-${issued}`,
+            scope: issued === 1 ? ["ops:read"] : ["data:read", "activity:read"],
+            expiresAt: Math.floor(Date.now() / 1000) + 60,
+          });
+        }
+        sent.push(header(init, "Authorization")!);
+        return new Response(null, { status: 401 });
+      },
+    ) as unknown as typeof globalThis.fetch;
+    const session = createPrivateReaderSession({
+      fetch,
+      csrf: async () => "csrf-token",
+      endpoint: OPS_CREDENTIAL_ENDPOINT,
+    });
+    await session.start();
+    await expect(
+      readOpsSnapshot(session, null, { fetch }),
+    ).rejects.toMatchObject({ failure: "forbidden" });
+    expect(sent).toEqual(["Bearer cred-1"]);
+    expect(issued).toBe(2);
+    expect(session.getState()).toEqual({ status: "cleared", reason: "denied" });
+  });
+
   it("renews once on 401, then clears the session on a second 401", async () => {
     const h = harness();
     await h.session.start();
@@ -226,6 +259,28 @@ describe("ops status polling", () => {
       isHidden: () => hidden,
     });
   const flush = () => vi.advanceTimersByTimeAsync(0);
+
+  it("cancels an injected browser timer handle of zero when the tab hides", () => {
+    const h = harness();
+    const cleared: number[] = [];
+    const controller = createOpsStatusController({
+      session: h.session,
+      fetch: h.fetch,
+      isHidden: () => hidden,
+      setTimer: () => 0,
+      clearTimer(timer) {
+        if (typeof timer !== "number")
+          throw new Error("Expected browser timer");
+        cleared.push(timer);
+      },
+    });
+    controller.start();
+    hidden = true;
+    controller.visibilityChanged();
+    expect(cleared).toEqual([0]);
+    expect(h.snapshotRequests).toHaveLength(0);
+    controller.dispose();
+  });
 
   it("reads at start, then every 30 seconds with If-None-Match, handling 304", async () => {
     const h = harness();

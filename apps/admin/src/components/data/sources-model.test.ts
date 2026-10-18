@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import dataFixture from "../../fixtures/data_v1.synthetic.json";
-import { SOURCE_STATUSES, parseSource, type DataSourceRow } from "./data-model";
+import {
+  SOURCE_STATUSES,
+  SOURCE_CONNECTORS,
+  SOURCE_COLLECTIONS,
+  SOURCE_TRANSPORTS,
+  parseSource,
+  type DataSourceRow,
+} from "./data-model";
+import * as sourceContract from "../../lib/generated/personal-context-source";
 import {
   DISCOVERED_GROUP,
   SOURCE_GROUPS,
@@ -33,6 +41,34 @@ const empty = (id: string, extra: Record<string, unknown> = {}) =>
     revision_count: 0,
     ...extra,
   });
+
+describe("canonical source vocabulary adapter", () => {
+  it("shares the generated vocabulary with every optional parser", () => {
+    expect(SOURCE_STATUSES).toBe(sourceContract.SOURCE_STATUSES);
+    expect(SOURCE_CONNECTORS).toBe(sourceContract.SOURCE_CONNECTORS);
+    expect(SOURCE_COLLECTIONS).toBe(sourceContract.SOURCE_COLLECTIONS);
+    expect(SOURCE_TRANSPORTS).toBe(sourceContract.SOURCE_TRANSPORTS);
+    for (const connector of SOURCE_CONNECTORS)
+      expect(row("synthetic", { connector }).connector).toBe(connector);
+    for (const collection of SOURCE_COLLECTIONS)
+      expect(row("synthetic", { collection }).collection).toBe(collection);
+    for (const status of SOURCE_STATUSES)
+      expect(row("synthetic", { status }).status).toBe(status);
+    for (const transport of SOURCE_TRANSPORTS)
+      expect(row("synthetic", { transport }).transport).toBe(transport);
+  });
+
+  it("preserves unknown and absent optional metadata behavior", () => {
+    expect(row("synthetic", { collection: "unknown" }).collection).toBeNull();
+    expect(row("synthetic", { status: "future-status" }).status).toBe(
+      "unknown",
+    );
+    expect(row("synthetic", { status: null }).status).toBeNull();
+    expect(
+      row("synthetic", { connector: "future-connector" }).connector,
+    ).toBeNull();
+  });
+});
 
 describe("source rows as System serves them", () => {
   it("parses the five served fields and each proposed field, optional-first", () => {

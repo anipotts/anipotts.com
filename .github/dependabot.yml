@@ -1,13 +1,13 @@
 # Dependabot config: minimize PR noise and batch scheduled updates.
 #
 # Strategy:
-#   - npm: weekly Monday morning, grouped by update-type. Security updates still
+#   - npm: weekly Monday morning, compatibility families first. Security updates still
 #     open immediately (dependabot doesn't honor `schedule` for security).
 #   - github-actions: monthly, low traffic.
 #   - open-pull-requests-limit caps the queue so a quiet week doesn't pile up.
 #
 # Dependency PRs follow the normal protected CI and Security Review path.
-# The website task maintains candidates and enables native auto-merge after review.
+# Every candidate waits for Ani's exact-head review; auto-merge stays disabled.
 
 version: 2
 updates:
@@ -20,7 +20,20 @@ updates:
       timezone: "America/New_York"
     open-pull-requests-limit: 5
     versioning-strategy: "increase"
+    # Node declarations follow the deployed/check runtime; major upgrades need
+    # the matching runtime change rather than an isolated types-only PR.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
+      react-family:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      astro-cloudflare:
+        patterns: ["astro", "@astrojs/*", "@cloudflare/*", "wrangler"]
+      astryx-family:
+        patterns: ["@astryxdesign/*"]
+      browser-tools:
+        patterns: ["e2e", "@e2e-dev/*", "playwright", "@playwright/*"]
       dev-dependencies:
         dependency-type: "development"
         update-types:

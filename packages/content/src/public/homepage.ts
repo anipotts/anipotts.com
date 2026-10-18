@@ -1,5 +1,6 @@
 import { safeContentLinkUrl, safeHomepageAssetUrl } from "./urls.js";
 import { inlinePlainText } from "./inline.js";
+import { siteSettingsSchema, type SiteSettings } from "./site.js";
 import type {
   HomepageContent,
   HomepageMention,
@@ -725,13 +726,30 @@ export function validateHomepageContent(content: HomepageContent): {
   return { ok: true };
 }
 
-export function normalizeHomepageContent(content: unknown): HomepageContent {
+// These are the existing homepage sections, not arbitrary layout blocks. Keep
+// legacy partial orders usable while ensuring each supported section renders once.
+export function normalizeHomepageSectionOrder(
+  value: unknown,
+): HomepageContent["section_order"] {
+  const requested = Array.isArray(value) ? value : [];
+  return [...new Set([...requested, ...HOME_SECTION_ORDER])].filter(
+    (key): key is HomepageContent["section_order"][number] =>
+      HOME_SECTION_ORDER.includes(key),
+  );
+}
+
+export function normalizeHomepageContent(
+  content: unknown,
+): HomepageContent & { site_settings?: SiteSettings } {
   const source =
     content && typeof content === "object"
-      ? (content as Partial<HomepageContent>)
+      ? (content as Partial<HomepageContent> & { site_settings?: unknown })
       : {};
 
   return {
+    ...(source.site_settings === undefined
+      ? {}
+      : { site_settings: siteSettingsSchema.parse(source.site_settings) }),
     sections: {
       intro: normalizeSection(
         source.sections?.intro,
@@ -746,7 +764,7 @@ export function normalizeHomepageContent(content: unknown): HomepageContent {
         DEFAULT_HOMEPAGE_CONTENT.sections.latest_thoughts,
       ),
     },
-    section_order: HOME_SECTION_ORDER,
+    section_order: normalizeHomepageSectionOrder(source.section_order),
     mentions: normalizeMentions(
       source.mentions,
       DEFAULT_HOMEPAGE_CONTENT.mentions,

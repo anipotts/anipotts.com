@@ -3,6 +3,10 @@ import { Icon } from "astro-icon/components";
 import { navItems } from "@anipotts/content/public";
 import BrandMark from "@anipotts/brand/BrandMark.astro";
 
+interface Props {
+  items?: readonly { name: string; path: string }[];
+}
+const items = Astro.props.items ?? navItems;
 const current = Astro.url.pathname;
 ---
 
@@ -18,7 +22,7 @@ const current = Astro.url.pathname;
   >
     <span class="nav-links">
       {
-        navItems.map((item) => (
+        items.map((item) => (
           <a
             href={item.path}
             class="nav-link"
@@ -191,15 +195,19 @@ const current = Astro.url.pathname;
 
   .primary-nav {
     display: flex;
+    min-width: 0;
   }
 
   .nav-links {
     display: flex;
+    min-width: 0;
     flex-wrap: wrap;
     column-gap: var(--s-4);
   }
 
   .nav-link {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: var(--p-small);
     color: var(--ink-muted);
     text-decoration: none;
@@ -379,6 +387,7 @@ const current = Astro.url.pathname;
 </style>
 
 <script>
+  import type { TransitionBeforeSwapEvent } from "astro:transitions/client";
   import {
     savedTheme,
     saveTheme,
@@ -408,6 +417,26 @@ const current = Astro.url.pathname;
   };
   sync();
   document.addEventListener("astro:page-load", sync);
+  // The navigation persists for motion continuity. Refresh authored labels from
+  // the incoming coherent publication without replacing its controls/listeners.
+  document.addEventListener("astro:before-swap", (raw) => {
+    const incoming = (raw as TransitionBeforeSwapEvent).newDocument;
+    for (const link of nav?.querySelectorAll<HTMLAnchorElement>("a.nav-link") ??
+      []) {
+      const next = Array.from(
+        incoming.querySelectorAll<HTMLAnchorElement>("#primary-nav a.nav-link"),
+      ).find(
+        (candidate) =>
+          candidate.getAttribute("href") === link.getAttribute("href"),
+      );
+      if (next) {
+        link.textContent = next.textContent;
+        const current = next.getAttribute("aria-current");
+        if (current) link.setAttribute("aria-current", current);
+        else link.removeAttribute("aria-current");
+      }
+    }
+  });
   btn?.addEventListener("click", () => {
     const next =
       document.documentElement.dataset.theme === "dark" ? "light" : "dark";

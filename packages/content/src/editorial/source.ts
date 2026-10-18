@@ -7,6 +7,7 @@ import {
   workPageSchema,
 } from "../public/pages.js";
 import { projectSchema, writingSchema } from "../public/schema.js";
+import { editorialRecordPath as layoutRecordPath } from "./layout.js";
 import {
   MAX_SOURCE_BYTES,
   editorialRecordSchema,
@@ -25,14 +26,7 @@ export { MAX_SOURCE_BYTES, editorialRecordSchema, type EditorialRecord };
 
 /** Paths are derived only from validated identities, never supplied by clients. */
 export function editorialRecordPath(input: unknown): string {
-  const record = editorialRecordSchema.parse(input);
-  const directory =
-    record.kind === "page"
-      ? "pages"
-      : record.kind === "work"
-        ? "projects"
-        : "writing";
-  return `content/public/${directory}/${record.id}.md`;
+  return layoutRecordPath(editorialRecordSchema.parse(input));
 }
 
 export class SourceError extends Error {

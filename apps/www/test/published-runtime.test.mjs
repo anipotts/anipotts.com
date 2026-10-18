@@ -56,6 +56,113 @@ const paths = [
   "/api/content-version",
 ];
 
+test("published homepage honors stored section order and visibility", async () => {
+  const db = database();
+  try {
+    const home = source("pages", "home");
+    const data = parse(home.match(/^---\r?\n([\s\S]*?)\r?\n---/)[1]);
+    data.sections.intro.heading = "Sentinel homepage intro";
+    data.sections.past_work.label = "Sentinel homepage work";
+    data.sections.latest_thoughts.label = "Sentinel homepage writing";
+    const render = async (fields = {}) => {
+      db.publish({
+        kind: "page",
+        id: "home",
+        text: edit(home, { ...data, ...fields }),
+      });
+      const response = await serve("/", cms(db));
+      assert.equal(response.status, 200);
+      return response.text();
+    };
+    const labels = [
+      "Sentinel homepage intro",
+      "Sentinel homepage work",
+      "Sentinel homepage writing",
+    ];
+    const assertOrder = (html, ordered) => {
+      const positions = ordered.map((label) => html.indexOf(label));
+      assert.ok(
+        positions.every((position) => position >= 0),
+        "each requested section is rendered",
+      );
+      assert.deepEqual(
+        [...positions].sort((a, b) => a - b),
+        positions,
+        "DOM reading order follows stored section order",
+      );
+      for (const label of ordered)
+        assert.equal(html.split(label).length - 1, 1, "sections render once");
+    };
+    assertOrder(await render(), labels);
+    assertOrder(
+      await render({
+        section_order: ["latest_thoughts", "past_work", "intro"],
+      }),
+      [...labels].reverse(),
+    );
+    data.sections.intro.visible = false;
+    const hiddenIntro = await render({
+      section_order: ["latest_thoughts", "intro", "past_work"],
+    });
+    assertOrder(hiddenIntro, [labels[2], labels[1]]);
+    assert.ok(
+      !hiddenIntro.includes(labels[0]),
+      "a hidden intro is absent from the response",
+    );
+    assert.doesNotMatch(
+      hiddenIntro,
+      /aria-label="experience"/,
+      "the intro's experience group follows intro visibility",
+    );
+    data.sections.past_work.visible = false;
+    data.sections.latest_thoughts.visible = false;
+    const hiddenAll = await render();
+    for (const label of labels)
+      assert.ok(
+        !hiddenAll.includes(label),
+        "each section respects its visibility flag",
+      );
+  } finally {
+    db.close();
+  }
+});
+
+test("published project card overrides reach the homepage card", async () => {
+  const db = database();
+  try {
+    db.publish({
+      kind: "work",
+      id: "agents",
+      text: edit(source("projects", "agents"), {
+        homepage_placement: "work",
+        homepage_order: -100,
+        card_title: "Sentinel card title",
+        card_copy: "Sentinel wide copy",
+        card_copy_compact: "Sentinel **compact** copy",
+      }),
+    });
+    const response = await serve("/", cms(db));
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    const card = html.match(
+      /<a\b[^>]*href="\/work\/agents"[^>]*>[\s\S]*?<\/a>/,
+    )?.[0];
+    assert.ok(
+      card,
+      "the published project is rendered as a homepage work card",
+    );
+    assert.match(card, /Sentinel card title/);
+    assert.match(card, /Sentinel wide copy/);
+    assert.match(
+      card,
+      /responsive-copy__compact[^>]*>\s*<span class="inline-copy">Sentinel <strong>compact<\/strong> copy<\/span>/,
+      "the authored compact variant and inline formatting reach responsive markup",
+    );
+  } finally {
+    db.close();
+  }
+});
+
 // The verification API and editorial media never revalidate.
 const uncached = new Set(["/api/content-version"]);
 const cmsTag = (version) =>

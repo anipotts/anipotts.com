@@ -1,0 +1,373 @@
+{
+  "source": {
+    "contract": "system.ops",
+    "contract_version": "1",
+    "owner": "system",
+    "definition": "contracts/ops.schema.json",
+    "source_revision": "git-blob:b464de33eab772a5d071a0f1896ae99ab4930177",
+    "sha256": "086f072f628e947c0577249e102ed1f863d7c5ff3fe4f3f5547b65ba53796aad"
+  },
+  "exports": {
+    "OPS_V1_VERSION": "ops_v1",
+    "OPS_V1_STATES": [
+      "ok",
+      "degraded",
+      "failing",
+      "stale",
+      "asleep",
+      "unknown"
+    ],
+    "OPS_V1_KINDS": [
+      "job",
+      "service",
+      "host",
+      "backup",
+      "web"
+    ],
+    "OPS_V1_TRIGGERS": [
+      "interval",
+      "calendar",
+      "keepalive",
+      "watch",
+      "manual",
+      "sampled"
+    ],
+    "OPS_V1_HOSTS": [
+      "ap-mini",
+      "ap-pro",
+      "cloudflare"
+    ],
+    "OPS_V1_BOUNDS_DATA": {
+      "maxBytes": 65536,
+      "maxEntries": 500,
+      "nameMax": 120,
+      "groupMax": 64,
+      "detailMax": 160,
+      "runbookMax": 512,
+      "scheduleMax": 64,
+      "budgetMaxSeconds": 31622400,
+      "exitMin": -2147483648,
+      "exitMax": 2147483647,
+      "runsMax": 2147483647,
+      "uptimeMaxSeconds": 316224000
+    },
+    "OPS_ID_PATTERN": "^[a-z0-9][a-z0-9.-]{0,63}$",
+    "OPS_TRIGGER_PATTERN": "^[a-z][a-z0-9_-]{0,31}$",
+    "OPS_HOST_PATTERN": "^[a-z0-9][a-z0-9-]{0,31}$",
+    "OPS_FIELD_PATTERN": "^[a-z][a-z0-9_]{0,31}$",
+    "OPS_TIMESTAMP_PATTERN": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+    "OPS_CATALOG_REQUIRED": [
+      "id",
+      "name",
+      "group",
+      "kind",
+      "host",
+      "freshness_budget_s",
+      "runbook",
+      "schedule"
+    ],
+    "OPS_CATALOG_OPTIONAL": [
+      "trigger"
+    ],
+    "OPS_CATALOG_IGNORED": [
+      "owner"
+    ],
+    "OPS_STATUS_REQUIRED": [
+      "id",
+      "state",
+      "detail",
+      "last_success_at",
+      "last_run_at",
+      "last_exit"
+    ],
+    "OPS_STATUS_OPTIONAL": [
+      "runs",
+      "interval_s",
+      "last_duration_s",
+      "next_run_at"
+    ],
+    "OPS_HOST_FIELDS": [
+      "disk_percent",
+      "uptime_s",
+      "awake"
+    ],
+    "OPS_ROOT_KEYS": [
+      "version",
+      "generated_at",
+      "catalog",
+      "status",
+      "counts"
+    ],
+    "OPS_EVENTS_VERSION": "ops_events_v1",
+    "OPS_EVENTS_PATH": "/v1/ops/events",
+    "OPS_EVENTS_BOUNDS_DATA": {
+      "maxBytes": 524288,
+      "maxLimit": 500,
+      "maxSeq": 10000000000,
+      "accessMs": 3600000,
+      "readerRunMs": 31622400000,
+      "subjectMax": 64
+    },
+    "OPS_EVENT_KIND_PATTERN": "^[a-z][a-z0-9_.-]{0,31}$",
+    "OPS_EVENT_ROUTE_PATTERN": "^[a-z][a-z0-9_.]{0,39}$",
+    "OPS_EVENT_REQUIRED": [
+      "seq",
+      "at",
+      "kind",
+      "subject",
+      "from_state",
+      "to_state",
+      "status",
+      "ms",
+      "detail"
+    ],
+    "OPS_EVENT_OPTIONAL": [
+      "device"
+    ],
+    "OPS_EVENT_ROOT_KEYS": [
+      "version",
+      "items",
+      "next_after"
+    ],
+    "OPS_DEVICES": [
+      "ap-pro",
+      "ap-phone",
+      "ap-plus",
+      "ap-mini",
+      "loopback",
+      "other"
+    ],
+    "OPS_EVENTS_MAX_WAIT_S": 25
+  },
+  "selectors": {
+    "OPS_V1_VERSION": "/properties/version/const",
+    "OPS_V1_STATES": "/$defs/state/enum",
+    "OPS_V1_KINDS": "/$defs/kind/enum",
+    "OPS_V1_TRIGGERS": "/$defs/trigger/enum",
+    "OPS_V1_HOSTS": "/x-compatibility/knownHosts",
+    "OPS_V1_BOUNDS_DATA": "/x-policy/snapshotReader",
+    "OPS_ID_PATTERN": "/$defs/id/pattern",
+    "OPS_TRIGGER_PATTERN": "/$defs/trigger/pattern",
+    "OPS_HOST_PATTERN": "/$defs/host/pattern",
+    "OPS_FIELD_PATTERN": "/$defs/fieldName/pattern",
+    "OPS_TIMESTAMP_PATTERN": "/$defs/timestamp/pattern",
+    "OPS_CATALOG_REQUIRED": "/x-shapes/catalogRequired",
+    "OPS_CATALOG_OPTIONAL": "/x-shapes/catalogOptional",
+    "OPS_CATALOG_IGNORED": "/x-shapes/catalogIgnored",
+    "OPS_STATUS_REQUIRED": "/x-shapes/statusRequired",
+    "OPS_STATUS_OPTIONAL": "/x-shapes/statusOptional",
+    "OPS_HOST_FIELDS": "/x-shapes/hostFields",
+    "OPS_ROOT_KEYS": "/required",
+    "OPS_EVENTS_VERSION": "/$defs/eventsVersion/const",
+    "OPS_EVENTS_PATH": "/x-policy/eventsPath",
+    "OPS_EVENTS_BOUNDS_DATA": "/x-policy/eventsReader",
+    "OPS_EVENT_KIND_PATTERN": "/$defs/eventKind/pattern",
+    "OPS_EVENT_ROUTE_PATTERN": "/$defs/route/pattern",
+    "OPS_EVENT_REQUIRED": "/x-shapes/eventRequired",
+    "OPS_EVENT_OPTIONAL": "/x-shapes/eventOptional",
+    "OPS_EVENT_ROOT_KEYS": "/x-shapes/eventRoot",
+    "OPS_DEVICES": "/x-compatibility/knownDevices",
+    "OPS_EVENTS_MAX_WAIT_S": "/x-policy/eventsMaxWaitSeconds"
+  },
+  "types": {},
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "urn:anipotts:system:ops:v1",
+    "title": "Operations snapshot envelope and shared protocol definitions",
+    "description": "System owns health evaluation. Readers preserve optional fields and their existing unknown-field handling. Duration bounds distinguish producer emission from compatible reader acceptance.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "version",
+      "generated_at",
+      "catalog",
+      "status",
+      "counts"
+    ],
+    "properties": {
+      "version": {
+        "const": "ops_v1"
+      },
+      "generated_at": {
+        "$ref": "#/$defs/timestamp"
+      },
+      "catalog": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "status": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "counts": {
+        "type": "object"
+      }
+    },
+    "$defs": {
+      "state": {
+        "enum": [
+          "ok",
+          "degraded",
+          "failing",
+          "stale",
+          "asleep",
+          "unknown"
+        ]
+      },
+      "kind": {
+        "enum": [
+          "job",
+          "service",
+          "host",
+          "backup",
+          "web"
+        ]
+      },
+      "trigger": {
+        "type": "string",
+        "enum": [
+          "interval",
+          "calendar",
+          "keepalive",
+          "watch",
+          "manual",
+          "sampled"
+        ],
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"
+      },
+      "host": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+      },
+      "fieldName": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,31}$"
+      },
+      "timestamp": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+      },
+      "eventKind": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,31}$"
+      },
+      "route": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.]{0,39}$"
+      },
+      "eventsVersion": {
+        "const": "ops_events_v1"
+      }
+    },
+    "x-policy": {
+      "snapshotReader": {
+        "maxBytes": 65536,
+        "maxEntries": 500,
+        "nameMax": 120,
+        "groupMax": 64,
+        "detailMax": 160,
+        "runbookMax": 512,
+        "scheduleMax": 64,
+        "budgetMaxSeconds": 31622400,
+        "exitMin": -2147483648,
+        "exitMax": 2147483647,
+        "runsMax": 2147483647,
+        "uptimeMaxSeconds": 316224000
+      },
+      "eventsReader": {
+        "maxBytes": 524288,
+        "maxLimit": 500,
+        "maxSeq": 10000000000,
+        "accessMs": 3600000,
+        "readerRunMs": 31622400000,
+        "subjectMax": 64
+      },
+      "producerRunMs": 3600000,
+      "eventsPath": "/v1/ops/events",
+      "eventsMaxWaitSeconds": 25
+    },
+    "x-shapes": {
+      "catalogRequired": [
+        "id",
+        "name",
+        "group",
+        "kind",
+        "host",
+        "freshness_budget_s",
+        "runbook",
+        "schedule"
+      ],
+      "catalogOptional": [
+        "trigger"
+      ],
+      "catalogIgnored": [
+        "owner"
+      ],
+      "statusRequired": [
+        "id",
+        "state",
+        "detail",
+        "last_success_at",
+        "last_run_at",
+        "last_exit"
+      ],
+      "statusOptional": [
+        "runs",
+        "interval_s",
+        "last_duration_s",
+        "next_run_at"
+      ],
+      "hostFields": [
+        "disk_percent",
+        "uptime_s",
+        "awake"
+      ],
+      "eventRequired": [
+        "seq",
+        "at",
+        "kind",
+        "subject",
+        "from_state",
+        "to_state",
+        "status",
+        "ms",
+        "detail"
+      ],
+      "eventOptional": [
+        "device"
+      ],
+      "eventRoot": [
+        "version",
+        "items",
+        "next_after"
+      ]
+    },
+    "x-compatibility": {
+      "knownHosts": [
+        "ap-mini",
+        "ap-pro",
+        "cloudflare"
+      ],
+      "knownDevices": [
+        "ap-pro",
+        "ap-phone",
+        "ap-plus",
+        "ap-mini",
+        "loopback",
+        "other"
+      ],
+      "unknownHostsAndDevices": "Readers display other for well-formed names added before their release; these are display subsets, not fleet membership.",
+      "unknownFields": "Admin records field names and skips malformed events while advancing readable sequence cursors. Mini status remains an exact bounded privacy projection.",
+      "durationBounds": "Run producers clamp to one hour; readers accept legacy or other run durations through one year. Access latency remains capped at one hour."
+    }
+  },
+  "source_text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"urn:anipotts:system:ops:v1\",\n  \"title\": \"Operations snapshot envelope and shared protocol definitions\",\n  \"description\": \"System owns health evaluation. Readers preserve optional fields and their existing unknown-field handling. Duration bounds distinguish producer emission from compatible reader acceptance.\",\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"required\": [\"version\", \"generated_at\", \"catalog\", \"status\", \"counts\"],\n  \"properties\": {\n    \"version\": {\"const\": \"ops_v1\"},\n    \"generated_at\": {\"$ref\": \"#/$defs/timestamp\"},\n    \"catalog\": {\"type\": \"array\", \"items\": {\"type\": \"object\"}},\n    \"status\": {\"type\": \"array\", \"items\": {\"type\": \"object\"}},\n    \"counts\": {\"type\": \"object\"}\n  },\n  \"$defs\": {\n    \"state\": {\"enum\": [\"ok\", \"degraded\", \"failing\", \"stale\", \"asleep\", \"unknown\"]},\n    \"kind\": {\"enum\": [\"job\", \"service\", \"host\", \"backup\", \"web\"]},\n    \"trigger\": {\"type\": \"string\", \"enum\": [\"interval\", \"calendar\", \"keepalive\", \"watch\", \"manual\", \"sampled\"], \"pattern\": \"^[a-z][a-z0-9_-]{0,31}$\"},\n    \"id\": {\"type\": \"string\", \"pattern\": \"^[a-z0-9][a-z0-9.-]{0,63}$\"},\n    \"host\": {\"type\": \"string\", \"pattern\": \"^[a-z0-9][a-z0-9-]{0,31}$\"},\n    \"fieldName\": {\"type\": \"string\", \"pattern\": \"^[a-z][a-z0-9_]{0,31}$\"},\n    \"timestamp\": {\"type\": \"string\", \"pattern\": \"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$\"},\n    \"eventKind\": {\"type\": \"string\", \"pattern\": \"^[a-z][a-z0-9_.-]{0,31}$\"},\n    \"route\": {\"type\": \"string\", \"pattern\": \"^[a-z][a-z0-9_.]{0,39}$\"},\n    \"eventsVersion\": {\"const\": \"ops_events_v1\"}\n  },\n  \"x-policy\": {\n    \"snapshotReader\": {\n      \"maxBytes\": 65536,\n      \"maxEntries\": 500,\n      \"nameMax\": 120,\n      \"groupMax\": 64,\n      \"detailMax\": 160,\n      \"runbookMax\": 512,\n      \"scheduleMax\": 64,\n      \"budgetMaxSeconds\": 31622400,\n      \"exitMin\": -2147483648,\n      \"exitMax\": 2147483647,\n      \"runsMax\": 2147483647,\n      \"uptimeMaxSeconds\": 316224000\n    },\n    \"eventsReader\": {\n      \"maxBytes\": 524288,\n      \"maxLimit\": 500,\n      \"maxSeq\": 10000000000,\n      \"accessMs\": 3600000,\n      \"readerRunMs\": 31622400000,\n      \"subjectMax\": 64\n    },\n    \"producerRunMs\": 3600000,\n    \"eventsPath\": \"/v1/ops/events\",\n    \"eventsMaxWaitSeconds\": 25\n  },\n  \"x-shapes\": {\n    \"catalogRequired\": [\"id\", \"name\", \"group\", \"kind\", \"host\", \"freshness_budget_s\", \"runbook\", \"schedule\"],\n    \"catalogOptional\": [\"trigger\"],\n    \"catalogIgnored\": [\"owner\"],\n    \"statusRequired\": [\"id\", \"state\", \"detail\", \"last_success_at\", \"last_run_at\", \"last_exit\"],\n    \"statusOptional\": [\"runs\", \"interval_s\", \"last_duration_s\", \"next_run_at\"],\n    \"hostFields\": [\"disk_percent\", \"uptime_s\", \"awake\"],\n    \"eventRequired\": [\"seq\", \"at\", \"kind\", \"subject\", \"from_state\", \"to_state\", \"status\", \"ms\", \"detail\"],\n    \"eventOptional\": [\"device\"],\n    \"eventRoot\": [\"version\", \"items\", \"next_after\"]\n  },\n  \"x-compatibility\": {\n    \"knownHosts\": [\"ap-mini\", \"ap-pro\", \"cloudflare\"],\n    \"knownDevices\": [\"ap-pro\", \"ap-phone\", \"ap-plus\", \"ap-mini\", \"loopback\", \"other\"],\n    \"unknownHostsAndDevices\": \"Readers display other for well-formed names added before their release; these are display subsets, not fleet membership.\",\n    \"unknownFields\": \"Admin records field names and skips malformed events while advancing readable sequence cursors. Mini status remains an exact bounded privacy projection.\",\n    \"durationBounds\": \"Run producers clamp to one hour; readers accept legacy or other run durations through one year. Access latency remains capped at one hour.\"\n  }\n}\n"
+}

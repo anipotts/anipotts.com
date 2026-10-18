@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
-import { siteLinks } from "../../../packages/content/src/public/site.ts";
+import { siteLinks } from "../../../packages/content/dist/public/site.js";
 
 // Exercise the real click/lifecycle controller with the router as the boundary.
 // Rendering geometry is covered by admin-motion.test.mjs and visual review.

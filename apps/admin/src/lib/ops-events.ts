@@ -12,6 +12,25 @@ import {
   type OpsCatalogEntry,
   type OpsState,
 } from "./ops-v1";
+import {
+  OPS_EVENTS_VERSION,
+  OPS_EVENTS_PATH,
+  OPS_EVENTS_BOUNDS_DATA,
+  OPS_EVENT_KIND_PATTERN,
+  OPS_EVENT_ROUTE_PATTERN,
+  OPS_EVENT_REQUIRED,
+  OPS_EVENT_OPTIONAL,
+  OPS_EVENT_ROOT_KEYS,
+  OPS_DEVICES,
+  OPS_EVENTS_MAX_WAIT_S,
+} from "./generated/ops";
+
+export {
+  OPS_EVENTS_VERSION,
+  OPS_EVENTS_PATH,
+  OPS_DEVICES,
+  OPS_EVENTS_MAX_WAIT_S,
+};
 
 /**
  * System's `ops_events_v1` feed (`GET /v1/ops/events?after=&limit=`, scope
@@ -28,20 +47,15 @@ import {
  * System adds sources (deploys, proof) without a website deploy. A malformed
  * item rejects the whole page, the same as a malformed snapshot.
  */
-export const OPS_EVENTS_VERSION = "ops_events_v1";
-export const OPS_EVENTS_PATH = "/v1/ops/events";
 export const OPS_EVENTS_BOUNDS = {
-  /** 500 items of at most ~400 bytes each, with headroom. */
-  maxBytes: 512 * 1024,
-  maxLimit: 500,
-  maxSeq: 10_000_000_000,
-  /** One hour. A slower reader response is not a latency. */
-  maxMs: 60 * 60 * 1000,
-  /** A run can take as long as a freshness budget allows: a year. */
-  maxRunMs: OPS_V1_BOUNDS.budgetMaxSeconds * 1000,
-  kind: /^[a-z][a-z0-9_.-]{0,31}$/,
-  route: /^[a-z][a-z0-9_.]{0,39}$/,
-  subjectMax: 64,
+  maxBytes: OPS_EVENTS_BOUNDS_DATA.maxBytes,
+  maxLimit: OPS_EVENTS_BOUNDS_DATA.maxLimit,
+  maxSeq: OPS_EVENTS_BOUNDS_DATA.maxSeq,
+  maxMs: OPS_EVENTS_BOUNDS_DATA.accessMs,
+  maxRunMs: OPS_EVENTS_BOUNDS_DATA.readerRunMs,
+  kind: new RegExp(OPS_EVENT_KIND_PATTERN),
+  route: new RegExp(OPS_EVENT_ROUTE_PATTERN),
+  subjectMax: OPS_EVENTS_BOUNDS_DATA.subjectMax,
   detailMax: OPS_V1_BOUNDS.detailMax,
 } as const;
 
@@ -55,29 +69,11 @@ export const OPS_EVENTS_KEEP = {
   recent: 1000,
 } as const;
 
-const ITEM_KEYS = [
-  "seq",
-  "at",
-  "kind",
-  "subject",
-  "from_state",
-  "to_state",
-  "status",
-  "ms",
-  "detail",
-] as const;
+const ITEM_KEYS = OPS_EVENT_REQUIRED;
 
 type Base = { seq: number; at: string; subject: string };
 /** Devices System names on access rows. A name outside this list reads as
  * "other" rather than rejecting the page, since the field is display only. */
-export const OPS_DEVICES = [
-  "ap-pro",
-  "ap-phone",
-  "ap-plus",
-  "ap-mini",
-  "loopback",
-  "other",
-] as const;
 export type OpsDevice = (typeof OPS_DEVICES)[number];
 export type OpsTransitionEvent = Base & {
   kind: "transition";
@@ -149,7 +145,7 @@ function device(value: unknown): OpsDevice {
 
 function item(value: unknown, drift: FieldDrift): OpsEvent {
   // `device` is optional on every item; unknown keys are only named.
-  const e = known(value, ITEM_KEYS, ["device"], drift);
+  const e = known(value, ITEM_KEYS, OPS_EVENT_OPTIONAL, drift);
   const accessDevice =
     e.device === undefined ? null : nullable(e.device, device);
   const seq = integer(e.seq, 1, OPS_EVENTS_BOUNDS.maxSeq);
@@ -205,7 +201,7 @@ function item(value: unknown, drift: FieldDrift): OpsEvent {
  * (`opsEventsDrifted`). A bad seq or envelope still rejects the page.
  */
 export function parseOpsEvents(value: unknown, after: number): OpsEventsPage {
-  const root = exact(value, ["version", "items", "next_after"]);
+  const root = exact(value, OPS_EVENT_ROOT_KEYS);
   if (root.version !== OPS_EVENTS_VERSION) fail();
   if (
     !Array.isArray(root.items) ||
@@ -263,9 +259,6 @@ export function parseOpsEventsBytes(
   }
   return parseOpsEvents(value, after);
 }
-
-/** The reader holds an events request for at most this many seconds. */
-export const OPS_EVENTS_MAX_WAIT_S = 25;
 
 /** The request path for one page. `after` and `limit` are the contract's
  * paging params; `wait` (0 to 25 seconds) asks the reader to hold the request

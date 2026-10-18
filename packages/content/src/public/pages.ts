@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { siteSettingsSchema } from "./site.js";
 import { publicSlugSchema } from "./schema.js";
 import { workflowProviders } from "./providers.js";
 import {
@@ -44,6 +45,7 @@ export const homepageMentionSchema = z.object({
 
 export const homepageSchema = z
   .object({
+    site_settings: siteSettingsSchema.optional(),
     sections: z.object({
       intro: section.extend({ subheading: text }),
       past_work: section,
@@ -130,3 +132,7 @@ export const newsletterPageSchema = z.object({
 export type Homepage = z.infer<typeof homepageSchema>;
 export type HomepageMention = z.infer<typeof homepageMentionSchema>;
 export type SystemsPage = z.infer<typeof systemsPageSchema>;
+export type ListingPage = z.infer<typeof listingPageSchema>;
+export type WorkPage = z.infer<typeof workPageSchema>;
+export type WorkPageBucket = WorkPage["buckets"][number];
+export type NewsletterPage = z.infer<typeof newsletterPageSchema>;

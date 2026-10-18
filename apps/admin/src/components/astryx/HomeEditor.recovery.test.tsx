@@ -297,6 +297,7 @@ afterEach(() => {
   localStorage.clear();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 it("compares without retrying or changing the retained operation, then saves only an explicit choice", async () => {
@@ -385,6 +386,174 @@ it("downloads retained edits without retrying or clearing their operation", asyn
   expect(recovery().source).toBe(mine);
   expect(saves()).toHaveLength(1);
 });
+
+it.each([false, true])(
+  "downloads unflushed title/body and pending identity when storage writes fail (read denial: %s)",
+  async (denyRead) => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("synthetic quota denial");
+    });
+    await mount();
+    const stored = localStorage.getItem(key);
+    const before = fetcher.mock.calls.length;
+    await type("Newest unflushed 雨 e\u0301 body.");
+    const title = host.querySelector(".document-title textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )!.set!.call(title, "Newest buffered title");
+      title.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const originalGetItem = Storage.prototype.getItem;
+    const getItem = denyRead
+      ? vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+          this: Storage,
+          name,
+        ) {
+          if (name.startsWith("editorial-recovery:v"))
+            throw new Error("synthetic recovery read denial");
+          return originalGetItem.call(this, name);
+        })
+      : null;
+    class DownloadURL extends URL {
+      static createObjectURL = vi.fn(
+        (_blob: Blob) => "blob:synthetic-current-copy",
+      );
+      static revokeObjectURL = vi.fn();
+    }
+    vi.stubGlobal("URL", DownloadURL);
+    const download = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    await click("Download recovery copies");
+    expect(download).toHaveBeenCalledOnce();
+    const blob = DownloadURL.createObjectURL.mock.calls[0][0] as Blob;
+    const contents = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+    const bundle = JSON.parse(contents);
+    expect(bundle.currentCopy).toMatchObject({
+      key,
+      kind: "draft",
+      payload: { revision: 1, saved: source, pending },
+    });
+    expect(bundle.currentCopy.payload.source).toContain(
+      "Newest buffered title",
+    );
+    expect(bundle.currentCopy.payload.source).toContain(
+      "Newest unflushed 雨 e\u0301 body.",
+    );
+    expect(bundle.storedStatus).toBe(denyRead ? "unavailable" : "complete");
+    if (!denyRead) expect(bundle.entries[key]).toBe(stored);
+    expect(fetcher.mock.calls).toHaveLength(before);
+    getItem?.mockRestore();
+    expect(localStorage.getItem(key)).toBe(stored);
+    await pause();
+    expect(fetcher.mock.calls).toHaveLength(before);
+    expect(recovery().pending).toEqual(pending);
+  },
+);
+
+it.each(["expired", "logout"] as const)(
+  "removes current-copy download when the editor session is %s",
+  async (reason) => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("synthetic quota denial");
+    });
+    await mount();
+    expect(host.textContent).toContain("Download recovery copies");
+    await type("Private buffered text before lock.");
+    const { lockProtectedSession } =
+      await import("../../lib/protected-admin-json");
+    await act(async () => lockProtectedSession(reason));
+    expect(body()).toBeNull();
+    expect(host.textContent).not.toContain("Download recovery copies");
+    expect(host.textContent).not.toContain(
+      "Private buffered text before lock.",
+    );
+    expect(host.textContent).toContain("Session ended");
+  },
+);
+
+it.each(["delayed logout", "session storage denial"])(
+  "refuses current-copy download after %s without waiting for a storage event",
+  async (reason) => {
+    const originalSetItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("synthetic quota denial");
+    });
+    await mount();
+    const action = button("Download recovery copies");
+    class DownloadURL extends URL {
+      static createObjectURL = vi.fn((_blob: Blob) => "blob:must-not-download");
+      static revokeObjectURL = vi.fn();
+    }
+    vi.stubGlobal("URL", DownloadURL);
+    if (reason === "delayed logout")
+      originalSetItem.call(
+        localStorage,
+        recoveryLogoutKey,
+        "synthetic-next-logout",
+      );
+    else
+      vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("synthetic session storage denial");
+      });
+    await act(async () => action.click());
+    expect(DownloadURL.createObjectURL).not.toHaveBeenCalled();
+    expect(body()).toBeNull();
+    expect(host.textContent).toContain("Session ended");
+    expect(host.textContent).not.toContain("Download recovery copies");
+  },
+);
+
+it.each([false, true])(
+  "preserves ordinary autosave without an extra operation under quota denial (download: %s)",
+  async (download) => {
+    await mountClean();
+    vi.useFakeTimers();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("synthetic quota denial");
+    });
+    await type("Earlier buffered body.");
+    // Opening a local panel flushes buffers, exposing the storage failure,
+    // but sends no server operation. The next keystroke is buffered again.
+    await act(async () => {
+      host
+        .querySelector<HTMLButtonElement>('[aria-label="Properties"]')!
+        .click();
+    });
+    expect(host.textContent).toContain("Download recovery copies");
+    await type("Ordinary typing with newest buffered body.");
+    if (download) {
+      class DownloadURL extends URL {
+        static createObjectURL = vi.fn(
+          (_blob: Blob) => "blob:synthetic-quota-copy",
+        );
+        static revokeObjectURL = vi.fn();
+      }
+      vi.stubGlobal("URL", DownloadURL);
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+        () => {},
+      );
+      await click("Download recovery copies");
+      expect(DownloadURL.createObjectURL).toHaveBeenCalledOnce();
+    }
+    expect(saves()).toHaveLength(0);
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    expect(saves()).toHaveLength(1);
+    expect(saveBodies()[0]).toMatchObject({ expectedRevision: 1 });
+    expect(saveBodies()[0].source).toContain(
+      "Ordinary typing with newest buffered body.",
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    expect(saves()).toHaveLength(1);
+  },
+);
 
 it("retains input and the original operation if comparison fails, then allows another read", async () => {
   await mount();

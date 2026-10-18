@@ -400,6 +400,7 @@ export const PATH_RULES = Object.freeze(
         exact: [
           "scripts/ci/admin-route-inventory.mjs",
           "scripts/dev/admin-local-owner-host.mjs",
+          "scripts/dev/admin-dependency-discovery.mjs",
           "scripts/dev/editorial-public-assets.mjs",
           "scripts/dev/editorial-updates.mjs",
           "scripts/dev/public-content-hot-reload.mjs",

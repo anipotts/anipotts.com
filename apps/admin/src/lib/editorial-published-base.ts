@@ -3,6 +3,7 @@ import {
   editorialRecordSchema,
   type EditorialRecord,
 } from "@anipotts/content/editorial/source";
+import { editorialRecordKind } from "@anipotts/content/editorial/layout";
 import {
   getPublishedInventory,
   getPublishedRecord,
@@ -30,17 +31,10 @@ export function bundledEditorialSources() {
     eager: true,
   }) as Record<string, string>;
   return Object.entries(sources).flatMap(([path, source]) => {
-    const match = /\/public\/(pages|projects|writing)\/([^/]+)\.md$/.exec(path);
-    if (!match) return [];
-    const record = editorialRecordSchema.safeParse({
-      kind:
-        match[1] === "pages"
-          ? "page"
-          : match[1] === "projects"
-            ? "work"
-            : "writing",
-      id: match[2],
-    });
+    const match = /\/public\/([^/]+)\/([^/]+)\.md$/.exec(path);
+    const kind = match?.[1] ? editorialRecordKind(match[1]) : undefined;
+    if (!match || !kind) return [];
+    const record = editorialRecordSchema.safeParse({ kind, id: match[2] });
     return record.success ? [{ record: record.data, source }] : [];
   });
 }

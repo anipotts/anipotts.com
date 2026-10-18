@@ -9,10 +9,12 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   DEFAULT_CMS_PROJECTS,
   DEFAULT_HOMEPAGE_CONTENT,
@@ -191,7 +193,10 @@ try {
   writeFileSync(
     join(alternateSlugRoot, "content/public/projects/source-name.md"),
     readFileSync("content/public/projects/agents.md", "utf8")
-      .replace(/^---\n/, "---\nslug: route-name\n")
+      .replace(
+        /^---\n/,
+        "---\nslug: route-name\ncard_title: Sentinel card title\ncard_copy_compact: Sentinel **compact** copy\n",
+      )
       .replace("detail_path: /work/agents", "detail_path: /work/route-name"),
   );
   execFileSync(
@@ -208,6 +213,92 @@ try {
     /slug: "route-name",[\s\S]*?detail_path: "\/work\/route-name"/,
     "a frontmatter slug must name the generated record and its route",
   );
+  const { DEFAULT_CMS_PROJECTS: generatedProjects } = await import(
+    pathToFileURL(
+      join(alternateSlugRoot, "packages/content/src/public/generated.ts"),
+    ).href
+  );
+  const generatedProject = generatedProjects.find(
+    (project) => project.slug === "route-name",
+  );
+  assert.equal(
+    generatedProject?.card_title,
+    "Sentinel card title",
+    "authored card titles must survive generated defaults",
+  );
+  assert.equal(
+    generatedProject?.card_copy_compact,
+    "Sentinel **compact** copy",
+    "compact card copy must survive generation with inline markup intact",
+  );
+  assert.equal(
+    generatedProjects.find((project) => project.slug === "agents")?.card_title,
+    undefined,
+    "absent optional card overrides retain the renderer fallback",
+  );
+  // Run the actual package command in a disposable project. Check mode must
+  // detect a stale output without silently replacing the evidence.
+  cpSync(
+    "packages/content/src",
+    join(alternateSlugRoot, "packages/content/src"),
+    { recursive: true },
+  );
+  mkdirSync(join(alternateSlugRoot, "scripts/content"), { recursive: true });
+  cpSync(
+    "scripts/content/generate-public-content.mjs",
+    join(alternateSlugRoot, "scripts/content/generate-public-content.mjs"),
+  );
+  symlinkSync(
+    resolve("node_modules"),
+    join(alternateSlugRoot, "node_modules"),
+    "dir",
+  );
+  symlinkSync(
+    resolve("packages/content/node_modules"),
+    join(alternateSlugRoot, "packages/content/node_modules"),
+    "dir",
+  );
+  const packageScripts = JSON.parse(
+    readFileSync("package.json", "utf8"),
+  ).scripts;
+  writeFileSync(
+    join(alternateSlugRoot, "package.json"),
+    JSON.stringify({
+      type: "module",
+      scripts: {
+        "content:generate": packageScripts["content:generate"],
+        "content:check": packageScripts["content:check"],
+      },
+    }),
+  );
+  const outputFile = join(
+    alternateSlugRoot,
+    "packages/content/src/public/generated.ts",
+  );
+  const staleOutput = alternateGenerated + "\n// synthetic stale projection\n";
+  writeFileSync(outputFile, staleOutput);
+  assert.throws(
+    () =>
+      execFileSync("pnpm", ["content:check"], {
+        cwd: alternateSlugRoot,
+        stdio: "ignore",
+      }),
+    "the package check must reject stale generated content",
+  );
+  assert.equal(
+    readFileSync(outputFile, "utf8"),
+    staleOutput,
+    "content:check must leave stale output unchanged",
+  );
+  execFileSync("pnpm", ["content:generate"], {
+    cwd: alternateSlugRoot,
+    stdio: "ignore",
+  });
+  execFileSync("pnpm", ["content:check"], {
+    cwd: alternateSlugRoot,
+    stdio: "ignore",
+  });
+
   const alternateFile = join(
     alternateSlugRoot,
     "content/public/projects/source-name.md",

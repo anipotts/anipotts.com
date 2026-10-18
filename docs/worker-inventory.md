@@ -166,7 +166,7 @@ catalog watches any worker.
 | `claudemon`           | `claudemon.pages.dev`, `app.claudemon.com`, `staging.claudemon.com` | 200                 | ghost  | claudemon's owner                                                                                                        |
 | `claudemon-awareness` | `claudemon-awareness.pages.dev`                                     | 200                 | ghost  | claudemon's owner                                                                                                        |
 | `nikkyla`             | `nikkyla.com`, `www` and `preview`                                  | 200                 | live   | its owner                                                                                                                |
-| family websites       | managed outside this repository                                     | 200                 | live   | their owners                                                                                                             |
+| family websites (5)   | managed outside this repository                                     | 200                 | live   | their owners                                                                                                             |
 
 ### D1, KV, R2 and queues
 

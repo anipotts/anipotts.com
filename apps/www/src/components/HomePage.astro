@@ -12,7 +12,8 @@ import type { CollectionEntry } from "astro:content";
 import { projectSlug, writingSlug } from "../lib/content";
 import { byRankThenSlug } from "../lib/listing-order";
 import { personIdentity, websiteId } from "../lib/identity";
-import { siteConfig } from "@anipotts/content/public";
+import { siteConfig, resolveSiteSettings } from "@anipotts/content/public/site";
+import { normalizeHomepageSectionOrder } from "@anipotts/content/public/homepage";
 
 type Props = {
   cmsHome: CollectionEntry<"home">["data"];
@@ -21,6 +22,8 @@ type Props = {
   preview?: boolean;
 };
 const { cmsHome, allWork, allWriting } = Astro.props;
+const settings = resolveSiteSettings(cmsHome.site_settings);
+const sectionOrder = normalizeHomepageSectionOrder(cmsHome.section_order);
 const intro = cmsHome.sections.intro;
 const work = cmsHome.sections.past_work;
 const writing = cmsHome.sections.latest_thoughts;
@@ -73,102 +76,103 @@ const profileLd = {
 ---
 
 <Shell
-  title={siteConfig.homepageTitle}
-  description={siteConfig.description}
+  title={settings.seo.homepageTitle}
+  description={settings.seo.description}
+  siteSettings={cmsHome.site_settings}
   path="/"
   jsonLd={profileLd}
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
 >
-  <section data-rise>
-    <h1 class="home-hero">
-      <FittedDisplayHeading text={heading} />
-    </h1>
-    <p
-      class:list={[
-        "hero-summary",
-        "hero-line",
-        { "hero-line--desktop": hasCompactSummary },
-      ]}
-    >
-      <HomepageRichSummary
-        text={summaryText}
-        format={intro.subheading_format}
-        mentionKeys={introMentionKeys}
-        mentions={mentionMap}
-      />
-    </p>
-    {
-      hasCompactSummary && (
-        <p class="hero-summary hero-line hero-line--compact">
-          <HomepageRichSummary
-            text={compactSummaryText}
-            format={intro.subheading_compact_format}
-            mentionKeys={introMentionKeys}
-            mentions={mentionMap}
-          />
-        </p>
-      )
-    }
-    <PressMention
-      essayHref={codingAgentEssay
-        ? `/writing/${writingSlug(codingAgentEssay)}`
-        : undefined}
-    />
-    <div class="experience-grid" role="group" aria-label="experience">
-      {
-        experiences.map((experience) =>
-          experience.data.preview_media ? (
-            <ExperienceFeatureCard
-              project={experience}
-              eager={experience === firstFeature}
+  {
+    sectionOrder.map((section) => (
+      <>
+        {section === "intro" && intro.visible && (
+          <section data-rise>
+            <h1 class="home-hero">
+              <FittedDisplayHeading text={heading} />
+            </h1>
+            <p
+              class:list={[
+                "hero-summary",
+                "hero-line",
+                { "hero-line--desktop": hasCompactSummary },
+              ]}
+            >
+              <HomepageRichSummary
+                text={summaryText}
+                format={intro.subheading_format}
+                mentionKeys={introMentionKeys}
+                mentions={mentionMap}
+              />
+            </p>
+            {hasCompactSummary && (
+              <p class="hero-summary hero-line hero-line--compact">
+                <HomepageRichSummary
+                  text={compactSummaryText}
+                  format={intro.subheading_compact_format}
+                  mentionKeys={introMentionKeys}
+                  mentions={mentionMap}
+                />
+              </p>
+            )}
+            <PressMention
+              essayHref={
+                codingAgentEssay
+                  ? `/writing/${writingSlug(codingAgentEssay)}`
+                  : undefined
+              }
             />
-          ) : (
-            <WorkCard project={experience} />
-          ),
-        )
-      }
-    </div>
-  </section>
-
-  {
-    work.visible && (
-      <section data-rise class="stack">
-        <span class="head-row">
-          <h2 class="section-label">{workLabel}</h2>
-          <a href={workHref} class="quiet-link mono view-all">
-            {work.links?.[0]?.label ?? "view all"}
-            <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        </span>
-        <div class="grid">
-          {projects.map((project, index) => (
-            <WorkCard project={project} flowVariant={index} />
-          ))}
-        </div>
-      </section>
-    )
-  }
-
-  {
-    writing.visible && (
-      <section data-rise class="stack">
-        <span class="head-row">
-          <h2 class="section-label">{writing.label}</h2>
-          <a
-            href={writing.view_all ?? "/writing"}
-            class="quiet-link mono view-all"
-          >
-            {writing.links?.[0]?.label ?? "view all"}
-            <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        </span>
-        <div class="writing-list">
-          {writingEntries.map((item, index) => (
-            <WritingRow item={item} flowVariant={index} />
-          ))}
-        </div>
-      </section>
-    )
+            <div class="experience-grid" role="group" aria-label="experience">
+              {experiences.map((experience) =>
+                experience.data.preview_media ? (
+                  <ExperienceFeatureCard
+                    project={experience}
+                    eager={experience === firstFeature}
+                  />
+                ) : (
+                  <WorkCard project={experience} />
+                ),
+              )}
+            </div>
+          </section>
+        )}
+        {section === "past_work" && work.visible && (
+          <section data-rise class="stack">
+            <span class="head-row">
+              <h2 class="section-label">{workLabel}</h2>
+              <a href={workHref} class="quiet-link mono view-all">
+                {work.links?.[0]?.label ?? "view all"}
+                <Icon name="ph:arrow-bend-right-up" />
+              </a>
+            </span>
+            <div class="grid">
+              {projects.map((project, index) => (
+                <WorkCard project={project} flowVariant={index} />
+              ))}
+            </div>
+          </section>
+        )}
+        {section === "latest_thoughts" && writing.visible && (
+          <section data-rise class="stack">
+            <span class="head-row">
+              <h2 class="section-label">{writing.label}</h2>
+              <a
+                href={writing.view_all ?? "/writing"}
+                class="quiet-link mono view-all"
+              >
+                {writing.links?.[0]?.label ?? "view all"}
+                <Icon name="ph:arrow-bend-right-up" />
+              </a>
+            </span>
+            <div class="writing-list">
+              {writingEntries.map((item, index) => (
+                <WritingRow item={item} flowVariant={index} />
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    ))
   }
 
   <section data-rise>

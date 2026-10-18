@@ -1,10 +1,10 @@
 import { KNOWLEDGE_KINDS, entityKind, type EntityKind } from "./data-routes";
-import type { PrivateReaderSession } from "./private-reader-client";
 import {
   PRIVATE_READER_BOUNDS,
   PRIVATE_READER_ROUTES,
   PrivateReaderError,
   readerFetch,
+  type BearerSource,
 } from "./private-reader-fetch";
 import { strictReaders } from "./strict-json";
 
@@ -265,11 +265,6 @@ export type KnowledgeReader = {
   list(query: EntityQuery, signal?: AbortSignal): Promise<EntityPage>;
   get(id: string, signal?: AbortSignal): Promise<Entity | null>;
 };
-
-type BearerSource = Pick<
-  PrivateReaderSession,
-  "bearer" | "renew" | "deny" | "getState"
->;
 
 /** The reader over the Data session's credential. */
 export function createPrivateKnowledgeReader(

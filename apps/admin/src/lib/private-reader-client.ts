@@ -1,5 +1,6 @@
 import { AdminRequestError, protectedAdminJson } from "./protected-admin-json";
 import { useSyncExternalStore } from "react";
+import { PRIVATE_READER_PATH } from "./generated/private-reader";
 
 /**
  * Browser custody for the short private reader credential.
@@ -28,7 +29,8 @@ export type PrivateReaderState =
 export type PrivateReaderClearReason =
   "logout" | "expired" | "denied" | "unavailable";
 
-type Timer = ReturnType<typeof setTimeout>;
+// Browser timers return numbers; Node-backed tests return timer objects.
+type Timer = number | ReturnType<typeof setTimeout>;
 
 export type PrivateReaderSessionOptions = {
   fetch: typeof fetch;
@@ -68,7 +70,7 @@ export function createPrivateReaderSession(
   const setTimer = options.setTimer ?? setTimeout;
   const clearTimer = options.clearTimer ?? clearTimeout;
   const lead = options.renewLeadMs ?? 10_000;
-  const endpoint = options.endpoint ?? "/api/private-reader/credential";
+  const endpoint = options.endpoint ?? PRIVATE_READER_PATH;
   const listeners = new Set<() => void>();
   let state: PrivateReaderState = { status: "idle" };
   let renewTimer: Timer | null = null;

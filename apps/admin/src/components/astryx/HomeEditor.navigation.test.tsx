@@ -810,7 +810,7 @@ it("preserves opaque recovery and renders a bounded explanation instead of repla
   );
   await mount();
   expect(host.textContent).toContain("This browser copy needs a newer editor");
-  expect(host.textContent).toContain("Download stored recovery");
+  expect(host.textContent).toContain("Download recovery copies");
   expect(host.textContent).not.toContain("private future copy");
   expect(localStorage.getItem(versionedRecoveryKey(key))).toBe(raw);
 });

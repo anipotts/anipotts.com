@@ -1,4 +1,5 @@
 // @ts-check
+import { adminDependencyDiscovery } from "../../scripts/dev/admin-dependency-discovery.mjs";
 import { fileURLToPath } from "node:url";
 import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
 import { defineConfig } from "astro/config";
@@ -90,6 +91,21 @@ export default defineConfig({
     port: 3001,
   },
   vite: {
+    // The dependency scanner must start from app views, never unit-test files
+    // that import Node-only Astro/Wrangler/Tailwind configuration.
+    optimizeDeps: adminDependencyDiscovery.client,
+    // Cloudflare supplies a separate SSR discovery set. Vite does not inherit
+    // entries from the client environment, so exclude tests in both scans.
+    environments: {
+      ssr: {
+        optimizeDeps: adminDependencyDiscovery.ssr,
+      },
+    },
+    // Keep Worker stack-trace mappings without embedding development-only
+    // authoring source (including local-owner branches) in deployable maps.
+    build: {
+      rolldownOptions: { output: { sourcemapExcludeSources: true } },
+    },
     // SDK foundations are scoped after Tailwind expands their imports. Legacy
     // Astryx surfaces never receive the SDK reset or its document tokens.
     css: { postcss: { plugins: [openaiScope()] } },

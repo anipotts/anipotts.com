@@ -1,0 +1,156 @@
+{
+  "source": {
+    "contract": "system.private-reader",
+    "contract_version": "1",
+    "owner": "system",
+    "definition": "contracts/private-reader.schema.json",
+    "source_revision": "git-blob:edf604b8816ad233a03bdc3a6e10c000bab7e475",
+    "sha256": "9d9b04f678275d7e16b537bcbd7e55ce6d8ab26a740168674959a5e11d003faf"
+  },
+  "exports": {
+    "PRIVATE_READER_PATH": "/api/private-reader/credential",
+    "PRIVATE_READER_OPS_PATH": "/api/private-reader/ops-credential",
+    "PRIVATE_READER_HEALTH_PATH": "/api/private-reader/health-credential",
+    "PRIVATE_READER_ISSUER": "https://admin.anipotts.com",
+    "PRIVATE_READER_AUDIENCE": "https://ap-mini.tail060490.ts.net",
+    "PRIVATE_READER_SCOPES": [
+      "data:read",
+      "activity:read"
+    ],
+    "PRIVATE_READER_OPS_SCOPES": [
+      "ops:read"
+    ],
+    "PRIVATE_READER_HEALTH_SCOPES": [
+      "health:read"
+    ],
+    "PRIVATE_READER_MAX_LIFETIME_SECONDS": 60,
+    "PRIVATE_READER_ALGORITHM": "ES256",
+    "PRIVATE_READER_TOKEN_TYPE": "JWT",
+    "PRIVATE_READER_MAX_BODY_BYTES": 1024
+  },
+  "selectors": {
+    "PRIVATE_READER_PATH": "/$defs/data_path/const",
+    "PRIVATE_READER_OPS_PATH": "/$defs/ops_path/const",
+    "PRIVATE_READER_HEALTH_PATH": "/$defs/health_path/const",
+    "PRIVATE_READER_ISSUER": "/$defs/issuer/const",
+    "PRIVATE_READER_AUDIENCE": "/$defs/audience/const",
+    "PRIVATE_READER_SCOPES": "/$defs/data_scopes/const",
+    "PRIVATE_READER_OPS_SCOPES": "/$defs/ops_scopes/const",
+    "PRIVATE_READER_HEALTH_SCOPES": "/$defs/health_scopes/const",
+    "PRIVATE_READER_MAX_LIFETIME_SECONDS": "/$defs/max_lifetime_seconds/const",
+    "PRIVATE_READER_ALGORITHM": "/$defs/algorithm/const",
+    "PRIVATE_READER_TOKEN_TYPE": "/$defs/token_type/const",
+    "PRIVATE_READER_MAX_BODY_BYTES": "/$defs/max_body_bytes/const"
+  },
+  "types": {},
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anipotts.com/schemas/private-reader-v1.json",
+    "title": "Private reader delegation protocol constants",
+    "description": "Protocol metadata only, never key material. Issuance modes keep distinct fixed scopes and require existing feature flags; this contract does not enable a transport or grant access.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "issuer": {
+        "$ref": "#/$defs/issuer"
+      },
+      "audience": {
+        "$ref": "#/$defs/audience"
+      },
+      "algorithm": {
+        "$ref": "#/$defs/algorithm"
+      },
+      "max_lifetime_seconds": {
+        "$ref": "#/$defs/max_lifetime_seconds"
+      },
+      "data_scopes": {
+        "$ref": "#/$defs/data_scopes"
+      },
+      "ops_scopes": {
+        "$ref": "#/$defs/ops_scopes"
+      },
+      "health_scopes": {
+        "$ref": "#/$defs/health_scopes"
+      }
+    },
+    "$defs": {
+      "data_path": {
+        "const": "/api/private-reader/credential"
+      },
+      "ops_path": {
+        "const": "/api/private-reader/ops-credential"
+      },
+      "health_path": {
+        "const": "/api/private-reader/health-credential"
+      },
+      "issuer": {
+        "const": "https://admin.anipotts.com"
+      },
+      "audience": {
+        "const": "https://ap-mini.tail060490.ts.net"
+      },
+      "data_scopes": {
+        "const": [
+          "data:read",
+          "activity:read"
+        ]
+      },
+      "ops_scopes": {
+        "const": [
+          "ops:read"
+        ]
+      },
+      "health_scopes": {
+        "const": [
+          "health:read"
+        ]
+      },
+      "algorithm": {
+        "const": "ES256"
+      },
+      "token_type": {
+        "const": "JWT"
+      },
+      "max_lifetime_seconds": {
+        "const": 60
+      },
+      "max_clock_skew_seconds": {
+        "const": 5
+      },
+      "max_authorization_header_chars": {
+        "const": 4096
+      },
+      "max_body_bytes": {
+        "const": 1024
+      },
+      "serve_login_header": {
+        "const": "tailscale-user-login"
+      },
+      "required_claims": {
+        "const": [
+          "iss",
+          "aud",
+          "sub",
+          "email",
+          "iat",
+          "nbf",
+          "exp",
+          "scope"
+        ]
+      },
+      "optional_claims": {
+        "const": [
+          "jti"
+        ]
+      },
+      "allowed_header_fields": {
+        "const": [
+          "alg",
+          "typ",
+          "kid"
+        ]
+      }
+    }
+  },
+  "source_text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://anipotts.com/schemas/private-reader-v1.json\",\n  \"title\": \"Private reader delegation protocol constants\",\n  \"description\": \"Protocol metadata only, never key material. Issuance modes keep distinct fixed scopes and require existing feature flags; this contract does not enable a transport or grant access.\",\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"issuer\": {\"$ref\": \"#/$defs/issuer\"},\n    \"audience\": {\"$ref\": \"#/$defs/audience\"},\n    \"algorithm\": {\"$ref\": \"#/$defs/algorithm\"},\n    \"max_lifetime_seconds\": {\"$ref\": \"#/$defs/max_lifetime_seconds\"},\n    \"data_scopes\": {\"$ref\": \"#/$defs/data_scopes\"},\n    \"ops_scopes\": {\"$ref\": \"#/$defs/ops_scopes\"},\n    \"health_scopes\": {\"$ref\": \"#/$defs/health_scopes\"}\n  },\n  \"$defs\": {\n    \"data_path\": {\"const\": \"/api/private-reader/credential\"},\n    \"ops_path\": {\"const\": \"/api/private-reader/ops-credential\"},\n    \"health_path\": {\"const\": \"/api/private-reader/health-credential\"},\n    \"issuer\": {\"const\": \"https://admin.anipotts.com\"},\n    \"audience\": {\"const\": \"https://ap-mini.tail060490.ts.net\"},\n    \"data_scopes\": {\"const\": [\"data:read\", \"activity:read\"]},\n    \"ops_scopes\": {\"const\": [\"ops:read\"]},\n    \"health_scopes\": {\"const\": [\"health:read\"]},\n    \"algorithm\": {\"const\": \"ES256\"},\n    \"token_type\": {\"const\": \"JWT\"},\n    \"max_lifetime_seconds\": {\"const\": 60},\n    \"max_clock_skew_seconds\": {\"const\": 5},\n    \"max_authorization_header_chars\": {\"const\": 4096},\n    \"max_body_bytes\": {\"const\": 1024},\n    \"serve_login_header\": {\"const\": \"tailscale-user-login\"},\n    \"required_claims\": {\"const\": [\"iss\", \"aud\", \"sub\", \"email\", \"iat\", \"nbf\", \"exp\", \"scope\"]},\n    \"optional_claims\": {\"const\": [\"jti\"]},\n    \"allowed_header_fields\": {\"const\": [\"alg\", \"typ\", \"kid\"]}\n  }\n}\n"
+}

@@ -120,3 +120,6 @@ export const projectSchema = z.object({
     )
     .optional(),
 });
+
+export type ProjectFrontmatter = z.infer<typeof projectSchema>;
+export type WritingFrontmatter = z.infer<typeof writingSchema>;

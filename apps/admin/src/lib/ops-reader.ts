@@ -1,15 +1,21 @@
 import type { PrivateReaderSession } from "./private-reader-client";
 import {
-  PRIVATE_READER_ORIGIN,
+  PRIVATE_READER_ROUTES,
   PrivateReaderError,
-  privateReaderInit,
+  exactScope,
+  readerGet,
+  type BearerSource,
+  type DeadlineHold,
 } from "./private-reader-fetch";
+import {
+  PRIVATE_READER_OPS_PATH,
+  PRIVATE_READER_OPS_SCOPES,
+} from "./generated/private-reader";
 import { readBoundedBytes } from "./bounded-body";
 import { discardBody } from "./response-body";
 import {
   IssuanceTimeoutError,
   ReaderNoReplyError,
-  fetchReader,
   type ReaderHop,
 } from "./reader-reach";
 import {
@@ -49,10 +55,12 @@ import {
  * PRIVATE_READER_OPS_ENABLED are both exactly "true" on the server. The ops
  * flag is set in no deploy yet, and tests use fixtures only.
  */
-export const OPS_SNAPSHOT_PATH = "/v1/ops/snapshot";
-/** Mirrors PRIVATE_READER_OPS_PATH without pulling signing code into the client. */
-export const OPS_CREDENTIAL_ENDPOINT = "/api/private-reader/ops-credential";
-export const OPS_SCOPE = "ops:read";
+export const OPS_SNAPSHOT_PATH = PRIVATE_READER_ROUTES.opsSnapshot;
+/** The ops issuance route and its one scope come from the pinned System
+ * contract (lib/generated/private-reader.ts), which imports nothing, so the
+ * client gets them without signing code. */
+export const OPS_CREDENTIAL_ENDPOINT = PRIVATE_READER_OPS_PATH;
+export const OPS_SCOPE = PRIVATE_READER_OPS_SCOPES[0];
 export const OPS_POLL_MS = 30_000;
 export const OPS_READ_TIMEOUT_MS = 10_000;
 /** The events fallback interval: after an error, after repeated short
@@ -76,24 +84,9 @@ const ETAG = /^(?:W\/)?"[\x21\x23-\x7e]{0,200}"$/;
 const validEtag = (value: string | null) =>
   value !== null && ETAG.test(value) ? value : null;
 
-type BearerSource = Pick<
-  PrivateReaderSession,
-  "bearer" | "renew" | "deny" | "getState"
->;
-
 export type OpsSnapshotRead =
   | { kind: "snapshot"; snapshot: OpsSnapshot; etag: string | null }
   | { kind: "not-modified" };
-
-/** True only for a credential whose scope is exactly `ops:read`. */
-function opsScoped(session: BearerSource): boolean {
-  const state = session.getState();
-  return (
-    state.status === "ready" &&
-    state.credential.scope.length === 1 &&
-    state.credential.scope[0] === OPS_SCOPE
-  );
-}
 
 async function readBounded(
   response: Response,
@@ -120,55 +113,28 @@ type ReadOptions = {
   /** Runs a 401's renewal: the controller holds its reader deadline while
    * admin issues the new credential, so a slow issuance is never read as
    * ap-mini's (A-26). */
-  renewing?: (
-    renew: () => ReturnType<BearerSource["renew"]>,
-  ) => ReturnType<BearerSource["renew"]>;
+  renewing?: DeadlineHold;
 };
 
 /**
- * One ops:read GET. A 401 renews the credential once and retries; a second
- * 401 clears the session. Returns the successful or 304 response; any other
- * status throws.
+ * One ops:read GET through the shared reader transport, in raw mode: a 401
+ * renews once, a credential that is not exactly `ops:read` is refused before
+ * every send, and the 200 or 304 Response comes back for the caller's own
+ * caps. Any other status throws.
  */
-async function opsGet(
+function opsGet(
   session: BearerSource,
   path: string,
   headers: Record<string, string>,
   options: ReadOptions,
 ): Promise<Response> {
-  const url = new URL(path, PRIVATE_READER_ORIGIN).href;
-  const fetcher = options.fetch ?? ((...args) => globalThis.fetch(...args));
-  let renewed = false;
-  for (;;) {
-    if (session.getState().status === "ready" && !opsScoped(session)) {
-      session.deny();
-      throw new PrivateReaderError(403, "forbidden");
-    }
-    const bearer = session.bearer();
-    if (!bearer) throw new PrivateReaderError(401, "expired");
-    const init = privateReaderInit(bearer, options.signal);
-    init.headers = { ...(init.headers as Record<string, string>), ...headers };
-    const response = await fetchReader(fetcher, url, init);
-    if (session.getState().status !== "ready") {
-      discardBody(response);
-      throw new PrivateReaderError(401, "expired");
-    }
-    if (response.status === 401) {
-      discardBody(response);
-      if (renewed) {
-        session.deny();
-        throw new PrivateReaderError(401);
-      }
-      renewed = true;
-      const renew = () => session.renew();
-      const next = await (options.renewing ? options.renewing(renew) : renew());
-      if (next.status !== "ready") throw new PrivateReaderError(401);
-      continue;
-    }
-    if (response.status === 304 || response.ok) return response;
-    discardBody(response);
-    throw new PrivateReaderError(response.status);
-  }
+  return readerGet(session, path, "raw", {
+    fetch: options.fetch,
+    signal: options.signal,
+    renewing: options.renewing,
+    beforeSend: exactScope(session, OPS_SCOPE),
+    headers,
+  });
 }
 
 /**
@@ -266,7 +232,8 @@ export type OpsStatusState = {
   hop?: Exclude<ReaderHop, "unissued">;
 };
 
-type Timer = ReturnType<typeof setTimeout>;
+// Browser timers return numbers; Node-backed tests return timer objects.
+type Timer = number | ReturnType<typeof setTimeout>;
 
 export type OpsStatusOptions = {
   session: PrivateReaderSession;

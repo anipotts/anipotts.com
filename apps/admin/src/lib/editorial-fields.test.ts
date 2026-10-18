@@ -60,3 +60,28 @@ it("keeps compact copy optional alongside default copy and separate card title",
     ),
   ).toEqual(expect.arrayContaining(["hero_summary", "hero_summary_compact"]));
 });
+
+it("exposes shared settings with displayed defaults and code-owned destinations", () => {
+  const fields = editorialFields({ kind: "page", id: "home" });
+  expect(
+    fields.find(
+      (field) => field.path.join(".") === "site_settings.navigation.work",
+    )?.defaultValue,
+  ).toBe("work");
+  expect(
+    fields.find(
+      (field) => field.path.join(".") === "site_settings.footer.prompt",
+    )?.defaultValue,
+  ).toBe("have a question?");
+  expect(
+    fields.find(
+      (field) => field.path.join(".") === "site_settings.seo.homepage_title",
+    )?.defaultValue,
+  ).toContain("Ani Potts");
+  expect(
+    fields.some((field) => field.path.join(".").includes("admin_href")),
+  ).toBe(false);
+  expect(
+    fields.some((field) => field.path.join(".").includes("canonical_url")),
+  ).toBe(false);
+});

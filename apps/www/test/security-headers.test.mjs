@@ -165,20 +165,15 @@ const STATIC_PATHS = [
 ];
 
 // Prerendered pages and manifest assets are answered as built.
-const ASSET_PATHS = [
-  "/links",
-  "/404",
-  script,
-  stylesheet,
-  "/favicon.svg",
-  "/robots.txt",
-];
+const ASSET_PATHS = ["/404", script, stylesheet, "/favicon.svg", "/robots.txt"];
 // The content reader renders these on every request.
 const CONTENT_PATHS = [
   "/",
   "/writing",
   "/work",
   "/systems",
+  "/links",
+  "/business",
   project,
   post,
   "/feed.xml",
@@ -353,12 +348,18 @@ test("a revalidated page stays a bodyless 304 with its validator", async () => {
 });
 
 test("top-level pages revalidate to a bodyless secured 304", async () => {
-  // The adapter answers /links from ASSETS by URL string, which drops the
-  // validator, and the reader tags the rest. A prefetched page must not
-  // download again on the click.
+  // All shared-shell pages use the inventory validator. A prefetched page
+  // must not download again on the click.
   const failed = [];
   for (const host of ["anipotts.com", "staging.anipotts.com"]) {
-    for (const path of ["/", "/work", "/writing", "/systems", "/links"]) {
+    for (const path of [
+      "/",
+      "/work",
+      "/writing",
+      "/systems",
+      "/links",
+      "/business",
+    ]) {
       const url = `https://${host}${path}`;
       const etag = (await serve(url)).headers.get("etag");
       for (const validator of [etag, `W/${etag}`, `"other", ${etag}`]) {
@@ -577,7 +578,7 @@ test("a failing ASSETS binding still returns the header set", async () => {
   console.error = (...args) => logged.push(args.join(" "));
   try {
     // The adapter's early ASSETS returns run outside Astro's error handling.
-    for (const path of ["/links", "/definitely-missing", script]) {
+    for (const path of ["/404", "/definitely-missing", script]) {
       const response = await worker.fetch(
         new Request(`https://anipotts.com${path}`),
         { ASSETS: failing },

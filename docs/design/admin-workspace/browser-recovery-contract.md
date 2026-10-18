@@ -42,10 +42,21 @@ unsaved input. There is no unsafe fallback to uncoordinated writes.
 
 Missing, malformed, unsupported, oversized, unavailable, signed-out and changed recovery are
 separate outcomes. Unsupported envelope fields or versions are opaque and never
-silently rewritten. The user can download exact stored strings in a private JSON
-bundle. A divergent legacy/current pair offers read-only previews and explicit
+silently rewritten. The user can download exact stored strings and a separately
+labeled current tab copy in a private JSON bundle. The current copy includes the
+latest flushed local input and any pending operation identity; downloading never
+flushes a server save or retries that operation. If storage cannot be read, the
+bundle marks `storedStatus: "unavailable"` and still includes the current copy.
+Download checks the existing document session before and after collecting copies.
+If persisted logout or session admission cannot be verified, the form locks and
+does not emit a plaintext current-copy download. A recovery-record read failure
+alone can still be labeled unavailable while the admitted session remains valid.
+`currentCopy.key` is null when no owner-scoped storage key was available. Stored
+entries remain opaque; the bundle is for manual recovery, with no automatic import,
+save or publication. A divergent legacy/current pair offers read-only previews and explicit
 recovery choices. Choosing a supported copy archives the displaced v2 envelope
-before writing; original v1 data remains. No automatic archive cleanup is added.
+before writing; original v1 data remains. Browser archives are bounded to three
+copies to limit origin storage use; they are not durable revision history.
 If another tab changes either copy while the choice is open, selection refuses
 and preserves those values. Save/download current edits before reopening.
 

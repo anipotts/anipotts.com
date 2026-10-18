@@ -1,22 +1,16 @@
-import { siteConfig, siteLinks } from "@anipotts/content/public";
+import {
+  siteConfig,
+  siteLinks,
+  footerProfileDefaults,
+} from "@anipotts/content/public/site";
 
 // Shared with author references on agents.anipotts.com.
 export const personId = `${siteConfig.url}/#person`;
 export const websiteId = `${siteConfig.url}/#website`;
 
 export const creatorLinks = {
-  instagram: {
-    label: "instagram",
-    title: "Instagram · @anipottsbuilds",
-    href: "https://www.instagram.com/anipottsbuilds/",
-    icon: "ph:instagram-logo",
-  },
-  tiktok: {
-    label: "tiktok",
-    title: "TikTok · @anipottsbuilds",
-    href: "https://www.tiktok.com/@anipottsbuilds",
-    icon: "ph:tiktok-logo",
-  },
+  instagram: footerProfileDefaults.instagram,
+  tiktok: footerProfileDefaults.tiktok,
   youtube: {
     label: "youtube",
     title: "YouTube · @anipottsbuilds",

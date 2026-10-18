@@ -1,0 +1,182 @@
+{
+  "source": {
+    "contract": "personal-context.sources",
+    "contract_version": "1",
+    "owner": "system",
+    "definition": "contracts/personal-context-source.schema.json",
+    "source_revision": "git-blob:3adff1fb44849e46939d5097e4421d499b49dc0e",
+    "sha256": "12fcadd4a734db5cf7d9cf6e8535c74140a3869a04832a4df26d08a6c6ae2d71"
+  },
+  "exports": {
+    "SOURCE_CONNECTORS": [
+      "browsing",
+      "messages",
+      "contacts",
+      "mail",
+      "calendar",
+      "notes",
+      "media",
+      "agent_transcripts",
+      "code",
+      "health",
+      "legacy_vaults",
+      "other"
+    ],
+    "SOURCE_COLLECTIONS": [
+      "live",
+      "one_shot",
+      "discovered"
+    ],
+    "SOURCE_STATUSES": [
+      "discovered",
+      "unavailable",
+      "pending",
+      "partial",
+      "current",
+      "failed",
+      "excluded",
+      "paused"
+    ],
+    "SOURCE_TRANSPORTS": [
+      "launchd",
+      "push",
+      "manual",
+      "derived"
+    ]
+  },
+  "selectors": {
+    "SOURCE_CONNECTORS": "/$defs/source_connectors/enum",
+    "SOURCE_COLLECTIONS": "/$defs/source_collections/enum",
+    "SOURCE_STATUSES": "/$defs/source_statuses/enum",
+    "SOURCE_TRANSPORTS": "/$defs/source_transports/enum"
+  },
+  "types": {},
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://anipotts.com/schemas/personal-context-source-v1.json",
+    "title": "Personal Context descriptive source metadata and projection vocabulary",
+    "description": "Descriptive fields are optional. This contract does not infer collection state, expose private catalog metadata, or authorize collection.",
+    "$ref": "#/$defs/source_description",
+    "$defs": {
+      "source_connectors": {
+        "type": "string",
+        "enum": [
+          "browsing",
+          "messages",
+          "contacts",
+          "mail",
+          "calendar",
+          "notes",
+          "media",
+          "agent_transcripts",
+          "code",
+          "health",
+          "legacy_vaults",
+          "other"
+        ]
+      },
+      "source_collections": {
+        "type": "string",
+        "enum": [
+          "live",
+          "one_shot",
+          "discovered"
+        ]
+      },
+      "source_collection_unstated": {
+        "const": "unknown",
+        "description": "A served sentinel for unspecified collection. It is not a writable collection lifecycle."
+      },
+      "source_statuses": {
+        "type": "string",
+        "enum": [
+          "discovered",
+          "unavailable",
+          "pending",
+          "partial",
+          "current",
+          "failed",
+          "excluded",
+          "paused"
+        ]
+      },
+      "source_transports": {
+        "type": "string",
+        "enum": [
+          "launchd",
+          "push",
+          "manual",
+          "derived"
+        ]
+      },
+      "source_metadata_hosts": {
+        "type": "string",
+        "description": "Declared source-metadata host subset. Fleet membership remains owned by the entity and machine registries.",
+        "enum": [
+          "ap-mini",
+          "ap-pro"
+        ]
+      },
+      "source_metadata_view": {
+        "description": "Only these optional catalog metadata keys may be projected to a non-owner reader. Unknown private catalog keys remain unread.",
+        "const": [
+          "status",
+          "discovered_count",
+          "excluded_count",
+          "failed_count",
+          "last_success_at",
+          "display_name",
+          "connector",
+          "job",
+          "host",
+          "collection",
+          "transport",
+          "adapter",
+          "held_from",
+          "held_to"
+        ]
+      },
+      "source_derived_fields": {
+        "description": "Derived from held records, never merged from descriptive mapping entries.",
+        "const": [
+          "held_from",
+          "held_to"
+        ]
+      },
+      "source_description": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "connector": {
+            "$ref": "#/$defs/source_connectors"
+          },
+          "job": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "host": {
+            "$ref": "#/$defs/source_metadata_hosts"
+          },
+          "collection": {
+            "$ref": "#/$defs/source_collections"
+          },
+          "transport": {
+            "$ref": "#/$defs/source_transports"
+          },
+          "adapter": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        }
+      }
+    }
+  },
+  "source_text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://anipotts.com/schemas/personal-context-source-v1.json\",\n  \"title\": \"Personal Context descriptive source metadata and projection vocabulary\",\n  \"description\": \"Descriptive fields are optional. This contract does not infer collection state, expose private catalog metadata, or authorize collection.\",\n  \"$ref\": \"#/$defs/source_description\",\n  \"$defs\": {\n    \"source_connectors\": {\n      \"type\": \"string\",\n      \"enum\": [\"browsing\", \"messages\", \"contacts\", \"mail\", \"calendar\", \"notes\", \"media\", \"agent_transcripts\", \"code\", \"health\", \"legacy_vaults\", \"other\"]\n    },\n    \"source_collections\": {\n      \"type\": \"string\",\n      \"enum\": [\"live\", \"one_shot\", \"discovered\"]\n    },\n    \"source_collection_unstated\": {\n      \"const\": \"unknown\",\n      \"description\": \"A served sentinel for unspecified collection. It is not a writable collection lifecycle.\"\n    },\n    \"source_statuses\": {\n      \"type\": \"string\",\n      \"enum\": [\"discovered\", \"unavailable\", \"pending\", \"partial\", \"current\", \"failed\", \"excluded\", \"paused\"]\n    },\n    \"source_transports\": {\n      \"type\": \"string\",\n      \"enum\": [\"launchd\", \"push\", \"manual\", \"derived\"]\n    },\n    \"source_metadata_hosts\": {\n      \"type\": \"string\",\n      \"description\": \"Declared source-metadata host subset. Fleet membership remains owned by the entity and machine registries.\",\n      \"enum\": [\"ap-mini\", \"ap-pro\"]\n    },\n    \"source_metadata_view\": {\n      \"description\": \"Only these optional catalog metadata keys may be projected to a non-owner reader. Unknown private catalog keys remain unread.\",\n      \"const\": [\"status\", \"discovered_count\", \"excluded_count\", \"failed_count\", \"last_success_at\", \"display_name\", \"connector\", \"job\", \"host\", \"collection\", \"transport\", \"adapter\", \"held_from\", \"held_to\"]\n    },\n    \"source_derived_fields\": {\n      \"description\": \"Derived from held records, never merged from descriptive mapping entries.\",\n      \"const\": [\"held_from\", \"held_to\"]\n    },\n    \"source_description\": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"properties\": {\n        \"display_name\": {\"type\": \"string\", \"minLength\": 1, \"pattern\": \"\\\\S\"},\n        \"connector\": {\"$ref\": \"#/$defs/source_connectors\"},\n        \"job\": {\"type\": \"string\", \"minLength\": 1, \"pattern\": \"\\\\S\"},\n        \"host\": {\"$ref\": \"#/$defs/source_metadata_hosts\"},\n        \"collection\": {\"$ref\": \"#/$defs/source_collections\"},\n        \"transport\": {\"$ref\": \"#/$defs/source_transports\"},\n        \"adapter\": {\"type\": \"string\", \"minLength\": 1, \"pattern\": \"\\\\S\"}\n      }\n    }\n  }\n}\n"
+}

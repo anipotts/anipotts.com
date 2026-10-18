@@ -3,8 +3,10 @@ import Shell from "../layouts/Shell.astro";
 import PageHero from "../components/PageHero.astro";
 import { siteConfig, siteLinks } from "@anipotts/content/public";
 
-// Static legal facts for banks, payment processors and partners. Kept in code
-// rather than a CMS record so the registered details only change by review.
+export const prerender = false;
+
+// Legal facts for banks, payment processors and partners remain code-owned.
+// Only the shared shell reads the published settings at request time.
 const legalName = "Ani Potts LLC";
 const summary = `${legalName}, a New Jersey limited liability company.`;
 const registeredAgent = {

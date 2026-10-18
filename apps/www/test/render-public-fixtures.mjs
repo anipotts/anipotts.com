@@ -44,6 +44,8 @@ const paths = [
   "/writing",
   "/work",
   "/systems",
+  "/links",
+  "/business",
   "/feed.xml",
   "/sitemap.xml",
   "/search-index.json",

@@ -32,7 +32,7 @@ export function isRuntimeContentPath(pathname: string): boolean {
   if (canonical === null) return true;
   pathname = canonical;
   return (
-    /^\/(?:work(?:\/.*)?|writing(?:\/.*)?|systems|feed\.xml|sitemap\.xml|search-index\.json)?\/?$/u.test(
+    /^\/(?:work(?:\/.*)?|writing(?:\/.*)?|systems|links|business|feed\.xml|sitemap\.xml|search-index\.json)?\/?$/u.test(
       pathname,
     ) ||
     pathname === "/api/content-version" ||

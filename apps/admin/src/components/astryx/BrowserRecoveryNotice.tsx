@@ -51,7 +51,7 @@ export function BrowserRecoveryNotice({
         endContent={
           onDownload && (
             <Button
-              label="Download stored recovery"
+              label="Download recovery copies"
               size="sm"
               clickAction={onDownload}
             />
