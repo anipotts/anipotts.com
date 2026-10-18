@@ -17,6 +17,7 @@ import {
 } from "../lib/content";
 import { siteConfig } from "@anipotts/content/public";
 import { personId } from "../lib/identity";
+import { isExternalDestination } from "../lib/link-destination";
 import { writingCard } from "../lib/social-card/routes";
 
 interface Props {
@@ -28,6 +29,10 @@ const { item } = Astro.props;
 const slug = writingSlug(item);
 const { Content } = await render(item);
 const d = item.data;
+const artifactLabel =
+  d.artifact_label?.trim() ||
+  (d.artifact_type ? `view ${d.artifact_type}` : "view source");
+const externalArtifact = isExternalDestination(d.artifact_url);
 const moreWriting = (
   Astro.props.allWriting ??
   (await publishedWriting(publicContentContext(Astro.locals)))
@@ -108,6 +113,23 @@ const articleLd = {
         >
       </p>
       <p class="summary"><InlineText text={d.summary} /></p>
+      {
+        d.artifact_url && (
+          <a
+            href={d.artifact_url}
+            class="quiet-link mono article-source"
+            target={externalArtifact ? "_blank" : undefined}
+            rel={externalArtifact ? "noopener noreferrer" : undefined}
+            aria-label={
+              externalArtifact
+                ? `${artifactLabel} (opens in new tab)`
+                : undefined
+            }
+          >
+            {artifactLabel} <Icon name="ph:arrow-bend-right-up" />
+          </a>
+        )
+      }
     </header>
 
     <div data-rise class="article-body">
@@ -166,13 +188,17 @@ const articleLd = {
   .date {
     font-size: var(--control-size);
   }
-  .back {
+  .back,
+  .article-source {
     display: inline-flex;
     align-items: center;
     gap: var(--control-icon-gap);
     font-size: var(--control-size);
     width: fit-content;
     min-height: 44px;
+  }
+  .article-source {
+    align-self: flex-start;
   }
   .title {
     font-size: var(--d-hero-detail);
