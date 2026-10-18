@@ -45,10 +45,75 @@ D1. These are observed source/setup gaps, not pending release approvals or proof
 of producer operation. No collector, producer, authentication or secret changes
 were made. Operational follow-up must inspect the owning sources before mutation.
 
-[PR #530](https://github.com/anipotts/anipotts.com/pull/530) remains the separate
-public usability review candidate. It now includes main's merge ancestry; its
-runtime changes are unchanged from the previously checked candidate. Its final
-head checks and Ani review remain independent of the approved #529 release.
+### Public usability release #530
+
+Ani approved #530 and #531 for merge and affected-target deployment in the same
+owner chat. #530's checked head `742c4a2d3a05510a0633ba212615cb8266af80f0`
+merged through strict protection as `93f8c087ef262a20674572b3b2ee86e4ad402f82`.
+A direct tree comparison passed. [Run 39168520476](https://github.com/anipotts/anipotts.com/actions/runs/39168520476)
+deployed www and admin; ingest, newsletter, state and weekly email were skipped.
+No migration ran; schema remains `0044`.
+
+Public version `b7d1b32b-9f3b-485a-a9f9-6cdf72ff8793` and admin version
+`f58cc8e8-292e-45d2-9706-97e114667755` carry that release. Exact-release smoke,
+live health, actual homepage skip-link/main markup, admin provider identity and
+eight Access boundary checks passed. Authenticated-owner editing and human
+visual acceptance are separate from these automated checks.
+
+### Qualified dependency release #531
+
+Ani's same approval covered #531's Astro 7.4.0 and direct Wrangler 4.151.0
+updates. Original approved dependency head: `0ce6ea622ed3afa34ab4ef24bb34fdb4df8618c2`.
+Refreshing it with already-approved #530 produced `9edc678b98478a4b4917d060a8de52d6d69e632c`.
+Binary comparison of the dependency patches before and after this base refresh
+was identical. Fresh [CI 39168747684](https://github.com/anipotts/anipotts.com/actions/runs/39168747684),
+Security Review and CodeQL passed. Live protection was reread immediately before
+merging, with strict required checks and no bypass. Merge/release
+`94889ee9626d166e7e5e3a277a1688921e6997bd` is tree-identical to refreshed head9edc678.
+
+The historical Astro 7.4 manifest failure was requalified rather than bypassed.
+A fresh frozen install with adapter14.3.4 passed the unchanged manifest guard,
+194 public tests including the stale bundled-image exclusion, real workerd/D1
+publication and unpublication, and all84CMSroutes. The integration adds #530's
+tests for196public tests. No assertion was weakened or adapter behavior mocked.
+The P1 review condition was satisfied and the conversation resolved.
+
+[Production run 39169370064](https://github.com/anipotts/anipotts.com/actions/runs/39169370064)
+succeeded for www, admin, ingest, newsletter, state and weekly email. All six
+were selected; no app/worker target was skipped, and labs remains archived.
+D1 changed is false, schema remains0044, and no migration ran. Public exact-release
+smoke and direct live health passed. Admin's active provider release/schema and
+eight Access redirects passed; authenticated-owner acceptance remains unclaimed.
+
+| Target       | Deployed Cloudflare version            |
+| ------------ | -------------------------------------- |
+| www          | `049272ca-7069-4f5e-a1df-4089c4e94030` |
+| admin        | `ad294cd0-3ae1-43a9-a943-c38aedaefec7` |
+| ingest       | `19b308d6-6919-4c5a-bd29-13f16229d3a9` |
+| newsletter   | `a99569b9-3782-4f4c-a1dc-b9ec3c41e80f` |
+| state        | `818ebd8b-7ab1-464c-ae65-e0abc8adc662` |
+| weekly email | `83d48764-bd88-48ca-99ba-8a8bbc04939a` |
+
+The owner refreshed both canonical previews with the frozen dependency graph and
+restarted their managed processes. Actual public skip-link/main markup and both
+HTTP200responses were checked, beyond the dynamic Git identity. Production
+publication mirror v17 contains20records and reports current. Existing state and
+ingest freshness gaps remain separate operational work; this dependency release
+makes no producer, authentication or deliberate email-send change.
+
+### Browser-tools review #532
+
+#532 is prepared on released main94889ee. e2e0.21.1 and direct Playwright1.64.1
+are the only manifest updates; pnpm resolved the lockfile merge conflict.
+@e2e-dev/web remains0.14.0 and installs its matching Playwright-core1.63.0 engine.
+Source checkpoint: `021d65921f9f864a0092c50900601129534885ee`; the following
+documentation commit records release receipts without changing runtime source.
+
+Frozen install, full pnpm validate,13public browser tests (one intentional desktop
+skip) and10admin browser tests passed with the new CLI on desktop Chromium and
+phone WebKit. These are deterministic synthetic local tests, with no model-driven
+browser calls or production writes. Final hosted checks cover the actual PR head.
+Ani's review of that head is still required; #532 has not been merged or deployed.
 
 ## October 18 review corrections and second batch
 
@@ -73,7 +138,7 @@ states; browser journeys cover keyboard focus before and after an Astro client
 transition and real document/code scrolling. Implementation checkpoint:
 `c814e41ec66e541eb274c397fde85ba3fc007ac6`, with #529 corrections integrated
 without rewriting either branch. Checks and the final review revision are
-recorded on its PR. This batch also waits for Ani’s review before merge.
+recorded on its PR. Ani later approved this batch; its completed #530 release is recorded above.
 
 ## October 18 first batch
 
@@ -144,7 +209,7 @@ pure module shared by Astro and the entry tests, so the local-development gate
 runs before workspace builds. A disposable copy of the actual app source and
 entry tests passes with no node_modules or package dist, under CI flags.
 
-The Astro/Cloudflare patch family is pinned to Astro 7.3.8 and adapter 14.3.4;
+At this historical checkpoint, the Astro/Cloudflare patch family was pinned to Astro 7.3.8 and adapter 14.3.4;
 direct Wrangler manifests use 4.149.0. Unbounded caret resolution had selected
 Astro 7.4.0 and broken the public manifest contract. The admin optimizer also
 needed test-file exclusions in both client and Cloudflare SSR discovery, because

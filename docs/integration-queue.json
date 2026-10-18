@@ -222,13 +222,84 @@
     {
       "id": "site-usability-batch-2026-10-18",
       "title": "Public keyboard access, native scrolling and article proof links",
-      "revision": "a3451c8e0c36803e155d013c1dc04adf19765521",
+      "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
+      "lane": "code",
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed “go ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too” on October 18, 2026.",
+          "at": "2026-10-18T21:46:27.064Z"
+        },
+        "production": {
+          "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed “go ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too” on October 18, 2026.",
+          "at": "2026-10-18T21:46:27.064Z"
+        }
+      },
+      "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
+      "note": "Ani approved #530 for merge and affected-target deployment. Exact-head protected checks passed; reviewed and merged trees are identical. www and admin deployed; four retained workers skipped; no migration. Visual acceptance remains Ani’s review.",
+      "updatedAt": "2026-10-18T21:46:27.064Z",
+      "release": {
+        "revision": "93f8c087ef262a20674572b3b2ee86e4ad402f82",
+        "reviewedRevision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
+        "evidence": "Protected PR530 merge; git diff --exit-code verified reviewed and merged trees identical.",
+        "at": "2026-10-18T21:35:30Z"
+      },
+      "deployment": {
+        "revision": "93f8c087ef262a20674572b3b2ee86e4ad402f82",
+        "target": "www and admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39168520476 succeeded. Exact-release public smoke and live health passed; active admin provider release/schema and eight Access boundary checks passed. Ingest, newsletter, state and weekly_email skipped. No migration; schema0044.",
+        "at": "2026-10-18T21:46:27.064Z"
+      }
+    },
+    {
+      "id": "pr-531",
+      "title": "Qualified Astro and Wrangler dependency upgrades",
+      "revision": "0ce6ea622ed3afa34ab4ef24bb34fdb4df8618c2",
+      "integrationRevision": "9edc678b98478a4b4917d060a8de52d6d69e632c",
+      "lane": "code",
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "0ce6ea622ed3afa34ab4ef24bb34fdb4df8618c2",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani explicitly instructed merging #530/#531 and deploying affected targets on October18,2026. #531 base refresh adds only already-approved #530; binary diff comparison proves the dependency patch is unchanged from the approved original0ce6ea6.",
+          "at": "2026-10-18T21:51:34.602Z"
+        },
+        "production": {
+          "revision": "0ce6ea622ed3afa34ab4ef24bb34fdb4df8618c2",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani explicitly instructed merging #530/#531 and deploying affected targets on October18,2026. #531 base refresh adds only already-approved #530; binary diff comparison proves the dependency patch is unchanged from the approved original0ce6ea6.",
+          "at": "2026-10-18T21:51:34.602Z"
+        }
+      },
+      "release": {
+        "revision": "94889ee9626d166e7e5e3a277a1688921e6997bd",
+        "reviewedRevision": "0ce6ea622ed3afa34ab4ef24bb34fdb4df8618c2",
+        "evidence": "Union of Ani-approved #530 and original #531 patch: diff638944..0ce6ea equals diff93f8c0..9edc678 byte-for-byte. Refreshed exact-head CI39168747684 passed. Protected merge tree is identical to9edc678; original0ce6ea alone is not claimed tree-identical to release.",
+        "at": "2026-10-18T21:47:16Z"
+      },
+      "deployment": {
+        "revision": "94889ee9626d166e7e5e3a277a1688921e6997bd",
+        "target": "www, admin, ingest, newsletter, state, weekly_email",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39169370064 succeeded all six targets. Exact-release www smoke/live health and admin provider identity/schema0044/eight Access boundary checks passed. No remote migration; D1 unchanged.",
+        "at": "2026-10-18T21:51:34.602Z"
+      },
+      "note": "Historical Astro7.4 manifest concern qualified with frozen install, unchanged manifest guard, stale-image regression, real workerd/D1 runtime and84CMSroutes. Existing state/ingest source freshness gaps remain separate; no authenticated-owner acceptance or deliberate email send.",
+      "updatedAt": "2026-10-18T21:51:34.602Z"
+    },
+    {
+      "id": "pr-532",
+      "title": "Browser tools upgrade qualified on released main",
+      "revision": "021d65921f9f864a0092c50900601129534885ee",
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},
-      "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
-      "note": "Runtime source/test checkpoint retained; PR530 now targets main and incorporates release638944cd ancestry plus receipt-only documentation. Existing public build/typechecks,196tests,workerd smoke,84CMSroutes and13browser journeys pass (one intentional skip). Fresh final-head hosted checks and Ani review are required; approved PR529 release does not authorize PR530 merge.",
-      "updatedAt": "2026-10-18T21:15:09.912Z"
+      "note": "Source checkpoint includes released main94889ee and browser tools only: e2e0.21.1/playwright1.64.1. Frozen install/full validate/public13pass1skip/admin10pass. Receipt-only docs accompany final PR head; its exact hosted checks and Ani review remain required. No merge/deploy authority inferred.",
+      "updatedAt": "2026-10-18T21:51:34.602Z"
     }
   ]
 }
