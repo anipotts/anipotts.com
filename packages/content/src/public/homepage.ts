@@ -1,5 +1,6 @@
 import { safeContentLinkUrl, safeHomepageAssetUrl } from "./urls.js";
 import { inlinePlainText } from "./inline.js";
+import { siteSettingsSchema, type SiteSettings } from "./site.js";
 import type {
   HomepageContent,
   HomepageMention,
@@ -737,13 +738,18 @@ export function normalizeHomepageSectionOrder(
   );
 }
 
-export function normalizeHomepageContent(content: unknown): HomepageContent {
+export function normalizeHomepageContent(
+  content: unknown,
+): HomepageContent & { site_settings?: SiteSettings } {
   const source =
     content && typeof content === "object"
-      ? (content as Partial<HomepageContent>)
+      ? (content as Partial<HomepageContent> & { site_settings?: unknown })
       : {};
 
   return {
+    ...(source.site_settings === undefined
+      ? {}
+      : { site_settings: siteSettingsSchema.parse(source.site_settings) }),
     sections: {
       intro: normalizeSection(
         source.sections?.intro,
