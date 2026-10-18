@@ -25,7 +25,7 @@
     "astro": "7.4.0",
     "astro-icon": "^1.2.0",
     "zod": "^3.24.2",
-    "@astrojs/markdown-remark": "7.3.2",
+    "@astrojs/markdown-remark": "7.3.3",
     "rehype-sanitize": "6.0.0",
     "github-slugger": "^2.0.0"
   },

@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "@astrojs/markdown-remark": "7.3.2",
+    "@astrojs/markdown-remark": "7.3.3",
     "@astryxdesign/cli": "0.6.7",
     "@cloudflare/vitest-plugin": "1.4.0",
     "@cloudflare/workers-types": "5.20261010.1",
