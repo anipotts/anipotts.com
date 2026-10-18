@@ -187,11 +187,11 @@
     {
       "id": "site-first-batch-2026-10-18",
       "title": "Consolidated dependency and content rendering repairs",
-      "revision": null,
+      "revision": "2e4ea4fb12ee523218badd5f19c2ddd5e31d8552",
       "lane": "code",
-      "state": "implementing",
+      "state": "awaiting-review",
       "approvals": {},
-      "note": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0, branch codex/site-first-batch. Preserves #524 source and overlapping PR contributions; repairs dependencies and homepage/projection behavior. Final verification and Ani review pending. No merge, deployment or CMS publication."
+      "note": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0, PR #529, branch codex/site-first-batch. Revision records the checked implementation checkpoint; the PR head also includes receipt-only docs. Local scoped matrix and browser journeys pass; final whole-command and exact-head GitHub checks are recorded on the PR. Ani review and visual acceptance are pending. No merge, deployment or CMS publication. Approvals must name the then-current exact PR head."
     }
   ]
 }

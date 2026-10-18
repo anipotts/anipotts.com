@@ -36,17 +36,65 @@ rendering tests cover non-default content.
 
 ### Verification and remaining gates
 
-Frozen install, guarded theme generation/check and compatibility/workflow
-regressions pass on the working candidate. Integrated content, public runtime
-and full-workspace verification are in progress; exact final revision and CI
-receipts will be recorded with the review PR. These preliminary checks do not
-establish final readiness. No merge, production deploy, CMS publication, Access,
-secret, migration, backup-custody or provider configuration change is authorized.
+Review candidate: [PR #529](https://github.com/anipotts/anipotts.com/pull/529),
+branch `codex/site-first-batch`. Implementation checkpoint:
+`2e4ea4fb12ee523218badd5f19c2ddd5e31d8552`. Final PR-head checks also cover the
+receipt-only documentation commit. Auto-merge is disabled; Ani's exact-head
+review is still required. No merge or deployment has occurred.
 
-The existing waiting worker deployment remains separate. Operational backup
-qualification, held media-decoder research and publication-aware social-image
-generation are follow-up work. This batch repairs the confirmed homepage and
-projection gaps without introducing a new runtime image endpoint.
+Node 24.19.0, pnpm 10.5.2 and Bun 1.3.4 are the verification runtimes. Frozen
+install, guarded theme generation/check, dependency/workflow regressions and the
+real-package non-mutating content check regression pass. Public runtime tests:
+194 passed. Content tests: 204 passed. Public browser journeys: 7 passed, with
+one intentional desktop skip for the narrow-menu case. Admin browser journeys:
+10 passed across desktop Chromium and phone WebKit, using isolated synthetic
+local data. No model-driven browser tests or production writes ran.
+
+The local verification matrix passes: six builds, four lint tasks, fourteen
+typechecks, 2,300 admin DOM tests across 174 files, 79 Astro rendering tests,
+98 editorial Worker tests, and two CSP checks with one intentional skip. Normal
+Turbo caching applies to unchanged tasks. Final whole-command and exact-head
+GitHub receipts belong on PR #529; passing checks do not grant Ani's review.
+
+DOM and editorial workerd suites use two workers each to bound contention on a
+shared review host. Existing timeout limits and assertions are retained. Five
+replay-marker scenarios now run independently. Hydration coverage executes the
+emitted bootstrap, verifying actual island registration and the load event
+instead of depending on compiler quote formatting.
+
+The Astro/Cloudflare patch family is pinned to Astro 7.3.8 and adapter 14.3.4;
+direct Wrangler manifests use 4.149.0. Unbounded caret resolution had selected
+Astro 7.4.0 and broken the public manifest contract. The admin optimizer also
+needed test-file exclusions in both client and Cloudflare SSR discovery, because
+a unit test imports Node-only build configuration. The actual app and server
+entries remain discoverable. A real local server startup and the browser suite
+verify the repair. Task-owned E2E servers use Astro's foreground `--ignore-lock`
+flag; the managed review preview remains separate.
+
+The original canonical preview history is preserved at
+`codex/preserve-preview-2026-10-18` (`9c6808bd16fae59c64119102e4f573cfeb939bf7`).
+Its useful preview asset-URL fix is retained; duplicate table rules/imports and
+stale approval records were reconciled with the assembly. Both managed previews
+responded with the same clean candidate and current production publication v17
+mirror (20 published records). Public: `http://127.0.0.1:4580/`; admin:
+`http://localhost:4311/`. The mirror only reads active publications remotely and
+writes local preview tables. Human visual acceptance remains Ani's review.
+
+The October 18 lockfile audit reports three remaining advisories: low KaTeX
+through the UI SDK's math dependencies, moderate esbuild through drizzle-kit's
+legacy loader, and high braces through lint-staged/micromatch. The braces
+advisory reports no patched version. The KaTeX fix crosses the upstream package's
+declared range; no speculative transitive override was added. This is not a clean
+audit claim. The local report is `/tmp/anipotts-first-batch-audit.json`.
+
+Working-tree-aware classification selects www, admin and the four retained
+workers because dependencies are shared. There is no D1 migration change.
+Future release needs Ani's exact review plus current protection and release
+checks; the classification does not grant production permission. Content,
+Access, secrets, database bindings, migrations, backup custody and provider
+configuration are unchanged. The existing waiting worker deployment remains
+separate. Operational backup qualification, held media-decoder research and
+publication-aware social images remain follow-up work.
 
 ## October 10 checkpoint (historical)
 
