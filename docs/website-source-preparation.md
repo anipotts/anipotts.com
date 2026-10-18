@@ -38,7 +38,7 @@ rendering tests cover non-default content.
 
 Review candidate: [PR #529](https://github.com/anipotts/anipotts.com/pull/529),
 branch `codex/site-first-batch`. Implementation checkpoint:
-`097f006fd9a68e5cf3549f0258a4693172db3c00`. Final PR-head checks also cover the
+`629edb5bdc627e7e8da8ccc234af33832a2b1907`. Final PR-head checks also cover the
 receipt-only documentation commit. Auto-merge is disabled; Ani's exact-head
 review is still required. No merge or deployment has occurred.
 
@@ -52,7 +52,7 @@ local data. No model-driven browser tests or production writes ran.
 
 The local verification matrix passes: six builds, four lint tasks, fourteen
 typechecks, 2,300 admin DOM tests across 174 files, 79 Astro rendering tests,
-98 editorial Worker tests, and two CSP checks with one intentional skip. Normal
+98 editorial Worker tests, and three bundle/CSP checks with one intentional skip. Normal
 Turbo caching applies to unchanged tasks. Final whole-command and exact-head
 GitHub receipts belong on PR #529; passing checks do not grant Ani's review.
 
@@ -73,6 +73,14 @@ a unit test imports Node-only build configuration. The actual app and server
 entries remain discoverable. A real local server startup and the browser suite
 verify the repair. Task-owned E2E servers use Astro's foreground `--ignore-lock`
 flag; the managed review preview remains separate.
+
+Production server source maps retain source identifiers and file/line mappings
+while omitting embedded original source. The updated Cloudflare plugin emits
+Worker maps by default; raw development-only owner branches must stay out of
+those deployable artifacts too. The all-file owner scanner is unchanged. The
+built-bundle suite now checks all artifacts for owner markers and verifies that
+usable maps remain without embedded source text. Provider debugging needs the
+matching release source for original-code excerpts.
 
 The original canonical preview history is preserved at
 `codex/preserve-preview-2026-10-18` (`9c6808bd16fae59c64119102e4f573cfeb939bf7`).
