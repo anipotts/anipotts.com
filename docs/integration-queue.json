@@ -191,17 +191,17 @@
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},
-      "note": "Ani approved 75ae67139b3073fffa08deaa7c340a222a83e701 for merge and all six affected targets. Live pre-merge review found three unresolved findings, corrected in b946acd96cc5f5a9345e95a0167c8187ac5577a3. Conversations resolved; full local validation passes. Changed head awaits fresh exact-head CI and Ani review. No merge/deployment."
+      "note": "Ani approved 75ae67139b3073fffa08deaa7c340a222a83e701 for merge and all six affected targets. Live pre-merge review found three unresolved findings, corrected in b946acd96cc5f5a9345e95a0167c8187ac5577a3. Conversations resolved; full local validation passes. Exact-head CI/security/CodeQL and ten fresh local admin browser journeys pass. Changed head awaits Ani review. No merge/deployment."
     },
     {
       "id": "site-usability-batch-2026-10-18",
       "title": "Public keyboard access, native scrolling and article proof links",
-      "revision": "b60e4141a7795d5e43fbfc1dc90e27e7b6583357",
+      "revision": "a3451c8e0c36803e155d013c1dc04adf19765521",
       "lane": "code",
-      "state": "implementing",
+      "state": "awaiting-review",
       "approvals": {},
       "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
-      "note": "Source checkpoint only; owner integrates #529 corrections, schedules public builds/runtime/browser checks, then opens a stacked review PR. Final PR head requires Ani review. No CMS publication or production effect."
+      "note": "Source/test checkpoint, with final receipt-only documentation on the PR head. Public builds/typechecks, 196 tests, workerd smoke, 84 seeded CMS routes and 13 browser journeys pass (one intentional desktop skip). Full workspace and exact-head hosted receipts are recorded on its stacked PR. Ani review required; no CMS publication or production effect."
     }
   ]
 }
