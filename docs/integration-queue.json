@@ -187,11 +187,21 @@
     {
       "id": "site-first-batch-2026-10-18",
       "title": "Consolidated dependency and content rendering repairs",
-      "revision": "629edb5bdc627e7e8da8ccc234af33832a2b1907",
+      "revision": "b946acd96cc5f5a9345e95a0167c8187ac5577a3",
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},
-      "note": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0, PR #529, branch codex/site-first-batch. Revision records the checked implementation checkpoint; the PR head also includes receipt-only docs. Local scoped matrix and browser journeys pass; final whole-command and exact-head GitHub checks are recorded on the PR. Ani review and visual acceptance are pending. No merge, deployment or CMS publication. Approvals must name the then-current exact PR head."
+      "note": "Ani approved 75ae67139b3073fffa08deaa7c340a222a83e701 for merge and all six affected targets. Live pre-merge review found three unresolved findings, corrected in b946acd96cc5f5a9345e95a0167c8187ac5577a3. Conversations resolved; full local validation passes. Changed head awaits fresh exact-head CI and Ani review. No merge/deployment."
+    },
+    {
+      "id": "site-usability-batch-2026-10-18",
+      "title": "Public keyboard access, native scrolling and article proof links",
+      "revision": "b60e4141a7795d5e43fbfc1dc90e27e7b6583357",
+      "lane": "code",
+      "state": "implementing",
+      "approvals": {},
+      "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
+      "note": "Source checkpoint only; owner integrates #529 corrections, schedules public builds/runtime/browser checks, then opens a stacked review PR. Final PR head requires Ani review. No CMS publication or production effect."
     }
   ]
 }
