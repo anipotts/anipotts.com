@@ -29,8 +29,8 @@ See [local development](docs/local-development.md).
 
 ## Current review
 
-- [ ] Review the corrected [first batch (#529)](https://github.com/anipotts/anipotts.com/pull/529) after its final review fixes.
-- [ ] Review the next keyboard-access, scrolling and article-source-link batch.
+- [ ] Review [#530](https://github.com/anipotts/anipotts.com/pull/530): keyboard access, native scrolling and article source links.
+- [ ] Investigate state commit-publisher receipts and silent ingest capture through their owning sources.
 - [ ] Merge only after Ani reviews the checked revision; production publication remains separate.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records
