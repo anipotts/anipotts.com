@@ -1,3 +1,4 @@
+import { adminDependencyDiscovery } from "../../scripts/dev/admin-dependency-discovery.mjs";
 // @ts-check
 import { fileURLToPath } from "node:url";
 import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
@@ -92,26 +93,12 @@ export default defineConfig({
   vite: {
     // The dependency scanner must start from app views, never unit-test files
     // that import Node-only Astro/Wrangler/Tailwind configuration.
-    optimizeDeps: {
-      entries: [
-        "src/**/*.{astro,tsx}",
-        "!src/**/*.test.*",
-        "!src/**/*.spec.*",
-        "!src/**/__tests__/**",
-      ],
-    },
+    optimizeDeps: adminDependencyDiscovery.client,
     // Cloudflare supplies a separate SSR discovery set. Vite does not inherit
     // entries from the client environment, so exclude tests in both scans.
     environments: {
       ssr: {
-        optimizeDeps: {
-          entries: [
-            "src/**/*.{ts,js,mjs,mts,jsx,tsx,vue,svelte,html,astro,mdx}",
-            "!src/**/*.test.*",
-            "!src/**/*.spec.*",
-            "!src/**/__tests__/**",
-          ],
-        },
+        optimizeDeps: adminDependencyDiscovery.ssr,
       },
     },
     // SDK foundations are scoped after Tailwind expands their imports. Legacy

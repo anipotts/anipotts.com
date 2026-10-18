@@ -2,12 +2,9 @@ import assert from "node:assert/strict";
 import { globSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import config from "../../apps/admin/astro.config.mjs";
+import { adminDependencyDiscovery } from "../dev/admin-dependency-discovery.mjs";
 
-for (const [name, options] of Object.entries({
-  client: config.vite.optimizeDeps,
-  ssr: config.vite.environments.ssr.optimizeDeps,
-})) {
+for (const [name, options] of Object.entries(adminDependencyDiscovery)) {
   test(`admin ${name} discovery includes real views and excludes test-only tooling`, () => {
     const patterns = options.entries.filter((entry) => !entry.startsWith("!"));
     const exclude = options.entries
