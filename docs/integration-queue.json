@@ -187,7 +187,7 @@
     {
       "id": "site-first-batch-2026-10-18",
       "title": "Consolidated dependency and content rendering repairs",
-      "revision": "4a65e1e73cde3f52ed9d6a607deb7ef757517f74",
+      "revision": "097f006fd9a68e5cf3549f0258a4693172db3c00",
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},

@@ -38,7 +38,7 @@ rendering tests cover non-default content.
 
 Review candidate: [PR #529](https://github.com/anipotts/anipotts.com/pull/529),
 branch `codex/site-first-batch`. Implementation checkpoint:
-`4a65e1e73cde3f52ed9d6a607deb7ef757517f74`. Final PR-head checks also cover the
+`097f006fd9a68e5cf3549f0258a4693172db3c00`. Final PR-head checks also cover the
 receipt-only documentation commit. Auto-merge is disabled; Ani's exact-head
 review is still required. No merge or deployment has occurred.
 
