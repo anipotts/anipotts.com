@@ -1,5 +1,32 @@
 # Website source preparation
 
+## October 18 review corrections and second batch
+
+Ani approved merging #529 and deploying its affected targets after reviewing
+`75ae67139b3073fffa08deaa7c340a222a83e701`. The live pre-merge check found
+three newly unresolved review conversations. All were validated and corrected
+in `b946acd96cc5f5a9345e95a0167c8187ac5577a3`: the theme compiler contract now
+matches installed CLI 0.6.7; the local preview uses Vite filesystem URLs for
+public components served by Admin; homepage normalization preserves optional
+validated shared settings. The exported normalizer has no current production
+caller, so this is contract completeness rather than demonstrated editor loss.
+
+The conversations are resolved. Refreshed validation belongs to the updated PR
+head; approval of the older candidate does not cover these later edits. Merge
+and deployment remain pending review of the corrected candidate. All six targets
+are affected by the consolidated dependency changes; no remote migration is
+selected. Existing older queued production runs are not approved by this receipt.
+
+The independent next batch restores a keyboard path past shared navigation and
+native scroll indicators, and renders the article source/artifact metadata
+already supported by publication. It changes no published content. Synthetic
+CMS fixtures cover internal, external, fragment, fallback-label and absent-link
+states; browser journeys cover keyboard focus before and after an Astro client
+transition and real document/code scrolling. Implementation checkpoint:
+`c814e41ec66e541eb274c397fde85ba3fc007ac6`, with #529 corrections integrated
+without rewriting either branch. Checks and the final review revision are
+recorded on its PR. This batch also waits for Ani’s review before merge.
+
 ## October 18 first batch
 
 Owner/source chat: `01a14ffb-519c-73b1-a63a-380f9d7274d0` on ap-pro. Ani
@@ -18,7 +45,10 @@ including multiple merge bases, established containment. The source checkpoints
 are #509 `d698b76e`, #513 `f25395cc`, #514 `5b60c917`, #515 `a58a5d68`,
 #518 `6eeec4c8`, and #522 `93b437ab`. Their branches and prior review records
 remain recoverable. Superseded PRs close only after the canonical replacement
-has passing checks and preservation evidence. No branch is deleted.
+has passing checks and preservation evidence. Authored branches are retained.
+Dependabot removed its six update branches automatically when their PRs closed;
+each exact head was recovered from its pull ref, verified and pushed to
+`codex/preserve-pr-<number>-2026-10-18`. PR #529 records those preservation refs.
 
 The candidate adds the coordinated #507/#527 React family, #525 runtime
 patches, #526 font update and #528 tooling updates without downgrading prior

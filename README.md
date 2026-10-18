@@ -29,7 +29,8 @@ See [local development](docs/local-development.md).
 
 ## Current review
 
-- [ ] Review the consolidated dependency, editorial-contract and public-rendering candidate.
+- [ ] Review the corrected [first batch (#529)](https://github.com/anipotts/anipotts.com/pull/529) after its final review fixes.
+- [ ] Review the next keyboard-access, scrolling and article-source-link batch.
 - [ ] Merge only after Ani reviews the checked revision; production publication remains separate.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records
