@@ -65,6 +65,34 @@ test("the scan covers the public pages", () => {
     );
 });
 
+test("public pages start with a skip link to their focusable main landmark", () => {
+  for (const { path, html } of pages) {
+    const tags = startTags(html);
+    const main = tags.filter((tag) => tag.name === "main");
+    if (main.length === 0) continue;
+    assert.equal(main.length, 1, `${path}: one main landmark`);
+    assert.equal(main[0].attributes.id, "main-content", path);
+    assert.equal(main[0].attributes.tabindex, "-1", path);
+    const links = tags.filter(
+      (tag) => tag.name === "a" && "href" in tag.attributes,
+    );
+    assert.equal(
+      links[0]?.attributes.href,
+      "#main-content",
+      `${path}: skip precedes navigation`,
+    );
+    assert.ok(
+      "data-astro-reload" in links[0].attributes,
+      `${path}: native hash navigation remains available without JavaScript`,
+    );
+    assert.equal(
+      tags.filter((tag) => tag.attributes.id === "main-content").length,
+      1,
+      path,
+    );
+  }
+});
+
 test("aria-label and aria-labelledby only name roles that accept a name", () => {
   const ignored = pages.flatMap(({ path, html }) =>
     startTags(html)
