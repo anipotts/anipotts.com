@@ -34,7 +34,7 @@ try {
   ensureLocalContentDatabase({ appDir, persistTo });
   child = spawn(
     resolve(appDir, "node_modules/.bin/astro"),
-    ["dev", "--host", "127.0.0.1", "--port", String(port)],
+    ["dev", "--host", "127.0.0.1", "--port", String(port), "--ignore-lock"],
     {
       cwd: appDir,
       env: {

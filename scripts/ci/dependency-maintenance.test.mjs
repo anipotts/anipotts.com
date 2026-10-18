@@ -211,3 +211,29 @@ for (const file of [
 }
 assert.equal(admin.dependencies.react, admin.dependencies["react-dom"]);
 console.log("dependency compatibility families passed");
+
+const www = JSON.parse(readFileSync("apps/www/package.json", "utf8"));
+for (const name of ["astro", "@astrojs/cloudflare"]) {
+  assert.equal(
+    admin.dependencies[name],
+    www.dependencies[name],
+    `${name} must stay paired across the apps`,
+  );
+  assert.match(
+    admin.dependencies[name],
+    /^\d+\.\d+\.\d+$/,
+    `${name} patch selection must not float to an unreviewed minor during lock repair`,
+  );
+}
+const rootManifest = JSON.parse(readFileSync("package.json", "utf8"));
+assert.match(rootManifest.devDependencies.wrangler, /^\d+\.\d+\.\d+$/);
+for (const name of ["ingest", "newsletter", "state", "weekly-email"]) {
+  const manifest = JSON.parse(
+    readFileSync(`workers/${name}/package.json`, "utf8"),
+  );
+  assert.equal(
+    manifest.devDependencies.wrangler,
+    rootManifest.devDependencies.wrangler,
+    `the ${name} worker must use the reviewed Wrangler version`,
+  );
+}

@@ -90,6 +90,30 @@ export default defineConfig({
     port: 3001,
   },
   vite: {
+    // The dependency scanner must start from app views, never unit-test files
+    // that import Node-only Astro/Wrangler/Tailwind configuration.
+    optimizeDeps: {
+      entries: [
+        "src/**/*.{astro,tsx}",
+        "!src/**/*.test.*",
+        "!src/**/*.spec.*",
+        "!src/**/__tests__/**",
+      ],
+    },
+    // Cloudflare supplies a separate SSR discovery set. Vite does not inherit
+    // entries from the client environment, so exclude tests in both scans.
+    environments: {
+      ssr: {
+        optimizeDeps: {
+          entries: [
+            "src/**/*.{ts,js,mjs,mts,jsx,tsx,vue,svelte,html,astro,mdx}",
+            "!src/**/*.test.*",
+            "!src/**/*.spec.*",
+            "!src/**/__tests__/**",
+          ],
+        },
+      },
+    },
     // SDK foundations are scoped after Tailwind expands their imports. Legacy
     // Astryx surfaces never receive the SDK reset or its document tokens.
     css: { postcss: { plugins: [openaiScope()] } },
