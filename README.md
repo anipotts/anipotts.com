@@ -19,12 +19,22 @@ See [local development](docs/local-development.md).
 
 ## Content
 
-- Published copy and project/writing metadata: `content/public`.
-- Site identity, navigation, contact and social links: `packages/content/src/public/site.ts`.
+- Published pages and records: the `anipotts-content` D1 store, maintained through production Admin.
+- Git seed content and source baselines: `content/public`.
+- Shared identity/navigation defaults: `packages/content/src/public/site.ts`; reviewed CMS overrides use the home record.
 - Approved workflow artwork registry: `packages/content/src/public/providers.ts`.
-- `pnpm content:generate` derives the typed defaults and admin review projection.
-- `pnpm content:check` rejects drift. Generated files are never independently edited.
-- Admin proposals and operational data remain separate from Git-backed public content.
+- `pnpm content:generate` derives typed defaults from the Git seed.
+- `pnpm content:check` rejects drift without changing files. Generated files are never independently edited.
+- Private drafts and read-only operational data remain separate from published content.
+
+## Current review
+
+- [ ] Review the consolidated dependency, editorial-contract and public-rendering candidate.
+- [ ] Merge only after Ani reviews the checked revision; production publication remains separate.
+
+The [source preparation checkpoint](docs/website-source-preparation.md) records
+PR containment, verification and remaining work. Earlier receipts stay in that
+record and the [integration queue](docs/integration-queue.json).
 
 Public routes are `/`, `/work`, `/work/[slug]`, `/writing`, `/writing/[slug]`, `/systems`, `/links`, and the newsletter routes.
 Permanent compatibility redirects live in `apps/www/src/middleware.ts`.

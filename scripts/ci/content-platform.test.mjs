@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -235,6 +236,69 @@ try {
     undefined,
     "absent optional card overrides retain the renderer fallback",
   );
+  // Run the actual package command in a disposable project. Check mode must
+  // detect a stale output without silently replacing the evidence.
+  cpSync(
+    "packages/content/src",
+    join(alternateSlugRoot, "packages/content/src"),
+    { recursive: true },
+  );
+  mkdirSync(join(alternateSlugRoot, "scripts/content"), { recursive: true });
+  cpSync(
+    "scripts/content/generate-public-content.mjs",
+    join(alternateSlugRoot, "scripts/content/generate-public-content.mjs"),
+  );
+  symlinkSync(
+    resolve("node_modules"),
+    join(alternateSlugRoot, "node_modules"),
+    "dir",
+  );
+  symlinkSync(
+    resolve("packages/content/node_modules"),
+    join(alternateSlugRoot, "packages/content/node_modules"),
+    "dir",
+  );
+  const packageScripts = JSON.parse(
+    readFileSync("package.json", "utf8"),
+  ).scripts;
+  writeFileSync(
+    join(alternateSlugRoot, "package.json"),
+    JSON.stringify({
+      type: "module",
+      scripts: {
+        "content:generate": packageScripts["content:generate"],
+        "content:check": packageScripts["content:check"],
+      },
+    }),
+  );
+  const outputFile = join(
+    alternateSlugRoot,
+    "packages/content/src/public/generated.ts",
+  );
+  const staleOutput = alternateGenerated + "\n// synthetic stale projection\n";
+  writeFileSync(outputFile, staleOutput);
+  assert.throws(
+    () =>
+      execFileSync("pnpm", ["content:check"], {
+        cwd: alternateSlugRoot,
+        stdio: "ignore",
+      }),
+    "the package check must reject stale generated content",
+  );
+  assert.equal(
+    readFileSync(outputFile, "utf8"),
+    staleOutput,
+    "content:check must leave stale output unchanged",
+  );
+  execFileSync("pnpm", ["content:generate"], {
+    cwd: alternateSlugRoot,
+    stdio: "ignore",
+  });
+  execFileSync("pnpm", ["content:check"], {
+    cwd: alternateSlugRoot,
+    stdio: "ignore",
+  });
+
   const alternateFile = join(
     alternateSlugRoot,
     "content/public/projects/source-name.md",

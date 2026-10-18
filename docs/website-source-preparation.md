@@ -1,5 +1,55 @@
 # Website source preparation
 
+## October 18 first batch
+
+Owner/source chat: `01a14ffb-519c-73b1-a63a-380f9d7274d0` on ap-pro. Ani
+authorized dependency repairs, PR consolidation and content/rendering fixes,
+checked and ready for review before any merge. The isolated candidate is
+`codex/site-first-batch`, based on assembly #524 plus main
+`28a7087793cf8951736597835f4bc6bb9e3ea632`. The older integration-owner chat is
+archived; this chat owns the batch and preserves the existing canonical lane.
+
+### Consolidation and scope
+
+The assembly already contains every substantive commit from #509, #513, #514,
+#515, #518 and #522. Their newer remote heads add current-main merge wrappers;
+#522 also resolves a harmless test comment. Direct tree/ancestry inspection,
+including multiple merge bases, established containment. The source checkpoints
+are #509 `d698b76e`, #513 `f25395cc`, #514 `5b60c917`, #515 `a58a5d68`,
+#518 `6eeec4c8`, and #522 `93b437ab`. Their branches and prior review records
+remain recoverable. Superseded PRs close only after the canonical replacement
+has passing checks and preservation evidence. No branch is deleted.
+
+The candidate adds the coordinated #507/#527 React family, #525 runtime
+patches, #526 font update and #528 tooling updates without downgrading prior
+security repairs. Node declarations follow Node 24, preserving #509 timer
+fixes. The guarded neutral-theme compiler is retained for the Astryx CLI update.
+Dependabot groups compatibility families before generic dev/production updates;
+browser CI installs through the actual e2e-web engine. Auto-merge stays off.
+
+Homepage rendering honors stored section order and visibility, including the
+intro group. Generated project defaults retain optional card titles and compact
+copy. Defaults and authored public copy are unchanged. `content:check` becomes
+non-mutating, with a disposable-project regression proving it rejects stale
+outputs without repairing them. Source, generator and real emitted-Worker
+rendering tests cover non-default content.
+
+### Verification and remaining gates
+
+Frozen install, guarded theme generation/check and compatibility/workflow
+regressions pass on the working candidate. Integrated content, public runtime
+and full-workspace verification are in progress; exact final revision and CI
+receipts will be recorded with the review PR. These preliminary checks do not
+establish final readiness. No merge, production deploy, CMS publication, Access,
+secret, migration, backup-custody or provider configuration change is authorized.
+
+The existing waiting worker deployment remains separate. Operational backup
+qualification, held media-decoder research and publication-aware social-image
+generation are follow-up work. This batch repairs the confirmed homepage and
+projection gaps without introducing a new runtime image endpoint.
+
+## October 10 checkpoint (historical)
+
 October 10, 2026. Source preparation is approved; production approval and
 deployment are held separately. This chat has merged no source repairs into
 main or deployed. Published wording and production CMS data are unchanged.

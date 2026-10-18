@@ -4,7 +4,9 @@ Ani established this review lane on October 4, 2026. All website changes from
 Codex, Claude, PRs and isolated worktrees integrate here before Ani approves
 production integration. GitHub `main` remains the deployed branch.
 
-- Integration owner: website chat `01a0837d-8547-7e33-a34d-2c7ba78b8036`.
+- Integration owner: website batch chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`,
+  adopted October 18, 2026 after the former owner chat was confirmed archived.
+  Prior owner/history: `01a0837d-8547-7e33-a34d-2c7ba78b8036`.
 - Branch: `codex/combined-local-review`.
 - Checkout: `/Users/anipotts/.codex/worktrees/combined-public-review/anipotts-com`.
 - Admin: `http://localhost:4311/` through the managed preview.

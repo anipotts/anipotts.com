@@ -155,7 +155,7 @@ jobs:
 
       - name: Install public browser targets
         if: github.event.pull_request.draft == false && (needs.classify.outputs.www == 'true' || needs.classify.outputs.public_browser_changed == 'true')
-        run: pnpm exec playwright install --with-deps chromium webkit
+        run: pnpm exec e2e-web install --with-deps chromium webkit
 
       - name: Validate local CMS runtime and public journeys
         if: github.event.pull_request.draft == false && (needs.classify.outputs.www == 'true' || needs.classify.outputs.public_browser_changed == 'true')

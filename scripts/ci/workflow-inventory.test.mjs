@@ -72,6 +72,14 @@ for (const name of [
   assert.ok(step, `${name} must exist`);
   assert.match(step.if, /needs\.classify\.outputs\.public_browser_changed/);
 }
+const browserInstaller = ciJobs.ci.steps.find(
+  (step) => step.name === "Install public browser targets",
+);
+assert.equal(
+  browserInstaller.run,
+  "pnpm exec e2e-web install --with-deps chromium webkit",
+  "browser CI must install the browser engine pinned by e2e-web",
+);
 const securityWorkflow = readFileSync(
   join(WORKFLOW_DIR, "security-review.yml"),
   "utf8",

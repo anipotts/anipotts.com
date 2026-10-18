@@ -14,12 +14,12 @@
   "dependencies": {
     "@anipotts/runtime-contract": "workspace:*",
     "@anipotts/types": "workspace:*",
-    "hono": "^4.13.12"
+    "hono": "^4.13.13"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261007.1",
-    "@types/node": "^26",
+    "@cloudflare/workers-types": "^5.20261010.1",
+    "@types/node": "24.19.2",
     "typescript": "^5",
-    "wrangler": "^4.148.0"
+    "wrangler": "^4.149.0"
   }
 }

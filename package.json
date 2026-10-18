@@ -39,7 +39,7 @@
     "admin:preview:status": "node scripts/admin/admin-preview.mjs status",
     "admin:preview:stop": "node scripts/admin/admin-preview.mjs stop",
     "content:generate": "node scripts/content/generate-public-content.mjs",
-    "content:check": "pnpm content:generate && node scripts/content/generate-public-content.mjs --check",
+    "content:check": "node scripts/content/generate-public-content.mjs --check",
     "brand:marks": "node scripts/brand/build-marks.mjs",
     "test:deploy-targets": "node scripts/ci/compute-deploy-targets.test.mjs",
     "test:deployment-plan": "node scripts/ci/deployment-plan.test.mjs",
@@ -145,20 +145,20 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/openai": "4.0.86",
-    "@e2e-dev/web": "0.13.0",
-    "ai": "7.0.130",
+    "@ai-sdk/openai": "4.0.91",
+    "@e2e-dev/web": "0.14.0",
+    "ai": "7.0.137",
     "drizzle-kit": "^0.31.11",
-    "e2e": "0.18.0",
+    "e2e": "0.19.0",
     "eslint": "^10",
     "husky": "^9.1.7",
     "lint-staged": "^16.3.3",
-    "playwright": "1.63.0",
+    "playwright": "1.64.0",
     "prettier": "^3.9.9",
     "prettier-plugin-astro": "^0.14.1",
     "turbo": "^2.11.7",
     "typescript": "^5.7.0",
-    "wrangler": "^4.148.0",
+    "wrangler": "^4.149.0",
     "yaml": "2.8.3"
   }
 }

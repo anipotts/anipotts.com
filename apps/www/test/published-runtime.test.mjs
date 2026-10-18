@@ -155,7 +155,7 @@ test("published project card overrides reach the homepage card", async () => {
     assert.match(card, /Sentinel wide copy/);
     assert.match(
       card,
-      /responsive-copy__compact[^>]*>[^<]*Sentinel <strong>compact<\/strong> copy/,
+      /responsive-copy__compact[^>]*>\s*<span class="inline-copy">Sentinel <strong>compact<\/strong> copy<\/span>/,
       "the authored compact variant and inline formatting reach responsive markup",
     );
   } finally {

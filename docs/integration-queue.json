@@ -183,6 +183,15 @@
         "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/37240464499"
       },
       "note": "#490 required CI and www/admin deployments passed; live www health matches release. Canvas-flash frame-by-frame browser acceptance remains incomplete. Extra local admin suite had timing failures; isolated Node24 auth tests passed."
+    },
+    {
+      "id": "site-first-batch-2026-10-18",
+      "title": "Consolidated dependency and content rendering repairs",
+      "revision": null,
+      "lane": "code",
+      "state": "implementing",
+      "approvals": {},
+      "note": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0, branch codex/site-first-batch. Preserves #524 source and overlapping PR contributions; repairs dependencies and homepage/projection behavior. Final verification and Ani review pending. No merge, deployment or CMS publication."
     }
   ]
 }
