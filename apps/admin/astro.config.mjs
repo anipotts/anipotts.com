@@ -1,5 +1,5 @@
-import { adminDependencyDiscovery } from "../../scripts/dev/admin-dependency-discovery.mjs";
 // @ts-check
+import { adminDependencyDiscovery } from "../../scripts/dev/admin-dependency-discovery.mjs";
 import { fileURLToPath } from "node:url";
 import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
 import { defineConfig } from "astro/config";
