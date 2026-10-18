@@ -190,6 +190,81 @@ function version(response, expected, { cacheable = false } = {}) {
   );
 }
 
+test("article source links expose authored metadata with safe internal and external navigation", async () => {
+  const db = database();
+  try {
+    for (const fixture of [
+      {
+        artifact_url: "https://example.test/source",
+        artifact_label: "Sentinel source",
+        artifact_type: "repo",
+        label: "Sentinel source",
+        external: true,
+      },
+      {
+        artifact_url: "/work/quantercise",
+        artifact_label: "Sentinel internal source",
+        label: "Sentinel internal source",
+        external: false,
+      },
+      {
+        artifact_url: "#source-proof",
+        artifact_label: "  ",
+        artifact_type: "gist",
+        label: "view gist",
+        external: false,
+      },
+      {
+        artifact_url: "https://example.test/fallback",
+        label: "view source",
+        external: true,
+      },
+      {
+        artifact_label: "Sentinel missing source",
+        label: undefined,
+        external: false,
+      },
+    ]) {
+      const { label, external, ...fields } = fixture;
+      db.publish({ text: edit(original, fields) });
+      const response = await serve("/writing/awareness-is-alpha", cms(db));
+      assert.equal(response.status, 200);
+      const html = await response.text();
+      const link = html.match(
+        /<a\b[^>]*class="[^"]*\barticle-source\b[^"]*"[^>]*>[\s\S]*?<\/a>/,
+      )?.[0];
+      if (!label) {
+        assert.equal(
+          link,
+          undefined,
+          "metadata without a destination must not add an empty link",
+        );
+        assert.ok(!html.includes("Sentinel missing source"));
+        continue;
+      }
+      assert.ok(link, `source link for ${fields.artifact_url}`);
+      assert.ok(link.includes(`href="${fields.artifact_url}"`));
+      assert.ok(
+        link.includes(label),
+        "the authored label or metadata fallback names the link",
+      );
+      if (external) {
+        assert.match(link, /target="_blank"/);
+        assert.match(link, /rel="noopener noreferrer"/);
+        assert.ok(link.includes(`aria-label="${label} (opens in new tab)"`));
+      } else {
+        assert.doesNotMatch(
+          link,
+          /\btarget=|\brel=/,
+          "internal destinations stay in the current tab",
+        );
+      }
+    }
+  } finally {
+    db.close();
+  }
+});
+
 test("activated CMS fails closed without its database, even with old asset responses", async () => {
   for (const path of paths) {
     const response = await serve(path, cms(undefined, { ASSETS: staleAssets }));

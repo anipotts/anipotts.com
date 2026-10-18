@@ -29,7 +29,8 @@ See [local development](docs/local-development.md).
 
 ## Current review
 
-- [ ] Review the consolidated dependency, editorial-contract and public-rendering candidate.
+- [ ] Review [#530](https://github.com/anipotts/anipotts.com/pull/530): keyboard access, native scrolling and article source links.
+- [ ] Investigate state commit-publisher receipts and silent ingest capture through their owning sources.
 - [ ] Merge only after Ani reviews the checked revision; production publication remains separate.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records

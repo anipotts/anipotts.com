@@ -241,9 +241,14 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     }
   </head>
   <body>
+    <a class="skip-link" href="#main-content" data-astro-reload
+      >skip to content</a
+    >
     {!detail && !adminEntry && <PageCurrent />}
     <Nav items={settings.navigation} />
     <main
+      id="main-content"
+      tabindex="-1"
       class:list={[
         adminEntry ? "admin-entry-mount" : "frame page",
         {

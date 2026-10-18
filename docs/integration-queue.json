@@ -187,11 +187,48 @@
     {
       "id": "site-first-batch-2026-10-18",
       "title": "Consolidated dependency and content rendering repairs",
-      "revision": "629edb5bdc627e7e8da8ccc234af33832a2b1907",
+      "revision": "b946acd96cc5f5a9345e95a0167c8187ac5577a3",
+      "lane": "code",
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "b946acd96cc5f5a9345e95a0167c8187ac5577a3",
+          "by": "Ani",
+          "evidence": "Website chat01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani explicitly approved corrected PR529 at b946acd9 for merge and deployment of all six listed targets, in response to the exact-head approval question on October18,2026.",
+          "at": "2026-10-18T21:11:46.567Z"
+        },
+        "production": {
+          "revision": "b946acd96cc5f5a9345e95a0167c8187ac5577a3",
+          "by": "Ani",
+          "evidence": "Website chat01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani explicitly approved corrected PR529 at b946acd9 for merge and deployment of all six listed targets, in response to the exact-head approval question on October18,2026.",
+          "at": "2026-10-18T21:11:46.568Z"
+        }
+      },
+      "note": "Ani approved corrected b946acd9 for merge and all six targets; merged/released638944cd. Same approval applied through native environment gates. October10 runs38031295743 and38074201063 are cancelled/superseded, not awaiting renewed approval. No pending release consent; runtime source/setup follow-ups are separate.",
+      "updatedAt": "2026-10-18T21:15:09.911Z",
+      "release": {
+        "revision": "638944cdd115c02c3138802154e4d162ad5f1fc6",
+        "reviewedRevision": "b946acd96cc5f5a9345e95a0167c8187ac5577a3",
+        "evidence": "PR529 merged through strict protected integration; git diff --exit-code b946acd96cc5f5a9345e95a0167c8187ac5577a3 638944cdd115c02c3138802154e4d162ad5f1fc6 proves identical trees.",
+        "at": "2026-10-18T21:11:46.568Z"
+      },
+      "deployment": {
+        "revision": "638944cdd115c02c3138802154e4d162ad5f1fc6",
+        "target": "www, admin, ingest, newsletter, state, weekly_email",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39166553611 succeeded for all6 targets at638944cdd115c02c3138802154e4d162ad5f1fc6. Public health reports exactSHA/schema0044/D1connected/ok; public routes200. Admin provider identity/schema and eight Access denials passed. No remote migration. State commit receipts and ingest freshness remain operational gaps; weekly-email410 is intentional retirement.",
+        "at": "2026-10-18T21:15:09.911Z"
+      }
+    },
+    {
+      "id": "site-usability-batch-2026-10-18",
+      "title": "Public keyboard access, native scrolling and article proof links",
+      "revision": "a3451c8e0c36803e155d013c1dc04adf19765521",
       "lane": "code",
       "state": "awaiting-review",
       "approvals": {},
-      "note": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0, PR #529, branch codex/site-first-batch. Revision records the checked implementation checkpoint; the PR head also includes receipt-only docs. Local scoped matrix and browser journeys pass; final whole-command and exact-head GitHub checks are recorded on the PR. Ani review and visual acceptance are pending. No merge, deployment or CMS publication. Approvals must name the then-current exact PR head."
+      "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
+      "note": "Runtime source/test checkpoint retained; PR530 now targets main and incorporates release638944cd ancestry plus receipt-only documentation. Existing public build/typechecks,196tests,workerd smoke,84CMSroutes and13browser journeys pass (one intentional skip). Fresh final-head hosted checks and Ani review are required; approved PR529 release does not authorize PR530 merge.",
+      "updatedAt": "2026-10-18T21:15:09.912Z"
     }
   ]
 }
