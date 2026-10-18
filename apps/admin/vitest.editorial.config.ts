@@ -8,5 +8,9 @@ export default defineConfig({
       remoteBindings: false,
     }),
   ],
-  test: { include: ["test/editorial/**/*.test.ts"] },
+  test: {
+    include: ["test/editorial/**/*.test.ts"],
+    // Keep workerd instances within the same shared-host budget as DOM tests.
+    maxWorkers: 2,
+  },
 });
