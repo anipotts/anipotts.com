@@ -38,7 +38,7 @@ rendering tests cover non-default content.
 
 Review candidate: [PR #529](https://github.com/anipotts/anipotts.com/pull/529),
 branch `codex/site-first-batch`. Implementation checkpoint:
-`2e4ea4fb12ee523218badd5f19c2ddd5e31d8552`. Final PR-head checks also cover the
+`4a65e1e73cde3f52ed9d6a607deb7ef757517f74`. Final PR-head checks also cover the
 receipt-only documentation commit. Auto-merge is disabled; Ani's exact-head
 review is still required. No merge or deployment has occurred.
 
@@ -60,7 +60,10 @@ DOM and editorial workerd suites use two workers each to bound contention on a
 shared review host. Existing timeout limits and assertions are retained. Five
 replay-marker scenarios now run independently. Hydration coverage executes the
 emitted bootstrap, verifying actual island registration and the load event
-instead of depending on compiler quote formatting.
+instead of depending on compiler quote formatting. Discovery options live in a
+pure module shared by Astro and the entry tests, so the local-development gate
+runs before workspace builds. A disposable copy of the actual app source and
+entry tests passes with no node_modules or package dist, under CI flags.
 
 The Astro/Cloudflare patch family is pinned to Astro 7.3.8 and adapter 14.3.4;
 direct Wrangler manifests use 4.149.0. Unbounded caret resolution had selected
