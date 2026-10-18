@@ -3,11 +3,12 @@ import { createHash } from "node:crypto";
 import { JSDOM } from "jsdom";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { env as workerEnv } from "cloudflare:workers";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import worker from "../../dist/server/entry.mjs";
+import { verifyBuild } from "../../../../scripts/ci/admin-local-owner-leak.mjs";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -57,6 +58,28 @@ function assertInlineScriptsAndStylesAllowed(response, html) {
   expect(blocked).toEqual([]);
   expect(scripts.length).toBeGreaterThan(0);
 }
+
+it("keeps local owner code out of every built artifact while retaining source maps", async () => {
+  const dist = fileURLToPath(new URL("../../dist/", import.meta.url));
+  expect(verifyBuild(dist, "absent").problems).toEqual([]);
+  const maps = [];
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) await visit(path);
+      else if (entry.name.endsWith(".map")) maps.push(path);
+    }
+  }
+  await visit(dist);
+  expect(maps.length).toBeGreaterThan(0);
+  let usable = 0;
+  for (const path of maps) {
+    const map = JSON.parse(await readFile(path, "utf8"));
+    expect((map.sourcesContent ?? []).filter(Boolean), path).toEqual([]);
+    if (map.sources?.length && map.mappings?.length) usable++;
+  }
+  expect(usable).toBeGreaterThan(0);
+});
 
 it("renders the built public auth document with CSP and a fresh nonce", async () => {
   const response = await worker.fetch(

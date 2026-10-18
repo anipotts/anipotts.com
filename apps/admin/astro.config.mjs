@@ -101,6 +101,11 @@ export default defineConfig({
         optimizeDeps: adminDependencyDiscovery.ssr,
       },
     },
+    // Keep Worker stack-trace mappings without embedding development-only
+    // authoring source (including local-owner branches) in deployable maps.
+    build: {
+      rolldownOptions: { output: { sourcemapExcludeSources: true } },
+    },
     // SDK foundations are scoped after Tailwind expands their imports. Legacy
     // Astryx surfaces never receive the SDK reset or its document tokens.
     css: { postcss: { plugins: [openaiScope()] } },
