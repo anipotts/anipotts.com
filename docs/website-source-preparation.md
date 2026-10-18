@@ -1,5 +1,80 @@
 # Website source preparation
 
+## October 18 approved production release
+
+Ani explicitly approved corrected #529 at
+`b946acd96cc5f5a9345e95a0167c8187ac5577a3` for merge and all six affected
+targets in owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`. Protected
+integration merged it as `638944cdd115c02c3138802154e4d162ad5f1fc6`.
+A direct Git tree comparison proves the reviewed and merged trees identical.
+Live branch protection and ruleset 21578155 required strict build/security
+checks and resolved conversations, with no bypass, force push or deletion.
+
+[Production run 39166553611](https://github.com/anipotts/anipotts.com/actions/runs/39166553611)
+succeeded for www, admin, ingest, newsletter, state and weekly email. Schema
+remains `0044`, D1 changed is false, and no remote migration ran. All affected
+targets ran; there was no labs target. Editorial release verification ran instead
+of the held authenticated-smoke lane. Its absence is not authenticated-owner proof.
+
+| Target       | Deployed Cloudflare version            |
+| ------------ | -------------------------------------- |
+| www          | `173c6f90-e939-48f1-afae-ebe4d18442ff` |
+| admin        | `5857e710-cc17-4dc5-a200-31a36c26018d` |
+| ingest       | `ebbbbde6-24da-4fc0-bf76-f5f273f3b41a` |
+| newsletter   | `304bcf07-b6b7-4b55-9fdb-240b3440fb9c` |
+| state        | `bd471b9b-9c7b-4db5-a579-7246f11b3ebc` |
+| weekly email | `68ff8676-8d30-470c-9f98-e3ca0ccbd873` |
+
+Fresh public HTTP proof returned 200 for health, home, work, writing, systems,
+the awareness article and Quantercise. Health reports release `638944cd`, schema
+`0044`, connected D1 and ok true. The workflow proved admin's active provider
+version carries the exact release/schema message and eight protected paths
+redirect through Access. No CMS publication or authenticated editing was performed.
+
+The already-approved October 10 release remained at a native GitHub gate.
+It is superseded by this cumulative release: old runs 38031295743 and
+38074201063 are cancelled. The same October 18 approval was applied to the
+production gate and selected target jobs, including Admin after www passed.
+No days-old GitHub approval waits remained in the fresh repository audit.
+
+Worker deployment success is distinct from operational freshness. Newsletter
+health returned 200/ok. Weekly email returned the intentional 410/retired state.
+State returned 503: links readable, commits never received, control disabled.
+Ingest returned 200/degraded with a silent Brands arrival source and connected
+D1. These are observed source/setup gaps, not pending release approvals or proof
+of producer operation. No collector, producer, authentication or secret changes
+were made. Operational follow-up must inspect the owning sources before mutation.
+
+[PR #530](https://github.com/anipotts/anipotts.com/pull/530) remains the separate
+public usability review candidate. It now includes main's merge ancestry; its
+runtime changes are unchanged from the previously checked candidate. Its final
+head checks and Ani review remain independent of the approved #529 release.
+
+## October 18 review corrections and second batch
+
+Ani approved merging #529 and deploying its affected targets after reviewing
+`75ae67139b3073fffa08deaa7c340a222a83e701`. The live pre-merge check found
+three newly unresolved review conversations. All were validated and corrected
+in `b946acd96cc5f5a9345e95a0167c8187ac5577a3`: the theme compiler contract now
+matches installed CLI 0.6.7; the local preview uses Vite filesystem URLs for
+public components served by Admin; homepage normalization preserves optional
+validated shared settings. The exported normalizer has no current production
+caller, so this is contract completeness rather than demonstrated editor loss.
+
+The conversations were resolved and the corrected head passed fresh checks. Ani
+then approved that exact head for merge and all six targets; the completed release
+is recorded above. This historical review checkpoint did not itself grant approval.
+
+The independent next batch restores a keyboard path past shared navigation and
+native scroll indicators, and renders the article source/artifact metadata
+already supported by publication. It changes no published content. Synthetic
+CMS fixtures cover internal, external, fragment, fallback-label and absent-link
+states; browser journeys cover keyboard focus before and after an Astro client
+transition and real document/code scrolling. Implementation checkpoint:
+`c814e41ec66e541eb274c397fde85ba3fc007ac6`, with #529 corrections integrated
+without rewriting either branch. Checks and the final review revision are
+recorded on its PR. This batch also waits for Ani’s review before merge.
+
 ## October 18 first batch
 
 Owner/source chat: `01a14ffb-519c-73b1-a63a-380f9d7274d0` on ap-pro. Ani
@@ -18,7 +93,10 @@ including multiple merge bases, established containment. The source checkpoints
 are #509 `d698b76e`, #513 `f25395cc`, #514 `5b60c917`, #515 `a58a5d68`,
 #518 `6eeec4c8`, and #522 `93b437ab`. Their branches and prior review records
 remain recoverable. Superseded PRs close only after the canonical replacement
-has passing checks and preservation evidence. No branch is deleted.
+has passing checks and preservation evidence. Authored branches are retained.
+Dependabot removed its six update branches automatically when their PRs closed;
+each exact head was recovered from its pull ref, verified and pushed to
+`codex/preserve-pr-<number>-2026-10-18`. PR #529 records those preservation refs.
 
 The candidate adds the coordinated #507/#527 React family, #525 runtime
 patches, #526 font update and #528 tooling updates without downgrading prior
@@ -34,13 +112,14 @@ non-mutating, with a disposable-project regression proving it rejects stale
 outputs without repairing them. Source, generator and real emitted-Worker
 rendering tests cover non-default content.
 
-### Verification and remaining gates
+### Historical review checkpoint
 
 Review candidate: [PR #529](https://github.com/anipotts/anipotts.com/pull/529),
 branch `codex/site-first-batch`. Implementation checkpoint:
 `629edb5bdc627e7e8da8ccc234af33832a2b1907`. Final PR-head checks also cover the
 receipt-only documentation commit. Auto-merge is disabled; Ani's exact-head
-review is still required. No merge or deployment has occurred.
+review was still required at that checkpoint. The later approved release is
+recorded above.
 
 Node 24.19.0, pnpm 10.5.2 and Bun 1.3.4 are the verification runtimes. Frozen
 install, guarded theme generation/check, dependency/workflow regressions and the

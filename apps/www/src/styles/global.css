@@ -104,15 +104,6 @@
 
 * {
   box-sizing: border-box;
-  /* Hide indicators without changing overflow or reserving scrollbar tracks. */
-  scrollbar-width: none;
-  scrollbar-gutter: auto;
-}
-
-*::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 html,
@@ -175,6 +166,36 @@ a {
 :where(a, button, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  inset-block-start: max(var(--s-3), env(safe-area-inset-top, 0px));
+  inset-inline-start: max(var(--s-3), env(safe-area-inset-left, 0px));
+  z-index: 500;
+  padding: var(--s-2) var(--s-3);
+  border-radius: 0.35rem;
+  background: var(--paper-surface);
+  color: var(--paper-ink);
+  font-weight: 600;
+}
+
+.skip-link:not(:focus) {
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link:focus {
+  outline: var(--focus-width) solid var(--paper-accent);
+  outline-offset: var(--focus-offset);
+}
+
+#main-content:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
 }
 
 h1,
@@ -503,11 +524,6 @@ button.fill:disabled {
     padding-inline: var(--s-3);
     padding-bottom: var(--s-2);
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .mobile-carousel::-webkit-scrollbar {
-    display: none;
   }
 
   .mobile-carousel > * {
