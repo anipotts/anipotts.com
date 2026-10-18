@@ -111,7 +111,20 @@ test("skip navigation moves keyboard focus into content before and after a clien
     exact: true,
   });
   const main = screen.getByRole("main");
-  await browser.keyboard.press("Tab");
+  // macOS WebKit's default Tab preference skips links. Option-Tab follows the
+  // complete native link sequence, without changing focus or browser settings.
+  // https://support.apple.com/guide/safari/cpsh003/mac
+  const macWebKit = await browser.evaluate(() => {
+    const agent = navigator.userAgent;
+    return (
+      agent.includes("Macintosh") &&
+      agent.includes("Safari/") &&
+      !/Chrome\/|Chromium\/|Edg\//.test(agent)
+    );
+  });
+  const forwardTab = macWebKit ? "Alt+Tab" : "Tab";
+  const backwardTab = macWebKit ? "Alt+Shift+Tab" : "Shift+Tab";
+  await browser.keyboard.press(forwardTab);
   await expect(skip).toBeFocused();
   await expect(skip).toBeVisible();
   expect(
@@ -133,7 +146,7 @@ test("skip navigation moves keyboard focus into content before and after a clien
   ).toBe(true);
   await browser.keyboard.press("Enter");
   await expect(main).toBeFocused();
-  await browser.keyboard.press("Tab");
+  await browser.keyboard.press(forwardTab);
   expect(
     await browser.evaluate(() =>
       document.querySelector("main")!.contains(document.activeElement),
@@ -155,13 +168,14 @@ test("skip navigation moves keyboard focus into content before and after a clien
   // The persisted home link is the first navigation control. Moving back one
   // tab stop must reach the new page's skip link after the document swap.
   await screen
+    .getByRole("banner")
     .getByRole("link", { name: "home", exact: true })
-    .press("Shift+Tab");
+    .press(backwardTab);
   await expect(skip).toBeFocused();
   await expect(skip).toBeVisible();
   await browser.keyboard.press("Enter");
   await expect(main).toBeFocused();
-  await browser.keyboard.press("Tab");
+  await browser.keyboard.press(forwardTab);
   expect(
     await browser.evaluate(() =>
       document.querySelector("main")!.contains(document.activeElement),
