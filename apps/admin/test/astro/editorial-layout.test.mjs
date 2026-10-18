@@ -124,11 +124,33 @@ describe("EditorialLayout Astro rendering", () => {
     );
     expect(shell?.getAttribute("client")).toBe("load");
     expect(catalog?.getAttribute("client")).toBe("load");
-    const scripts = [...document.scripts]
-      .map((script) => script.textContent)
-      .join("\n");
-    expect(scripts).toContain('customElements.define("astro-island"');
-    expect(scripts).toContain('window.dispatchEvent(new Event("astro:load"))');
+    const scripts = [...document.scripts].map((script) => script.textContent);
+    const registration = scripts.find((script) =>
+      script.includes("customElements.define"),
+    );
+    const load = scripts.find(
+      (script) =>
+        script.includes("window.dispatchEvent") &&
+        script.includes("astro:load"),
+    );
+    expect(registration).toBeDefined();
+    expect(load).toBeDefined();
+    // Exercise the emitted bootstrap in an empty document, where no island
+    // can connect or import modules. Compiler quote/minifier choices are free.
+    const runtime = new JSDOM("", { runScripts: "outside-only" });
+    try {
+      const loaded = vi.fn();
+      runtime.window.addEventListener("astro:load", loaded);
+      runtime.window.eval(registration);
+      runtime.window.eval(load);
+      expect(runtime.window.customElements.get("astro-island")).toBeTypeOf(
+        "function",
+      );
+      expect(runtime.window.Astro?.load).toBeTypeOf("function");
+      expect(loaded).toHaveBeenCalledTimes(1);
+    } finally {
+      runtime.window.close();
+    }
   });
 });
 
