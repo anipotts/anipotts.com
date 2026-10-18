@@ -77,11 +77,12 @@ test("operations and data distinguish synthetic samples from disconnected reader
   await screen
     .getByRole("link", { name: "Nightly inference", exact: true })
     .click();
-  await expect(
-    screen
-      .getByRole("region", { name: "Nightly inference details", exact: true })
-      .getByText("inference not ok", { exact: true }),
-  ).toBeVisible();
+  const inference = screen.getByRole("region", {
+    name: "Nightly inference details",
+    exact: true,
+  });
+  await expect(inference).toBeVisible();
+  await expect(inference).toContainText("inference not ok");
 
   await app.open("/observability/status?fixture=none");
   await expect(
