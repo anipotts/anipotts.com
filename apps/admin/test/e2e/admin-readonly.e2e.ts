@@ -72,8 +72,15 @@ test("operations and data distinguish synthetic samples from disconnected reader
 }) => {
   await app.open("/observability/status?fixture=synthetic");
   await expect(screen.getByText("Sample data", { exact: true })).toBeVisible();
+  // Narrow tables hide the detail column. Follow the same record link on
+  // both targets and verify the detail in its accessible panel.
+  await screen
+    .getByRole("link", { name: "Nightly inference", exact: true })
+    .click();
   await expect(
-    screen.getByText("inference not ok", { exact: true }),
+    screen
+      .getByRole("region", { name: "Nightly inference details", exact: true })
+      .getByText("inference not ok", { exact: true }),
   ).toBeVisible();
 
   await app.open("/observability/status?fixture=none");
