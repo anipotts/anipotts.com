@@ -12,6 +12,7 @@ import {
   normalizeCmsProject,
   normalizeCmsWriting,
   normalizeHomepageContent,
+  normalizeHomepageSectionOrder,
   normalizeListingPageContent,
   normalizeNewsletterContent,
   validateCmsProject,
@@ -26,6 +27,40 @@ describe("homepage cms validation", () => {
   it("accepts normalized fallback content", () => {
     const content = normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT);
     expect(validateHomepageContent(content)).toEqual({ ok: true });
+  });
+
+  it("preserves a stored section order and hidden intro through normalization", () => {
+    const content = normalizeHomepageContent({
+      ...DEFAULT_HOMEPAGE_CONTENT,
+      section_order: ["latest_thoughts", "past_work", "intro"],
+      sections: {
+        ...DEFAULT_HOMEPAGE_CONTENT.sections,
+        intro: { ...DEFAULT_HOMEPAGE_CONTENT.sections.intro, visible: false },
+      },
+    });
+    expect(content.section_order).toEqual([
+      "latest_thoughts",
+      "past_work",
+      "intro",
+    ]);
+    expect(content.sections.intro.visible).toBe(false);
+    expect(validateHomepageContent(content)).toEqual({ ok: true });
+  });
+
+  it("keeps legacy partial orders complete and renders each known section once", () => {
+    expect(
+      normalizeHomepageSectionOrder([
+        "latest_thoughts",
+        "unknown",
+        "latest_thoughts",
+      ]),
+    ).toEqual(["latest_thoughts", "intro", "past_work"]);
+    expect(normalizeHomepageSectionOrder(null)).toEqual(
+      DEFAULT_HOMEPAGE_CONTENT.section_order,
+    );
+    expect(normalizeHomepageSectionOrder([])).toEqual(
+      DEFAULT_HOMEPAGE_CONTENT.section_order,
+    );
   });
 
   it("rejects empty visible required fields", () => {

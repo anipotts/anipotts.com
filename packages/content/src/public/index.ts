@@ -29,6 +29,7 @@ export {
 export {
   homepageSummaryText,
   normalizeHomepageContent,
+  normalizeHomepageSectionOrder,
   segmentHomepageSummaryParagraph,
   validateHomepageContent,
 } from "./homepage.js";

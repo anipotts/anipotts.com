@@ -142,6 +142,8 @@ function projectRecord(file) {
     catalog_group: String(frontmatter.catalog_group),
     homepage_order: Number(frontmatter.homepage_order ?? 0),
     card_copy: String(frontmatter.card_copy),
+    card_title: frontmatter.card_title,
+    card_copy_compact: frontmatter.card_copy_compact,
     detail_path: String(frontmatter.detail_path),
     identity: frontmatter.identity ?? {},
     preview_media: frontmatter.preview_media ?? null,

@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   DEFAULT_CMS_PROJECTS,
   DEFAULT_HOMEPAGE_CONTENT,
@@ -191,7 +192,10 @@ try {
   writeFileSync(
     join(alternateSlugRoot, "content/public/projects/source-name.md"),
     readFileSync("content/public/projects/agents.md", "utf8")
-      .replace(/^---\n/, "---\nslug: route-name\n")
+      .replace(
+        /^---\n/,
+        "---\nslug: route-name\ncard_title: Sentinel card title\ncard_copy_compact: Sentinel **compact** copy\n",
+      )
       .replace("detail_path: /work/agents", "detail_path: /work/route-name"),
   );
   execFileSync(
@@ -207,6 +211,29 @@ try {
     alternateGenerated,
     /slug: "route-name",[\s\S]*?detail_path: "\/work\/route-name"/,
     "a frontmatter slug must name the generated record and its route",
+  );
+  const { DEFAULT_CMS_PROJECTS: generatedProjects } = await import(
+    pathToFileURL(
+      join(alternateSlugRoot, "packages/content/src/public/generated.ts"),
+    ).href
+  );
+  const generatedProject = generatedProjects.find(
+    (project) => project.slug === "route-name",
+  );
+  assert.equal(
+    generatedProject?.card_title,
+    "Sentinel card title",
+    "authored card titles must survive generated defaults",
+  );
+  assert.equal(
+    generatedProject?.card_copy_compact,
+    "Sentinel **compact** copy",
+    "compact card copy must survive generation with inline markup intact",
+  );
+  assert.equal(
+    generatedProjects.find((project) => project.slug === "agents")?.card_title,
+    undefined,
+    "absent optional card overrides retain the renderer fallback",
   );
   const alternateFile = join(
     alternateSlugRoot,
