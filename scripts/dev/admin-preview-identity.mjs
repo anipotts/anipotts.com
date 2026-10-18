@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { readJson, syncHealth } from "./review-state.mjs";
 
 /** Development-only identity. Read the current revision, not a startup snapshot. */
@@ -12,7 +12,8 @@ export function adminPreviewIdentity(root) {
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         // Astro's non-runnable dev renderer can emit filesystem-rooted script
-        // URLs. Vite serves these components relative to its application root.
+        // URLs. Cross-app components need Vite’s filesystem URL; application
+        // components can use URLs relative to the active Vite root.
         const appPrefix = `${join(root, "apps", "www")}/`;
         const dependencyPrefix = `${join(root, "node_modules", ".pnpm")}/`;
         const [pathname = "", query = ""] = (request.url ?? "").split("?");
@@ -23,7 +24,9 @@ export function adminPreviewIdentity(root) {
           params.get("type") === "script"
         ) {
           const target = pathname.startsWith(appPrefix)
-            ? `/${pathname.slice(appPrefix.length)}?${query}`
+            ? resolve(server.config.root) === resolve(root, "apps", "www")
+              ? `/${pathname.slice(appPrefix.length)}?${query}`
+              : `/@fs${pathname}?${query}`
             : pathname.startsWith(dependencyPrefix) &&
                 pathname.endsWith(
                   "/node_modules/astro/components/ClientRouter.astro",

@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { adminPreviewIdentity } from "../dev/admin-preview-identity.mjs";
 
-function request(url) {
+function request(url, viteRoot = "/checkout/apps/www") {
   let middleware;
   const plugin = adminPreviewIdentity("/checkout/");
   assert.equal(plugin.apply, "serve");
   plugin.configureServer({
+    config: { root: viteRoot },
     middlewares: {
       use: (fn) => {
         middleware = fn;
@@ -44,6 +45,19 @@ test("filesystem component scripts redirect to the application's Vite URL", () =
     assert.equal(headers["Cache-Control"], "no-store");
     assert.equal(passed, false);
   }
+});
+
+test("admin homepage preview routes cross-app scripts through the filesystem", () => {
+  const path = "/checkout/apps/www/src/layouts/Shell.astro";
+  const query = "astro&type=script&index=0&lang.ts";
+  const { result, headers, passed } = request(
+    `${path}?${query}`,
+    "/checkout/apps/admin",
+  );
+  assert.equal(result.statusCode, 302);
+  assert.equal(headers.Location, `/@fs${path}?${query}`);
+  assert.equal(passed, false);
+  assert.equal(request(headers.Location, "/checkout/apps/admin").passed, true);
 });
 
 test("installed Astro router uses Vite's filesystem allow-list", () => {

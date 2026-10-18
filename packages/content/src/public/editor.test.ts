@@ -29,6 +29,45 @@ describe("homepage cms validation", () => {
     expect(validateHomepageContent(content)).toEqual({ ok: true });
   });
 
+  it("preserves authored shared settings across repeated normalization", () => {
+    const site_settings = {
+      navigation: { work: "selected work" },
+      footer: {
+        prompt: "get in touch",
+        profiles: {
+          github: { label: "source", href: "https://github.com/example" },
+        },
+      },
+      seo: {
+        homepage_title: "A published title",
+        description: "A published description",
+      },
+    };
+    const normalized = normalizeHomepageContent({
+      ...DEFAULT_HOMEPAGE_CONTENT,
+      site_settings,
+    });
+    expect(normalized.site_settings).toEqual(site_settings);
+    expect(normalizeHomepageContent(normalized).site_settings).toEqual(
+      site_settings,
+    );
+    expect(validateHomepageContent(normalized)).toEqual({ ok: true });
+    expect(
+      normalizeHomepageContent(DEFAULT_HOMEPAGE_CONTENT),
+    ).not.toHaveProperty("site_settings");
+  });
+
+  it("rejects invalid shared settings instead of silently dropping them", () => {
+    expect(() =>
+      normalizeHomepageContent({
+        ...DEFAULT_HOMEPAGE_CONTENT,
+        site_settings: {
+          footer: { profiles: { github: { href: "javascript:alert(1)" } } },
+        },
+      }),
+    ).toThrow();
+  });
+
   it("preserves a stored section order and hidden intro through normalization", () => {
     const content = normalizeHomepageContent({
       ...DEFAULT_HOMEPAGE_CONTENT,
