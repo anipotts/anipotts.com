@@ -337,19 +337,42 @@ export class EncryptedBrowserRecovery<T> {
     const key = `${this.key}:capture:${crypto.randomUUID()}`;
     if (this.storage.getItem(key) !== null) return "changed";
     this.storage.setItem(key, raw);
-    if (!this.#valid(true)) {
-      if (this.storage.getItem(key) === raw) this.storage.removeItem(key);
-      return "signed-out";
-    }
-    if (observed.captures.length === 3) {
-      const [olderKey, olderRaw] = prunable[0]!;
-      if (this.storage.getItem(olderKey) === olderRaw) {
+    const rollback = () => {
+      try {
+        const current = this.storage.getItem(key);
+        if (current === null) return true;
+        if (current !== raw) return false;
+        this.storage.removeItem(key);
+        return true;
+      } catch {
+        // Persistent storage refusal can prevent restoring the bound. Keep all
+        // inaccessible bytes for opaque export rather than deleting old copies.
+        return false;
+      }
+    };
+    try {
+      if (!this.#valid(true)) {
+        rollback();
+        return "signed-out";
+      }
+      if (this.storage.getItem(key) !== raw)
+        return rollback() ? "changed" : "unavailable";
+      if (observed.captures.length === 3) {
+        const [olderKey, olderRaw] = prunable[0]!;
+        if (this.storage.getItem(olderKey) !== olderRaw)
+          return rollback() ? "changed" : "unavailable";
         this.storage.removeItem(olderKey);
         this.#knownCaptures.delete(olderKey);
       }
+      this.#knownCaptures.set(key, raw);
+      return null;
+    } catch (error) {
+      // Append precedes pruning to preserve all old copies if appending fails.
+      // Roll back only this attempt's exact new bytes, preserving the original
+      // failure even if storage also refuses that best-effort cleanup.
+      rollback();
+      throw error;
     }
-    this.#knownCaptures.set(key, raw);
-    return null;
   }
   read(): Promise<RecoveryRead<T>> {
     return this.session.track(this.#read());

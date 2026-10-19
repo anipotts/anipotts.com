@@ -14,6 +14,7 @@ import {
 import {
   encryptRecoveryBundle,
   decryptRecoveryBundle,
+  recoveryStringHash,
 } from "./browser-recovery-bundle";
 import { EncryptedBrowserRecovery } from "./encrypted-browser-recovery";
 import {
@@ -691,6 +692,241 @@ async function expireIntoCapture<T>(
   stop();
   return final;
 }
+
+async function threeCaptures() {
+  const setup = await fixture();
+  const writer = setup.channel();
+  await writer.read();
+  await writer.writeDurable(payload);
+  const predecessors = await recoveryStringHash(JSON.stringify([null, null]));
+  for (let index = 0; index < 3; index++) {
+    const raw = await encryptRecoveryBundle(
+      setup.session.vault,
+      JSON.stringify({
+        kind: "draft",
+        payload: { ...payload, source: `authenticated ended ${index}` },
+        predecessors,
+      }),
+      writer.context,
+    );
+    localStorage.setItem(`${writer.key}:capture:${crypto.randomUUID()}`, raw);
+  }
+  writer.close();
+  const current = setup.channel();
+  expect((await current.read()).status).toBe("changed");
+  const olderKey = Object.keys(localStorage)
+    .filter((name) => name.startsWith(`${current.key}:capture:`))
+    .sort()[0]!;
+  return { ...setup, current, olderKey };
+}
+
+it.each(["append", "validation", "older-read", "older-remove"] as const)(
+  "preserves readable recovery after a transient capture %s failure and can retry",
+  async (failure) => {
+    const { session, file, channel, current, olderKey } = await threeCaptures();
+    const foreign = `${current.key.replace(session.snapshot().keyId!, "f".repeat(64))}:capture:${crypto.randomUUID()}`;
+    localStorage.setItem(foreign, "foreign opaque capture");
+    const before = { ...localStorage };
+    const nativeSet = Storage.prototype.setItem,
+      nativeGet = Storage.prototype.getItem,
+      nativeRemove = Storage.prototype.removeItem;
+    let inserted = false,
+      failed = false;
+    const fail = () => {
+      failed = true;
+      throw new DOMException(
+        "synthetic transient capture refusal",
+        "SecurityError",
+      );
+    };
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      name,
+      raw,
+    ) {
+      if (name.startsWith(`${current.key}:capture:`)) {
+        if (failure === "append") fail();
+        nativeSet.call(this, name, raw);
+        inserted = true;
+      } else nativeSet.call(this, name, raw);
+    });
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+      this: Storage,
+      name,
+    ) {
+      if (
+        inserted &&
+        !failed &&
+        ((failure === "validation" && name === recoveryLogoutGenerationKey) ||
+          (failure === "older-read" && name === olderKey))
+      )
+        fail();
+      return nativeGet.call(this, name);
+    });
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (
+      this: Storage,
+      name,
+    ) {
+      if (
+        inserted &&
+        !failed &&
+        failure === "older-remove" &&
+        name === olderKey
+      )
+        fail();
+      nativeRemove.call(this, name);
+    });
+    expect(
+      await expireIntoCapture(session, current, {
+        ...payload,
+        source: "failed ended copy",
+      }),
+    ).toBe("unavailable");
+    expect(failed).toBe(true);
+    expect({ ...localStorage }).toEqual(before);
+    vi.restoreAllMocks();
+    await session.unlock(file, "synthetic@example.test");
+    const retry = channel();
+    const restored = await retry.read();
+    expect(restored.status).toBe("changed");
+    if (restored.status === "changed")
+      expect(restored.candidates).toHaveLength(4);
+    expect(
+      await expireIntoCapture(session, retry, {
+        ...payload,
+        source: "retry ended copy",
+      }),
+    ).toBeNull();
+    expect(
+      Object.keys(localStorage).filter((name) =>
+        name.startsWith(`${retry.key}:capture:`),
+      ),
+    ).toHaveLength(3);
+    expect(localStorage.getItem(current.key)).toBe(before[current.key]);
+    expect(localStorage.getItem(foreign)).toBe(before[foreign]);
+    await session.unlock(file, "synthetic@example.test");
+    const reopened = await channel().read();
+    expect(reopened.status).toBe("changed");
+    if (reopened.status === "changed")
+      expect(
+        reopened.candidates?.some(
+          ({ value }) => value.source === "retry ended copy",
+        ),
+      ).toBe(true);
+    session.lock();
+  },
+);
+
+it.each([false, true])(
+  "refuses a changed older capture without deleting unknown bytes (new capture changed=%s)",
+  async (newChanged) => {
+    const { session, file, channel, current, olderKey } = await threeCaptures();
+    const before = { ...localStorage };
+    const nativeSet = Storage.prototype.setItem;
+    let added = "";
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      name,
+      raw,
+    ) {
+      nativeSet.call(this, name, raw);
+      if (name.startsWith(`${current.key}:capture:`)) {
+        added = name;
+        nativeSet.call(this, olderKey, "changed older opaque bytes");
+        if (newChanged) nativeSet.call(this, name, "changed new opaque bytes");
+      }
+    });
+    expect(await expireIntoCapture(session, current, payload)).toBe(
+      newChanged ? "unavailable" : "changed",
+    );
+    vi.restoreAllMocks();
+    const expected = { ...before, [olderKey]: "changed older opaque bytes" };
+    if (newChanged) expected[added] = "changed new opaque bytes";
+    expect({ ...localStorage }).toEqual(expected);
+    await session.unlock(file, "synthetic@example.test");
+    const reader = channel();
+    expect((await reader.read()).status).toBe(
+      newChanged ? "oversized" : "corrupt",
+    );
+    const exported = JSON.parse(
+      await decryptRecoveryBundle(
+        session.vault,
+        await reader.export(payload),
+        reader.context,
+      ),
+    );
+    expect(exported.entries).toEqual(expected);
+    session.lock();
+  },
+);
+
+it.each(["new-changed", "cleanup-read", "cleanup-remove"] as const)(
+  "retains opaque bytes without pruning older copies when capture rollback cannot complete: %s",
+  async (failure) => {
+    const { session, file, channel, current, olderKey } = await threeCaptures();
+    const before = { ...localStorage };
+    const nativeSet = Storage.prototype.setItem,
+      nativeGet = Storage.prototype.getItem,
+      nativeRemove = Storage.prototype.removeItem;
+    let added = "",
+      failed = false;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      name,
+      raw,
+    ) {
+      nativeSet.call(this, name, raw);
+      if (name.startsWith(`${current.key}:capture:`)) {
+        added = name;
+        if (failure === "new-changed")
+          nativeSet.call(this, name, "changed new opaque bytes");
+      }
+    });
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+      this: Storage,
+      name,
+    ) {
+      if (failed && failure === "cleanup-read" && name === added)
+        throw new SyntaxError("synthetic rollback read refusal");
+      return nativeGet.call(this, name);
+    });
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (
+      this: Storage,
+      name,
+    ) {
+      if (name === olderKey && failure !== "new-changed") {
+        failed = true;
+        throw new DOMException("synthetic pruning refusal", "SecurityError");
+      }
+      if (failed && failure === "cleanup-remove" && name === added)
+        throw new SyntaxError("synthetic rollback remove refusal");
+      nativeRemove.call(this, name);
+    });
+    expect(await expireIntoCapture(session, current, payload)).toBe(
+      "unavailable",
+    );
+    vi.restoreAllMocks();
+    const expected = { ...before, [added]: localStorage.getItem(added)! };
+    expect({ ...localStorage }).toEqual(expected);
+    expect(
+      Object.keys(expected).filter((name) =>
+        name.startsWith(`${current.key}:capture:`),
+      ),
+    ).toHaveLength(4);
+    await session.unlock(file, "synthetic@example.test");
+    const reader = channel();
+    expect(await reader.read()).toEqual({ status: "oversized" });
+    const exported = JSON.parse(
+      await decryptRecoveryBundle(
+        session.vault,
+        await reader.export(payload),
+        reader.context,
+      ),
+    );
+    expect(exported.entries).toEqual(expected);
+    session.lock();
+  },
+);
 
 it("seals contested expiry separately and discovers exact canonical/ended copies after unlock, with explicit acknowledgment and no tombstone resurrection", async () => {
   localStorage.setItem(key, JSON.stringify(payload));
