@@ -9196,6 +9196,8 @@
     "apps/admin/test/editorial/writing-create.test.ts": [10, 10, 10],
     "apps/admin/test/recovery-key-fixture.ts": [10, 10, 10],
     "apps/admin/test/support/README.md": [0, 0, 0],
+    "apps/admin/test/support/browser-environment.ts": [10, 10, 10],
+    "apps/admin/test/support/browser-media.ts": [10, 10, 10],
     "apps/admin/test/support/browser-recovery-key.ts": [10, 10, 10],
     "apps/admin/test/support/editorial-fixtures.ts": [10, 10, 10],
     "apps/admin/test/wrangler.jsonc": [13, 13, 13],

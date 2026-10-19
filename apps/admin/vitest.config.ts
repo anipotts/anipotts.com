@@ -7,6 +7,7 @@ export default defineConfig({
   define: { __LOCAL_OWNER_BUILD__: "false" },
   test: {
     include: ["src/**/*.test.{ts,tsx}"],
+    setupFiles: ["./test/support/browser-environment.ts"],
     // Hundreds of DOM suites share a host with the durable review previews.
     // Bound memory/CPU contention while preserving the default timeout limits.
     maxWorkers: 2,
