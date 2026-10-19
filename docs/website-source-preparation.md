@@ -1,5 +1,34 @@
 # Website source preparation
 
+## October 19 supplied-R2 artifact qualification
+
+Draft #541 now includes the inactive supplied-R2 artifact slice at
+`845c3bc2cccb1206c35197fa45a2a39a70ff000c`, based on qualified `0bf632ff`.
+The adapter stores ciphertext events with conditional claims, bounded 128-entry
+index shards and a final commit index. Fresh replay pins length, etag, version
+and SHA256; the v3 codec authenticates both passes before successful restore.
+Pending GET/body reads and PUT acknowledgments observe codec cancellation;
+late persisted ciphertext remains ambiguous and preserved.
+
+All 129 recovery Node cases and all 27 actual local Workerd/SQLite/D1/R2 cases
+pass. The three new native cases include actual 10MiB objects in both media
+planes with 4MiB-class controls, encrypted capture/reopen/suspended restore,
+metadata/hash readback, conditional collisions and held-body cancellation.
+Independent source and cancellation-delta reviews are clear. Full `pnpm validate`
+passes all 14 tasks, with 11 cache hits; strict editorial typing, formatting and
+source drift checks pass. The production owner fixture is absent in 344 built
+files. Exact-source logs:
+`/private/tmp/anipotts-recovery-artifact-{native,all,validation}.log`.
+A following documentation-only checkpoint records these results.
+
+Operational admission still always rejects. The third artifact bucket and RPC
+wrappers are local fixtures only. No production artifact route/binding, provider
+provisioning, destination/key custody, remote migration `0003`, enrollment,
+retention deletion or operational restore guarantee is enabled. The draft stays
+held for those explicit operational gates; green source checks do not complete
+them. Main remains `aa860b4b`; the canonical preview is the separate compatible
+dependency candidate `dbcd69a1` with the current v17/20-record local mirror.
+
 ## October 19 final tooling integration and recovery proof
 
 ### Final approved tooling integration

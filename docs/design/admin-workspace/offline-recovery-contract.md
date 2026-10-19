@@ -809,3 +809,19 @@ case now also prepares a real-R2-GET/native-stream held-body fault with a never
 settling cancel acknowledgment; its execution remains pending. The focused
 shared codec/adapter Node run passes78 cases (including the26 adapter cases),
 and strict editorial TypeScript, formatting, static review and diff checks pass.
+
+#### Owner qualification after cancellation correction
+
+The exact corrected source `845c3bc2c` passes all129 recovery Node cases and
+all27 actual local Workerd/SQLite/D1/R2 cases. All three supplied-R2 artifact
+cases now run successfully, including real10MiB objects in both media planes,
+4MiB-class controls, capture/reopen/suspended restore/readback/release, storage
+and crypto rejection, changed replay and real-R2 held-body cancellation.
+The full14-task workspace validation also passes. Source drift is clean and the
+production bundle excludes the local-owner fixture. Independent source and
+cancellation-delta reviews are clear. Logs are
+`/private/tmp/anipotts-recovery-artifact-{native,all,validation}.log`.
+These results supersede the pending native statements above at their dated
+source checkpoints. Operational admission remains always-reject; destination,
+provider, key custody, production bindings/migration, enrollment and the live
+restore drill remain separate gates.

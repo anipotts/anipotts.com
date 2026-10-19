@@ -30,7 +30,7 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
+- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; #541 also qualifies bounded supplied-R2 artifacts with129 Node and27 native recovery cases. Provider activation and operational coverage, custody and restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
 #542 is merged as `aa860b4b`; release 39275594601 passed with all six runtime targets skipped and no migration.
