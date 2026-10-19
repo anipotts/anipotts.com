@@ -1,5 +1,33 @@
 # Website source preparation
 
+## October 19 combined qualification and CodeQL fixture repair
+
+Frozen `1b04edf453d15beeb057683dedcf483d812ee35a` passes full `pnpm validate`:
+all 14 tasks, including 2,447 Admin core / 79 Astro / 98 actual editorial workerd
+and three CSP cases plus one intentional skip. Its clean maintained Admin browser
+run passes 42/42 Chromium/WebKit cases, including real immediate Back, unlock and
+exact title/custom-address restoration. Public browsers pass 13 cases with one
+intentional desktop skip. Production local-owner scan passes all 344 files;
+tracked source stays clean and task ports 8873/18123 have no listener afterward.
+The canonical preview was fast-forwarded cleanly to this checked source, with
+published mirror v17 / 20 records current and no status blockers.
+
+A later CodeQL review of this head reports alert 36, `js/bad-code-sanitization`,
+in synthetic setup-fixture JavaScript construction. Test-only `39e1841c` replaces
+runtime-interpolated program bodies with static programs and separate JSON data.
+All 16 process/config fixtures pass, including quoted / space / newline paths,
+JavaScript-looking configuration values and actual forced shutdown. The runtime
+harness and app source remain byte-identical to `1b04edf4`; its browser proof
+therefore remains applicable. No suppression, dismissal or protection change is
+used. Refreshed exact-head hosted checks and CodeQL alert clearance still gate
+review; no later merge/deploy approval exists. The earlier `613b5711` request
+remains superseded.
+
+Logs are `/private/tmp/anipotts-recovery-later-review-validation.log`,
+`/private/tmp/anipotts-recovery-later-review-admin-browser.log`,
+`/private/tmp/anipotts-recovery-later-review-public-browser.log` and
+`/private/tmp/anipotts-recovery-seeding-static-focused.log`.
+
 ## October 19 integrated later-review repairs
 
 The superseded `613b5711` approval request remains withdrawn. The three later

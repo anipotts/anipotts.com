@@ -460,3 +460,17 @@ ciphertext in an archive. A pristine blank form does not acquire an unload
 warning merely because storage is unavailable. The 38 focused navigation cases
 include these actual encrypted storage races; combined native qualification still
 belongs to the integration owner.
+
+## Combined runtime qualification
+
+Exact source `1b04edf453d15beeb057683dedcf483d812ee35a` passes full validation
+and one clean 42-case Chromium/WebKit Admin run, including immediate Back and
+exact recovery after real unlock. Public journeys pass 13 cases plus one
+intentional skip. The production bundle excludes every local-owner marker in
+344 files, and task listeners are absent after cleanup.
+
+A subsequent test-only change removes interpolated JavaScript construction from
+the synthetic seeding fixture identified by CodeQL alert 36. Static programs read
+separate JSON configuration; 16 focused process cases pass, including unusual
+path/configuration data. Runtime app and harness source are unchanged. Exact-head
+hosted checks, CodeQL clearance and Ani's review remain separate release gates.

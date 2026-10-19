@@ -30,7 +30,7 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Qualify [#539](https://github.com/anipotts/anipotts.com/pull/539): later navigation, shared-kit and seeding-cleanup repairs are integrated. Focused regressions pass; the combined full/browser/hosted checks and Ani’s exact review still gate admin-only deployment.
+- [ ] Review [#539](https://github.com/anipotts/anipotts.com/pull/539) after refreshed hosted checks: full validation and all 42 Admin browser cases pass at `1b04edf4`. A later test-only fixture repair removes dynamic code construction flagged by CodeQL. Admin-only release still needs exact review; no migration.
 - [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
