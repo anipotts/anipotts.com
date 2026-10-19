@@ -862,6 +862,78 @@ import {
   type RecoveryCaptureV3Context,
 } from "../../../../scripts/admin/recovery-capture-v3.mjs";
 
+/** Native RPC adds a non-enumerable disposal capability to returned values.
+ * Unwrap that transport resource into a strict bounded plain event, retaining
+ * every format field and rejecting all other unknown keys. Codec rules stay exact. */
+function copyArtifactEvent(
+  event: RecoveryCaptureV3Event,
+): RecoveryCaptureV3Event {
+  const fields =
+    event.kind === "header"
+      ? ["kind", "serialized"]
+      : [
+          "kind",
+          "role",
+          "sequence",
+          "objectIndex",
+          "index",
+          "length",
+          "ciphertext",
+          "tag",
+        ];
+  const keys = Reflect.ownKeys(event);
+  try {
+    if (event.kind !== "header" && event.kind !== "record")
+      throw new Error("synthetic_artifact_schema");
+    if (
+      Object.getPrototypeOf(event) !== Object.prototype ||
+      Object.keys(event).length !== fields.length ||
+      !fields.every((field) =>
+        Object.prototype.propertyIsEnumerable.call(event, field),
+      ) ||
+      keys.some(
+        (key) => !fields.includes(String(key)) && key !== Symbol.dispose,
+      )
+    )
+      throw new Error("synthetic_artifact_schema");
+    if (event.kind === "header") {
+      if (
+        typeof event.serialized !== "string" ||
+        Buffer.byteLength(event.serialized) > 8192
+      )
+        throw new Error("synthetic_artifact_header");
+      return { kind: "header", serialized: event.serialized };
+    }
+    const length = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(Uint8Array.prototype),
+      "byteLength",
+    )!.get!;
+    if (
+      !(event.ciphertext instanceof Uint8Array) ||
+      !(event.tag instanceof Uint8Array) ||
+      length.call(event.ciphertext) > 65536 ||
+      length.call(event.tag) !== 16
+    )
+      throw new Error("synthetic_artifact_frame");
+    return {
+      kind: "record",
+      role: event.role,
+      sequence: event.sequence,
+      objectIndex: event.objectIndex,
+      index: event.index,
+      length: event.length,
+      ciphertext: new Uint8Array(event.ciphertext),
+      tag: new Uint8Array(event.tag),
+    };
+  } finally {
+    if (Symbol.dispose in event) {
+      const dispose = event[Symbol.dispose];
+      if (typeof dispose !== "function")
+        throw new Error("synthetic_artifact_disposal");
+      dispose.call(event);
+    }
+  }
+}
 function artifactV3() {
   const spoolName = `synthetic-artifact-${crypto.randomUUID()}`;
   let records = 0,
@@ -889,9 +961,11 @@ function artifactV3() {
     },
     source: async function* () {
       for (let index = 0; index < records; index++)
-        yield await env.RECOVERY_SOURCE.getByName(
-          spoolName,
-        ).getRecoveryArtifact(index);
+        yield copyArtifactEvent(
+          await env.RECOVERY_SOURCE.getByName(spoolName).getRecoveryArtifact(
+            index,
+          ),
+        );
     },
     stats() {
       return { records, maximum, complete };
@@ -970,6 +1044,38 @@ async function seededV3(size: number, largeControl = false) {
   return { store, id, text };
 }
 it("v3 captures 10 MiB in both planes with 4 MiB-class controls through encrypted export and suspended restore/readback", async () => {
+  let disposed = 0;
+  const transport = {
+    kind: "header" as const,
+    serialized: "opaque fixture label",
+  };
+  Object.defineProperty(transport, Symbol.dispose, {
+    value: () => {
+      disposed++;
+    },
+  });
+  expect(copyArtifactEvent(transport)).toEqual({
+    kind: "header",
+    serialized: "opaque fixture label",
+  });
+  expect(disposed).toBe(1);
+  Reflect.set(transport, "unknown", true);
+  expect(() => copyArtifactEvent(transport)).toThrow(
+    "synthetic_artifact_schema",
+  );
+  const oversized = {
+    kind: "record" as const,
+    role: "media" as const,
+    sequence: 1,
+    objectIndex: 0,
+    index: 0,
+    length: 65537,
+    ciphertext: new Uint8Array(65537),
+    tag: new Uint8Array(16),
+  };
+  expect(() => copyArtifactEvent(oversized)).toThrow(
+    "synthetic_artifact_frame",
+  );
   const { store, id, text } = await seededV3(10 * 1024 * 1024, true),
     artifact = artifactV3(),
     key = crypto.getRandomValues(new Uint8Array(32));

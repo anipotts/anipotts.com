@@ -615,3 +615,21 @@ production class export or operational RPC. A future production artifact adapter
 must acquire its own handles in the calling DO context; it remains unwired and
 operationally unqualified. This fixture correction still requires the refreshed
 three-case native run and full recovery qualification before acceptance.
+
+The filtered native replay at `17a92707adf6da98d71ab3e2afe314ae96eda5e4`
+(2026-10-19 09:09:04 to 09:09:08 UTC) passed sealing but all three cases failed
+strict initial-event schema validation. Two bounded structural probes recorded
+only profile/type/key labels, not headers or encrypted/plain payloads, in
+`/private/tmp/anipotts-v3-native-structure.log` and
+`/private/tmp/anipotts-v3-native-rpc-keys.log`. They confirmed the native RPC adds
+a non-enumerable `Symbol.dispose` transport capability to returned plain values.
+Temporary probes were restored exactly.
+
+The fixture replay boundary now validates every expected event field, rejects
+unknown keys apart from that exact native transport marker, copies at most one
+64 KiB encrypted frame and 16-byte tag into a plain DTO, and disposes the received
+RPC value in a finally block before yielding. It preserves role, sequence and all
+other format fields. Strict cryptographic/schema validators and media-v1 rules
+are unchanged. This is a transport-resource normalization in the synthetic
+artifact adapter, not permission for arbitrary unknown format fields or a
+qualified production adapter. Refreshed native acceptance remains required.
