@@ -1,5 +1,48 @@
 # Website source preparation
 
+## October 19 later review hold and next foundation drafts
+
+The `613b5711` approval request is superseded. Exact-head CI `39214447042`,
+Security Review `39214446961` and CodeQL `39214419654` pass, but a later
+07:23 UTC review added three findings. #539 is back in draft: the Writing
+recovery gate must use the workspace kit, immediate new-writing navigation
+can cancel a pending encrypted snapshot, and cancellation during synchronous
+test seeding can skip temporary-state cleanup. GitHub's blocked merge state is
+consistent with those unresolved conversations, not evidence that protection
+needs weakening. Isolated workers own the three repairs; this chat remains
+integration owner. Refresh source/browser/hosted checks and exact review before
+admin-only release. The earlier `613b5711` CI proof remains valid historical
+qualification, not approval of a repaired head.
+
+The next foundations are now preserved as same-repository drafts:
+
+- [#540](https://github.com/anipotts/anipotts.com/pull/540),
+  `codex/media-processing-foundation`, head `de4f9fcfc`: full validation passes
+  at `c70cff33`; later changes are documentation and a normal main merge, with
+  runtime equality verified. Admin 2,405 core / 79 Astro / 113 actual editorial
+  workerd / three CSP cases plus one intentional skip pass. The missing importer
+  setup was repaired through an offline frozen install into its own physical
+  dependencies, preserving shared targets. Static review passes nine sensitive
+  paths. Actual provider entitlement/decode/crop/resource qualification and
+  activation remain open.
+- [#541](https://github.com/anipotts/anipotts.com/pull/541),
+  `codex/editorial-recovery-capture`, head `94c1e727`: full validation passes
+  at `2deb4fb0`, including fresh Admin test/type-check cache misses, 2,361 core /
+  79 Astro / 105 editorial workerd / 84 recovery Node / 21 recovery workerd and
+  three CSP cases plus one existing browser-gated skip. The new encrypted codec
+  has 33 focused Node and four actual workerd cases, including bounded file-backed
+  20 MiB transport, tamper/order/EOF, cancellation and final-ack checks. Independent
+  review is clear; source is unchanged after qualification documentation. Actual
+  Turbo helper-only probes reproduce stale test/type-check hashes before the
+  input fix and invalidation afterward, restoring exact helper bytes. Static
+  review passes 28 sensitive paths. Operational admission still rejects, older
+  v2 size limits remain, and content-publication 0003 remains unapplied. Inventory,
+  writer enrollment, format integration, custody/external-copy/restore gates remain.
+
+These drafts activate no provider, collector or backup route. No operational key
+custody, binding, migration, merge or deployment approval is inferred from source
+qualification. Full receipts are in each draft and its maintained contract.
+
 ## October 19 qualified review repairs
 
 #538 is deployed as `795920090` on all six approved targets, without migration.

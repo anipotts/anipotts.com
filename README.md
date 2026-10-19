@@ -30,8 +30,8 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review [#539](https://github.com/anipotts/anipotts.com/pull/539): saved-key unlock and encrypted browser recovery. Expiry, failed key custody and unavailable-storage findings are repaired. Full validation, the maintained browser cases with a focused lifecycle rerun, public browser journeys and static security pass locally. Refreshed hosted checks and Ani’s exact review gate admin-only deployment, without migration.
-- [ ] Finish isolated media and coherent recovery qualification. Native-qualified foundations are preserved separately; provider activation, persisted media provenance and operational backup coverage/custody/restore remain open.
+- [ ] Finish [#539](https://github.com/anipotts/anipotts.com/pull/539): saved-key unlock and encrypted browser recovery. Exact-head CI passes, but a later review found pending-navigation loss, workspace-kit integration and test-seeding cleanup gaps. Repair these before refreshed checks and Ani’s review for admin-only deployment.
+- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
 #538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
