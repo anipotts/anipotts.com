@@ -3,14 +3,20 @@ import { expect } from "e2e";
 
 // Local opt-in only. This goal explores the UI, but the concrete assertion is
 // the pass condition. Use a loopback owner preview with committed seed data.
-test("find a project from its library", async ({ app, agent, screen }) => {
+test("find a project from its library", async ({
+  app,
+  agent,
+  browser,
+  screen,
+}) => {
   await app.open("/content/projects");
 
   await agent.act(
     "From the Projects library, use the visible controls to find the project named chainedchat and open its record. Do not edit, save, publish, or leave this local admin app.",
   );
 
+  await expect(browser).toHaveURL(/\/content\/projects\/chainedchat(?:\?.*)?$/);
   await expect(
-    screen.getByRole("heading", { name: "chainedchat", level: 1 }),
+    screen.getByRole("heading", { name: "Unlock browser recovery", level: 1 }),
   ).toBeVisible();
 });
