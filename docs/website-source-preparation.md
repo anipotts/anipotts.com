@@ -1,5 +1,27 @@
 # Website source preparation
 
+## October 19 quota repair and refreshed candidate
+
+The `b29fb42e` approval request is withdrawn. Its full hosted CI39220395722,
+Security Review39220395857 and zero-finding CodeQL39220352886 pass, but a later
+08:15 UTC review found a quota failure that can retain an unchanged duplicate
+archive after explicit-choice replacement fails. Source `3ba1f6f068d99c848bfa5fbb40973209c6b49d9a`
+reclaims only this attempt's unchanged archive on replacement failure; inaccessible
+or changed bytes are preserved and cleanup cannot mask the original storage error.
+All31 focused native-crypto/storage cases pass, including quota, exact source and
+archive preservation, retry, changed archive and cleanup read/remove failure.
+Combined full/browser checks, canonical preview, refreshed hosted checks and
+current-head review must pass before a new exact approval request. The integration
+owner remains this chat; no new merge/deploy approval is inferred.
+
+Separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542),
+`35a80beced177dba2195b297575f4f2aadcbf718`, removes unused Drizzle CLI tooling on
+main795 without schema/SQL/journal changes. Its isolated frozen install and full
+validation pass all14 workspace tasks; the exact lock audit has zero moderate,
+high or critical findings and one low upstream KaTeX advisory. It selects zero
+runtime targets. That draft and inactive foundations #540/#541 remain excluded
+from this candidate. Source and receipt details are in their same-repository PRs.
+
 ## October 19 combined qualification and CodeQL fixture repair
 
 Frozen `1b04edf453d15beeb057683dedcf483d812ee35a` passes full `pnpm validate`:

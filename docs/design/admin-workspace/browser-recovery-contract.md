@@ -474,3 +474,14 @@ the synthetic seeding fixture identified by CodeQL alert 36. Static programs rea
 separate JSON configuration; 16 focused process cases pass, including unusual
 path/configuration data. Runtime app and harness source are unchanged. Exact-head
 hosted checks, CodeQL clearance and Ani's review remain separate release gates.
+
+## October 19 explicit-choice quota cleanup
+
+Archiving and canonical replacement are separate localStorage writes. If the
+replacement throws, the channel best-effort removes only the archive generated
+by that attempt whose bytes still exactly match the observed source. Changed or
+inaccessible bytes are preserved; cleanup failures never replace the original
+mapped write error. The canonical source remains available and a later retry can
+succeed when capacity permits. All31 focused adapter cases pass, including four
+new quota/cleanup cases. Earlier full/native receipts remain revision-specific;
+combined qualification and exact review of this repair precede admin-only release.
