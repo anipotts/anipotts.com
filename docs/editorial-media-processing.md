@@ -1,13 +1,19 @@
 # Editorial media processing: held source preparation
 
-This describes isolated research commit a15335f5, not routes implemented in the
-current522/524 source candidates or proven deployed on production. Keep the
-prototype isolated: it has no qualified production resource bound. Existing uploads retain
-10 MiB / 16-megapixel admission and existing media stays readable. The default
-browser uploader is unchanged. The processing API is not a production receipt
-or proof that every existing upload can be decoded safely.
+The current source on `codex/media-processing-foundation` is an inactive Images
+adapter, bounded streaming/crop plan and atomic private-media commit primitive.
+Runtime checkpoint `38a9a2709384c63a1f69973fb7f4e5341e6daf12` has focused and
+full-workspace qualification below. No production RPC, route, Images binding or
+provider activation connects this foundation. Existing upload admission remains
+10 MiB/16 MP, browser crop policy and the 10 MiB whole-publication media budget
+remain unchanged. Atomic commit source is implemented; live provenance storage,
+provider behavior and recovery integration are unqualified.
 
-## Owner and mutation boundary
+The older WASM processing API below records isolated research commit `a15335f5`.
+Its routes and smaller processing limits are historical, not active API or
+upload policy. Its evidence remains useful for the resource/activation hold.
+
+## Historical WASM/API owner and mutation boundary
 
 Use the existing exact-owner Cloudflare Access session. The media namespace
 retains its owner middleware. POST requests require the fixed Admin origin,
@@ -50,7 +56,7 @@ Saving, reviewing and publishing the record follow the ordinary editorial
 workflow. The existing native CLI covers record authoring; binary processing
 commands and browser crop integration are not claimed by this API contract.
 
-## Runtime evidence and activation hold
+## Historical WASM runtime evidence and activation hold
 
 A real local workerd probe showed the stock PNG codec's memory alone reaching
 about 146 MB at 16 MP. A worst-case 2 MP prototype exceeded 128 MiB before the
@@ -76,19 +82,19 @@ Preserving 16 MP processing needs a different qualified implementation or an
 approved existing processing service. No billing, binding, CPU setting, feature
 flag or default upload policy change is authorized by this document.
 
-## Recommended replacement, October 18
+## Replacement proposal recorded October 18
 
 Prefer a private Images binding for decoding/normalization, retaining originals
 and immutable derivative/provenance records in the existing stores. This is a
 source proposal, not a configured binding or provider qualification.
 
-The [current binding API](https://developers.cloudflare.com/images/optimization/binding/)
+The [binding API reviewed October 18](https://developers.cloudflare.com/images/optimization/binding/)
 accepts raw streams without making originals public. Its documented input cap is
 20 MB, above current upload admission. Local Vitest/Wrangler emulation supports
 only a subset of transformations, so it cannot qualify production crop behavior.
-The [Images Free plan](https://developers.cloudflare.com/images/pricing/) currently
-allows 5,000 unique monthly transformations and rejects new transformations above
-that cap without overage charges. This account's actual Images entitlement and
+The [Images Free plan](https://developers.cloudflare.com/images/pricing/) reviewed
+on October 18 allowed 5,000 unique monthly transformations and rejected new
+transformations above that cap without overage charges. This account's actual Images entitlement and
 billing mode have not been verified. Do not enable a paid plan or add the binding
 as part of the dependency/admin release.
 
@@ -111,8 +117,9 @@ media should be rewritten, deleted or newly published by activation.
 The source foundation on `codex/media-processing-foundation`, based on
 `18329ff14`, is separate from the historical WASM/API prototype above. It adds
 only an injected Images adapter, stream inspection, pure crop planning and
-in-memory provenance. No production caller, binding, route, storage write,
-migration or feature activation exists. The default uploader and browser crop
+in-memory provenance at this initial checkpoint. The later atomic primitive is
+described below; neither checkpoint adds a production caller, binding, route or
+feature activation. The default uploader and browser crop
 remain unchanged; original admission remains 10 MiB/16 MP, saved images remain
 at most 10 MiB, and the existing whole-publication media budget remains 10 MiB.
 
@@ -168,8 +175,10 @@ so these checks do not establish CPU preemption or charged-resource limits.
 This foundation is parked for a future integration candidate. It is not a
 completed authoring feature and is excluded from the current release. Provider
 setup/entitlement, real Images qualification and activation remain held. No
-custody, backup integration or persisted provenance protocol was added; those
-requirements still need their own reviewed implementation and evidence. No PR,
+custody, backup integration or persisted provenance protocol was added at this
+storage-free checkpoint. The subsequent atomic commit source is qualified below;
+operational wiring and recovery support still need reviewed implementation and
+evidence. No PR,
 provider resource or production activation was created for this checkpoint.
 
 ## Atomic private-media persistence preparation, October 19
@@ -236,3 +245,36 @@ workerd cases for atomic persistence and existing media-store behavior, using
 the shared heavy-slot wrapper with one test worker. The local receipt is
 `/private/tmp/anipotts-media-bounded-snapshot-native.log`. Provider entitlement, actual Images behavior, activation,
 recovery support and custody remain unqualified.
+
+## Full source qualification, October 19
+
+Full `pnpm validate` passed on exact clean head
+`c70cff33f7a3677c0b43d3fd0d612964979d32d5`, using Node 24.19.0. Changes since
+runtime checkpoint `38a9a270` were documentation only. The first attempt stopped
+in `test:public-boundary`: the isolated worktree lacked the content importer's
+`node_modules`, so generated content code could not resolve `zod`. That was a
+qualification setup failure, not a completed validation. Its original receipt
+remains `/private/tmp/anipotts-media-foundation-full-validation.log`.
+
+Only the two verified dependency symlinks were unlinked; their shared targets
+were preserved. `pnpm install --offline --frozen-lockfile --ignore-scripts`
+completed in 5.9 seconds with no source or lockfile changes. Root, Admin and
+content importer dependencies are now physical directories owned by this
+worktree; content's `zod` resolves inside its own root dependency graph. The
+install receipt is `/private/tmp/anipotts-media-foundation-isolated-install.log`.
+
+The single validation retry passed CI invariants, formatting, build (6/6 tasks),
+lint (4/4), typechecking (14/14) and tests (14/14). Turbo reused 5, 3, 13 and 13
+cached tasks respectively. Reported suites include content 206, Admin DOM 2,405,
+Astro 79, Worker 113 and built CSP 3 passed/1 skipped. These counts include cached
+task receipts; they are not a claim that every task executed afresh. The retry
+log spans about 200 seconds and is retained at
+`/private/tmp/anipotts-media-foundation-full-validation-r2.log`.
+`check-build-drift.mjs` passed afterward and the tracked tree remained clean.
+These local logs are not portable CI or deployment receipts.
+
+No separate browser or real-provider qualification, or production operation,
+accompanied this full source check. Images entitlement, real decode/orientation/crop behavior,
+charged resources, cancellation, persisted provenance activation, recovery
+namespace support and custody remain held. Full source validation does not
+establish an operational media-processing feature.
