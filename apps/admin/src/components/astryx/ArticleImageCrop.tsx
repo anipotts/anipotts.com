@@ -174,7 +174,12 @@ export function ArticleImageCrop({
         onChange={setY}
       />
       {error && (
-        <Banner status="error" title="Crop not saved" description={error} />
+        <Banner
+          role="alert"
+          status="error"
+          title="Crop not saved"
+          description={error}
+        />
       )}
       <HStack gap={2}>
         <Button

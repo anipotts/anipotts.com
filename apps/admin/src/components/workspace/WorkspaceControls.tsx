@@ -249,11 +249,17 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
     isLabelHidden,
     status,
     ref,
-    className,
+    controlClassName,
+    controlStyle,
+    containerClassName,
+    containerStyle,
   } = props;
   const help = status?.message || props.description;
   return (
-    <div className={`writing-control-field ${className ?? ""}`}>
+    <div
+      className={`writing-control-field ${containerClassName ?? ""}`}
+      style={containerStyle}
+    >
       <label
         htmlFor={id}
         className={isLabelHidden ? "sr-only" : "writing-control-label"}
@@ -261,6 +267,8 @@ export function TextInput(props: ComponentProps<typeof LegacyInput>) {
         {label}
       </label>
       <Input
+        className={controlClassName}
+        style={controlStyle}
         id={id}
         ref={ref}
         type={props.type}
@@ -317,11 +325,17 @@ export function TextArea(props: ComponentProps<typeof LegacyTextarea>) {
     isLabelHidden,
     status,
     ref,
-    className,
+    controlClassName,
+    controlStyle,
+    containerClassName,
+    containerStyle,
     rows,
   } = props;
   return (
-    <div className="writing-control-field">
+    <div
+      className={`writing-control-field ${containerClassName ?? ""}`}
+      style={containerStyle}
+    >
       <label
         htmlFor={id}
         className={isLabelHidden ? "sr-only" : "writing-control-label"}
@@ -331,7 +345,8 @@ export function TextArea(props: ComponentProps<typeof LegacyTextarea>) {
       <Textarea
         id={id}
         ref={ref}
-        className={className}
+        className={controlClassName}
+        style={controlStyle}
         rows={rows}
         required={props.isRequired}
         onFocus={props.onFocus}
@@ -362,7 +377,7 @@ export function TextArea(props: ComponentProps<typeof LegacyTextarea>) {
 export function Banner(props: ComponentProps<typeof LegacyBanner>) {
   const enabled = useOpenAIUI();
   if (!enabled) return <LegacyBanner {...props} />;
-  return (
+  const alert = (
     <Alert
       color={
         props.status === "error"
@@ -381,6 +396,7 @@ export function Banner(props: ComponentProps<typeof LegacyBanner>) {
       actions={props.endContent}
     />
   );
+  return props.role ? <div role={props.role}>{alert}</div> : alert;
 }
 
 import { ToggleButtonGroup as LegacyToggleGroup } from "@astryxdesign/core/ToggleButton";
@@ -445,13 +461,18 @@ export function Selector(props: ComponentProps<typeof LegacySelector>) {
   );
   const selected = options.find((option) => option.value === props.value);
   return (
-    <div className="writing-control-field">
+    <div
+      className={`writing-control-field ${props.containerClassName ?? ""}`}
+      style={props.containerStyle}
+    >
       <span id={id} className="writing-control-label">
         {props.label}
       </span>
       <Menu>
         <Menu.Trigger disabled={props.isDisabled}>
           <SDKButton
+            className={props.controlClassName}
+            style={props.controlStyle}
             pill={false}
             color="secondary"
             variant="outline"

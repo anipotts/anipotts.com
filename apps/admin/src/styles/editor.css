@@ -147,7 +147,7 @@
 /* Astryx paints the field's frame on its wrapper with atomic classes, so
    the reset carries an id-weight chain to outrank them in every state. */
 .document-title
-  :is(.astryx-textarea, .document-auto-textarea):not(#\#):not(#\#) {
+  :is(.astryx-text-area, .document-auto-textarea):not(#\#):not(#\#) {
   border-color: transparent;
   box-shadow: none;
   outline: none;

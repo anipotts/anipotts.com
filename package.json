@@ -141,7 +141,7 @@
       "@ai-sdk/provider-utils@>=5 <5.0.1": "5.0.1"
     },
     "patchedDependencies": {
-      "@astryxdesign/core@0.4.6": "patches/@astryxdesign__core@0.4.6.patch"
+      "@astryxdesign/core@0.7.1": "patches/@astryxdesign__core@0.7.1.patch"
     }
   },
   "devDependencies": {

@@ -92,6 +92,7 @@ export function SavedArticlePreview({
       {status !== "loading" && status !== "ready" && (
         <VStack gap={2}>
           <Banner
+            role="alert"
             status="error"
             title="Preview unavailable"
             description={failures[status]}

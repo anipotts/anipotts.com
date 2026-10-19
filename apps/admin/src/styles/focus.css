@@ -15,7 +15,7 @@ html[data-astryx-theme] :is(:focus, :focus-visible, :focus-within)::after {
 html[data-astryx-theme]
   :is(
     .astryx-text-input,
-    .astryx-textarea,
+    .astryx-text-area,
     .rich-field-surface,
     .article-composer
   ):not([data-status]):focus-within {

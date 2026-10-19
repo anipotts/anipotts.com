@@ -6,9 +6,11 @@ const projectArtworkPlate = "#ffffff";
 export const editorialTheme = defineTheme({
   name: "editorial",
   extends: neutralTheme,
+  typography: {
+    body: { family: "Instrument Sans Variable", fallbacks: "sans-serif" },
+    heading: { family: "Instrument Sans Variable", fallbacks: "sans-serif" },
+  },
   tokens: {
-    "--font-family-body": '"Instrument Sans Variable", sans-serif',
-    "--font-family-heading": '"Instrument Sans Variable", sans-serif',
     "--color-background-body": ["#f4f5f7", "#090b0e"],
     "--color-background-surface": ["#ffffff", "#111419"],
     "--color-background-card": ["#ffffff", "#111419"],
@@ -56,7 +58,7 @@ export const editorialTheme = defineTheme({
         color: "var(--color-text-primary)",
       },
     },
-    textarea: {
+    "text-area": {
       base: {
         backgroundColor: "var(--color-background-surface)",
         color: "var(--color-text-primary)",

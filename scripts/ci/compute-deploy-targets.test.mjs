@@ -147,6 +147,11 @@ expectTargets(
   { admin: true },
 );
 expectTargets(
+  "aligned Astryx patch deploys only its Admin consumer",
+  ["patches/@astryxdesign__core@0.7.1.patch"],
+  { admin: true },
+);
+expectTargets(
   "tooling ignore files do not select deploy targets",
   [".gitignore", ".prettierignore"],
   {},

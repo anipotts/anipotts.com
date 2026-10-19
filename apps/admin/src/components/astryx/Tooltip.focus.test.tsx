@@ -96,4 +96,37 @@ describe("tooltip focus during native popover dismissal", () => {
     act(() => vi.runOnlyPendingTimers());
     expect(shows).not.toHaveBeenCalled();
   });
+  it("does not let an IME Escape dismiss the queued focus hint", () => {
+    restoreFocus();
+    act(() =>
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          isComposing: true,
+          bubbles: true,
+        }),
+      ),
+    );
+    act(() => vi.runOnlyPendingTimers());
+    expect(shows).toHaveBeenCalledOnce();
+  });
+  it("does not consume Escape while cancelling a pending hint", () => {
+    restoreFocus();
+    const observer = vi.fn();
+    document.addEventListener("keydown", observer);
+    try {
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => document.dispatchEvent(event));
+      expect(observer).toHaveBeenCalledExactlyOnceWith(event);
+      expect(event.defaultPrevented).toBe(false);
+      act(() => vi.runOnlyPendingTimers());
+      expect(shows).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener("keydown", observer);
+    }
+  });
 });

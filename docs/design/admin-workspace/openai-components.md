@@ -115,3 +115,38 @@ must find no catalog sentinel or development domain key in production bundles.
 
 Record concrete commands, results, screenshots and remaining limitations in
 the implementation PR. A build alone does not prove the rendered workflow.
+
+## aligned Astryx family migration candidate, October 19, 2026
+
+The isolated source candidate aligns Core and Neutral at 0.7.1 with the existing
+CLI 0.7.1. This is a family migration requiring its own exact-head review and
+rendered acceptance. It is not a theme-only dependency bump or a production
+rollout. The normal theme wrapper and adaptation compatibility guard remain.
+
+The version-specific `patches/@astryxdesign__core@0.7.1.patch` rebases the existing
+zero-delay touching hover surfaces, deferred focus tooltip, live ARIA-id merge
+and mounted relationship guards in source, distribution JS and declarations.
+The original 0.4.6 patch remains unchanged for rollback. Core's newer overlay
+stack, touch behavior, adaptive selector and stable layer refs remain upstream
+owned. A queued tooltip cancels on non-IME Escape without consuming the press
+intended for the actual topmost layer.
+
+Shared field adapters use canonical control/container styling slots in both UI
+modes. Handwritten textarea/table theme selectors use canonical target names.
+Explicit roles preserve actionable error and recovery announcements; a Banner's
+color alone no longer requests an announcement. Existing phone sheets retain
+their own inset through `padding={0}` on BottomSheet.
+
+Instrument Sans is authored through the typography axes so the inherited touch
+adaptation cannot replace it with Figtree. Compiled coarse-pointer typography
+below 1024px retains the 16px body base and pinned display scale. The SDK bridge
+also sets a scoped, zero-specificity editable-text floor on coarse pointers,
+including wider touch layouts, while larger authored document type wins.
+Fonts continue to load only through the existing optional-display font contract.
+
+Focused source, compiler, DOM and release-policy checks qualify only those
+boundaries. Owner qualification still needs the full relevant validation and
+actual desktop/phone browser journeys, with light/dark appearances, input font
+sizes, wrapping/autosize, sheets, menu hover travel, focus return and layer
+relationships. No new provider, access, content or publication behavior is part
+of the migration.

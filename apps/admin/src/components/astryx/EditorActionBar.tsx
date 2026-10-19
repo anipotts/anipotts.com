@@ -305,6 +305,7 @@ export function EditorActionBar({
       )}
       {compact && sections.length > 0 && (
         <BottomSheet
+          padding={0}
           label="More actions"
           isOpen={sheet}
           onOpenChange={setSheet}

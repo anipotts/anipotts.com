@@ -1157,6 +1157,7 @@ function HomeEditorImpl({
     return (
       <VStack gap={3}>
         <Banner
+          role="alert"
           status="warning"
           title="Session ended. Sign in again to resume your saved draft."
         />
@@ -2091,6 +2092,7 @@ function HomeEditorImpl({
       {bar}
       {confirmingUnpublish && unpublishAvailable && (
         <Banner
+          role="alert"
           status="warning"
           title={`Unpublish this ${record.kind === "work" ? "project" : "piece"}?`}
           endContent={
@@ -2227,6 +2229,7 @@ function HomeEditorImpl({
           )}
           {recoveredAwaitingSave && (
             <Banner
+              role="status"
               status="info"
               title="Recovered edits are ready to review"
               endContent={
@@ -2247,6 +2250,7 @@ function HomeEditorImpl({
           {needsSaveComparison ? (
             <VStack gap={2}>
               <Banner
+                role="alert"
                 status="warning"
                 title={
                   savedDraftMissing
@@ -2400,6 +2404,7 @@ function HomeEditorImpl({
             <VStack gap={2}>
               {state.conflict && (
                 <Banner
+                  role="alert"
                   status="warning"
                   title={
                     comparedDraft
@@ -2693,6 +2698,7 @@ function HomeEditorImpl({
                   parseable &&
                   (homepageWritingSlugs === null ? (
                     <Banner
+                      role="alert"
                       status="warning"
                       title="Homepage article selection needs repair"
                       endContent={
@@ -2863,6 +2869,7 @@ function HomeEditorImpl({
           )}
           {!valid && (
             <Banner
+              role="alert"
               status="warning"
               title={
                 parseable
@@ -2898,6 +2905,7 @@ function HomeEditorImpl({
           >
             {panel === "properties" && !parseable && (
               <Banner
+                role="alert"
                 status="warning"
                 title="Properties need valid source"
                 endContent={
@@ -3127,6 +3135,7 @@ function HomeEditorImpl({
                   />
                 ) : (
                   <Banner
+                    role="alert"
                     status="warning"
                     title="Publication was not started"
                     description={error}
@@ -3148,6 +3157,7 @@ function HomeEditorImpl({
               />
               {reviewedDraft && !reviewCurrent && (
                 <Banner
+                  role="alert"
                   status="warning"
                   title="This review is out of date"
                   endContent={

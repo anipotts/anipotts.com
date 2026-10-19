@@ -189,7 +189,10 @@ export const PATH_RULES = Object.freeze(
       /^\.codex\/environments\/environment\.toml$/,
     ),
     safe("safe.ignore-files", /^\.(?:gitignore|prettierignore)$/),
-    safe("safe.astryx-patch", /^patches\/@astryxdesign__core@0\.4\.6\.patch$/),
+    safe(
+      "safe.astryx-patch",
+      /^patches\/@astryxdesign__core@0\.(?:4\.6|7\.1)\.patch$/,
+    ),
     safe("safe.coderabbit", /^\.coderabbit\.yaml$/),
     safe("safe.e2e-configs", /^e2e\.(?:admin|www)\.config\.ts$/),
     safe("safe.knip", /^knip\.jsonc$/),
@@ -267,7 +270,7 @@ export const PATH_RULES = Object.freeze(
     ciPolicy("ci.ignore-files", /^\.(?:gitignore|prettierignore)$/),
     ciPolicy(
       "ci.astryx-patch",
-      /^patches\/@astryxdesign__core@0\.4\.6\.patch$/,
+      /^patches\/@astryxdesign__core@0\.(?:4\.6|7\.1)\.patch$/,
     ),
     ciPolicy("ci.publisher-pem", /^\.github\/editorial-publisher\.pem$/),
     ciPolicy("ci.coderabbit", /^\.coderabbit\.yaml$/),
@@ -368,7 +371,12 @@ export const PATH_RULES = Object.freeze(
     target("target.brand", { prefix: "packages/brand/" }, "www", "admin"),
     target(
       "target.astryx-patch",
-      { exact: ["patches/@astryxdesign__core@0.4.6.patch"] },
+      {
+        exact: [
+          "patches/@astryxdesign__core@0.4.6.patch",
+          "patches/@astryxdesign__core@0.7.1.patch",
+        ],
+      },
       "admin",
     ),
     target("target.admin-app", { prefix: "apps/admin/" }, "admin"),
