@@ -90,3 +90,105 @@ buckets are not covered by this adapter. The encrypted operational backup,
 one-hour loss target and one-working-day recovery drill from Quiet Precision
 remain unproven until separately authorized, protected integrations and an actual
 isolated operational drill exist. No live private export was used for this proof.
+
+## Proposed browser key and unlock design
+
+This is a recommendation, not an implemented or approved encryption claim.
+Source review on 2026-10-18 used integration revision
+`7fcce8d975ce4a1f6045b6f4905539dcd818a7ca`. The approved
+[Quiet Precision contract](quiet-precision-delivery.md) requires encrypted pending
+input after expiry and owner unlock. Current browser storage does not meet that
+requirement. The supplied-snapshot helpers above do not provide browser keys.
+
+Current ownership points:
+
+- `apps/admin/src/lib/browser-recovery.ts`: plaintext v1 reader, v2 envelopes,
+  exact opaque exports, acknowledgment tombstones, bounded conflict archives and
+  compare-and-swap under record and lifecycle Web Locks.
+- `apps/admin/src/lib/draft-recovery.ts`: server-owner-scoped identities,
+  logout intent/generation and exclusive cleanup of current recovery namespaces.
+- `apps/admin/src/lib/protected-admin-json.ts` and
+  `apps/admin/src/layouts/AdminDocument.astro`: protected document admission,
+  cross-tab invalidation, response fencing and pagehide/BFCache locking.
+- `apps/admin/src/components/astryx/HomeEditor.tsx` and `NewWriting.tsx`: expiry
+  attempts a final local recovery write, clears editor memory and requires a real
+  authenticated navigation. Explicit logout does not retain those edits.
+- `apps/admin/src/components/astryx/BrowserRecoveryNotice.tsx`: current downloads
+  contain plaintext current edits as well as exact stored strings.
+
+Recommend one random 256-bit browser-recovery key, separate from operational
+snapshot keys, supplied through a small versioned local key file. Setup generates
+the key in the authenticated document, offers a deliberate key download, then
+requires re-import and a successful encryption/decryption challenge before
+enabling encrypted recovery. Download initiation alone does not prove custody.
+The application does not select a permanent destination or write a secret store.
+The owner keeps this file separately from encrypted recovery exports. Its loss
+can make unsaved recovery irretrievable; possessing it and a copy of ciphertext
+allows decryption outside Admin. Access remains the only application sign-in.
+
+After authenticated owner entry, unlock imports the supplied key as a
+non-extractable Web Crypto key held only in this document's module memory.
+In-app navigation can retain it; reload, expiry, pagehide and explicit logout
+require another import. No key in localStorage, sessionStorage, IndexedDB,
+cookies, URLs, logs, broadcasts or provider bindings. Another tab unlocks
+independently. A nonsecret key ID locates the correct key without revealing its
+bytes. Do not derive encryption material from Access assertions, CSRF tokens,
+owner email or a browser identifier.
+
+Add a separate version-three namespace. Encrypt each complete recovery payload,
+including pending retry identity, saved baseline and retained legacy raw strings,
+with AES-256-GCM, a fresh random 96-bit nonce and a 128-bit tag. Authenticate a
+canonical header containing format/version, key ID, origin, server-issued owner
+scope, record kind/ID and logout generation. Validate the decrypted payload with
+the existing validators before offering it for comparison. Random-key import,
+non-extractable handles and AES-GCM are covered by the
+[Web Crypto recommendation](https://www.w3.org/TR/2017/REC-WebCryptoAPI-20170126/).
+This limits persisted plaintext; it cannot protect an unlocked document from
+same-origin script compromise or guarantee JavaScript memory zeroization.
+
+Keep lifecycle admission, record locking and exact-byte compare-and-swap across
+asynchronous encryption. Recheck document/key epochs, logout generation and old
+stored bytes before committing and after any await. Expiry stops network work
+and new edits immediately, drains already captured local encryption within a
+bounded interval, then drops key references and plaintext. Persist continuously
+while unlocked; pagehide cannot guarantee completion of a last asynchronous
+write. Failure must report the missing recovery guarantee rather than fall back
+to a plaintext write. Never hold a key open indefinitely for a failed flush.
+Explicit logout retains its current deletion meaning: extend cleanup to v3 and
+preserve its exclusive barrier, intent latch and failure reporting. Retaining
+encrypted copies after explicit logout would be a separate product decision.
+
+Migration is additive and explicit. Reading v1/v2, corrupt or unknown entries
+never rewrites them. First encrypt exact legacy strings into a separate v3 copy,
+read it back, decrypt and compare exact bytes. Keep existing tombstone semantics
+so acknowledged older edits do not resurrect. Existing plaintext remains until
+the owner deliberately chooses migration cleanup after this proof; old tabs can
+still create plaintext, so disclose remaining legacy entries and require those
+tabs to reload. Do not call the origin fully encrypted while such copies remain.
+Changed predecessor bytes are a comparison conflict, not permission to erase or
+adopt another tab's version. Storage/quota failure preserves every predecessor.
+
+Missing/wrong keys and unsupported or damaged ciphertext leave exact bytes
+untouched and downloadable. Do not replace the key or vault automatically.
+Offer server-saved work separately; it does not reconstruct unsaved local input.
+Starting a new key creates a separate vault identity and preserves stranded
+copies. Normal recovery downloads contain ciphertext and no key; protect any
+current in-memory edits before adding them to that download. Until unlock is
+available, any explicit plaintext emergency export must be clearly identified
+as plaintext and cannot be described as an encrypted recovery download.
+
+Ani's product choice is whether manual key custody and re-import after each real
+document load/expiry are acceptable for normal authoring. Recommend this bounded
+first version over a remembered device key: a key persisted alongside ciphertext
+does not provide the intended locked-storage separation. If the friction is
+unacceptable, stop activation and design an approved custody mechanism; do not
+silently restore a persistent browser key or add another authentication method.
+Envelope versioning, exact migration checks and race fencing are routine
+implementation choices once that custody tradeoff is accepted.
+
+Acceptance still requires real desktop and phone browser checks for key custody,
+reload/expiry unlock, wrong/lost keys, quota denial, legacy and mixed-version tab
+conflicts, interrupted encryption, logout during an absent-key write, BFCache and
+encrypted export/import with exact source and retry identity. Synthetic fixtures
+must cover header/nonce/tag tampering and no plaintext in new stored/exported
+bytes. No browser, runtime or provider change was made for this recommendation.
