@@ -1,26 +1,46 @@
 # Website source preparation
 
-## October 19 review repair and isolated foundation qualification
+## October 19 qualified review repairs
 
-#538 is fully deployed as795920090 on all six targets, no migration; receipts
-below remain current. #539 is back in draft. No exact merge/admin-deploy approval
-has been requested for its later source. Three hosted review findings are valid:
-contested expiry input was retained only in memory, failed key-custody challenges
-could retain an imported handle, and storage-admission errors could reject write
-promises outside the recovery warning path. Line-outdated review markers do not
-mean those semantic findings were fixed. Adapter preservation/acknowledgment and
-storage mapping are under focused qualification. Session fixes2ea1ea36/da075297
-pass14 focused cases with native key import/crypto; expiry also revokes a pending
-setup immediately, and old failures cannot revoke a newer successful unlock.
+#538 is deployed as `795920090` on all six approved targets, without migration.
+No Production deploy runs were waiting when rechecked at this checkpoint.
+#539's later candidate has no merge or admin-deploy approval.
 
-HostedCI39211183263 passed affected app checks and84/84 CMS route proof, then
-failed before public browser startup with EADDRINUSE. Its log does not identify
-the occupied socket/PID. Source inspection shows an ephemeral port is released
-before several seconds of seeding. Fix14206fcc uses one shared test-owned18123
-HTTP port (validated override), an OS-assigned inspector, refusal to reuse a
-foreign listener and child-close-aware cleanup. Six focused real runner/process
-fixtures pass. This is a concrete harness repair, not a claim about the exact
-unobserved occupying process. Full/native/current-head hosted checks must refresh.
+All three confirmed hosted findings are repaired. Source `79865b9c` persists
+contested expiry input separately, carries exact authenticated capture
+acknowledgments through choices and tombstones, and maps storage exceptions to
+recovery problems. Session fixes `2ea1ea36` / `da075297` revoke failed challenges
+and interrupted setup without revoking a newer successful unlock. Independent
+source review found no remaining blocker in these scoped fixes. Focused adapter
+checks pass 157 cases; session/unlock checks pass 14.
+
+Full `pnpm validate` passes at `7f11a40d`: all 14 workspace tasks, including
+2,428 Admin core, 79 Astro, 98 actual editorial workerd and three CSP cases with
+one intentional skip. The full local Admin browser run exercised 40 cases:
+39 passed and one desktop assertion still expected superseded warning text.
+Its failure screen showed the correct notice. Test-only `357ede55` corrects that
+assertion; all four affected Chromium/WebKit lifecycle cases pass on rerun.
+Application source is unchanged from full validation. All 40 maintained cases
+therefore have passing coverage with that focused rerun; this is not a claim of
+a separate clean 40-case run at the later test head.
+
+The public browser suite passes 13 cases with one intentional desktop skip at
+`357ede55`. The initial hosted CI `39211183263` had passed application checks and
+84/84 CMS route proof before EADDRINUSE at browser startup. Its log identifies
+no occupying socket or PID. Harness fix `14206fcc` uses one shared test-owned
+18123 HTTP port, a validated override, an OS-assigned inspector, refusal to reuse
+foreign listeners and child-close-aware cleanup. Six real runner/process fixtures
+and the actual two-engine public suite pass. Final cleanup finds no task listener
+on 8873 or 18123. Static review passes all 13 affected sensitive files; validation
+preserves tracked source. The older failed logs are retained.
+
+Logs are `/private/tmp/anipotts-recovery-review-fixes-validation-final.log`,
+`/private/tmp/anipotts-recovery-review-fixes-admin-browser.log`,
+`/private/tmp/anipotts-recovery-review-fixes-lifecycle-final.log` and
+`/private/tmp/anipotts-recovery-review-fixes-public-browser.log`.
+Refreshed exact-head hosted checks, current canonical preview and Ani's review
+remain release gates. The target is admin only, schema 0044, no migration.
+Physical-device key custody and authenticated live owner writes remain separate.
 
 The next foundations remain isolated and inactive:
 

@@ -229,18 +229,18 @@
         "code": {
           "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
           "by": "Ani",
-          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed \u201cgo ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too\u201d on October 18, 2026.",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed “go ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too” on October 18, 2026.",
           "at": "2026-10-18T21:46:27.064Z"
         },
         "production": {
           "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
           "by": "Ani",
-          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed \u201cgo ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too\u201d on October 18, 2026.",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed “go ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too” on October 18, 2026.",
           "at": "2026-10-18T21:46:27.064Z"
         }
       },
       "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
-      "note": "Ani approved #530 for merge and affected-target deployment. Exact-head protected checks passed; reviewed and merged trees are identical. www and admin deployed; four retained workers skipped; no migration. Visual acceptance remains Ani\u2019s review.",
+      "note": "Ani approved #530 for merge and affected-target deployment. Exact-head protected checks passed; reviewed and merged trees are identical. www and admin deployed; four retained workers skipped; no migration. Visual acceptance remains Ani’s review.",
       "updatedAt": "2026-10-18T21:46:27.064Z",
       "release": {
         "revision": "93f8c087ef262a20674572b3b2ee86e4ad402f82",
@@ -360,12 +360,12 @@
       "id": "browser-recovery-key-file-oct19",
       "title": "Local key-file unlock and encrypted browser recovery",
       "revision": null,
-      "sourceRevision": "d0f31d094d9ad9a8dc89cffda2e6f32bc1180a00",
+      "sourceRevision": "357ede55c140ad0acc2e0938061b5d56b4354d74",
       "lane": "code",
-      "state": "implementing",
+      "state": "locally-integrated",
       "approvals": {},
-      "note": "PR539 back in draft after three confirmed hosted review findings (contested expiry loss, failed custody handle, storage admission rejection) and CI39211183263 public-server EADDRINUSE after app/84route proof passed. Session fixes2ea1/da075 pass14 focused cases; adapter capture/ack/storage repair under qualification. CI14206 shares safe owned server;6 process/config cases pass. Earlier d0full/38browser receipts remain historical only. Final checks/canonical update/exact Ani review still gate admin-only/no-migration release.",
-      "updatedAt": "2026-10-19T06:58:06.585283+00:00"
+      "note": "PR539 review fixes qualified locally. Full validation7f11:2428core/79Astro/98workerd/3CSP+skip; full native39of40 then test-only357ede fixes old notice assertion and affected4of4pass. Public13pass+skip; static13sensitivepass, clean drift/listeners. Exact hosted checks/canonical update and Ani review still gate admin-only/no-migration release. No merge/deploy approval.",
+      "updatedAt": "2026-10-19T07:10:51.096615+00:00"
     }
   ]
 }
