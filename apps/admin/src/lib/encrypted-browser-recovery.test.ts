@@ -126,6 +126,128 @@ it("refuses stale CAS writes, preserves both candidates and archives the exact d
   expect(localStorage.getItem(archive!)).toBe(original);
   session.lock();
 });
+it("retains each just-displaced ciphertext when new archive UUIDs sort first, with bounded choices and exact export", async () => {
+  const { channel, session } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.writeDurable(payload);
+  for (let index = 0; index < 3; index++) {
+    const archive = `${current.key}:archive:ffffffff-ffff-4fff-8fff-${String(index).padStart(12, "0")}`;
+    localStorage.setItem(archive, localStorage.getItem(current.key)!);
+    await current.writeDurable({
+      ...payload,
+      source: `earlier choice ${index}`,
+    });
+  }
+  const foreign = `${current.key.replace(session.snapshot().keyId!, "f".repeat(64))}:archive:ffffffff-ffff-4fff-8fff-999999999999`;
+  localStorage.setItem(foreign, "opaque foreign-key archive");
+  // Both bundle ids and archive ids stay unique, while each next archive sorts
+  // before every existing one. This does not rely on UUID call counts.
+  let uuid = 900_000_000_000;
+  vi.spyOn(crypto, "randomUUID").mockImplementation(
+    () => `00000000-0000-4000-8000-${uuid--}`,
+  );
+  const archives = () =>
+    Object.keys(localStorage).filter((name) =>
+      name.startsWith(`${current.key}:archive:`),
+    );
+  for (let index = 0; index < 5; index++) {
+    const before = archives();
+    expect(before).toHaveLength(3);
+    const displaced = localStorage.getItem(current.key)!;
+    const chosen = { ...payload, source: `chosen exact 雨 ${index}\r\n` };
+    expect(await current.choose(chosen)).toBeNull();
+    const after = archives();
+    const added = after.filter((name) => !before.includes(name));
+    expect(after).toHaveLength(3);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toBe([...after].sort()[0]);
+    expect(localStorage.getItem(added[0]!)).toBe(displaced);
+    expect(localStorage.getItem(foreign)).toBe("opaque foreign-key archive");
+    expect(await channel().read()).toEqual({ status: "ready", value: chosen });
+    const exported = JSON.parse(
+      await decryptRecoveryBundle(
+        session.vault,
+        await current.export(chosen),
+        current.context,
+      ),
+    );
+    expect(exported.entries).toEqual({ ...localStorage });
+    expect(exported.entries[added[0]!]).toBe(displaced);
+    expect(exported.currentCopy.payload).toEqual(chosen);
+  }
+  session.lock();
+});
+it("reports unavailable without Web Locks while keeping the valid key and encrypted safety export usable", async () => {
+  const { session } = await fixture();
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: undefined,
+  });
+  const current = new EncryptedBrowserRecovery(
+    localStorage,
+    key,
+    "draft",
+    validateRecovery,
+    session,
+  );
+  expect(await current.read()).toEqual({ status: "unavailable" });
+  expect(await current.write(payload)).toBe("unavailable");
+  expect(await current.writeDurable(payload)).toBe("unavailable");
+  expect(await current.choose(payload)).toBe("unavailable");
+  expect(await current.write(null)).toBe("unavailable");
+  expect(session.snapshot().status).toBe("unlocked");
+  expect(
+    JSON.parse(
+      await decryptRecoveryBundle(
+        session.vault,
+        await current.export(payload),
+        current.context,
+      ),
+    ).currentCopy.payload,
+  ).toEqual(payload);
+  expect(await expireIntoCapture(session, current, payload)).toBe(
+    "unavailable",
+  );
+  expect(session.snapshot().status).toBe("locked");
+  expect(Object.keys(localStorage)).toEqual([]);
+});
+it.each(["closed", "locked", "reimported"] as const)(
+  "does not mask a %s channel as missing Web Locks",
+  async (state) => {
+    const { session, file } = await fixture();
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: undefined,
+    });
+    const current = new EncryptedBrowserRecovery(
+      localStorage,
+      key,
+      "draft",
+      validateRecovery,
+      session,
+    );
+    expect(await current.read()).toEqual({ status: "unavailable" });
+    if (state === "closed") current.close();
+    else {
+      session.lock();
+      if (state === "reimported")
+        await session.unlock(file, "synthetic@example.test");
+    }
+    expect(await current.read()).toEqual({ status: "signed-out" });
+    expect(await current.write(payload)).toBe("signed-out");
+    expect(await current.writeDurable(payload)).toBe("signed-out");
+    expect(await current.choose(payload)).toBe("signed-out");
+    expect(await current.write(null)).toBe("signed-out");
+    expect(await current.sealFinal(payload)).toBe("signed-out");
+    if (state === "reimported")
+      expect(await expireIntoCapture(session, current, payload)).toBe(
+        "signed-out",
+      );
+    expect(Object.keys(localStorage)).toEqual([]);
+    session.lock();
+  },
+);
 it("reclaims a failed choice archive under quota and retries without losing the exact source or other archives", async () => {
   const { channel, session } = await fixture();
   const current = channel();

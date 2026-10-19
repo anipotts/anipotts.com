@@ -379,9 +379,12 @@ export class EncryptedBrowserRecovery<T> {
   }
   async #read(): Promise<RecoveryRead<T>> {
     try {
-      this.#state = this.#lock
-        ? await this.#lock(() => this.#load())
-        : { status: "unavailable" };
+      this.#state =
+        this.#closed || !this.#valid()
+          ? { status: "signed-out" }
+          : this.#lock
+            ? await this.#lock(() => this.#load())
+            : { status: "unavailable" };
     } catch (error) {
       this.#state = { status: issue(error) };
     }
@@ -518,8 +521,8 @@ export class EncryptedBrowserRecovery<T> {
     final,
   }: PendingRecoveryWrite): Promise<RecoveryProblem | null> {
     try {
-      if ((!final && this.#closed) || !this.#valid(final) || !this.#lock)
-        return "signed-out";
+      if ((!final && this.#closed) || !this.#valid(final)) return "signed-out";
+      if (!this.#lock) return "unavailable";
       if (
         !final &&
         (!this.#observed ||
@@ -617,7 +620,11 @@ export class EncryptedBrowserRecovery<T> {
         const archives = Object.keys(this.storage)
           .filter((key) => key.startsWith(`${this.key}:archive:`))
           .sort();
-        for (const key of archives.slice(0, Math.max(0, archives.length - 3)))
+        // UUID ordering does not indicate age. Always retain the exact copy
+        // displaced by this choice, even when its new UUID sorts first.
+        for (const key of archives
+          .filter((key) => key !== archive)
+          .slice(0, Math.max(0, archives.length - 3)))
           this.storage.removeItem(key);
         return null;
       });
