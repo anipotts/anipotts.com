@@ -305,7 +305,6 @@ async function existingImage(
   }
   if (!metadataEqual(metadata, media) || chunks.size !== count)
     return fail("stored_media_corrupt");
-  const digest = createHash("sha256");
   for (let index = 0; index < count; index++) {
     const chunk = chunks.get(`${key}:${index}`);
     const offset = index * EDITORIAL_MEDIA_CHUNK_BYTES;
@@ -315,14 +314,11 @@ async function existingImage(
         Math.min(EDITORIAL_MEDIA_CHUNK_BYTES, media.size - offset)
     )
       return fail("stored_media_corrupt");
-    digest.update(chunk);
     // Reject conflicting values even without relying solely on hash collision resistance.
     for (let byte = 0; byte < chunk.length; byte++)
       if (chunk[byte] !== expectedBytes[offset + byte])
         return fail("stored_media_corrupt");
   }
-  if (`${digest.digest("hex")}.${media.id.split(".")[1]}` !== media.id)
-    return fail("stored_media_corrupt");
   return true;
 }
 
