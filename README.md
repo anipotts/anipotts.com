@@ -29,7 +29,7 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review the next consolidated dependency/admin usability batch after exact-head checks: native scrolling, continuous loading and writing source/demo controls.
+- [ ] Review the next consolidated dependency/admin usability batch with passing local checks: native scrolling, continuous loading, writing source/demo controls, hydration and mobile menu repairs. Hosted checks and exact review remain release gates.
 - [ ] Finish isolated media and coherent recovery qualification; retain the current upload limits and production storage until the required evidence and activation approvals exist.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
