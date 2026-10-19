@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { withRecoveryWriter } from "@anipotts/content/editorial/recovery-fence";
 import {
   getDirectReceipt,
   getPublished,
@@ -1065,16 +1066,34 @@ export class DirectPublisher {
         this.settle(claim, { blocked: "publication_image_corrupt" });
         return;
       }
-      await this.dependencies.media.put(id, media.bytes, {
-        sha256: hash(media.bytes),
-        httpMetadata: { contentType: media.metadata.type },
-      });
-      const copied = await this.dependencies.media.get(id);
-      if (
-        !copied ||
-        copied.size !== media.bytes.length ||
-        hash(new Uint8Array(await copied.arrayBuffer())) !== hash(media.bytes)
-      ) {
+      try {
+        await withRecoveryWriter(
+          this.dependencies.db,
+          "published-media",
+          async () => {
+            await this.dependencies.media!.put(id, media.bytes, {
+              sha256: hash(media.bytes),
+              httpMetadata: { contentType: media.metadata.type },
+            });
+            const copied = await this.dependencies.media!.get(id);
+            if (
+              !copied ||
+              copied.size !== media.bytes.length ||
+              hash(new Uint8Array(await copied.arrayBuffer())) !==
+                hash(media.bytes)
+            ) {
+              throw new Error("publication_image_copy_failed");
+            }
+          },
+        );
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          error.message !== "publication_image_copy_failed"
+        )
+          throw error;
+        // Preserve the existing operator diagnostic while keeping ambiguous
+        // external admission durable for recovery's separate reconciliation.
         this.settle(claim, { blocked: "publication_image_copy_failed" });
         return;
       }

@@ -1,0 +1,38 @@
+{
+  "editorial": {
+    "direct_publication_due": "69007115121ecbdbfa09de587a1f004d9c6bc4bd6a1b06e356f809b8174e1197",
+    "direct_publication_record": "36decf054ae5cee79877e041e904114f467e6e0ce6bfbd667e993b666d6681b8",
+    "save_requests_key": "f8781b84e81aece420e19a7231b5aeb0f8fa7211d65a0b847d68cc6a32a290f0",
+    "conflicts": "d88e879b999b74b7135ef8e8430c2ca502c4dfd95c0aa2e7eb86b4464856fe7d",
+    "direct_publication_diagnostics": "c56fffaca9ff7e0da558c02311c3de826de2debfee467c68a0abc441620a89c3",
+    "direct_publication_intents": "c134a4ae4eb56590c55ba0aec4787fad4370a8121225803768f99be006ed5bd9",
+    "direct_published_bases": "91fe1a233bc96dd52deaa12d3f2180bb90fa131fbdf220e8597fb2841d4047b2",
+    "drafts": "a9fa89cef8a9e12b672ba9e6cc3ec5f1674823ef820bdaea582264a2a617be10",
+    "editorial_recovery_control": "0ca8b48f84f2852bdd8430944166aa05e7f8b4b4e526b8ca1dbc9d615cbbec56",
+    "editorial_recovery_writers": "faf2da92f1a35c7f69379afd9dc1f675b7459ac2ee190bd5cef8970336239283",
+    "revisions": "d9b3e9e573cd05255e255b206dacbad015ca138de592838f74194e39283d1adc",
+    "save_request_identities": "9a2f434291f930a3426a4ab8f38e00232e0996575dc37cb8dc5f67ce46d74c55",
+    "save_requests": "10ca9292ee772db00fee9d5fd1d5d55f257c024122a3b00507411962036551bb",
+    "direct_publication_intents_immutable": "5c6910f576797b377327ed4e6f8049db0b05b97ca5d45626809e0ce0d1a83da3",
+    "editorial_revisions_retained": "f65a7ecb8e8531c6718e087653aceb6b9754099d1555060238cd7d813081dfca"
+  },
+  "content": {
+    "editorial_published_record_history": "f000b5f055bb159590cad32e308542fd66c307aff4d33b676a29871d1bd047b0",
+    "editorial_published_active": "8e3329f6f46af35fbad2784244a7683a54bf8f172c6fe87b71a19a16e153e48b",
+    "editorial_published_inventory": "ac0af7c93897b1492e24ece006ce25fcd23d54a4b82dc84c9ab68fb05b743005",
+    "editorial_published_revisions": "147b4badf8ca214ead7c6c344dedc082b7031de8b825e49cf9429593144b0de1",
+    "editorial_recovery_control": "2b5b11cd68942d1aa624e0ce5cc2a9a60a4e28735893a8b1d094a10bf5903c46",
+    "editorial_recovery_writers": "053c42c0ca187a55e3f5b0b9260208acf7c28378799c4fa33ed72d7dce92c5ab",
+    "editorial_published_active_recovery_delete": "5177a02d7dcff9470433d90fa9a8b2219d7fedb8e3c35f4b54454bf7dead97a0",
+    "editorial_published_active_recovery_insert": "aa8c05a05b8e7867710461532d9e8269c9444791206538d61e8f148a2a94737e",
+    "editorial_published_active_recovery_update": "f1749ee18a48fe7520e6b2db7a29dff9205133ac7a3dd9bc00c857441dea5146",
+    "editorial_published_inventory_recovery_delete": "55904d7190a1f5f5bb1ea499e084755a4268e7227ba8fcf042e57aefc9f76c5f",
+    "editorial_published_inventory_recovery_insert": "37dce0a6f21ab869c10d1eebeb1f3e96d4368a24a11bff75827f4bbc93fe345f",
+    "editorial_published_inventory_recovery_update": "2e68676d26f960b83b32d5427af5b55bd1a722705fb869bce1283f6fa4016f4c",
+    "editorial_published_revisions_no_delete": "a6e6c82890f2a9bf717fce3be44d3551d85079d03f032e7bb830b702fa73a3a3",
+    "editorial_published_revisions_no_update": "cb68113d14dfa7424740956e98ddcbc51d43c77d68ebb6858caebb7b93274c2b",
+    "editorial_published_revisions_recovery_delete": "6a0f11df006e12e9e3ebb763ca1db081e0dc7ae7dba3111f11aa9b4ad94965de",
+    "editorial_published_revisions_recovery_insert": "80bbac22870429c028f3395b6543340baf4a0402a7d176cae0fe0e0a9356f99a",
+    "editorial_published_revisions_recovery_update": "d37531ab9f9a04c403fdc3b5a6fb28aeea68e056667482bc89c9a69d57dcdc40"
+  }
+}
