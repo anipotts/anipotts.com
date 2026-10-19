@@ -471,3 +471,21 @@ conflicts, interrupted encryption, logout during an absent-key write, BFCache an
 encrypted export/import with exact source and retry identity. Synthetic fixtures
 must cover header/nonce/tag tampering and no plaintext in new stored/exported
 bytes. No browser, runtime or provider change was made for this recommendation.
+
+## External recovery inputs and verification caching
+
+Admin test and editorial type-check tasks now include the external
+`scripts/admin/**` helpers in their Turbo inputs. The explicit Admin type-check
+inputs also include its editorial tests, test configurations and TypeScript
+configurations. Runtime source is unchanged from the full-qualified `6f2b9118`.
+
+Actual Turbo dry runs reproduced the earlier gap: changing only the encrypted
+helper left the test hash unchanged, and changing only its declaration left the
+type-check hash unchanged. After this correction each helper is present in the
+resolved input map and its isolated edit changes the corresponding task hash.
+Every disposable probe restored exact original bytes in a finally block. Receipts:
+`/private/tmp/anipotts-recovery-cache-before.json`,
+`/private/tmp/anipotts-recovery-cache-after.json`,
+`/private/tmp/anipotts-recovery-type-cache-before.json` and
+`/private/tmp/anipotts-recovery-type-cache-after.json`. A fresh current-tree
+validation follows this configuration correction before the draft handoff.

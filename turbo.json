@@ -104,7 +104,25 @@
     },
     "@anipotts/admin#test": {
       "dependsOn": ["build"],
-      "inputs": ["src/**", "test/**", "vitest*.config.ts", "package.json"],
+      "inputs": [
+        "$TURBO_ROOT$/scripts/admin/**",
+        "src/**",
+        "test/**",
+        "vitest*.config.ts",
+        "package.json"
+      ],
+      "outputs": []
+    },
+    "@anipotts/admin#typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_ROOT$/scripts/admin/**",
+        "src/**",
+        "test/**",
+        "tsconfig*.json",
+        "vitest*.config.ts",
+        "package.json"
+      ],
       "outputs": []
     }
   }
