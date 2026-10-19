@@ -90,7 +90,7 @@ export function RecoveryUnlock({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stored =
-    typeof window !== "undefined" && scope
+    hydrated && scope
       ? inventory(scope)
       : { keys: new Set<string>(), legacy: false };
   const admitted = () =>

@@ -171,6 +171,38 @@ it("keeps setup controls disabled in server markup until hydration installs hand
   ).toBe(false);
   expect(host.querySelector("textarea")).toBeNull();
 });
+it("hydrates deterministic server markup before showing existing encrypted recovery copies", async () => {
+  act(() => root.unmount());
+  const key =
+    'editorial-recovery:v3:["synthetic-owner","writing","older","' +
+    "a".repeat(64) +
+    '"]';
+  const raw = "opaque stored bytes";
+  localStorage.setItem(key, raw);
+  const page = (
+    <RecoveryUnlock scope="synthetic-owner">
+      <textarea aria-label="Synthetic authoring" />
+    </RecoveryUnlock>
+  );
+  const browserWindow = window;
+  try {
+    vi.stubGlobal("window", undefined);
+    host.innerHTML = renderToString(page);
+  } finally {
+    vi.stubGlobal("window", browserWindow);
+  }
+  expect(host.textContent).not.toContain("Download opaque recovery copies");
+  const onRecoverableError = vi.fn();
+  const onUncaughtError = vi.fn();
+  await act(async () => {
+    root = hydrateRoot(host, page, { onRecoverableError, onUncaughtError });
+  });
+  expect(onRecoverableError).not.toHaveBeenCalled();
+  expect(onUncaughtError).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("Download opaque recovery copies");
+  expect(localStorage.getItem(key)).toBe(raw);
+  expect(host.querySelector("textarea")).toBeNull();
+});
 it("ignores a late first file selection after the latest re-import has unlocked", async () => {
   await mount();
   const raw = await create();
