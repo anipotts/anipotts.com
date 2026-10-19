@@ -397,14 +397,18 @@ test(
         const admitted = new Promise<void>((resolve) => {
           entered = resolve;
         });
+        let releaseGate!: () => void;
         const gate = new Promise<void>((resolve) => {
-          release = resolve;
+          releaseGate = resolve;
         });
+        release = releaseGate;
         const lockName = `editorial-recovery:${key}`;
-        held = navigator.locks.request(lockName, async () => {
-          entered();
-          await gate;
-        });
+        held = Promise.resolve(
+          navigator.locks.request(lockName, async () => {
+            entered();
+            await gate;
+          }),
+        );
         await admitted;
         const snapshot = (index: number) => ({
           source: String(index).padEnd(128 * 1024, "s"),
@@ -442,7 +446,7 @@ test(
             break;
           }
         }
-        release();
+        releaseGate();
         await held;
         const outcomes = await Promise.all(operations);
         result.committed = outcomes.filter(
