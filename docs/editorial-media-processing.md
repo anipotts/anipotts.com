@@ -231,7 +231,8 @@ no provider binding or configuration was added.
 The same checkpoint caps caller byte snapshots with the intrinsic typed-array
 byte length before allocation, then copies native indexed bytes without invoking
 caller iterators or forged length fields. All 44 focused Node tests passed,
-including both new forged-input regressions. The earlier native transaction
-proof applies to `68f40f33`; native tests have not yet been repeated on this
-snapshot hardening. Provider entitlement, actual Images behavior, activation,
+including both new forged-input regressions. The owner-scheduled repeat at this exact source passed all 27 actual local
+workerd cases for atomic persistence and existing media-store behavior, using
+the shared heavy-slot wrapper with one test worker. The local receipt is
+`/private/tmp/anipotts-media-bounded-snapshot-native.log`. Provider entitlement, actual Images behavior, activation,
 recovery support and custody remain unqualified.
