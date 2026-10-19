@@ -1,12 +1,1 @@
-/* Hide scrollbar chrome without disabling wheel, touch, or keyboard scrolling. */
-html,
-body,
-body * {
-  scrollbar-width: none;
-}
-
-html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-body *::-webkit-scrollbar {
-  display: none;
-}
+/* Native scrollbar appearance follows browser and operating-system preferences. */

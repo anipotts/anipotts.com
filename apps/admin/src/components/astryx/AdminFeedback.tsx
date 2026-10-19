@@ -1,4 +1,4 @@
-import React from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
@@ -14,6 +14,42 @@ const loadingLabels: Record<LoadingKind, string> = {
   record: "record details",
   preview: "preview",
 };
+
+const EditorLoadingContext = createContext<((loading: boolean) => void) | null>(
+  null,
+);
+
+/** One announcement survives the lazy module and its first record read. The
+ * existing visual skeletons can change without mounting a second live region. */
+export function EditorLoadingBoundary({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [loading, setLoading] = useState(true);
+  return (
+    <EditorLoadingContext.Provider value={setLoading}>
+      <Text
+        className="sr-only"
+        role={loading ? "status" : undefined}
+        aria-label={loading ? "Loading editor" : undefined}
+      >
+        {loading ? "Loading editor…" : null}
+      </Text>
+      {children}
+    </EditorLoadingContext.Provider>
+  );
+}
+
+/** Standalone editors keep owning their feedback; an enclosing route owns the
+ * complete wait when its lazy module and record request load in sequence. */
+export function useEditorLoading(loading: boolean): boolean {
+  const report = useContext(EditorLoadingContext);
+  useEffect(() => {
+    report?.(loading);
+  }, [loading, report]);
+  return report !== null;
+}
 
 /** Shared text geometry for a readable document, not a single oversized block. */
 function DocumentLines() {
@@ -35,8 +71,10 @@ function DocumentLines() {
 export function AdminSkeleton({
   kind = "editor",
   fields = [{}, { rich: true }],
+  announce = true,
 }: {
   kind?: LoadingKind;
+  announce?: boolean;
   fields?: ReadonlyArray<{ rich?: boolean; path?: readonly string[] }>;
 }) {
   const writing = fields.some((field) => field.path?.[0] === "summary");
@@ -44,11 +82,11 @@ export function AdminSkeleton({
   return (
     <VStack
       gap={3}
-      role="status"
-      aria-label={`Loading ${label}`}
+      role={announce ? "status" : undefined}
+      aria-label={announce ? `Loading ${label}` : undefined}
       className="admin-loading"
     >
-      <Text className="sr-only">Loading {label}…</Text>
+      {announce && <Text className="sr-only">Loading {label}…</Text>}
       <VStack gap={3} aria-hidden="true">
         {kind === "editor" && (
           <>
