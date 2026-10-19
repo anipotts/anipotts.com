@@ -29,7 +29,7 @@
     "@anipotts/content": "workspace:*",
     "@anipotts/runtime-contract": "workspace:*",
     "@astrojs/cloudflare": "14.3.4",
-    "@astrojs/react": "7.0.1",
+    "@astrojs/react": "7.1.0",
     "@astryxdesign/core": "^0.4.6",
     "@astryxdesign/theme-neutral": "^0.4.6",
     "@codemirror/commands": "^6.11.1",
