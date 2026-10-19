@@ -31,10 +31,10 @@ See [local development](docs/local-development.md).
 ## Current work
 
 - [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
-- [ ] Integrate and review separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542): unused Drizzle CLI removal passes full validation and removes the moderate advisory; one low upstream KaTeX advisory remains. It selects no runtime targets; refreshed checks follow its normal merge of approved main.
+- [ ] Review [#542](https://github.com/anipotts/anipotts.com/pull/542) after exact-head hosted checks: unused Drizzle CLI removal passes full validation on released main and removes the moderate advisory. One low upstream KaTeX advisory remains; no runtime targets are selected.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#539 is approved and merged as `cf7b757b`; its admin-only deployment is in progress. No migration is selected.
+#539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 
 #538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
 

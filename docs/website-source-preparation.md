@@ -1,5 +1,41 @@
 # Website source preparation
 
+## October 19 browser recovery release and dependency refresh
+
+Ani approved #539 at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69` for merge
+and Admin-only deployment in owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`.
+Live strict protection and the active no-bypass ruleset were reread immediately
+before merge `cf7b757be2c0bfc72d9886a27599e615b7ec3b66`; its Git tree equals
+the reviewed tree. Exact-head CI, Security Review, CodeQL and both completed
+automated reviews passed, with all ten conversations resolved.
+
+[Release 39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+succeeded. Only Admin deployed; www, ingest, newsletter, state and weekly email
+were skipped. Schema remains `0044`; no migration ran. The same approval covered
+both staged native Production gates. Provider readback verifies Admin version
+`ab08369b-bd13-4eb4-aeb0-f544384fb7b9` at the expected release/schema.
+All eight private-route probes return 302 to Access. The deployable bundle
+excludes local-owner markers across 344 files. Public health remains healthy on
+www release `79592009` with D1 connected. Physical-device key custody and
+authenticated production content writes are separate acceptance, not claimed here.
+
+#542 normally merged that released main at
+`b66c00abcd9d93e01b9d48290cd39405e05db40f`. Its own runtime delta remains
+only removal of unused Drizzle CLI tooling; schema, SQL, journal, ORM and active
+runtime versions are preserved. Independent source review is clear. A fresh
+offline frozen install and full `pnpm validate` pass all fourteen tasks,
+including fresh Admin 2,465 core / 79 Astro / 98 editorial workerd and three CSP
+checks plus one intentional skip. Other unchanged tasks use normal Turbo cache.
+Post-validation drift and the 344-file local-owner scan pass. The exact changed
+paths pass static review, and all six runtime deploy targets are false.
+
+Logs: `/private/tmp/anipotts-drizzle-main539-{install,validation}.log`.
+A fresh exact-lock audit, `/private/tmp/anipotts-drizzle-main539-audit.json`,
+reports zero moderate/high/critical advisories and one low upstream KaTeX issue.
+Subsequent checkpoint changes are documentation only. Hosted exact-head checks
+and Ani's review still gate #542; no merge approval is inferred.
+Earlier pending #539 and old dependency receipts below are historical.
+
 ## October 19 unused dependency cleanup, original qualification
 
 #538 is merged as `795920090a594dbf347e2c7de35967e6d1ee76bb`; approved deployment [39209913406](https://github.com/anipotts/anipotts.com/actions/runs/39209913406) succeeded for all six targets with no migration. Provider identities, public smoke and admin Access boundary proof pass. State/Brands producer health gaps remain separate.
