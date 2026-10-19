@@ -1,5 +1,40 @@
 # Website source preparation
 
+## October 19 Astro formatter migration
+
+This isolated candidate reproduces #547 with prettier-plugin-astro 1.1.1 and
+`astroCompressHTML: "html"` matched to both apps' `compressHTML: true`.
+The fresh bot branch is preserved. The old formatter patch is a distinct
+migration from compatible runtime dependency candidate #549 and the coherent
+Core/Neutral family work for #545.
+
+Source `614883d63672f4ce5a16c53b8e2ce412bef6ec98` changes 38 tracked Astro
+files plus formatter config, package and lock. Existing ignore rules, canonical
+content, private drafts and generated inputs remain untouched. All 65 tracked
+Astro files pass a second format check, whole-repo formatting and frozen lock
+consistency. Static security has no findings. Retained package records and
+non-formatter importer versions are unchanged.
+
+Static comparison using the actual formatter and application compilers parses
+every changed before/after source. Generated-JS AST plus extracted CSS/scripts
+are structurally equal for 34 files. The other four contain five reviewed literal
+differences: normal label whitespace, inline-flex button edge whitespace, byline
+spacing and inline stylesheet formatting with the same declarations. These are
+not rendered acceptance. Full checks and actual public/Admin browser, inline
+text/link, media, byline and CSP acceptance remain owner-scheduled gates.
+Receipts: `/private/tmp/anipotts-astro-formatter-{idempotence,format-check,frozen-lock}.log`,
+`semantics-all.json`, `reviewed-literals.json` and `whitespace.diff`.
+
+#539 is deployed to Admin at `cf7b757b`; its provider/schema and eight Access
+redirects pass. #542 is merged at `aa860b4b`; its source release39275594601
+skipped all six runtime targets and ran no migration. Current receipts are in
+their PRs. Media/recovery remain inactive drafts; source adapter work does not
+authorize operational custody, provider setup or activation.
+
+Proposed formatter source targets are www and Admin, including the shared brand
+component. Keep this candidate draft until required source/render/hosted checks
+finish and Ani reviews its exact head. No merge/deploy approval exists.
+
 ## October 19 browser recovery release and dependency refresh
 
 Ani approved #539 at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69` for merge

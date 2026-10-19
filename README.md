@@ -30,9 +30,12 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
+- [ ] Qualify the #547 formatter migration with matching HTML compression, source equivalence review and actual public/Admin render checks.
+- [ ] Review compatible runtime candidate #549 and qualify the separate coherent Core/Neutral migration for #545.
 - [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
-- [ ] Review [#542](https://github.com/anipotts/anipotts.com/pull/542) after exact-head hosted checks: unused Drizzle CLI removal passes full validation on released main and removes the moderate advisory. One low upstream KaTeX advisory remains; no runtime targets are selected.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#542 is merged as `aa860b4b`; its successful source release skipped all runtime targets and ran no migration.
 
 #539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 
