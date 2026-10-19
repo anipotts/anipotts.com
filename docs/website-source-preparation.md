@@ -1,5 +1,37 @@
 # Website source preparation
 
+## October 19 unused dependency cleanup
+
+#538 is merged as `795920090a594dbf347e2c7de35967e6d1ee76bb`; approved deployment [39209913406](https://github.com/anipotts/anipotts.com/actions/runs/39209913406) succeeded for all six targets with no migration. Provider identities, public smoke and admin Access boundary proof pass. State/Brands producer health gaps remain separate.
+
+Separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542), source
+`e9578615b27f8eb5d7f6885415b4c2d3868985c4`, removes unused `drizzle-kit` and its
+legacy loader chain from main `79592009`. The historical configuration remains
+plain data; drizzle-orm, schema, SQL, migration manifest and journal are preserved.
+No package metadata or other importer changes are introduced. No forced
+out-of-range override is used.
+
+A fresh isolated offline frozen install and full `pnpm validate` pass all 14
+workspace tasks: Admin 2,361 core / 79 Astro / 98 editorial workerd / three CSP
+with one intentional skip, and content 206. Frozen lock consistency, native config
+import with exact historical values, D1 documentation, dependency maintenance,
+formatting and static security pass. Tracked build drift is absent. Logs are
+`/private/tmp/anipotts-drizzle-cli-{install,validation}.log`.
+
+The exact lockfile audit has zero moderate, high or critical findings and one low
+KaTeX advisory. The active UI SDK still requires the affected math dependency;
+current app callers leave math disabled. This bounded source observation is not a
+claim that all prototype pollution or all bundle reachability has been audited.
+The compatible upstream repair remains open. Audit evidence is
+`/private/tmp/anipotts-drizzle-cli-audit.json`.
+
+This draft is separate from #539 and the canonical UI candidate; it has no merge
+or deploy approval. #539's `b29fb42e` hosted CI / security / zero-finding CodeQL
+checks pass, but its approval request is withdrawn after a later quota-failure
+review. An unchanged duplicate archive can survive a failed canonical replacement;
+that focused repair and refreshed exact-head qualification must precede review.
+No new approval supersedes these holds.
+
 ## October 18 browser-tools release and next completion batch
 
 Ani approved #532 at `8243909232b955c279e7c48a40765f7c79313d85` for merge and

@@ -29,9 +29,12 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review the next consolidated dependency/admin usability batch with passing local checks: native scrolling, continuous loading, writing source/demo controls, hydration and mobile menu repairs. Hosted checks and exact review remain release gates.
-- [ ] Finish isolated media and coherent recovery qualification; retain the current upload limits and production storage until the required evidence and activation approvals exist.
+- [ ] Finish the later quota-failure repair and refreshed exact-head review for [#539](https://github.com/anipotts/anipotts.com/pull/539). Its earlier browser/CI checks pass; the prior approval request is withdrawn. Admin-only release, no migration.
+- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
+- [ ] Integrate and review draft [#542](https://github.com/anipotts/anipotts.com/pull/542): unused Drizzle CLI removal passes full validation and removes the moderate advisory. One low upstream KaTeX advisory remains.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
 
 #529/#530/#531 are merged and deployed. #532 is merged; its successful release
 selected no runtime targets because it changes browser tooling and documentation.
