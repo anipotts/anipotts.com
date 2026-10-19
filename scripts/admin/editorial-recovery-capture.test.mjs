@@ -12,6 +12,7 @@ import {
   CAPTURE_BYTE_LIMIT,
   sealRecoveryCapture,
   openRecoveryCapture,
+  serializeRecoveryR2HttpMetadata,
 } from "./editorial-recovery-capture.mjs";
 import { recoveryApplicationSchema } from "../../apps/admin/src/editorial/recovery-application-schema.ts";
 import { assertRecoveryWriterCohort } from "../../apps/admin/src/editorial/recovery-eligibility.ts";
@@ -444,5 +445,62 @@ test("v2 retains prior durable completion receipts and refuses to hide them in o
   assert.throws(
     () => sealRecoveryCapture(snapshot, evidence),
     /capture_schema/,
+  );
+});
+
+test("R2 serialization omits absent optional native fields and preserves strict strings and Date values", () => {
+  const metadata = {
+    contentType: "image/png",
+    contentLanguage: undefined,
+    contentDisposition: undefined,
+    contentEncoding: undefined,
+    cacheControl: "public, max-age=60",
+    cacheExpiry: undefined,
+  };
+  assert.deepEqual(serializeRecoveryR2HttpMetadata(metadata), {
+    contentType: "image/png",
+    cacheControl: "public, max-age=60",
+  });
+  const expiry = new Date("2027-01-01T00:00:00Z");
+  assert.deepEqual(
+    serializeRecoveryR2HttpMetadata({ ...metadata, cacheExpiry: expiry }),
+    {
+      contentType: "image/png",
+      cacheControl: "public, max-age=60",
+      cacheExpiry: expiry.toISOString(),
+    },
+  );
+  for (const invalid of [
+    { ...metadata, cacheExpiry: "undefined" },
+    { ...metadata, cacheExpiry: new Date(NaN) },
+    { ...metadata, contentType: null },
+    { ...metadata, cacheControl: 60 },
+    { ...metadata, unsupported: "new state" },
+    { ...metadata, unsupported: undefined },
+  ])
+    assert.throws(
+      () => serializeRecoveryR2HttpMetadata(invalid),
+      /capture_object_metadata/,
+    );
+  const { snapshot, evidence } = fixture();
+  const raw = Buffer.from("synthetic object bytes"),
+    key = `${recoveryHash(raw)}.png`;
+  snapshot.publicMedia.push({
+    key,
+    type: "image/png",
+    base64: raw.toString("base64"),
+  });
+  evidence.objects.push({
+    key,
+    etag: "synthetic-etag",
+    version: "synthetic-version",
+    uploaded: "2026-10-18T00:00:00Z",
+    httpMetadata: serializeRecoveryR2HttpMetadata(metadata),
+    customMetadata: { fixture: "synthetic" },
+  });
+  assert.deepEqual(
+    openRecoveryCapture(sealRecoveryCapture(snapshot, evidence)).evidence
+      .objects[0].httpMetadata,
+    { contentType: "image/png", cacheControl: "public, max-age=60" },
   );
 });

@@ -14,6 +14,7 @@ import {
 import {
   sealRecoveryCapture,
   openRecoveryCapture,
+  serializeRecoveryR2HttpMetadata,
   CAPTURE_BYTE_LIMIT,
   type SqlRow,
   type RecoveryEvidence,
@@ -243,10 +244,9 @@ export async function collectRecoveryStores(
           object.key.split(".")[0]
       )
         throw new Error("capture_media_hash");
-      const httpMetadata: Record<string, string> = {};
-      for (const [key, value] of Object.entries(current.httpMetadata ?? {}))
-        httpMetadata[key] =
-          value instanceof Date ? value.toISOString() : String(value);
+      const httpMetadata = serializeRecoveryR2HttpMetadata(
+        current.httpMetadata ?? {},
+      );
       const metadata = {
         key: object.key,
         etag: object.etag,

@@ -156,6 +156,43 @@ function evidence(value) {
       throw new Error("capture_object_metadata");
   }
 }
+/** Native R2 exposes known optional fields as enumerable undefined values.
+ * Omit absence, never stringify it into authored metadata. All supplied values
+ * keep strict types, and new/unknown metadata fields still fail closed. */
+export function serializeRecoveryR2HttpMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
+    throw new Error("capture_object_metadata");
+  const result = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (
+      ![
+        "contentType",
+        "contentLanguage",
+        "contentDisposition",
+        "contentEncoding",
+        "cacheControl",
+        "cacheExpiry",
+      ].includes(key)
+    )
+      throw new Error("capture_object_metadata");
+    if (value === undefined) continue;
+    if (key === "cacheExpiry") {
+      let time;
+      try {
+        time = Date.prototype.getTime.call(value);
+      } catch {
+        throw new Error("capture_object_metadata");
+      }
+      if (!Number.isFinite(time)) throw new Error("capture_object_metadata");
+      result[key] = new Date(time).toISOString();
+    } else {
+      if (typeof value !== "string") throw new Error("capture_object_metadata");
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export function sealRecoveryCapture(snapshot, proof) {
   evidence(proof);
   const payload = exportOfflineRecovery(snapshot);

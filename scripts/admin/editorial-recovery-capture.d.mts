@@ -35,6 +35,9 @@ export type RecoveryEvidence = {
 };
 export const CAPTURE_BYTE_LIMIT: number;
 export const CAPTURE_EVIDENCE_BYTE_LIMIT: number;
+export function serializeRecoveryR2HttpMetadata(
+  metadata: unknown,
+): Record<string, string>;
 export function sealRecoveryCapture(
   snapshot: RecoverySnapshot,
   evidence: RecoveryEvidence,

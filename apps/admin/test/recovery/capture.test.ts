@@ -140,6 +140,10 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     const captured = await store.capture();
     const opened = openRecoveryCapture(captured);
     expect(opened.snapshot.editorial.alarmAt).toBe(alarm);
+    expect(opened.evidence.objects[0]?.httpMetadata).toEqual({
+      contentType: "image/png",
+      cacheControl: "public, max-age=60",
+    });
     expect(opened.evidence.control.editorialWriters).toEqual([]);
     expect(opened.evidence.control.contentWriters).toEqual([]);
     // The legacy formatter remains strict: new durable state is preserved only
@@ -370,7 +374,30 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     await runInDurableObject(store, (_instance, state) =>
       state.storage.put("future-authored-state", { fixture: "synthetic" }),
     );
-    await failure(store, (instance) => instance.capture(), "kv_key");
+    await failure(
+      store,
+      (instance) => instance.capture(),
+      "offline_recovery_unsupported_kv_schema",
+    );
+    expect(
+      await runInDurableObject(store, (_instance, state) => ({
+        phase: state.storage.sql
+          .exec<{ phase: string }>(
+            "SELECT phase FROM editorial_recovery_control",
+          )
+          .one().phase,
+        qualified: state.storage.sql
+          .exec<{ n: number }>(
+            "SELECT count(*) AS n FROM editorial_recovery_captures",
+          )
+          .one().n,
+      })),
+    ).toEqual({ phase: "blocked", qualified: 0 });
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
   });
   it("rejects a capture that exceeds the bounded row inventory", async () => {
     const store = fresh();
