@@ -8,8 +8,9 @@ Separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542), source
 `e9578615b27f8eb5d7f6885415b4c2d3868985c4`, removes unused `drizzle-kit` and its
 legacy loader chain from main `79592009`. The historical configuration remains
 plain data; drizzle-orm, schema, SQL, migration manifest and journal are preserved.
-No package metadata or other importer changes are introduced. No forced
-out-of-range override is used.
+Retained package versions and other importers are unchanged. The retained
+`tsx` snapshot becomes optional after CLI removal. No forced out-of-range
+override is used.
 
 A fresh isolated offline frozen install and full `pnpm validate` pass all 14
 workspace tasks: Admin 2,361 core / 79 Astro / 98 editorial workerd / three CSP
