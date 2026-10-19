@@ -30,12 +30,12 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Qualify and review refreshed [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery against merged #539. The earlier source/native checks pass, including bounded encrypted v3 capture/restore; the refreshed combined tree needs owner qualification. Operational admission, custody, external-copy, migration and restore gates remain open.
-- [ ] Complete the held provider and resource acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing. The qualified foundation remains inactive.
-- [ ] Finish refreshed qualification and review for draft [#542](https://github.com/anipotts/anipotts.com/pull/542), which removes the unused Drizzle CLI and its moderate advisory. One low upstream KaTeX advisory remains; no runtime targets are selected.
+- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#539 was approved and merged as `cf7b757b`. [Release 39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483) deployed Admin only; all other targets were skipped, no migration ran, and private routes retain the Access boundary.
+#542 is merged as `aa860b4b`; release 39275594601 passed with all six runtime targets skipped and no migration.
+
+#539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 
 #538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
 
