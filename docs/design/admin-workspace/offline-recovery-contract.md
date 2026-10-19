@@ -487,5 +487,18 @@ Every disposable probe restored exact original bytes in a finally block. Receipt
 `/private/tmp/anipotts-recovery-cache-before.json`,
 `/private/tmp/anipotts-recovery-cache-after.json`,
 `/private/tmp/anipotts-recovery-type-cache-before.json` and
-`/private/tmp/anipotts-recovery-type-cache-after.json`. A fresh current-tree
-validation follows this configuration correction before the draft handoff.
+`/private/tmp/anipotts-recovery-type-cache-after.json`.
+
+The post-correction full `pnpm validate` passed at
+`2deb4fb05a7cf0bf0c9a16bcba23ca39985563ce` under Node 24.19.0, beginning
+2026-10-19 07:27:38 UTC and observed complete at 07:30:48 UTC. The log is
+`/private/tmp/anipotts-capture-codec-cache-validation.log`. Admin type-check and
+test tasks both executed on cache misses (`06a21c1755016fab` and
+`5fb3b25441e6767a`). The suite passed 2,361 admin core, 79 Astro, 105 editorial
+workerd, 84 recovery Node and 21 recovery workerd cases. CSP passed three checks
+with one existing browser-gated skip; public 196 and content 206 used matching
+cache entries. All repository invariants, formatting, builds, lint and type
+checks passed. HEAD and worktree drift checks were clean; this final evidence
+checkpoint changes only this contract. No further heavy run, source/config edit,
+production adapter, provider call, remote migration or operational activation
+is part of this handoff.
