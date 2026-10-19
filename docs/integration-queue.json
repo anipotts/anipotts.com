@@ -364,8 +364,8 @@
       "lane": "code",
       "state": "implementing",
       "approvals": {},
-      "note": "PR539 retargeted main. Full pnpm validate and all38native Chromium/WebKit cases pass atd0f31d094, including real held-lock flood, keyfile, expiry, two-tab CAS/logout and history. Static gate9sensitive files, production owner absence344files and builddrift pass. Final documentation records qualification; hosted exact-head checks/canonical review and exact Ani review still gate admin-only/no-migration release. No production changes.",
-      "updatedAt": "2026-10-19T06:39:13.651074+00:00"
+      "note": "PR539 back in draft after three confirmed hosted review findings (contested expiry loss, failed custody handle, storage admission rejection) and CI39211183263 public-server EADDRINUSE after app/84route proof passed. Session fixes2ea1/da075 pass14 focused cases; adapter capture/ack/storage repair under qualification. CI14206 shares safe owned server;6 process/config cases pass. Earlier d0full/38browser receipts remain historical only. Final checks/canonical update/exact Ani review still gate admin-only/no-migration release.",
+      "updatedAt": "2026-10-19T06:58:06.585283+00:00"
     }
   ]
 }

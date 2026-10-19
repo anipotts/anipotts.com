@@ -30,7 +30,7 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review [#539](https://github.com/anipotts/anipotts.com/pull/539): encrypted browser recovery with the accepted local key-file/manual-unlock design. Full validation and38 native browser cases pass on merged main, including bounded writes and recovery-limit guidance. Exact hosted checks and Ani’s review gate admin-only deployment.
+- [ ] Review [#539](https://github.com/anipotts/anipotts.com/pull/539): encrypted browser recovery with the accepted local key-file/manual-unlock design. Earlier full validation and38 native browser cases pass; confirmed expiry/custody/storage review findings and a public test-server startup failure are being repaired. Refresh exact checks and Ani’s review before admin-only deployment.
 - [ ] Finish isolated media and coherent recovery qualification. Native-qualified foundations are preserved separately; provider activation, persisted media provenance and operational backup coverage/custody/restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 

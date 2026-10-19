@@ -1,5 +1,48 @@
 # Website source preparation
 
+## October 19 review repair and isolated foundation qualification
+
+#538 is fully deployed as795920090 on all six targets, no migration; receipts
+below remain current. #539 is back in draft. No exact merge/admin-deploy approval
+has been requested for its later source. Three hosted review findings are valid:
+contested expiry input was retained only in memory, failed key-custody challenges
+could retain an imported handle, and storage-admission errors could reject write
+promises outside the recovery warning path. Line-outdated review markers do not
+mean those semantic findings were fixed. Adapter preservation/acknowledgment and
+storage mapping are under focused qualification. Session fixes2ea1ea36/da075297
+pass14 focused cases with native key import/crypto; expiry also revokes a pending
+setup immediately, and old failures cannot revoke a newer successful unlock.
+
+HostedCI39211183263 passed affected app checks and84/84 CMS route proof, then
+failed before public browser startup with EADDRINUSE. Its log does not identify
+the occupied socket/PID. Source inspection shows an ephemeral port is released
+before several seconds of seeding. Fix14206fcc uses one shared test-owned18123
+HTTP port (validated override), an OS-assigned inspector, refusal to reuse a
+foreign listener and child-close-aware cleanup. Six focused real runner/process
+fixtures pass. This is a concrete harness repair, not a claim about the exact
+unobserved occupying process. Full/native/current-head hosted checks must refresh.
+
+The next foundations remain isolated and inactive:
+
+- Media branch `codex/media-processing-foundation` is pushed atc70cff33;
+  runtime source38a9a270 passes44 Node and27 actual workerd cases, full editorial
+  generated-types checking and formatting. Original/derivative/provenance/request
+  receipt commit atomically, with bounded native byte snapshots and immutable
+  replay/corruption checks. Provider activation, whole-app resource qualification
+  and recovery-format support remain open. A read-only Images usage probe returns
+  provider5403 (account invalid or service not authorized); entitlement is unverified.
+- Capture branch `codex/editorial-recovery-capture` is pushed atc99b8edd after
+  normal main795 merge. Full validation passes at33992467: public196/content206,
+  Admin2361 core/79 Astro/101 actual editorial workerd,51 recovery Node and21
+  capture workerd,3 CSP cases plus one intentional skip. The initial CI-path
+  scope failure was corrected by four exact registry/assertion lines; its failed
+  log remains preserved. New plaintext transport uses64KiB frames, incremental
+  hashes, awaited backpressure and final-manifest validation;33 Node and3 native
+  cases include10MiB in both planes without retaining a whole20MiB test buffer.
+  It is not encrypted backup or operational capture integration. Legacy v2 limits,
+  disabled cohort admission, custody/external-copy/restore gates and unapplied
+  content-publication0003 recovery-fence migration remain explicit.
+
 ## October 19 approved consolidation release and recovery scheduling repair
 
 Ani approved #538 at `2b797fb5d4a10a4aa63788ac63ed140b31cd8a26` and
