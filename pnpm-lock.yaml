@@ -82,8 +82,8 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
       wrangler:
-        specifier: 4.151.0
-        version: 4.151.0(@cloudflare/workers-types@5.20261016.1)
+        specifier: 4.151.1
+        version: 4.151.1(@cloudflare/workers-types@5.20261016.1)
       yaml:
         specifier: 2.8.3
         version: 2.8.3
@@ -423,8 +423,8 @@ importers:
         specifier: ^5
         version: 5.9.3
       wrangler:
-        specifier: 4.151.0
-        version: 4.151.0(@cloudflare/workers-types@5.20261016.1)
+        specifier: 4.151.1
+        version: 4.151.1(@cloudflare/workers-types@5.20261016.1)
 
   workers/newsletter:
     dependencies:
@@ -439,8 +439,8 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
       wrangler:
-        specifier: 4.151.0
-        version: 4.151.0(@cloudflare/workers-types@5.20261016.1)
+        specifier: 4.151.1
+        version: 4.151.1(@cloudflare/workers-types@5.20261016.1)
 
   workers/state:
     dependencies:
@@ -464,8 +464,8 @@ importers:
         specifier: ^5
         version: 5.9.3
       wrangler:
-        specifier: 4.151.0
-        version: 4.151.0(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2)
+        specifier: 4.151.1
+        version: 4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2)
 
   workers/weekly-email:
     dependencies:
@@ -480,8 +480,8 @@ importers:
         specifier: ^5
         version: 5.9.3
       wrangler:
-        specifier: 4.151.0
-        version: 4.151.0(@cloudflare/workers-types@5.20261016.1)
+        specifier: 4.151.1
+        version: 4.151.1(@cloudflare/workers-types@5.20261016.1)
 
 packages:
 
@@ -11137,19 +11137,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  miniflare@5.20261012.0-beta:
-    dependencies:
-      '@cspotcode/source-map-support': 0.8.1
-      sharp: 0.35.5
-      undici: 7.29.1
-      workerd: 1.20261012.1
-      ws: 8.21.0
-      youch: 4.1.0-beta.10
-    transitivePeerDependencies:
-      - '@types/node'
-      - bufferutil
-      - utf-8-validate
-
   miniflare@5.20261012.0-beta(@types/node@24.19.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
@@ -11167,6 +11154,19 @@ snapshots:
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@26.6.5)
+      undici: 7.29.1
+      workerd: 1.20261012.1
+      ws: 8.21.0
+      youch: 4.1.0-beta.10
+    transitivePeerDependencies:
+      - '@types/node'
+      - bufferutil
+      - utf-8-validate
+
+  miniflare@5.20261012.1-beta:
+    dependencies:
+      '@cspotcode/source-map-support': 0.8.1
+      sharp: 0.35.5
       undici: 7.29.1
       workerd: 1.20261012.1
       ws: 8.21.0
@@ -12619,13 +12619,13 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20261012.1
       '@cloudflare/workerd-windows-64': 1.20261012.1
 
-  wrangler@4.151.0(@cloudflare/workers-types@5.20261016.1):
+  wrangler@4.151.0(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261012.1)
       blake3-wasm: 2.1.5
       esbuild: 0.28.2
-      miniflare: 5.20261012.0-beta
+      miniflare: 5.20261012.0-beta(@types/node@24.19.2)
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20261012.1
@@ -12637,13 +12637,13 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  wrangler@4.151.0(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2):
+  wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261012.1)
       blake3-wasm: 2.1.5
       esbuild: 0.28.2
-      miniflare: 5.20261012.0-beta(@types/node@24.19.2)
+      miniflare: 5.20261012.1-beta
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20261012.1
