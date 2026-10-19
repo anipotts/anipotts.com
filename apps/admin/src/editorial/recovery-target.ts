@@ -13,6 +13,7 @@ import { EditorialDraftStore } from "./draft-store";
 import { DirectPublisher } from "./direct-publisher";
 import { collectRecoveryStores } from "./recovery-storage";
 import { isRecoveryProviderSchema } from "./recovery-provider-schema";
+import { recoveryApplicationSchema } from "./recovery-application-schema";
 
 /** Not exported by the production Worker and never bound by production config.
  * A dedicated restore namespace stays suspended for its entire lifetime. */
@@ -192,11 +193,16 @@ export class SuspendedRecoveryTarget extends EditorialDraftStore {
     // Install only into code-owned schemas, never execute SQL from an export.
     const canonical = (rows: SqlRow[], store: "editorial" | "content") =>
       JSON.stringify(
-        rows.filter(
-          (row) =>
-            row.name !== "editorial_recovery_restore" &&
-            !isRecoveryProviderSchema(row, store),
-        ),
+        rows
+          .filter(
+            (row) =>
+              row.name !== "editorial_recovery_restore" &&
+              !isRecoveryProviderSchema(row, store),
+          )
+          .map((row) => ({
+            ...row,
+            sql: recoveryApplicationSchema(row, store) ?? row.sql,
+          })),
       );
     if (
       canonical(before.schemas.editorial, "editorial") !==

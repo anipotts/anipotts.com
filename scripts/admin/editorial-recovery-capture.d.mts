@@ -22,6 +22,7 @@ export type RecoveryEvidence = {
     editorialWriters: SqlRow[];
     contentWriters: SqlRow[];
     migrationLedger: SqlRow[];
+    captures: SqlRow[];
   };
   objects: {
     key: string;

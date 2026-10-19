@@ -126,3 +126,40 @@ export async function assertRecoveryDatabaseFrozen(
   )
     throw new Error("recovery_fence_lost");
 }
+
+/** Reopen only the exact drained generation, atomically checking outstanding
+ * external writers. This is completion of a qualified snapshot, not rollback or
+ * a cross-store atomic transaction. Keep capture_id for confirmed readback. */
+export async function releaseRecoveryDatabase(
+  db: PublicationDatabase,
+  captureId: string,
+  generation: number,
+): Promise<void> {
+  const result = await db.batch<{
+    phase: string;
+    capture_id: string;
+    generation: number;
+    pending: number;
+  }>([
+    db
+      .prepare(
+        "UPDATE editorial_recovery_control SET phase='open' WHERE singleton=1 AND phase='draining' AND capture_id=? AND generation=? AND NOT EXISTS(SELECT 1 FROM editorial_recovery_writers)",
+      )
+      .bind(captureId, generation),
+    db.prepare(
+      "SELECT phase,capture_id,generation,(SELECT count(*) FROM editorial_recovery_writers) AS pending FROM editorial_recovery_control WHERE singleton=1",
+    ),
+  ]);
+  const state = result[1]?.results[0];
+  if (
+    result.length !== 2 ||
+    result.some((row) => !row.success) ||
+    result[0]?.meta?.changes !== 1 ||
+    !state ||
+    state.phase !== "open" ||
+    state.capture_id !== captureId ||
+    state.generation !== generation ||
+    state.pending !== 0
+  )
+    throw new Error("recovery_completion_unconfirmed");
+}

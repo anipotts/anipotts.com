@@ -10,6 +10,10 @@
   "durable_objects": {
     "bindings": [
       { "name": "RECOVERY_SOURCE", "class_name": "CaptureFixture" },
+      {
+        "name": "RECOVERY_LEGACY_SOURCE",
+        "class_name": "LegacyCaptureFixture",
+      },
       { "name": "RECOVERY_TARGET", "class_name": "SuspendedRecoveryTarget" },
       {
         "name": "RECOVERY_INTERRUPTED_TARGET",
@@ -44,6 +48,7 @@
       "tag": "synthetic-recovery-v1",
       "new_sqlite_classes": [
         "CaptureFixture",
+        "LegacyCaptureFixture",
         "SuspendedRecoveryTarget",
         "InterruptedRecoveryTarget",
       ],

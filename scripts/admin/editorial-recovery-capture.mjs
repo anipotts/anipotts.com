@@ -43,6 +43,7 @@ function evidence(value) {
     "editorialWriters",
     "contentWriters",
     "migrationLedger",
+    "captures",
   ]);
   if (
     !Array.isArray(value.control.editorialWriters) ||
@@ -75,6 +76,32 @@ function evidence(value) {
   }
   if (!Array.isArray(value.control.migrationLedger))
     throw new Error("capture_schema");
+  if (
+    !Array.isArray(value.control.captures) ||
+    value.control.captures.length > 5000
+  )
+    throw new Error("capture_schema");
+  const captureIds = new Set();
+  for (const row of value.control.captures) {
+    keys(row, [
+      "capture_id",
+      "editorial_generation",
+      "content_generation",
+      "sha256",
+      "state",
+    ]);
+    if (
+      !/^[a-f0-9-]{36}$/u.test(row.capture_id) ||
+      captureIds.has(row.capture_id) ||
+      ![row.editorial_generation, row.content_generation].every(
+        (n) => Number.isSafeInteger(n) && n >= 1,
+      ) ||
+      !/^[a-f0-9]{64}$/u.test(row.sha256) ||
+      !["qualified", "releasing", "released", "blocked"].includes(row.state)
+    )
+      throw new Error("capture_completion_record");
+    captureIds.add(row.capture_id);
+  }
   const seen = new Set();
   for (const object of value.objects) {
     keys(object, [

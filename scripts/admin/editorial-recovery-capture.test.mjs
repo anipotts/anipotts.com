@@ -13,6 +13,8 @@ import {
   sealRecoveryCapture,
   openRecoveryCapture,
 } from "./editorial-recovery-capture.mjs";
+import { recoveryApplicationSchema } from "../../apps/admin/src/editorial/recovery-application-schema.ts";
+import { assertRecoveryWriterCohort } from "../../apps/admin/src/editorial/recovery-eligibility.ts";
 import { isRecoveryProviderSchema } from "../../apps/admin/src/editorial/recovery-provider-schema.ts";
 const read = (path) =>
   readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
@@ -56,6 +58,7 @@ function fixture() {
       content: [structuredClone(control)],
       editorialWriters: [],
       contentWriters: [],
+      captures: [],
       migrationLedger: [
         {
           id: 1,
@@ -335,4 +338,111 @@ test("only exact native KV/alarm metadata schemas are recognized; application lo
   } finally {
     db.close();
   }
+});
+
+test("the exact supported historical ADD COLUMN schema maps to current named-column restoration and unrelated layouts fail", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(read("apps/admin/test/recovery/pre-client-hash.sql"));
+    assert.ok(
+      !db
+        .prepare("PRAGMA table_info(save_request_identities)")
+        .all()
+        .some((column) => column.name === "clientHash"),
+    );
+    db.exec("ALTER TABLE save_request_identities ADD COLUMN clientHash TEXT");
+    const row = db
+      .prepare(
+        "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name='save_request_identities'",
+      )
+      .get();
+    const canonical = JSON.parse(
+      read("apps/admin/src/editorial/recovery-schema.json"),
+    ).editorial.save_request_identities;
+    assert.notEqual(
+      recoveryHash(row.sql.replace(/\s+/gu, " ").trim()),
+      canonical,
+    );
+    assert.equal(recoveryApplicationSchema(row, "editorial"), canonical);
+    db.exec(
+      "ALTER TABLE save_request_identities ADD COLUMN unsupported_authored_field TEXT",
+    );
+    assert.throws(
+      () =>
+        recoveryApplicationSchema(
+          db
+            .prepare(
+              "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name='save_request_identities'",
+            )
+            .get(),
+          "editorial",
+        ),
+      /capture_schema_drift/,
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("the normal capture eligibility adapter refuses operational-shaped callers before reading any provider", () => {
+  let reads = 0;
+  const database = {
+    prepare() {
+      reads++;
+      throw new Error("unexpected_provider_read");
+    },
+    batch() {
+      reads++;
+      throw new Error("unexpected_provider_write");
+    },
+  };
+  const bucket = {
+    list() {
+      reads++;
+      throw new Error("unexpected_provider_read");
+    },
+  };
+  assert.throws(
+    () => assertRecoveryWriterCohort(database, bucket, "a".repeat(40)),
+    /recovery_operational_cohort_unsupported/,
+  );
+  assert.equal(reads, 0);
+});
+
+test("v2 retains prior durable completion receipts and refuses to hide them in offline-v1", () => {
+  const { snapshot, evidence } = fixture();
+  evidence.editorialGeneration = evidence.contentGeneration = 2;
+  evidence.control.editorial[0].generation =
+    evidence.control.content[0].generation = 2;
+  evidence.control.captures.push({
+    capture_id: "00000000-0000-4000-8000-000000000002",
+    editorial_generation: 1,
+    content_generation: 1,
+    sha256: "a".repeat(64),
+    state: "released",
+  });
+  assert.deepEqual(
+    openRecoveryCapture(sealRecoveryCapture(snapshot, evidence)).evidence
+      .control.captures,
+    evidence.control.captures,
+  );
+  assert.throws(
+    () =>
+      exportOfflineRecovery({
+        ...snapshot,
+        editorial: {
+          ...snapshot.editorial,
+          tables: {
+            ...snapshot.editorial.tables,
+            editorial_recovery_captures: evidence.control.captures,
+          },
+        },
+      }),
+    /schema/,
+  );
+  evidence.control.captures[0].unknown = true;
+  assert.throws(
+    () => sealRecoveryCapture(snapshot, evidence),
+    /capture_schema/,
+  );
 });

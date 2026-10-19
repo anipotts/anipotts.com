@@ -1,5 +1,6 @@
 import type {
   CaptureFixture,
+  LegacyCaptureFixture,
   InterruptedRecoveryTarget,
   SuspendedRecoveryTarget,
 } from "../recovery-worker";
@@ -8,6 +9,7 @@ declare global {
   namespace Cloudflare {
     interface Env {
       RECOVERY_SOURCE: DurableObjectNamespace<CaptureFixture>;
+      RECOVERY_LEGACY_SOURCE: DurableObjectNamespace<LegacyCaptureFixture>;
       RECOVERY_TARGET: DurableObjectNamespace<SuspendedRecoveryTarget>;
       RECOVERY_INTERRUPTED_TARGET: DurableObjectNamespace<InterruptedRecoveryTarget>;
       RECOVERY_SOURCE_DB: D1Database;

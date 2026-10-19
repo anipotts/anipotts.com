@@ -4,6 +4,8 @@ import type { PublicationDatabase } from "@anipotts/content/editorial/direct-pub
 import {
   freezeRecoveryDatabase,
   assertRecoveryDatabaseFrozen,
+  releaseRecoveryDatabase,
+  recoveryEnrolled,
 } from "@anipotts/content/editorial/recovery-fence";
 import {
   RECOVERY_SCHEMA,
@@ -11,13 +13,16 @@ import {
 } from "../../../../scripts/admin/editorial-recovery.mjs";
 import {
   sealRecoveryCapture,
+  openRecoveryCapture,
   CAPTURE_BYTE_LIMIT,
   type SqlRow,
   type RecoveryEvidence,
   type RecoverySnapshot,
 } from "../../../../scripts/admin/editorial-recovery-capture.mjs";
 import { RecoveryCoordinator } from "./recovery-coordinator";
+import { assertRecoveryWriterCohort } from "./recovery-eligibility";
 import RECOVERY_SCHEMA_FINGERPRINTS from "./recovery-schema.json";
+import { recoveryApplicationSchema } from "./recovery-application-schema";
 import { isRecoveryProviderSchema } from "./recovery-provider-schema";
 
 const maxEntries = 5000;
@@ -48,7 +53,7 @@ function checkTables(schema: SqlRow[], store: "editorial" | "content") {
     ...Object.keys(RECOVERY_TABLES[store]),
     ...controlTables,
     ...(store === "editorial"
-      ? ["editorial_recovery_restore"]
+      ? ["editorial_recovery_restore", "editorial_recovery_captures"]
       : ["d1_migrations"]),
   ]);
   const expected: Readonly<Record<string, string>> =
@@ -58,13 +63,9 @@ function checkTables(schema: SqlRow[], store: "editorial" | "content") {
       throw new Error("capture_schema_drift");
   for (const row of schema) {
     if (isRecoveryProviderSchema(row, store)) continue;
-    const fingerprint = expected[String(row.name)];
-    if (fingerprint) {
-      const actual = createHash("sha256")
-        .update(String(row.sql).replace(/\s+/g, " ").trim())
-        .digest("hex");
-      if (actual !== fingerprint) throw new Error("capture_schema_drift");
-    } else if (row.type !== "table") throw new Error("capture_schema_drift");
+    const fingerprint = recoveryApplicationSchema(row, store);
+    if (!fingerprint && row.type !== "table")
+      throw new Error("capture_schema_drift");
     if (
       row.type === "table" &&
       !String(row.name).startsWith("sqlite_") &&
@@ -89,6 +90,7 @@ export async function collectRecoveryStores(
   schemas: RecoveryEvidence["schemas"];
   objects: RecoveryEvidence["objects"];
   migrationLedger: SqlRow[];
+  captures: SqlRow[];
 }> {
   let size = 0,
     entries = 0;
@@ -282,6 +284,18 @@ export async function collectRecoveryStores(
     count(entries);
     account(migrationLedger);
   }
+  const captureInventory = storage.sql
+    .exec<{ n: number; bytes: number }>(
+      "SELECT count(*) AS n,coalesce(sum(length(capture_id)+length(sha256)+length(state)+64),0) AS bytes FROM editorial_recovery_captures",
+    )
+    .one();
+  count(entries + captureInventory.n);
+  if (captureInventory.bytes > CAPTURE_BYTE_LIMIT / 4)
+    throw new Error("capture_byte_limit");
+  const captures = storage.sql
+    .exec<SqlRow>("SELECT * FROM editorial_recovery_captures ORDER BY rowid")
+    .toArray();
+  account(captures);
   return {
     snapshot: {
       schema: RECOVERY_SCHEMA,
@@ -298,7 +312,36 @@ export async function collectRecoveryStores(
     schemas: { editorial: editorialSchema, content: contentSchema },
     objects,
     migrationLedger,
+    captures,
   };
+}
+
+/** Eligibility/schema preflight is deliberately before source admission closes.
+ * These reads do not prove quiescence; the later durable drain/freeze does. */
+async function preflightRecoveryDatabase(
+  db: PublicationDatabase,
+): Promise<void> {
+  if (!(await recoveryEnrolled(db)))
+    throw new Error("recovery_fence_not_installed");
+  const bounds = await db
+    .prepare(
+      "SELECT count(*) AS n,coalesce(sum(length(CAST(sql AS BLOB))),0) AS bytes FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
+    )
+    .first<{ n: number; bytes: number }>();
+  if (!bounds || bounds.n > 128 || bounds.bytes > CAPTURE_BYTE_LIMIT / 4)
+    throw new Error("capture_schema_limit");
+  const schema = await db
+    .prepare(
+      "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name",
+    )
+    .all<SqlRow>();
+  if (!schema.success) throw new Error("capture_database_read");
+  checkTables(schema.results, "content");
+  const pending = await db
+    .prepare("SELECT count(*) AS n FROM editorial_recovery_writers")
+    .first<{ n: number }>();
+  if (!pending || pending.n !== 0)
+    throw new Error("recovery_external_writers_unresolved");
 }
 
 export async function captureRecovery(
@@ -310,7 +353,22 @@ export async function captureRecovery(
 ): Promise<string> {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 20_000)
     throw new Error("capture_timeout_range");
+  assertRecoveryWriterCohort(db, bucket, applicationRevision);
   const deadline = Date.now() + timeoutMs;
+  let preflightTimer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      preflightRecoveryDatabase(db),
+      new Promise<never>((_resolve, reject) => {
+        preflightTimer = setTimeout(
+          () => reject(new Error("capture_timeout")),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(preflightTimer);
+  }
   const coordinator = new RecoveryCoordinator(storage),
     captureId = crypto.randomUUID();
   // A scheduled wake within the capture window cannot be called quiescent:
@@ -319,9 +377,10 @@ export async function captureRecovery(
   const alarmAt = await storage.getAlarm();
   if (alarmAt !== null && alarmAt <= deadline)
     throw new Error("capture_alarm_window");
+  if (Date.now() >= deadline) throw new Error("capture_timeout");
   const editorialGeneration = await coordinator.drain(
     captureId,
-    Math.min(timeoutMs, 10_000),
+    Math.min(deadline - Date.now(), 10_000),
   );
   let timer: ReturnType<typeof setTimeout> | undefined;
   const work = async () => {
@@ -359,7 +418,7 @@ export async function captureRecovery(
     if (!content.success) throw new Error("capture_database_read");
     if (Date.now() >= deadline) throw new Error("capture_timeout");
     coordinator.assertFrozen(captureId, editorialGeneration);
-    return sealRecoveryCapture(collected.snapshot, {
+    const serialized = sealRecoveryCapture(collected.snapshot, {
       captureId,
       editorialGeneration,
       contentGeneration,
@@ -371,8 +430,21 @@ export async function captureRecovery(
         editorialWriters,
         contentWriters: contentWriters.results,
         migrationLedger: collected.migrationLedger,
+        captures: collected.captures,
       },
     });
+    const verified = openRecoveryCapture(serialized);
+    if (Date.now() >= deadline) throw new Error("capture_timeout");
+    // This receipt is created after the sealed snapshot frontier. Prior journal
+    // rows are already preserved in evidence; a new receipt cannot contain its
+    // own artifact hash inside that same artifact.
+    coordinator.qualify({
+      captureId,
+      editorialGeneration,
+      contentGeneration,
+      sha256: verified.sha256,
+    });
+    return serialized;
   };
   try {
     return await Promise.race([
@@ -386,6 +458,57 @@ export async function captureRecovery(
     ]);
   } catch (error) {
     coordinator.block(captureId, editorialGeneration);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Explicit post-capture completion. No application snapshot is read here.
+ * Each store verifies its own durable fence before reopening. D1 opens first;
+ * an ambiguous response or crash leaves the DO unavailable, never auto-resumed.
+ * The already validated artifact keeps its original frontier as edits resume. */
+export async function completeRecovery(
+  storage: DurableObjectStorage,
+  db: PublicationDatabase,
+  serialized: string,
+  timeoutMs = 20_000,
+): Promise<{ state: "released"; sha256: string }> {
+  const opened = openRecoveryCapture(serialized);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 20_000)
+    throw new Error("recovery_timeout_range");
+  const receipt = {
+    captureId: opened.evidence.captureId,
+    editorialGeneration: opened.evidence.editorialGeneration,
+    contentGeneration: opened.evidence.contentGeneration,
+    sha256: opened.sha256,
+  };
+  const coordinator = new RecoveryCoordinator(storage);
+  coordinator.beginCompletion(receipt);
+  const deadline = Date.now() + timeoutMs;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        await releaseRecoveryDatabase(
+          db,
+          receipt.captureId,
+          receipt.contentGeneration,
+        );
+        if (Date.now() >= deadline)
+          throw new Error("recovery_completion_timeout");
+        coordinator.finishCompletion(receipt);
+        return { state: "released" as const, sha256: receipt.sha256 };
+      })(),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("recovery_completion_timeout")),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } catch (error) {
+    coordinator.block(receipt.captureId, receipt.editorialGeneration);
     throw error;
   } finally {
     clearTimeout(timer);

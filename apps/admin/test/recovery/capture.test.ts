@@ -16,6 +16,7 @@ import {
 } from "@anipotts/content/editorial/recovery-fence";
 import { openRecoveryCapture } from "../../../../scripts/admin/editorial-recovery-capture.mjs";
 import { exportOfflineRecovery } from "../../../../scripts/admin/editorial-recovery.mjs";
+import { RecoveryCoordinator } from "../../src/editorial/recovery-coordinator";
 
 import type {
   CaptureFixture,
@@ -288,7 +289,7 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     await failure(
       fresh(),
       (instance) => instance.capture(),
-      "recovery_fence_conflict",
+      "recovery_external_writers_unresolved",
     );
   });
 
@@ -499,5 +500,326 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         ).first()
       )?.phase,
     ).toBe("suspended");
+  });
+
+  it("captures and restores the actual supported pre-clientHash ALTER layout without changing legacy retries", async () => {
+    const store = env.RECOVERY_LEGACY_SOURCE.getByName(crypto.randomUUID());
+    const request = save();
+    const first = await store.save(request);
+    expect(first.ok).toBe(true);
+    await runInDurableObject(store, (_instance, state) => {
+      expect(
+        state.storage.sql
+          .exec<{ name: string }>("PRAGMA table_info(save_request_identities)")
+          .toArray()
+          .at(-1)?.name,
+      ).toBe("clientHash");
+      // A genuine old receipt keeps its NULL clientHash after the ADD COLUMN.
+      state.storage.sql.exec(
+        "UPDATE save_request_identities SET clientHash=NULL WHERE id=?",
+        request.requestId,
+      );
+    });
+    const serialized = await store.capture();
+    const opened = openRecoveryCapture(serialized);
+    const restored = target();
+    expect(await restored.installRecovery(serialized)).toMatchObject({
+      mode: "isolated-suspended",
+    });
+    expect((await restored.get(record))?.source).toBe(source);
+    expect(
+      await runInDurableObject(restored, (_instance, state) =>
+        state.storage.sql
+          .exec(
+            "SELECT clientHash FROM save_request_identities WHERE id=?",
+            request.requestId,
+          )
+          .one(),
+      ),
+    ).toEqual({ clientHash: null });
+    expect(await store.complete(serialized)).toEqual({
+      state: "released",
+      sha256: opened.sha256,
+    });
+    expect(await store.save(request)).toEqual(first);
+  });
+
+  it("explicit completion reopens both source stores while the artifact and suspended target retain their captured frontier", async () => {
+    const store = fresh();
+    expect((await store.save(save())).ok).toBe(true);
+    const serialized = await store.capture(),
+      opened = openRecoveryCapture(serialized);
+    const restored = target();
+    await restored.installRecovery(serialized);
+    await failure(
+      store,
+      (instance) => instance.save(save(1)),
+      "recovery_write_fenced",
+    );
+    expect(await store.complete(serialized)).toEqual({
+      state: "released",
+      sha256: opened.sha256,
+    });
+    expect((await store.save(save(1, source + "source continues"))).ok).toBe(
+      true,
+    );
+    expect(
+      (await publishDirect(env.RECOVERY_SOURCE_DB, publication)).status,
+    ).toBe("published");
+    expect((await restored.get(record))?.source).toBe(source);
+    expect((await restored.get(record))?.revision).toBe(1);
+    expect(
+      (
+        await env.RECOVERY_CONTENT_DB.prepare(
+          "SELECT version FROM editorial_published_inventory",
+        ).first()
+      )?.version,
+    ).toBe(0);
+    expect(openRecoveryCapture(serialized)).toEqual(opened);
+    const next = await store.capture();
+    expect(openRecoveryCapture(next).evidence.control.captures).toEqual([
+      {
+        capture_id: opened.evidence.captureId,
+        editorial_generation: opened.evidence.editorialGeneration,
+        content_generation: opened.evidence.contentGeneration,
+        sha256: opened.sha256,
+        state: "released",
+      },
+    ]);
+    // An old successful receipt cannot reopen a newer capture generation.
+    await failure(
+      store,
+      (instance) => instance.complete(serialized),
+      "recovery_fence_lost",
+    );
+    await failure(
+      store,
+      (instance) => instance.save(save(2)),
+      "recovery_write_fenced",
+    );
+    expect((await store.complete(next)).state).toBe("released");
+  });
+
+  it("completion requires the exact qualified artifact and zero pending writer records", async () => {
+    const store = fresh(),
+      serialized = await store.capture();
+    const corrupted = JSON.parse(serialized);
+    corrupted.sha256 = "0".repeat(64);
+    await failure(
+      store,
+      (instance) => instance.complete(JSON.stringify(corrupted)),
+      "capture_checksum",
+    );
+    await runInDurableObject(store, (_instance, state) =>
+      state.storage.sql
+        .exec(
+          "INSERT INTO editorial_recovery_writers VALUES ('synthetic-unresolved','interrupted')",
+        )
+        .toArray(),
+    );
+    await failure(
+      store,
+      (instance) => instance.complete(serialized),
+      "recovery_writers_unresolved",
+    );
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
+    expect(
+      (
+        await env.RECOVERY_SOURCE_DB.prepare(
+          "SELECT phase FROM editorial_recovery_control",
+        ).first()
+      )?.phase,
+    ).toBe("draining");
+  });
+
+  it("a completion interrupted before external I/O cannot be resumed by eviction or a repeated request", async () => {
+    const store = fresh(),
+      serialized = await store.capture(),
+      opened = openRecoveryCapture(serialized);
+    await runInDurableObject(store, (_instance, state) =>
+      new RecoveryCoordinator(state.storage).beginCompletion({
+        captureId: opened.evidence.captureId,
+        editorialGeneration: opened.evidence.editorialGeneration,
+        contentGeneration: opened.evidence.contentGeneration,
+        sha256: opened.sha256,
+      }),
+    );
+    await evictDurableObject(store);
+    await failure(
+      store,
+      (instance) => instance.complete(serialized),
+      "recovery_completion_conflict",
+    );
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
+    expect(
+      await runInDurableObject(store, (_instance, state) =>
+        state.storage.sql
+          .exec("SELECT state FROM editorial_recovery_captures")
+          .one(),
+      ),
+    ).toEqual({ state: "releasing" });
+  });
+
+  it("an ambiguous D1 reopening leaves the DO blocked and never reports a cross-store atomic release", async () => {
+    const store = fresh(),
+      serialized = await store.capture();
+    await failure(
+      store,
+      (instance) => instance.completeWithLostResponse(serialized),
+      "synthetic_completion_response_lost",
+    );
+    expect(
+      (
+        await env.RECOVERY_SOURCE_DB.prepare(
+          "SELECT phase FROM editorial_recovery_control",
+        ).first()
+      )?.phase,
+    ).toBe("open");
+    expect(
+      await runInDurableObject(store, (_instance, state) => ({
+        phase: state.storage.sql
+          .exec<{ phase: string }>(
+            "SELECT phase FROM editorial_recovery_control",
+          )
+          .one().phase,
+        completion: state.storage.sql
+          .exec<{ state: string }>(
+            "SELECT state FROM editorial_recovery_captures",
+          )
+          .one().state,
+      })),
+    ).toEqual({ phase: "blocked", completion: "blocked" });
+    await evictDurableObject(store);
+    await failure(
+      store,
+      (instance) => instance.complete(serialized),
+      "recovery_fence_lost",
+    );
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
+  });
+
+  it("rejects normal-shaped unsupported bindings and an unmigrated D1 before closing source admission", async () => {
+    const unsupported = fresh();
+    await failure(
+      unsupported,
+      (instance) => instance.captureUnsupportedBindings(),
+      "recovery_writer_cohort_unsupported",
+    );
+    expect((await unsupported.save(save())).ok).toBe(true);
+    const store = fresh();
+    await env.RECOVERY_SOURCE_DB.prepare(
+      "DROP TABLE editorial_recovery_control",
+    ).run();
+    await failure(
+      store,
+      (instance) => instance.capture(),
+      "recovery_fence_not_installed",
+    );
+    expect(
+      await runInDurableObject(store, (_instance, state) =>
+        state.storage.sql
+          .exec("SELECT phase FROM editorial_recovery_control")
+          .one(),
+      ),
+    ).toEqual({ phase: "open" });
+    expect((await store.save(save())).ok).toBe(true);
+  });
+
+  it("keeps the source's future wake and permits its actual alarm after verified completion", async () => {
+    const store = fresh(),
+      alarmAt = Date.now() + 86_400_000;
+    await runInDurableObject(store, (_instance, state) =>
+      state.storage.setAlarm(alarmAt),
+    );
+    const serialized = await store.capture(),
+      restored = target();
+    await restored.installRecovery(serialized);
+    await store.complete(serialized);
+    expect(
+      await runInDurableObject(store, (_instance, state) =>
+        state.storage.getAlarm(),
+      ),
+    ).toBe(alarmAt);
+    expect(await runDurableObjectAlarm(store)).toBe(true);
+    expect(
+      await runInDurableObject(store, (_instance, state) =>
+        state.storage.sql
+          .exec("SELECT count(*) AS n FROM editorial_recovery_writers")
+          .one(),
+      ),
+    ).toEqual({ n: 0 });
+    expect((await store.save(save())).ok).toBe(true);
+    expect(await restored.recoveryStatus()).toMatchObject({
+      phase: "complete",
+      alarmAt: null,
+    });
+  });
+  it("completion cannot reopen D1 while an unresolved external writer is present", async () => {
+    const store = fresh(),
+      serialized = await store.capture();
+    await env.RECOVERY_SOURCE_DB.prepare(
+      "INSERT INTO editorial_recovery_writers VALUES ('synthetic-late',1,'interrupted','active')",
+    ).run();
+    await failure(
+      store,
+      (instance) => instance.complete(serialized),
+      "recovery_completion_unconfirmed",
+    );
+    expect(
+      (
+        await env.RECOVERY_SOURCE_DB.prepare(
+          "SELECT phase FROM editorial_recovery_control",
+        ).first()
+      )?.phase,
+    ).toBe("draining");
+    expect(
+      await runInDurableObject(store, (_instance, state) =>
+        state.storage.sql
+          .exec("SELECT phase FROM editorial_recovery_control")
+          .one(),
+      ),
+    ).toEqual({ phase: "blocked" });
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
+  });
+  it("rejects unsupported D1 application state during preflight while source editing stays available", async () => {
+    const store = fresh();
+    await env.RECOVERY_SOURCE_DB.prepare(
+      "CREATE TABLE synthetic_future_public_state (value TEXT)",
+    ).run();
+    try {
+      await failure(
+        store,
+        (instance) => instance.capture(),
+        "capture_unknown_store:content:synthetic_future_public_state",
+      );
+      expect(
+        await runInDurableObject(store, (_instance, state) =>
+          state.storage.sql
+            .exec("SELECT phase FROM editorial_recovery_control")
+            .one(),
+        ),
+      ).toEqual({ phase: "open" });
+      expect((await store.save(save())).ok).toBe(true);
+    } finally {
+      await env.RECOVERY_SOURCE_DB.prepare(
+        "DROP TABLE synthetic_future_public_state",
+      ).run();
+    }
   });
 });
