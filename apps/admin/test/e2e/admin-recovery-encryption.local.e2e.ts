@@ -509,3 +509,214 @@ test(
     expect(page.mutations()).toBe(0);
   },
 );
+
+test(
+  "native contested expiry preserves a discoverable encrypted copy and explicit recovery acknowledgment survives a tombstone",
+  { timeout: 120_000 },
+  async (fixtures) => {
+    const page = await localEnginePage(fixtures);
+    const result = await fixtures.browser.evaluate(async () => {
+      const result = {
+        localOnly: false,
+        nativeLocks: false,
+        lostCAS: false,
+        endedKeyLocked: false,
+        canonicalExact: false,
+        legacyExact: false,
+        ciphertextOnly: false,
+        bothCopiesOffered: false,
+        choiceArchivesCanonical: false,
+        captureBytesPreserved: false,
+        acknowledgedReady: false,
+        tombstoneNoResurrection: false,
+        noUnexpectedError: false,
+      };
+      if (
+        location.protocol !== "http:" ||
+        !["127.0.0.1", "localhost"].includes(location.hostname) ||
+        !location.port
+      )
+        return result;
+      result.localOnly = true;
+      result.nativeLocks = Boolean(navigator.locks?.request);
+      if (!result.nativeLocks) return result;
+      const sessions: { lock(): void }[] = [];
+      const channels: { close(): void }[] = [];
+      let legacyKey = "";
+      let canonicalKey = "";
+      try {
+        const enginePath = "/src/lib/browser-recovery-encryption.ts";
+        const sessionPath = "/src/lib/browser-recovery-session.ts";
+        const channelPath = "/src/lib/encrypted-browser-recovery.ts";
+        const draftPath = "/src/lib/draft-recovery.ts";
+        const engine = (await import(
+          enginePath
+        )) as typeof import("../../src/lib/browser-recovery-encryption");
+        const lifecycle = (await import(
+          sessionPath
+        )) as typeof import("../../src/lib/browser-recovery-session");
+        const recovery = (await import(
+          channelPath
+        )) as typeof import("../../src/lib/encrypted-browser-recovery");
+        const drafts = (await import(
+          draftPath
+        )) as typeof import("../../src/lib/draft-recovery");
+        const file = await engine.createBrowserRecoveryKeyFile();
+        const owner = `synthetic-contested-${crypto.randomUUID()}`;
+        const record = `native-${crypto.randomUUID()}`;
+        legacyKey = drafts.recoveryKey(owner, { kind: "writing", id: record });
+        const baseline = {
+          source: "synthetic legacy café\r\n",
+          saved: "synthetic saved\r\n",
+          revision: 3,
+          pending: null,
+        };
+        const theirs = {
+          ...baseline,
+          source: "synthetic competing canonical 雨\r\n",
+        };
+        const mine = {
+          ...baseline,
+          source: "synthetic ended current 雨 café\r\n",
+          pending: {
+            source: "synthetic ended retry\r\n",
+            expectedRevision: 3,
+            requestId: crypto.randomUUID(),
+          },
+        };
+        const legacy = JSON.stringify(baseline);
+        localStorage.setItem(legacyKey, legacy);
+        const firstSession = new lifecycle.RecoverySession(() => true);
+        const endedSession = new lifecycle.RecoverySession(() => true);
+        sessions.push(firstSession, endedSession);
+        await firstSession.unlock(file, owner);
+        await endedSession.unlock(file, owner);
+        const first = new recovery.EncryptedBrowserRecovery(
+          localStorage,
+          legacyKey,
+          "draft",
+          drafts.validateRecovery,
+          firstSession,
+        );
+        const ended = new recovery.EncryptedBrowserRecovery(
+          localStorage,
+          legacyKey,
+          "draft",
+          drafts.validateRecovery,
+          endedSession,
+        );
+        channels.push(first, ended);
+        await first.read();
+        await ended.read();
+        if ((await first.write(theirs)) !== null) return result;
+        canonicalKey = first.key;
+        const canonical = localStorage.getItem(canonicalKey);
+        result.lostCAS = (await ended.write(mine)) === "changed";
+        if (!result.lostCAS) return result;
+        let final: Promise<unknown> | undefined;
+        const offCapture = endedSession.capture(() => {
+          final = ended.sealFinal(mine);
+          return final;
+        });
+        const locked = new Promise<void>((resolve) =>
+          endedSession.subscribe(() => {
+            if (endedSession.snapshot().status === "locked") resolve();
+          }),
+        );
+        endedSession.end("expired");
+        ended.close(); // Model actual form teardown after synchronous capture.
+        await locked;
+        offCapture();
+        if ((await final) !== null) return result;
+        result.endedKeyLocked = endedSession.vault.state.status === "locked";
+        result.canonicalExact =
+          localStorage.getItem(canonicalKey) === canonical;
+        result.legacyExact = localStorage.getItem(legacyKey) === legacy;
+        const captureKey = Object.keys(localStorage).find((key) =>
+          key.startsWith(`${canonicalKey}:capture:`),
+        );
+        if (!captureKey) return result;
+        const capture = localStorage.getItem(captureKey);
+        result.ciphertextOnly = Object.keys(localStorage)
+          .filter(
+            (key) => key === canonicalKey || key.startsWith(`${canonicalKey}:`),
+          )
+          .every((key) => {
+            const raw = localStorage.getItem(key) ?? "";
+            return (
+              !raw.includes(mine.source) &&
+              !raw.includes(mine.pending.requestId) &&
+              !raw.includes(JSON.parse(file).key)
+            );
+          });
+        const reopenedSession = new lifecycle.RecoverySession(() => true);
+        sessions.push(reopenedSession);
+        await reopenedSession.unlock(file, owner);
+        const reopen = () => {
+          const channel = new recovery.EncryptedBrowserRecovery(
+            localStorage,
+            legacyKey,
+            "draft",
+            drafts.validateRecovery,
+            reopenedSession,
+          );
+          channels.push(channel);
+          return channel;
+        };
+        const reader = reopen();
+        const offered = await reader.read();
+        result.bothCopiesOffered =
+          offered.status === "changed" &&
+          JSON.stringify(offered.candidates?.map((copy) => copy.value)) ===
+            JSON.stringify([theirs, mine]);
+        if (!result.bothCopiesOffered || (await reader.choose(mine)) !== null)
+          return result;
+        result.choiceArchivesCanonical = Object.keys(localStorage).some(
+          (key) =>
+            key.startsWith(`${canonicalKey}:archive:`) &&
+            localStorage.getItem(key) === canonical,
+        );
+        result.captureBytesPreserved =
+          localStorage.getItem(captureKey) === capture;
+        const ready = await reopen().read();
+        result.acknowledgedReady =
+          ready.status === "ready" &&
+          JSON.stringify(ready.value) === JSON.stringify(mine);
+        if ((await reader.write(null)) !== null) return result;
+        result.tombstoneNoResurrection =
+          (await reopen().read()).status === "missing";
+        result.noUnexpectedError = true;
+        return result;
+      } catch {
+        return result;
+      } finally {
+        for (const channel of channels) channel.close();
+        for (const session of sessions) session.lock();
+        for (const key of Object.keys(localStorage)) {
+          if (
+            (legacyKey && key === legacyKey) ||
+            (canonicalKey &&
+              (key === canonicalKey || key.startsWith(`${canonicalKey}:`)))
+          )
+            localStorage.removeItem(key);
+        }
+      }
+    });
+    expect(result).toEqual({
+      localOnly: true,
+      nativeLocks: true,
+      lostCAS: true,
+      endedKeyLocked: true,
+      canonicalExact: true,
+      legacyExact: true,
+      ciphertextOnly: true,
+      bothCopiesOffered: true,
+      choiceArchivesCanonical: true,
+      captureBytesPreserved: true,
+      acknowledgedReady: true,
+      tombstoneNoResurrection: true,
+      noUnexpectedError: true,
+    });
+    expect(page.mutations()).toBe(0);
+  },
+);

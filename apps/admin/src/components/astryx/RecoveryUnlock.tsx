@@ -31,7 +31,9 @@ function inventory(scope: string) {
       if (!prefix) continue;
       try {
         const parts = JSON.parse(
-          key.slice(prefix.length).replace(/:archive:[a-f\d-]{36}$/i, ""),
+          key
+            .slice(prefix.length)
+            .replace(/:(?:archive|capture):[a-f\d-]{36}$/i, ""),
         );
         if (parts[0] !== scope) continue;
         if (prefix === recoveryV3Prefix && typeof parts[3] === "string")
@@ -257,7 +259,7 @@ export function RecoveryUnlock({
                   const parts = JSON.parse(
                     key
                       .slice(recoveryV3Prefix.length)
-                      .replace(/:archive:[a-f\d-]{36}$/i, ""),
+                      .replace(/:(?:archive|capture):[a-f\d-]{36}$/i, ""),
                   );
                   if (parts[0] !== scope) continue;
                 } catch {

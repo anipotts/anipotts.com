@@ -30,7 +30,9 @@ export function encryptedRecoveryLegacyKey(key: string): string | null {
   if (!key.startsWith(recoveryV3Prefix)) return null;
   try {
     const parts: unknown = JSON.parse(
-      key.slice(recoveryV3Prefix.length).replace(/:archive:[a-f\d-]{36}$/i, ""),
+      key
+        .slice(recoveryV3Prefix.length)
+        .replace(/:(?:archive|capture):[a-f\d-]{36}$/i, ""),
     );
     if (
       !Array.isArray(parts) ||
@@ -49,6 +51,7 @@ type Observation = {
   v1: string | null;
   v2: string | null;
   current: string | null;
+  captures: [string, string][];
 };
 function issue(error: unknown): RecoveryProblem {
   if (error instanceof RecoveryEncryptionError) {
@@ -88,6 +91,9 @@ export class EncryptedBrowserRecovery<T> {
   #observed: Observation | null = null;
   #state: RecoveryRead<T> = { status: "missing" };
   #closed = false;
+  #storageUnavailable = false;
+  #knownCaptures = new Map<string, string>();
+  #resolvedCaptures: string[] = [];
   #activeWrite: PendingRecoveryWrite | null = null;
   #pendingWrites: PendingRecoveryWrite[] = [];
   #lock: RecoveryLock | null;
@@ -113,6 +119,12 @@ export class EncryptedBrowserRecovery<T> {
         recordId,
         state.keyId ?? "locked",
       ]);
+    let logoutGeneration: string | null = null;
+    try {
+      logoutGeneration = storage.getItem(recoveryLogoutGenerationKey);
+    } catch {
+      this.#storageUnavailable = true;
+    }
     this.context = {
       origin: location.origin,
       ownerScope: ownerScope!,
@@ -120,18 +132,28 @@ export class EncryptedBrowserRecovery<T> {
         ? "project"
         : recordKind) as RecoveryEncryptionContext["recordKind"],
       recordId: recordId!,
-      logoutGeneration: storage.getItem(recoveryLogoutGenerationKey),
+      logoutGeneration,
     };
     this.#lock = lock === undefined ? browserRecoveryLock(legacyKey) : lock;
   }
   #sample(): Observation {
+    const captureKeys = Object.keys(this.storage)
+      .filter((key) => key.startsWith(`${this.key}:capture:`))
+      .sort();
+    if (captureKeys.length > 3) throw new RecoveryEncryptionError("oversized");
     return {
       v1: this.storage.getItem(this.legacyKey),
       v2: this.storage.getItem(versionedRecoveryKey(this.legacyKey)),
       current: this.storage.getItem(this.key),
+      captures: captureKeys.flatMap((key) => {
+        const raw = this.storage.getItem(key);
+        return raw === null ? [] : [[key, raw] as [string, string]];
+      }),
     };
   }
   #valid(final = false) {
+    if (this.#storageUnavailable)
+      throw new RecoveryEncryptionError("unavailable");
     return (
       this.session.owns(this.#capability, final) &&
       this.storage.getItem(recoveryLogoutGenerationKey) ===
@@ -144,7 +166,8 @@ export class EncryptedBrowserRecovery<T> {
     return (
       now.v1 === observed.v1 &&
       now.v2 === observed.v2 &&
-      now.current === observed.current
+      now.current === observed.current &&
+      this.#sameCaptures(now, observed)
     );
   }
   #legacy() {
@@ -156,59 +179,177 @@ export class EncryptedBrowserRecovery<T> {
       null,
     ).read();
   }
-  async #load(): Promise<RecoveryRead<T>> {
-    if (this.#closed || !this.#valid()) return { status: "signed-out" };
-    const observed = this.#sample();
-    this.#observed = observed;
-    if (observed.current === null) return this.#legacy();
-    const decoded: unknown = JSON.parse(
-      await decryptRecoveryBundle(
-        this.session.vault,
-        observed.current,
-        this.context,
-      ),
+  #sameCaptures(a: Observation, b: Observation) {
+    return (
+      a.captures.length === b.captures.length &&
+      a.captures.every(
+        ([key, raw], index) =>
+          b.captures[index]?.[0] === key && b.captures[index]?.[1] === raw,
+      )
     );
-    if (!this.#valid() || this.#closed) return { status: "signed-out" };
-    if (!this.#same(observed)) return { status: "changed" };
+  }
+  async #decode(raw: string) {
+    const decoded: unknown = JSON.parse(
+      await decryptRecoveryBundle(this.session.vault, raw, this.context),
+    );
     if (
       !decoded ||
       typeof decoded !== "object" ||
-      Object.keys(decoded).sort().join("|") !== "kind|payload|predecessors"
+      Object.keys(decoded).some(
+        (key) =>
+          !["kind", "payload", "predecessors", "resolvedCaptures"].includes(
+            key,
+          ),
+      )
     )
-      return { status: "unsupported" };
+      throw new RecoveryEncryptionError("unsupported");
     const data = decoded as {
       kind: string;
       payload: unknown;
       predecessors: string;
+      resolvedCaptures?: unknown;
     };
     if (
       data.kind !== this.kind ||
       typeof data.predecessors !== "string" ||
       !/^[a-f\d]{64}$/u.test(data.predecessors)
     )
-      return { status: "corrupt" };
+      throw new RecoveryEncryptionError("corrupt");
     const value = data.payload === null ? null : this.validate(data.payload);
-    if (data.payload !== null && !value) return { status: "corrupt" };
-    const hash = await recoveryStringHash(
+    if (data.payload !== null && !value)
+      throw new RecoveryEncryptionError("corrupt");
+    const resolved = data.resolvedCaptures ?? [];
+    if (
+      !Array.isArray(resolved) ||
+      resolved.length > 3 ||
+      resolved.some(
+        (hash) => typeof hash !== "string" || !/^[a-f\d]{64}$/u.test(hash),
+      )
+    )
+      throw new RecoveryEncryptionError("corrupt");
+    return {
+      value,
+      predecessors: data.predecessors,
+      resolved: resolved as string[],
+    };
+  }
+  async #load(): Promise<RecoveryRead<T>> {
+    if (this.#closed || !this.#valid()) return { status: "signed-out" };
+    const observed = this.#sample();
+    this.#observed = observed;
+    this.#knownCaptures.clear();
+    this.#resolvedCaptures = [];
+    if (observed.captures.length > 3) return { status: "oversized" };
+    let base: RecoveryRead<T>;
+    if (observed.current === null) base = this.#legacy();
+    else {
+      try {
+        const data = await this.#decode(observed.current);
+        this.#resolvedCaptures = data.resolved;
+        if (!this.#valid() || this.#closed) return { status: "signed-out" };
+        if (!this.#same(observed)) return { status: "changed" };
+        const hash = await recoveryStringHash(
+          JSON.stringify([observed.v1, observed.v2]),
+        );
+        if (!this.#valid() || this.#closed) return { status: "signed-out" };
+        if (!this.#same(observed)) return { status: "changed" };
+        if (hash !== data.predecessors) {
+          const legacy = this.#legacy();
+          base = {
+            status: "changed",
+            candidates: [
+              ...(data.value
+                ? [{ label: "Encrypted browser copy", value: data.value }]
+                : []),
+              ...(legacy.status === "ready"
+                ? [{ label: "Older tab copy", value: legacy.value }]
+                : legacy.status === "changed"
+                  ? (legacy.candidates ?? [])
+                  : []),
+            ],
+          };
+        } else
+          base = data.value
+            ? { status: "ready", value: data.value }
+            : { status: "missing" };
+      } catch (error) {
+        base = { status: issue(error) };
+      }
+    }
+    if (!this.#valid() || this.#closed || base.status === "signed-out")
+      return { status: "signed-out" };
+    if (!this.#same(observed)) return { status: "changed" };
+    const captures: { label: string; value: T }[] = [];
+    for (const [key, raw] of observed.captures) {
+      const data = await this.#decode(raw);
+      if (!this.#valid() || this.#closed) return { status: "signed-out" };
+      if (!this.#same(observed)) return { status: "changed" };
+      const hash = await recoveryStringHash(JSON.stringify([key, raw]));
+      if (!this.#valid() || this.#closed) return { status: "signed-out" };
+      if (!this.#same(observed)) return { status: "changed" };
+      if (!data.value) throw new RecoveryEncryptionError("corrupt");
+      this.#knownCaptures.set(key, raw);
+      if (!this.#resolvedCaptures.includes(hash))
+        captures.push({
+          label: `Session ended copy ${captures.length + 1}`,
+          value: data.value,
+        });
+    }
+    if (!captures.length) return base;
+    return {
+      status: "changed",
+      candidates: [
+        ...(base.status === "ready"
+          ? [{ label: "Encrypted browser copy", value: base.value }]
+          : base.status === "changed"
+            ? (base.candidates ?? [])
+            : []),
+        ...captures,
+      ],
+    };
+  }
+  async #sealContested(captured: string): Promise<RecoveryProblem | null> {
+    if (!this.#valid(true)) return "signed-out";
+    const observed = this.#sample();
+    if (observed.captures.length > 3) return "oversized";
+    // Never make room by dropping opaque or unexpectedly replaced bytes.
+    const prunable = observed.captures.filter(
+      ([key, raw]) => this.#knownCaptures.get(key) === raw,
+    );
+    if (observed.captures.length === 3 && !prunable.length)
+      return "unavailable";
+    const predecessors = await recoveryStringHash(
       JSON.stringify([observed.v1, observed.v2]),
     );
-    if (!this.#valid() || this.#closed) return { status: "signed-out" };
-    if (!this.#same(observed)) return { status: "changed" };
-    if (hash !== data.predecessors) {
-      const legacy = this.#legacy();
-      return {
-        status: "changed",
-        candidates: [
-          ...(value ? [{ label: "Encrypted browser copy", value }] : []),
-          ...(legacy.status === "ready"
-            ? [{ label: "Older tab copy", value: legacy.value }]
-            : legacy.status === "changed"
-              ? (legacy.candidates ?? [])
-              : []),
-        ],
-      };
+    if (!this.#valid(true)) return "signed-out";
+    if (!this.#sameCaptures(this.#sample(), observed)) return "changed";
+    const raw = await encryptRecoveryBundle(
+      this.session.vault,
+      JSON.stringify({
+        kind: this.kind,
+        payload: JSON.parse(captured),
+        predecessors,
+      }),
+      this.context,
+    );
+    if (!this.#valid(true)) return "signed-out";
+    if (!this.#sameCaptures(this.#sample(), observed)) return "changed";
+    const key = `${this.key}:capture:${crypto.randomUUID()}`;
+    if (this.storage.getItem(key) !== null) return "changed";
+    this.storage.setItem(key, raw);
+    if (!this.#valid(true)) {
+      if (this.storage.getItem(key) === raw) this.storage.removeItem(key);
+      return "signed-out";
     }
-    return value ? { status: "ready", value } : { status: "missing" };
+    if (observed.captures.length === 3) {
+      const [olderKey, olderRaw] = prunable[0]!;
+      if (this.storage.getItem(olderKey) === olderRaw) {
+        this.storage.removeItem(olderKey);
+        this.#knownCaptures.delete(olderKey);
+      }
+    }
+    this.#knownCaptures.set(key, raw);
+    return null;
   }
   read(): Promise<RecoveryRead<T>> {
     return this.session.track(this.#read());
@@ -237,8 +378,12 @@ export class EncryptedBrowserRecovery<T> {
       true,
     ) as Promise<RecoveryProblem | null>;
   }
-  async #contested(captured: string, final: boolean): Promise<RecoveryProblem> {
-    const theirs = final ? { status: "missing" as const } : await this.#load();
+  async #contested(
+    captured: string,
+    final: boolean,
+  ): Promise<RecoveryProblem | null> {
+    if (final) return this.#sealContested(captured);
+    const theirs = await this.#load();
     if (!this.#valid(final)) return "signed-out";
     const value = JSON.parse(captured) as T | null;
     this.#state = {
@@ -290,37 +435,41 @@ export class EncryptedBrowserRecovery<T> {
     final: boolean,
     barrier: boolean,
   ): Promise<RecoveryWriteResult> {
-    if ((!final && this.#closed) || !this.#valid(final))
-      return Promise.resolve("signed-out");
-    if (value !== null && !this.validate(value))
-      return Promise.resolve("oversized");
-    // Reject excess barriers before retaining their payload or disturbing the
-    // latest ordinary snapshot. Durable callers receive an explicit failure.
-    if (
-      !final &&
-      barrier &&
-      Number(this.#activeWrite?.barrier ?? false) +
-        this.#pendingWrites.filter((entry) => entry.barrier).length >=
-        maxRecoveryBarriers
-    )
-      return Promise.resolve("unavailable");
-    let captured: string;
     try {
-      captured = JSON.stringify(value);
-    } catch {
-      return Promise.resolve("unavailable");
+      if ((!final && this.#closed) || !this.#valid(final))
+        return Promise.resolve("signed-out");
+      if (value !== null && !this.validate(value))
+        return Promise.resolve("oversized");
+      // Reject excess barriers before retaining their payload or disturbing the
+      // latest ordinary snapshot. Durable callers receive an explicit failure.
+      if (
+        !final &&
+        barrier &&
+        Number(this.#activeWrite?.barrier ?? false) +
+          this.#pendingWrites.filter((entry) => entry.barrier).length >=
+          maxRecoveryBarriers
+      )
+        return Promise.resolve("unavailable");
+      let captured: string;
+      try {
+        captured = JSON.stringify(value);
+      } catch {
+        return Promise.resolve("unavailable");
+      }
+      // A barrier captures its complete authoritative state, superseding older
+      // replaceable input. Newer ordinary input remains AFTER existing barriers.
+      // Expiry revokes all normal queued work before admitting its closing seal.
+      this.#discardPending(final ? "signed-out" : "superseded", !final);
+      let resolve!: (result: RecoveryWriteResult) => void;
+      const result = new Promise<RecoveryWriteResult>((done) => {
+        resolve = done;
+      });
+      this.#pendingWrites.push({ captured, explicit, final, barrier, resolve });
+      this.#pump();
+      return this.session.track(result);
+    } catch (error) {
+      return Promise.resolve(issue(error));
     }
-    // A barrier captures its complete authoritative state, superseding older
-    // replaceable input. Newer ordinary input remains AFTER existing barriers.
-    // Expiry revokes all normal queued work before admitting its closing seal.
-    this.#discardPending(final ? "signed-out" : "superseded", !final);
-    let resolve!: (result: RecoveryWriteResult) => void;
-    const result = new Promise<RecoveryWriteResult>((done) => {
-      resolve = done;
-    });
-    this.#pendingWrites.push({ captured, explicit, final, barrier, resolve });
-    this.#pump();
-    return this.session.track(result);
   }
   #pump() {
     if (this.#activeWrite) return;
@@ -345,20 +494,27 @@ export class EncryptedBrowserRecovery<T> {
     explicit,
     final,
   }: PendingRecoveryWrite): Promise<RecoveryProblem | null> {
-    if ((!final && this.#closed) || !this.#valid(final) || !this.#lock)
-      return "signed-out";
-    if (
-      !this.#observed ||
-      (!["ready", "missing"].includes(this.#state.status) &&
-        !(explicit && this.#state.status === "changed"))
-    )
-      return this.#state.status === "missing"
-        ? "unavailable"
-        : (this.#state.status as RecoveryProblem);
     try {
+      if ((!final && this.#closed) || !this.#valid(final) || !this.#lock)
+        return "signed-out";
+      if (
+        !final &&
+        (!this.#observed ||
+          (!["ready", "missing"].includes(this.#state.status) &&
+            !(explicit && this.#state.status === "changed")))
+      )
+        return this.#state.status === "missing"
+          ? "unavailable"
+          : (this.#state.status as RecoveryProblem);
       return await this.#lock(async () => {
         if ((!final && this.#closed) || !this.#valid(final))
           return "signed-out";
+        if (
+          final &&
+          (!this.#observed ||
+            !["ready", "missing"].includes(this.#state.status))
+        )
+          return this.#sealContested(captured);
         const observed = this.#observed!;
         if (!this.#same(observed)) {
           return this.#contested(captured, final);
@@ -369,12 +525,23 @@ export class EncryptedBrowserRecovery<T> {
         if ((!final && this.#closed) || !this.#valid(final))
           return "signed-out";
         if (!this.#same(observed)) return this.#contested(captured, final);
+        const resolvedCaptures = explicit
+          ? await Promise.all(
+              observed.captures.map(async ([key, raw]) =>
+                recoveryStringHash(JSON.stringify([key, raw])),
+              ),
+            )
+          : this.#resolvedCaptures;
+        if ((!final && this.#closed) || !this.#valid(final))
+          return "signed-out";
+        if (!this.#same(observed)) return this.#contested(captured, final);
         const raw = await encryptRecoveryBundle(
           this.session.vault,
           JSON.stringify({
             kind: this.kind,
             payload: JSON.parse(captured),
             predecessors,
+            ...(resolvedCaptures.length ? { resolvedCaptures } : {}),
           }),
           this.context,
         );
@@ -402,6 +569,7 @@ export class EncryptedBrowserRecovery<T> {
           return "signed-out";
         }
         this.#observed = { ...observed, current: raw };
+        this.#resolvedCaptures = resolvedCaptures;
         this.#state =
           captured !== "null"
             ? { status: "ready", value: JSON.parse(captured) as T }
@@ -422,7 +590,12 @@ export class EncryptedBrowserRecovery<T> {
     current: T,
     selection?: { name: string; source: string },
   ): Promise<string> {
-    return this.session.track(this.#export(current, selection));
+    return this.session.track(
+      this.#export(current, selection).catch((error) => {
+        if (error instanceof RecoveryEncryptionError) throw error;
+        throw new RecoveryEncryptionError("unavailable");
+      }),
+    );
   }
   async #export(
     current: T,
@@ -438,6 +611,7 @@ export class EncryptedBrowserRecovery<T> {
           key !== this.legacyKey &&
           key !== versionedRecoveryKey(this.legacyKey) &&
           !key.startsWith(`${versionedRecoveryKey(this.legacyKey)}:archive:`) &&
+          !key.startsWith(`${this.key}:capture:`) &&
           encryptedRecoveryLegacyKey(key) !== this.legacyKey
         )
           continue;

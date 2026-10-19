@@ -543,3 +543,403 @@ it("maps usage exhaustion distinctly, preserves ciphertext and refuses encrypted
     problem: "stale",
   });
 });
+
+async function expireIntoCapture<T>(
+  session: RecoverySession,
+  current: EncryptedBrowserRecovery<T>,
+  value: T,
+) {
+  let final!: Promise<unknown>;
+  const stop = session.capture(() => {
+    final = current.sealFinal(value);
+    return final;
+  });
+  const ended = new Promise<void>((resolve) =>
+    session.subscribe(() => {
+      if (session.snapshot().status === "locked") resolve();
+    }),
+  );
+  session.end("expired");
+  current.close();
+  await ended;
+  stop();
+  return final;
+}
+
+it("seals contested expiry separately and discovers exact canonical/ended copies after unlock, with explicit acknowledgment and no tombstone resurrection", async () => {
+  localStorage.setItem(key, JSON.stringify(payload));
+  const { session, file, channel } = await fixture();
+  const first = channel(),
+    second = channel();
+  await first.read();
+  await second.read();
+  const theirs = { ...payload, source: "competing canonical 雨\r\n" };
+  const mine = {
+    ...payload,
+    source: "ended current café\r\n",
+    pending: { ...payload.pending, source: "exact ended retry" },
+  };
+  expect(await first.write(theirs)).toBeNull();
+  expect(await second.write(mine)).toBe("changed");
+  const canonical = localStorage.getItem(first.key);
+  const legacy = localStorage.getItem(key);
+  expect(await expireIntoCapture(session, second, mine)).toBeNull();
+  const captureKey = Object.keys(localStorage).find((name) =>
+    name.startsWith(`${first.key}:capture:`),
+  )!;
+  const capture = localStorage.getItem(captureKey)!;
+  expect(capture).not.toContain(mine.source);
+  expect(capture).not.toContain(mine.pending.source);
+  expect(localStorage.getItem(first.key)).toBe(canonical);
+  expect(localStorage.getItem(key)).toBe(legacy);
+  const next = new RecoverySession(() => true);
+  await next.unlock(file, "synthetic@example.test");
+  const reopen = () =>
+    new EncryptedBrowserRecovery(
+      localStorage,
+      key,
+      "draft",
+      validateRecovery,
+      next,
+      mutex(),
+    );
+  const reader = reopen();
+  const offered = await reader.read();
+  expect(offered.status).toBe("changed");
+  if (offered.status === "changed")
+    expect(offered.candidates?.map((copy) => copy.value)).toEqual([
+      theirs,
+      mine,
+    ]);
+  expect(await reader.choose(mine)).toBeNull();
+  expect(localStorage.getItem(captureKey)).toBe(capture);
+  const archive = Object.keys(localStorage).find((name) =>
+    name.startsWith(`${reader.key}:archive:`),
+  )!;
+  expect(localStorage.getItem(archive)).toBe(canonical);
+  expect(await reopen().read()).toEqual({ status: "ready", value: mine });
+  expect(await reader.write(null)).toBeNull();
+  expect(await reopen().read()).toEqual({ status: "missing" });
+  // Acknowledgment binds exact bytes, so a changed capture is offered again.
+  const replacement = { ...mine, source: "a separately changed ended copy" };
+  localStorage.setItem(
+    captureKey,
+    await encryptRecoveryBundle(
+      next.vault,
+      JSON.stringify({
+        kind: "draft",
+        payload: replacement,
+        predecessors: "a".repeat(64),
+      }),
+      reader.context,
+    ),
+  );
+  const changed = await reopen().read();
+  expect(changed.status).toBe("changed");
+  if (changed.status === "changed")
+    expect(changed.candidates?.map((copy) => copy.value)).toEqual([
+      replacement,
+    ]);
+  next.lock();
+});
+
+it("bounds supported ended captures to three, keeps the newly sealed copy and foreign keys, and preserves unexpected opaque fourth bytes", async () => {
+  const setup = await fixture();
+  const file = setup.file;
+  setup.session.lock();
+  const foreign =
+    'editorial-recovery:v3:["synthetic@example.test","writing","test","' +
+    "f".repeat(64) +
+    '"]:capture:11111111-1111-4111-8111-111111111111';
+  localStorage.setItem(foreign, "foreign opaque bytes");
+  let canonicalKey = "";
+  for (let index = 0; index < 4; index++) {
+    const session = new RecoverySession(() => true);
+    await session.unlock(file, "synthetic@example.test");
+    const channel = () =>
+      new EncryptedBrowserRecovery(
+        localStorage,
+        key,
+        "draft",
+        validateRecovery,
+        session,
+        mutex(),
+      );
+    const current = channel();
+    await current.read();
+    // Legacy changes are uncoordinated old-tab behavior and force a true CAS loss.
+    localStorage.setItem(
+      key,
+      JSON.stringify({ ...payload, source: `old tab ${index}` }),
+    );
+    expect(await current.write({ ...payload, source: `ended ${index}` })).toBe(
+      "changed",
+    );
+    const canonical = localStorage.getItem(current.key);
+    const before = Object.keys(localStorage)
+      .filter((name) => name.startsWith(`${current.key}:capture:`))
+      .sort();
+    expect(
+      await expireIntoCapture(session, current, {
+        ...payload,
+        source: `ended ${index}`,
+      }),
+    ).toBeNull();
+    canonicalKey = current.key;
+    const after = Object.keys(localStorage)
+      .filter((name) => name.startsWith(`${current.key}:capture:`))
+      .sort();
+    expect(after).toHaveLength(Math.min(index + 1, 3));
+    expect(after.some((name) => !before.includes(name))).toBe(true);
+    if (index === 3) expect(after).not.toContain(before[0]);
+    expect(localStorage.getItem(current.key)).toBe(canonical);
+    expect(localStorage.getItem(foreign)).toBe("foreign opaque bytes");
+  }
+  const session = new RecoverySession(() => true);
+  await session.unlock(file, "synthetic@example.test");
+  const unexpected = `${canonicalKey}:capture:${crypto.randomUUID()}`;
+  localStorage.setItem(unexpected, "unknown fourth bytes");
+  const before = { ...localStorage };
+  const current = new EncryptedBrowserRecovery(
+    localStorage,
+    key,
+    "draft",
+    validateRecovery,
+    session,
+    mutex(),
+  );
+  expect(await current.read()).toEqual({ status: "oversized" });
+  expect(await expireIntoCapture(session, current, payload)).toBe("oversized");
+  expect({ ...localStorage }).toEqual(before);
+});
+
+it("capture inventory changes defeat explicit choice CAS and keep unknown capture bytes exportable", async () => {
+  const { session, channel } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.write(payload);
+  const captureKey = `${current.key}:capture:${crypto.randomUUID()}`;
+  const before = localStorage.getItem(current.key);
+  localStorage.setItem(captureKey, "opaque unreadable capture");
+  expect(await current.choose(payload)).toBe("corrupt");
+  expect(localStorage.getItem(current.key)).toBe(before);
+  expect((await channel().read()).status).toBe("corrupt");
+  const exported = JSON.parse(
+    await decryptRecoveryBundle(
+      session.vault,
+      await current.export(payload),
+      current.context,
+    ),
+  );
+  expect(exported.entries[captureKey]).toBe("opaque unreadable capture");
+  session.lock();
+});
+
+it("normalizes capture keys for exact record export and explicit logout cleanup", async () => {
+  const { encryptedRecoveryLegacyKey } =
+    await import("./encrypted-browser-recovery");
+  const { session, channel } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.write(payload);
+  const captureKey = `${current.key}:capture:${crypto.randomUUID()}`;
+  localStorage.setItem(captureKey, "opaque current capture");
+  expect(encryptedRecoveryLegacyKey(captureKey)).toBe(key);
+  expect(await clearEditorialRecovery(localStorage)).toBe(true);
+  expect(localStorage.getItem(captureKey)).toBeNull();
+  expect(Object.keys(localStorage)).toEqual([recoveryLogoutGenerationKey]);
+  session.lock();
+});
+
+it("maps constructor and revoked storage admission to unavailable without rejecting write barriers or changing bytes", async () => {
+  const { session, channel } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.write(payload);
+  const originalGet = Storage.prototype.getItem;
+  const original = localStorage.getItem(current.key);
+  const denial = vi
+    .spyOn(Storage.prototype, "getItem")
+    .mockImplementation(() => {
+      throw new DOMException("synthetic revoked storage", "SecurityError");
+    });
+  let fresh!: ReturnType<typeof channel>;
+  expect(() => {
+    fresh = channel();
+  }).not.toThrow();
+  expect(await fresh.read()).toEqual({ status: "unavailable" });
+  for (const candidate of [current, fresh]) {
+    expect(await candidate.write(payload)).toBe("unavailable");
+    expect(await candidate.writeDurable(payload)).toBe("unavailable");
+    expect(await candidate.write(null)).toBe("unavailable");
+    expect(await candidate.choose(payload)).toBe("unavailable");
+    await expect(candidate.export(payload)).rejects.toMatchObject({
+      problem: "unavailable",
+    });
+  }
+  let final!: Promise<unknown>;
+  session.capture(() => {
+    final = fresh.sealFinal(payload);
+    return final;
+  });
+  session.end("expired");
+  expect(await final).toBe("unavailable");
+  await session.settled();
+  expect(originalGet.call(localStorage, current.key)).toBe(original);
+  denial.mockRestore();
+  session.lock();
+});
+
+it("drains pending work with unavailable after storage revocation and does not strand subsequent admission failures", async () => {
+  const { current, session, release } = await heldWriter();
+  const first = current.write(payload);
+  const queued = current.writeDurable({
+    ...payload,
+    source: "queued identity",
+  });
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new DOMException("synthetic revoked storage", "SecurityError");
+  });
+  expect(await current.writeDurable(payload)).toBe("unavailable");
+  release();
+  expect(await first).toBe("unavailable");
+  expect(await queued).toBe("unavailable");
+  await session.settled();
+  session.lock();
+});
+
+it("does not append or prune when capture inventory changes during native final encryption", async () => {
+  const { session, channel } = await fixture();
+  const current = channel();
+  await current.read();
+  localStorage.setItem(key, JSON.stringify(payload));
+  expect(await current.write(payload)).toBe("changed");
+  const canonical = localStorage.getItem(current.key);
+  const injectedKey = `${current.key}:capture:${crypto.randomUUID()}`;
+  const native = session.vault.encrypt.bind(session.vault);
+  let injected = false;
+  vi.spyOn(session.vault, "encrypt").mockImplementation(async (...args) => {
+    const encrypted = await native(...args);
+    if (!injected) {
+      injected = true;
+      localStorage.setItem(injectedKey, "racing opaque bytes");
+    }
+    return encrypted;
+  });
+  expect(await expireIntoCapture(session, current, payload)).toBe("changed");
+  expect(localStorage.getItem(injectedKey)).toBe("racing opaque bytes");
+  expect(localStorage.getItem(current.key)).toBe(canonical);
+  expect(
+    Object.keys(localStorage).filter((name) =>
+      name.startsWith(`${current.key}:capture:`),
+    ),
+  ).toEqual([injectedKey]);
+});
+
+it("a contested final capture cannot append after its 1500 ms cutoff or a later same-key unlock", async () => {
+  const { session, file } = await fixture();
+  let held = false;
+  let release!: () => void;
+  const pause = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const lock: RecoveryLock = async (task) => {
+    if (held) await pause;
+    return task();
+  };
+  const current = new EncryptedBrowserRecovery(
+    localStorage,
+    key,
+    "draft",
+    validateRecovery,
+    session,
+    lock,
+  );
+  await current.read();
+  localStorage.setItem(key, JSON.stringify(payload));
+  expect(await current.write(payload)).toBe("changed");
+  const before = { ...localStorage };
+  held = true;
+  let pending!: Promise<unknown>;
+  session.capture(() => {
+    pending = current.sealFinal(payload);
+    return pending;
+  });
+  vi.useFakeTimers();
+  session.end("expired");
+  await Promise.resolve();
+  await vi.advanceTimersByTimeAsync(1500);
+  vi.useRealTimers();
+  await session.unlock(file, "synthetic@example.test");
+  release();
+  expect(await pending).toBe("signed-out");
+  expect({ ...localStorage }).toEqual(before);
+  session.lock();
+});
+
+it("preserves unsupported encrypted capture bytes without acknowledging or pruning them", async () => {
+  const { session, channel } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.write(payload);
+  const captureKey = `${current.key}:capture:${crypto.randomUUID()}`;
+  const raw = await encryptRecoveryBundle(
+    session.vault,
+    JSON.stringify({
+      kind: "draft",
+      payload,
+      predecessors: "a".repeat(64),
+      future: true,
+    }),
+    current.context,
+  );
+  localStorage.setItem(captureKey, raw);
+  expect((await channel().read()).status).toBe("unsupported");
+  const before = { ...localStorage };
+  expect(await current.choose(payload)).toBe("unsupported");
+  expect({ ...localStorage }).toEqual(before);
+  const exported = JSON.parse(
+    await decryptRecoveryBundle(
+      session.vault,
+      await current.export(payload),
+      current.context,
+    ),
+  );
+  expect(exported.entries[captureKey]).toBe(raw);
+  session.lock();
+});
+
+it.each(["canonical", "legacy"] as const)(
+  "offers a valid ended capture alongside opaque %s bytes and archives only an explicit canonical replacement",
+  async (location) => {
+    const { session, channel } = await fixture();
+    const reader = channel();
+    const opaque = "{opaque original bytes";
+    const opaqueKey = location === "canonical" ? reader.key : key;
+    localStorage.setItem(opaqueKey, opaque);
+    const captureKey = `${reader.key}:capture:${crypto.randomUUID()}`;
+    const raw = await encryptRecoveryBundle(
+      session.vault,
+      JSON.stringify({ kind: "draft", payload, predecessors: "a".repeat(64) }),
+      reader.context,
+    );
+    localStorage.setItem(captureKey, raw);
+    const offered = await reader.read();
+    expect(offered.status).toBe("changed");
+    if (offered.status === "changed")
+      expect(offered.candidates?.map((copy) => copy.value)).toEqual([payload]);
+    expect(await reader.choose(payload)).toBeNull();
+    expect(localStorage.getItem(captureKey)).toBe(raw);
+    if (location === "legacy") expect(localStorage.getItem(key)).toBe(opaque);
+    else
+      expect(
+        Object.keys(localStorage).some(
+          (name) =>
+            name.startsWith(`${reader.key}:archive:`) &&
+            localStorage.getItem(name) === opaque,
+        ),
+      ).toBe(true);
+    expect(await channel().read()).toEqual({ status: "ready", value: payload });
+    session.lock();
+  },
+);

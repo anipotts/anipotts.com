@@ -171,38 +171,43 @@ it("keeps setup controls disabled in server markup until hydration installs hand
   ).toBe(false);
   expect(host.querySelector("textarea")).toBeNull();
 });
-it("hydrates deterministic server markup before showing existing encrypted recovery copies", async () => {
-  act(() => root.unmount());
-  const key =
-    'editorial-recovery:v3:["synthetic-owner","writing","older","' +
-    "a".repeat(64) +
-    '"]';
-  const raw = "opaque stored bytes";
-  localStorage.setItem(key, raw);
-  const page = (
-    <RecoveryUnlock scope="synthetic-owner">
-      <textarea aria-label="Synthetic authoring" />
-    </RecoveryUnlock>
-  );
-  const browserWindow = window;
-  try {
-    vi.stubGlobal("window", undefined);
-    host.innerHTML = renderToString(page);
-  } finally {
-    vi.stubGlobal("window", browserWindow);
-  }
-  expect(host.textContent).not.toContain("Download opaque recovery copies");
-  const onRecoverableError = vi.fn();
-  const onUncaughtError = vi.fn();
-  await act(async () => {
-    root = hydrateRoot(host, page, { onRecoverableError, onUncaughtError });
-  });
-  expect(onRecoverableError).not.toHaveBeenCalled();
-  expect(onUncaughtError).not.toHaveBeenCalled();
-  expect(host.textContent).toContain("Download opaque recovery copies");
-  expect(localStorage.getItem(key)).toBe(raw);
-  expect(host.querySelector("textarea")).toBeNull();
-});
+it.each(["canonical", "capture"] as const)(
+  "hydrates deterministic server markup before showing existing %s recovery copies",
+  async (variant) => {
+    act(() => root.unmount());
+    const key =
+      'editorial-recovery:v3:["synthetic-owner","writing","older","' +
+      "a".repeat(64) +
+      '"]';
+    const raw = "opaque stored bytes";
+    const storedKey =
+      variant === "capture" ? `${key}:capture:${crypto.randomUUID()}` : key;
+    localStorage.setItem(storedKey, raw);
+    const page = (
+      <RecoveryUnlock scope="synthetic-owner">
+        <textarea aria-label="Synthetic authoring" />
+      </RecoveryUnlock>
+    );
+    const browserWindow = window;
+    try {
+      vi.stubGlobal("window", undefined);
+      host.innerHTML = renderToString(page);
+    } finally {
+      vi.stubGlobal("window", browserWindow);
+    }
+    expect(host.textContent).not.toContain("Download opaque recovery copies");
+    const onRecoverableError = vi.fn();
+    const onUncaughtError = vi.fn();
+    await act(async () => {
+      root = hydrateRoot(host, page, { onRecoverableError, onUncaughtError });
+    });
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(onUncaughtError).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Download opaque recovery copies");
+    expect(localStorage.getItem(storedKey)).toBe(raw);
+    expect(host.querySelector("textarea")).toBeNull();
+  },
+);
 it("ignores a late first file selection after the latest re-import has unlocked", async () => {
   await mount();
   const raw = await create();
@@ -249,4 +254,47 @@ it("cancels pending native key generation on unmount and ignores a second synchr
   expect(Boolean(downloaded)).toBe(false);
   expect(recoverySession().vault.state.status).toBe("locked");
   expect(Object.keys(localStorage)).toEqual([]);
+});
+
+it("discovers capture-only key identities, refuses unrelated keys and exports exact owner-scoped opaque copies after key loss", async () => {
+  const { createBrowserRecoveryKeyFile } =
+    await import("../../lib/browser-recovery-encryption");
+  const file = await createBrowserRecoveryKeyFile();
+  const keyId = JSON.parse(file).keyId as string;
+  const key = `editorial-recovery:v3:${JSON.stringify(["synthetic-owner", "writing", "only-capture", keyId])}:capture:${crypto.randomUUID()}`;
+  const foreign = `editorial-recovery:v3:${JSON.stringify(["other-owner", "writing", "only-capture", keyId])}:capture:${crypto.randomUUID()}`;
+  const raw = "{opaque captured bytes\r\n";
+  localStorage.setItem(key, raw);
+  localStorage.setItem(foreign, "foreign owner bytes");
+  const before = { ...localStorage };
+  await mount();
+  expect(host.textContent).toContain("Download opaque recovery copies");
+  await choose(await createBrowserRecoveryKeyFile());
+  expect(host.textContent).toContain("This key does not match");
+  expect(host.querySelector("textarea")).toBeNull();
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((button) => button.textContent === "I no longer have the key")!
+      .click(),
+  );
+  expect(host.textContent).toContain("Earlier encrypted copies are preserved");
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find(
+        (button) => button.textContent === "Download opaque recovery copies",
+      )!
+      .click(),
+  );
+  expect(Boolean(downloaded)).toBe(true);
+  const exported = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () =>
+      reject(new Error("Synthetic opaque export unreadable"));
+    reader.readAsText(downloaded!);
+  });
+  expect(JSON.parse(exported).entries).toEqual({ [key]: raw });
+  expect({ ...localStorage }).toEqual(before);
+  await choose(file);
+  expect(Boolean(host.querySelector("textarea"))).toBe(true);
 });
