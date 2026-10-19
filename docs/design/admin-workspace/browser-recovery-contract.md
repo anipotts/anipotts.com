@@ -499,3 +499,16 @@ can leave four preserved opaque entries and fail-closed reads; exact opaque expo
 remains available. This limit does not authorize dropping unknown bytes or
 claiming successful recovery under failed storage. Combined full/browser/hosted
 qualification and exact review still precede admin release.
+
+## October 19 current archive retention and missing coordination
+
+Bounded replacement-archive pruning always excludes the archive created by the
+current explicit choice. It preserves that exact displaced canonical ciphertext
+even when its UUID sorts first, retaining at most three owned archives and leaving
+foreign-key namespaces untouched. Earlier owned archive ordering remains the
+existing bounded policy. Missing Web Locks maps to unavailable for admitted
+documents; closed or revoked channels map to signed-out consistently on reads and
+writes. Closing expiry capability semantics are preserved. Forty-five focused
+adapter cases include repeated lowest-UUID choices and exact encrypted exports,
+missing coordination and admission changes; both primary regressions fail on the
+prior source. Combined and current-head hosted qualification precede exact review.

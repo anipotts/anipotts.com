@@ -1,5 +1,25 @@
 # Website source preparation
 
+## October 19 latest archive and lock-mapping repair
+
+Source `3e22ecb13ad0f9d659d740f5884e6b0792276437` preserves the archive created by the
+current explicit recovery choice while retaining the existing three-archive bound.
+Random UUID ordering cannot immediately remove that displaced ciphertext. Missing
+Web Locks reports unavailable for a valid document; closed or revoked channels
+report signed-out consistently on reads and writes. Closing expiry capabilities
+retain their existing admission semantics. All45 focused native-crypto/storage
+cases and strict typing pass. Both primary regressions fail on prior source;
+five successive lowest-UUID choices preserve the latest displaced ciphertext,
+foreign-key records and exact encrypted export while keeping three owned archives.
+
+The earlier `78a6b01f` full validation (14tasks /2,460core),42 browser cases,
+CI39223093838, Security Review39223093725 and zero-finding CodeQL39223058028 pass.
+Its completed code review then found these two issues; no approval was requested
+for that head. Full/browser/hosted checks, canonical identity and completed
+current-head code/security review must qualify this new source before exact
+review. Earlier613/b29approval requests remain withdrawn. This candidate is
+admin only, schema0044, no migration; #540/#541/#542 remain excluded.
+
 ## October 19 bounded storage-fault candidate
 
 Source `0f4be166df869dbf615dd7002b89d395a4d561f5` combines the explicit-choice archive

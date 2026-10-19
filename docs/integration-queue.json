@@ -360,12 +360,12 @@
       "id": "browser-recovery-key-file-oct19",
       "title": "Local key-file unlock and encrypted browser recovery",
       "revision": null,
-      "sourceRevision": "0f4be166df869dbf615dd7002b89d395a4d561f5",
+      "sourceRevision": "3e22ecb13ad0f9d659d740f5884e6b0792276437",
       "lane": "code",
       "state": "locally-integrated",
       "approvals": {},
-      "note": "b29fb42e approval request withdrawn after later quota/archive finding. Integrated17451aa7 archive cleanup and06e75586 post-insert capture failure fence;40focused native-crypto/storage cases pass. Full/browser/current-head hosted qualification, canonical identity and review pending. Admin-only/schema0044/no migration; drafts540/541/542excluded; no exact-head approval.",
-      "updatedAt": "2026-10-19T08:28:24.226999+00:00"
+      "note": "78a6b01f full2460core/native42/CI/security/CodeQLpass, thencompletedreviewfoundnewestarchivepruning andnullWebLocksmapping. Integrated21c07993 preservescurrentarchive/max3 and distinguishesunavailablefromsignedout;45focused+negativeoldsource+strictpass. Combined/browser/hosted/current-headcode-securityreview/canonicalpending; admin-only/schema0044/no migration; noapproval,613/b29requestswithdrawn,540/541/542excluded.",
+      "updatedAt": "2026-10-19T08:43:43.394531+00:00"
     }
   ]
 }
