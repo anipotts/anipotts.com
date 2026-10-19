@@ -146,9 +146,9 @@
   },
   "devDependencies": {
     "@ai-sdk/openai": "4.0.95",
-    "@e2e-dev/web": "0.15.1",
+    "@e2e-dev/web": "0.15.2",
     "ai": "7.0.142",
-    "e2e": "0.21.1",
+    "e2e": "0.21.2",
     "eslint": "^10.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
