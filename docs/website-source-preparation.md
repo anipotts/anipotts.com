@@ -1,5 +1,29 @@
 # Website source preparation
 
+## October 19 final tooling integration and recovery proof
+
+### Final approved tooling integration
+
+The normal merge at `bc3a122618648a513ff10fa5fe1d0588f625bbba` incorporates
+approved main `aa860b4b`, including #542's independently qualified unused CLI,
+plain configuration and lock cleanup. All app, package, script, worker, Turbo,
+workflow, runtime configuration and migration source bytes remain identical to
+the full-qualified recovery source `ea91d5212f407f1f771476226db8c8720adc5881`.
+No foundation runtime changed. A fresh offline frozen installation, complete
+CI invariants and formatting pass on the final combination; static review passes
+33 sensitive paths and tracked-source drift is clean. Logs:
+`/private/tmp/anipotts-v3-main542-{install,checks}.log`.
+The full 14-task/native qualification above remains tied to its exact source;
+these affected tooling checks qualify the later dependency/documentation merge.
+Proposed targets remain www/Admin, with all workers skipped and no remote
+migration. Later checkpoint changes only record this evidence.
+
+#539 Admin release39272399483 and #542 source release39275594601 are complete.
+Their exact approvals and release receipts are preserved in the existing queue.
+The canonical preview is clean on `aa860b4b`, with the current published v17 /
+20-record mirror. Operational admission, production artifact/custody/provider
+setup, migration and restore acceptance remain gated.
+
 ## October 19 refreshed recovery foundation on released main
 
 #539 is merged as `cf7b757b` and its Admin-only release
