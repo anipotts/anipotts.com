@@ -13,8 +13,9 @@ pnpm dev:admin
 pnpm dev:status
 ```
 
-Public preview: http://anipotts.localhost:1355/. Admin preview: http://admin.anipotts.localhost:1355/.
-The managed admin review preview on http://localhost:4311/ is separate; preserve it while review is active.
+Use `pnpm dev:status` for this checkout’s URLs. The canonical review checkout and
+public URL are recorded in [the integration lane](docs/local-integration-preview.md).
+Preserve its managed admin review preview on http://localhost:4311/ while review is active.
 See [local development](docs/local-development.md).
 
 ## Content
@@ -29,8 +30,9 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review the next consolidated dependency/admin usability batch with passing local checks: native scrolling, continuous loading, writing source/demo controls, hydration and mobile menu repairs. Hosted checks and exact review remain release gates.
-- [ ] Finish isolated media and coherent recovery qualification; retain the current upload limits and production storage until the required evidence and activation approvals exist.
+- [ ] Review [#538](https://github.com/anipotts/anipotts.com/pull/538) at `2b797fb5`: dependency consolidation and completed editor journeys. Local and hosted checks pass; merge and all six deploy targets await Ani’s exact review. No migration.
+- [ ] Integrate [draft #539](https://github.com/anipotts/anipotts.com/pull/539) after #538: encrypted browser recovery with the accepted local key-file/manual-unlock design. Refresh main checks and the canonical preview before review and admin-only deployment.
+- [ ] Finish isolated media and coherent recovery qualification. Native-qualified foundations are preserved separately; provider activation, persisted media provenance and operational backup coverage/custody/restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
 #529/#530/#531 are merged and deployed. #532 is merged; its successful release

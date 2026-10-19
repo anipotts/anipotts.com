@@ -1,5 +1,58 @@
 # Website source preparation
 
+## October 19 encrypted browser recovery checkpoint
+
+Integration owner remains chat `01a14ffb-519c-73b1-a63a-380f9d7274d0` on ap-pro.
+[#538](https://github.com/anipotts/anipotts.com/pull/538) is frozen at
+`2b797fb5d4a10a4aa63788ac63ed140b31cd8a26`. CI39196056419, static Security
+Review and CodeQL pass; native code/security review found no findings. The exact
+#534/#535/#537 heads are included and those superseded PRs are closed. #538 still
+awaits Ani’s exact merge/deployment review for all six runtime targets, no migration.
+The canonical preview remains clean at this head: www127.0.0.1:4580,
+adminlocalhost:4311, current published v17/20-record mirror checked04:12:48Z.
+
+The next batch is [draft #539](https://github.com/anipotts/anipotts.com/pull/539),
+stacked on #538, branch `codex/browser-recovery-unlock`, isolated checkout
+`/private/tmp/anipotts-browser-recovery-unlock`. Ani accepted local recovery key
+files and manual re-unlock on reload/expiry. This accepts the design, not a later
+unreviewed PR release. Production Access and API permissions are unchanged.
+
+The browser engine and consumers now use non-extractable, document-memory keys,
+AES-256-GCM v3 values, authenticated chunk manifests, per-unlock channel
+capabilities and exact-byte CAS under existing Web Locks. Legacy bytes remain
+additive and visible as retained plaintext. Safety exports encrypt current input
+and opaque copies; explicit Markdown source/history exports stay labeled plaintext.
+Lost keys preserve earlier identities and allow an opaque export without claiming
+decryption. Setup requires a downloaded file to be re-imported and challenged.
+The maintained [browser contract](design/admin-workspace/browser-recovery-contract.md)
+describes lifecycle order, bounds and remaining acceptance.
+
+Qualified source checkpoint `dadc2475b8bea8b49cd7f779abb44452cd06ffb7` includes
+review fixes for stale channel/key reuse and storage-dependent hydration. Full
+workspace validation passed at source `4f99e746`: 2,399 Admin core,79 Astro,
+98 workerd,3 CSP cases with one intentional skip;196 public and206 content tests.
+The complete native browser run passed32 existing/key-file/crypto cases at
+`e23ade9a`; its four new lifecycle cases initially failed on test selectors and a
+retired redirect expectation. After test-only corrections, all four lifecycle
+cases pass at `dadc2475` in Chromium and WebKit. This includes independent tab
+unlock, actual competing input, native cross-tab logout storage events, real
+pagehide and history return. The history test accepts either locked retained
+state or a fresh key gate; it does not assert a BFCache hit. Keys, fixtures and
+API writes are synthetic/local only. The final combined check is refreshed on
+the frozen review candidate before it is offered for approval.
+
+The recovery-only classifier selects admin, D1 unchanged/schema0044, no migration.
+The canonical preview remains on #538 until that review completes. #539 needs
+base/main-check refresh, canonical integration and Ani’s exact review before
+merge/deploy. Physical-device key custody, live Access expiry/owner save and
+operational recovery custody/restore remain separate acceptance. No remote
+migration, real content mutation, provider setup or production deployment occurred.
+
+The media foundation is parked/pushed at `cd5011b2`; source5692a966 passed32 Node
+and3 actual workerd cases after all three review findings were closed. It remains
+disabled and outside these PRs. Coherent capture remains parked/pushed36178c98,
+with operational admission disabled and its documented upload/cohort/custody gaps.
+
 ## October 18 browser-tools release and next completion batch
 
 Ani approved #532 at `8243909232b955c279e7c48a40765f7c79313d85` for merge and

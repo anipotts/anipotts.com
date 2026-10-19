@@ -274,3 +274,28 @@ logout/CAS. Existing local journey suites must import synthetic key files throug
 the real hydrated file input, using the test-only
 `test/support/browser-recovery-key.ts` helper where appropriate. Full checks and
 the owner browser matrix are not claimed by this branch documentation.
+
+## October 19 owner qualification
+
+Source `dadc2475b8bea8b49cd7f779abb44452cd06ffb7` is preserved in draft #539,
+stacked on the frozen #538 candidate. Source review found no remaining blocker
+in the scoped protocol and entrypoint review. Stale channel reuse across same-
+or different-key imports and expired final work is fenced by per-unlock capability
+identity. A populated storage origin no longer changes the first client markup:
+inventory waits for hydration. The regression fails against the original code.
+
+Full source validation at `4f99e746` passed all workspace tasks, including2,399
+Admin core,79 Astro,98 native workerd and3 CSP cases with one intentional CSP skip.
+At `e23ade9a`,32 native browser cases pass, including actual key-file download,
+re-import, wrong/lost keys, expiry capture and encrypted retention. After test-only
+selector/redirect corrections, four additional Chromium/WebKit lifecycle cases
+pass at `dadc2475`: independently locked child documents, same-key native import,
+competing input/CAS preservation, trusted native cross-tab storage logout events,
+pagehide and history return. Task-owned child windows are closed and verified in
+finally blocks. No API mutations reach a provider or production origin.
+
+These are local source/synthetic runtime results. Final frozen-head checks are
+refreshed before review. They do not establish physical Files-app custody, a
+particular BFCache hit, authenticated live owner expiry/save, production deployment,
+or operational snapshot/backup key custody. The canonical review preview remains
+on #538 while it awaits review; #539 is not merged or deployed.
