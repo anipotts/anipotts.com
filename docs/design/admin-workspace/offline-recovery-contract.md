@@ -567,8 +567,8 @@ successful finalization; the codec cannot undo arbitrary uncooperative sink
 side effects. The caller remains responsible for durable encrypted artifact
 custody. This does not establish a live backup or a production restore path.
 
-Focused Node qualification currently passes 102 cases, including the existing
-84 and 18 new v3 cases. The new large fixture transports 10 MiB in each media
+Focused Node qualification currently passes 103 cases, including the existing
+84 and 19 new v3 cases. The new large fixture transports 10 MiB in each media
 plane alongside more than 4,000,000 bytes of control, spools encrypted events to
 task-owned temporary files, verifies exact two-pass replay and observes one
 outstanding awaited frame. It also covers wrong keys/context, header/tag damage,
@@ -633,3 +633,24 @@ other format fields. Strict cryptographic/schema validators and media-v1 rules
 are unchanged. This is a transport-resource normalization in the synthetic
 artifact adapter, not permission for arbitrary unknown format fields or a
 qualified production adapter. Refreshed native acceptance remains required.
+
+The next filtered run at `c285c4c3345560466ac83ebf8b8094a402e81b93`
+(2026-10-19 09:15:16 to 09:15:20 UTC) passed the first-pass rejection case but
+failed positive restore preflight and the not-yet-reached second-pass assertion.
+Its log is `/private/tmp/anipotts-v3-native-three-r3.log`. Initial suspicion of
+another context boundary was corrected by the owning source: the v3 control
+encoder sorts schema-row dictionary keys, while the copied legacy comparison
+used insertion-order `JSON.stringify`. A pure probe proved equal named schema
+rows were refused solely because of this ordering.
+
+Only the v3 schema comparison now uses bounded canonical full-object equality
+after the existing exact provider/fingerprint handling. It preserves every
+field/value and row-array order; source SQL remains verbatim in authenticated
+proof and only code-owned DDL fingerprints are accepted. Legacy v2 comparison
+and format behavior are unchanged. An authenticated export/open regression uses
+actual constructor/migration SQL and real schema fingerprint checks, exposes the
+original key-order mismatch and accepts the equivalent decoded proof. It still
+refuses added fields, changed row order and actual DDL drift. Downstream v3
+control/readback/metadata comparisons already use bounded canonical equality;
+fingerprint generation hashes normalized SQL text and is independent of object
+key insertion order. This correction does not enable operational eligibility.

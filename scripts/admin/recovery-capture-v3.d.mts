@@ -88,3 +88,8 @@ export type RecoveryCaptureV3Opened = {
   receipt: RecoveryCaptureV3Receipt;
   sha256: string;
 };
+
+export function equalRecoverySchemasV3(
+  actual: readonly import("./editorial-recovery-capture.mjs").SqlRow[],
+  expected: readonly import("./editorial-recovery-capture.mjs").SqlRow[],
+): boolean;

@@ -153,3 +153,13 @@ export async function openRecoveryCaptureV3(
     }),
   );
 }
+
+/** Schema dictionaries have named fields, not insertion-order identities.
+ * Array order and every field/value remain significant after code-owned DDL
+ * fingerprint/provider handling performed by the suspended target. */
+export function equalRecoverySchemasV3(actual, expected) {
+  return (
+    canonicalRecoveryMetadata(actual, 256 * 1024) ===
+    canonicalRecoveryMetadata(expected, 256 * 1024)
+  );
+}

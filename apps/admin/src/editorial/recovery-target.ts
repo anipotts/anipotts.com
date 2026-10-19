@@ -23,6 +23,7 @@ import {
 } from "../../../../scripts/admin/recovery-media-container.mjs";
 import {
   openRecoveryCaptureV3,
+  equalRecoverySchemasV3,
   copyRecoveryCaptureKey,
   type RecoveryCaptureV3Document,
   type RecoveryCaptureV3Context,
@@ -502,27 +503,29 @@ export class SuspendedRecoveryTarget extends EditorialDraftStore {
                 throw new Error("recovery_target_not_empty");
             }
             // Install only into code-owned schemas, never execute SQL from an export.
-            const canonical = (
+            const schemaRows = (
               rows: SqlRow[],
               store: "editorial" | "content",
             ) =>
-              JSON.stringify(
-                rows
-                  .filter(
-                    (row) =>
-                      row.name !== "editorial_recovery_restore" &&
-                      !isRecoveryProviderSchema(row, store),
-                  )
-                  .map((row) => ({
-                    ...row,
-                    sql: recoveryApplicationSchema(row, store) ?? row.sql,
-                  })),
-              );
+              rows
+                .filter(
+                  (row) =>
+                    row.name !== "editorial_recovery_restore" &&
+                    !isRecoveryProviderSchema(row, store),
+                )
+                .map((row) => ({
+                  ...row,
+                  sql: recoveryApplicationSchema(row, store) ?? row.sql,
+                }));
             if (
-              canonical(before.schemas.editorial, "editorial") !==
-                canonical(document.evidence.schemas.editorial, "editorial") ||
-              canonical(before.schemas.content, "content") !==
-                canonical(document.evidence.schemas.content, "content")
+              !equalRecoverySchemasV3(
+                schemaRows(before.schemas.editorial, "editorial"),
+                schemaRows(document.evidence.schemas.editorial, "editorial"),
+              ) ||
+              !equalRecoverySchemasV3(
+                schemaRows(before.schemas.content, "content"),
+                schemaRows(document.evidence.schemas.content, "content"),
+              )
             )
               throw new Error("recovery_target_schema");
             this.ctx.storage.transactionSync(() => {

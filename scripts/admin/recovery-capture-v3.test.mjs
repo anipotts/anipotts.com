@@ -512,3 +512,97 @@ test("v3 awaits async final result under the operation deadline and ignores late
   await new Promise((done) => setTimeout(done, 0));
   assert(!success);
 });
+
+test("v3 authenticated canonical schema proof ignores only dictionary key order and still rejects real DDL/field/row drift", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { readFileSync } = await import("node:fs");
+  const { equalRecoverySchemasV3 } = await import("./recovery-capture-v3.mjs");
+  const { recoveryApplicationSchema } =
+    await import("../../apps/admin/src/editorial/recovery-application-schema.ts");
+  const { isRecoveryProviderSchema } =
+    await import("../../apps/admin/src/editorial/recovery-provider-schema.ts");
+  const read = (path) =>
+    readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+  const editorial = new DatabaseSync(":memory:"),
+    content = new DatabaseSync(":memory:");
+  try {
+    for (const [path, marker] of [
+      [
+        "apps/admin/src/editorial/draft-store.ts",
+        "CREATE TABLE IF NOT EXISTS direct_published_bases",
+      ],
+      [
+        "apps/admin/src/editorial/direct-publisher.ts",
+        "CREATE TABLE IF NOT EXISTS direct_publication_intents",
+      ],
+    ]) {
+      const sql = [...read(path).matchAll(/sql\.exec\(`([\s\S]*?)`\)/gu)]
+        .map((value) => value[1])
+        .find((value) => value.includes(marker));
+      assert(sql && !sql.includes("${"));
+      editorial.exec(sql);
+    }
+    editorial.exec(
+      read("apps/admin/src/editorial/recovery-coordinator.ts").match(
+        /EDITORIAL_RECOVERY_SQL = `([\s\S]*?)`;/u,
+      )[1],
+    );
+    for (const file of [
+      "0001_published_snapshots.sql",
+      "0002_content_schema_version.sql",
+      "0003_recovery_fence.sql",
+    ])
+      content.exec(read(`apps/admin/migrations/content-publication/${file}`));
+    const schema = (db) =>
+      db
+        .prepare(
+          "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name",
+        )
+        .all()
+        .map((row) => ({ ...row }));
+    const document = fixture();
+    document.evidence.schemas = {
+      editorial: schema(editorial),
+      content: schema(content),
+    };
+    const { events, key } = await artifact(document);
+    const opened = await openRecoveryCaptureV3(
+      () => events,
+      key,
+      context,
+      noop(),
+    );
+    const normalized = (rows, store) =>
+      rows
+        .filter(
+          (row) =>
+            row.name !== "editorial_recovery_restore" &&
+            !isRecoveryProviderSchema(row, store),
+        )
+        .map((row) => ({
+          ...row,
+          sql: recoveryApplicationSchema(row, store) ?? row.sql,
+        }));
+    for (const store of ["editorial", "content"]) {
+      const actual = normalized(document.evidence.schemas[store], store),
+        proof = normalized(opened.document.evidence.schemas[store], store);
+      assert.notEqual(
+        JSON.stringify(actual),
+        JSON.stringify(proof),
+        "fixture must expose the original insertion-order bug",
+      );
+      assert(equalRecoverySchemasV3(actual, proof));
+      assert(!equalRecoverySchemasV3(actual, [...proof].reverse()));
+      const extra = structuredClone(proof);
+      extra[0].unknown = "must not disappear";
+      assert(!equalRecoverySchemasV3(actual, extra));
+      const drift = structuredClone(opened.document.evidence.schemas[store]);
+      drift.find((row) => row.type === "table").sql +=
+        " /*unexpected DDL drift*/";
+      assert.throws(() => normalized(drift, store), /schema_drift/u);
+    }
+  } finally {
+    editorial.close();
+    content.close();
+  }
+});
