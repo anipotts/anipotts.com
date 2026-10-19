@@ -1205,6 +1205,8 @@ function assertCoverage(tracked) {
       "scripts/dev/review-state.mjs",
     ],
     "apps/admin": [
+      "scripts/admin/editorial-recovery-capture.mjs",
+      "scripts/admin/editorial-recovery.mjs",
       "scripts/ci/admin-route-inventory.mjs",
       "scripts/content/generate-public-content.mjs",
       "scripts/dev/admin-local-owner-host.mjs",
