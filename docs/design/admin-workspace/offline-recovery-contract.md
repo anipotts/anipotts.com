@@ -594,3 +594,24 @@ proves rejection and staged-sink signal revocation at this boundary.
 The internal capture finalizer is awaited through the same operation guard; a
 thenable cannot escape deadline/key cleanup by async-return assimilation. A held
 async-finalizer case proves rejection, signal revocation and no late success.
+
+### V3 first native boundary qualification
+
+The first native run at `dda5becd106480f00100426e3d2ff70364be013f`
+(2026-10-19 09:04:36 to 09:04:41 UTC) passed all 102 Node and 21 existing native
+cases; all three new integration cases failed during sealing. The failed log is
+`/private/tmp/anipotts-v3-native-recovery.log`. A single filtered synthetic
+probe (09:06:23 to 09:06:26 UTC) identified Workerd's refusal to use an I/O object
+from another Durable Object. Its short redacted error is preserved in
+`/private/tmp/anipotts-v3-native-diagnostic.log`; temporary instrumentation was
+restored exactly and is absent from source.
+
+The synthetic artifact spool now uses test-only value RPC on the existing
+fixture namespace. Each call acquires its stub in the current DO context, stores
+one copied encrypted event in the separate object's actual storage and awaits
+acknowledgment. Replay fetches one copied event at a time. No stream, storage
+handle or other context-bound I/O object crosses the RPC. There is no new binding,
+production class export or operational RPC. A future production artifact adapter
+must acquire its own handles in the calling DO context; it remains unwired and
+operationally unqualified. This fixture correction still requires the refreshed
+three-case native run and full recovery qualification before acceptance.

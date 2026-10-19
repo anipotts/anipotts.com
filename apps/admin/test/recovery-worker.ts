@@ -6,6 +6,7 @@ import {
   completeRecovery,
 } from "../src/editorial/recovery-storage";
 import { SuspendedRecoveryTarget } from "../src/editorial/recovery-target";
+import type { RecoveryCaptureV3Event } from "../../../scripts/admin/recovery-capture-v3.mjs";
 import { delayedSyntheticInventory } from "./recovery/eligibility";
 
 type CaptureBindings = {
@@ -20,6 +21,22 @@ export class CaptureFixture extends EditorialDraftStore {
     super(ctx, env);
     this.#bindings = env;
     new DirectPublisher(ctx.storage, null);
+  }
+  /** Test-only artifact spool in a separate disposable object. Acquire RPC
+   * stubs in the current caller context; never transport I/O handles/streams. */
+  async putRecoveryArtifact(index: number, event: RecoveryCaptureV3Event) {
+    if (!Number.isSafeInteger(index) || index < 0 || index > 7000)
+      throw new Error("synthetic_artifact_index");
+    await this.ctx.storage.put(`fixture-artifact:${index}`, event);
+  }
+  async getRecoveryArtifact(index: number): Promise<RecoveryCaptureV3Event> {
+    if (!Number.isSafeInteger(index) || index < 0 || index > 7000)
+      throw new Error("synthetic_artifact_index");
+    const event = await this.ctx.storage.get<RecoveryCaptureV3Event>(
+      `fixture-artifact:${index}`,
+    );
+    if (!event) throw new Error("synthetic_artifact_missing");
+    return event;
   }
   async capture(timeoutMs = 20_000) {
     return captureRecovery(

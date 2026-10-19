@@ -863,7 +863,7 @@ import {
 } from "../../../../scripts/admin/recovery-capture-v3.mjs";
 
 function artifactV3() {
-  const spool = fresh();
+  const spoolName = `synthetic-artifact-${crypto.randomUUID()}`;
   let records = 0,
     outstanding = 0,
     maximum = 0,
@@ -873,8 +873,9 @@ function artifactV3() {
       maximum = Math.max(maximum, ++outstanding);
       const index = records++;
       try {
-        await runInDurableObject(spool, (_instance, state) =>
-          state.storage.put(`artifact:${index}`, event),
+        await env.RECOVERY_SOURCE.getByName(spoolName).putRecoveryArtifact(
+          index,
+          event,
         );
       } finally {
         outstanding--;
@@ -888,13 +889,9 @@ function artifactV3() {
     },
     source: async function* () {
       for (let index = 0; index < records; index++)
-        yield await runInDurableObject(
-          spool,
-          async (_instance, state) =>
-            (await state.storage.get<RecoveryCaptureV3Event>(
-              `artifact:${index}`,
-            ))!,
-        );
+        yield await env.RECOVERY_SOURCE.getByName(
+          spoolName,
+        ).getRecoveryArtifact(index);
     },
     stats() {
       return { records, maximum, complete };
