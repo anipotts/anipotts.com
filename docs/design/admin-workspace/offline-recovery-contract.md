@@ -93,7 +93,9 @@ isolated operational drill exist. No live private export was used for this proof
 
 ## Proposed browser key and unlock design
 
-This is a recommendation, not an implemented or approved encryption claim.
+Ani accepted local key-file custody and manual re-import after reload/expiry in
+owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0` on October 18. This accepts the
+product tradeoff below; encryption is not implemented or approved for release.
 Source review on 2026-10-18 used integration revision
 `7fcce8d975ce4a1f6045b6f4905539dcd818a7ca`. The approved
 [Quiet Precision contract](quiet-precision-delivery.md) requires encrypted pending
@@ -177,10 +179,9 @@ current in-memory edits before adding them to that download. Until unlock is
 available, any explicit plaintext emergency export must be clearly identified
 as plaintext and cannot be described as an encrypted recovery download.
 
-Ani's product choice is whether manual key custody and re-import after each real
-document load/expiry are acceptable for normal authoring. Recommend this bounded
-first version over a remembered device key: a key persisted alongside ciphertext
-does not provide the intended locked-storage separation. If the friction is
+Ani accepted manual key custody and re-import after each real document
+load/expiry for normal authoring. Keep this bounded first version: a key persisted
+alongside ciphertext does not provide the intended locked-storage separation. If the friction is
 unacceptable, stop activation and design an approved custody mechanism; do not
 silently restore a persistent browser key or add another authentication method.
 Envelope versioning, exact migration checks and race fencing are routine
