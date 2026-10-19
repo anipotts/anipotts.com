@@ -29,7 +29,10 @@ function shape(value, fields) {
   if (
     !value ||
     Object.getPrototypeOf(value) !== Object.prototype ||
-    Object.keys(value).sort().join("|") !== [...fields].sort().join("|")
+    Object.keys(value).length !== fields.length ||
+    !fields.every((field) =>
+      Object.prototype.propertyIsEnumerable.call(value, field),
+    )
   )
     fail("schema");
 }
@@ -67,11 +70,20 @@ function canonical(value, maximum) {
       token(String(value));
     else if (Array.isArray(value)) {
       if (value.length > limits.entries) fail("entry_limit");
+      const length = value.length;
+      const own = Reflect.ownKeys(value);
+      if (
+        own.length !== length + 1 ||
+        !Array.from({ length }, (_, index) => String(index)).every((key) =>
+          Object.prototype.propertyIsEnumerable.call(value, key),
+        )
+      )
+        fail("metadata_array");
       token("[");
-      value.forEach((item, index) => {
+      for (let index = 0; index < length; index++) {
         if (index) token(",");
-        encode(item, depth + 1);
-      });
+        encode(value[index], depth + 1);
+      }
       token("]");
     } else if (value && Object.getPrototypeOf(value) === Object.prototype) {
       const keys = Object.keys(value).sort();

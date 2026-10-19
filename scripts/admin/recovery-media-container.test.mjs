@@ -469,3 +469,53 @@ test("a late transport error after all declared frames prevents verification fin
   assert.equal(target.aborted, true);
   assert.deepEqual(target.manifests, []);
 });
+
+for (const [name, evidence] of [
+  ["sparse array", Array(1)],
+  [
+    "enumerable array property",
+    Object.assign([], { extra: "must not disappear" }),
+  ],
+  [
+    "symbol array property",
+    Object.assign([], { [Symbol("extra")]: "must not disappear" }),
+  ],
+  [
+    "non-enumerable array property",
+    Object.defineProperty([], "extra", { value: "must not disappear" }),
+  ],
+]) {
+  test(`rejects ${name} instead of silently dropping supplied evidence`, async () => {
+    const output = sink();
+    let opened = false;
+    await assert.rejects(
+      writeRecoveryMediaContainer(
+        { objects: [], evidence },
+        () => {
+          opened = true;
+          return reader(object(1));
+        },
+        output,
+      ),
+      /recovery_media_container_metadata_array/,
+    );
+    assert.equal(opened, false);
+    assert.deepEqual(output.manifests, []);
+  });
+}
+
+test("delimiter-shaped keys cannot substitute for exact frame fields", async () => {
+  const output = sink();
+  await assert.rejects(
+    writeRecoveryMediaContainer(
+      { objects: [object(8)], evidence: {} },
+      async function* () {
+        yield { "bytes|index": block(0, 8) };
+      },
+      output,
+    ),
+    /recovery_media_container_schema/,
+  );
+  assert.deepEqual(output.frames, []);
+  assert.deepEqual(output.manifests, []);
+});
