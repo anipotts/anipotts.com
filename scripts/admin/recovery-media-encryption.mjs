@@ -104,7 +104,9 @@ function copyBytes(value, maximum, exact) {
   const length = nativeLength.call(value);
   if (length > maximum || (exact !== undefined && length !== exact))
     fail("binary");
-  return Buffer.from(value);
+  // Buffer.from(typedArray) trusts an overridden .length. Normalize through
+  // the intrinsic typed-array constructor before the bounded Buffer copy.
+  return Buffer.from(new Uint8Array(value));
 }
 function hex(value, length) {
   if (

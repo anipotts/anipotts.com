@@ -210,3 +210,64 @@ it("workerd revocation during native staged plaintext prevents late finalization
   expect(aborted).toBe(1);
   data.key.fill(0);
 });
+
+it("workerd bounded copies ignore hostile typed-array length accessors", async () => {
+  const data = await fixture();
+  const hostile = (bytes: Uint8Array) => {
+    const value = new Uint8Array(bytes);
+    for (const name of [
+      "length",
+      "byteLength",
+      "buffer",
+      "byteOffset",
+      Symbol.iterator,
+    ])
+      Object.defineProperty(value, name, {
+        get() {
+          throw new Error("synthetic_public_accessor_used");
+        },
+      });
+    return value;
+  };
+  const events: EncryptedRecoveryMediaEvent[] = [];
+  const key = hostile(data.key);
+  await seal(
+    data.plan,
+    async function* () {
+      yield { index: 0, bytes: data.bytes };
+    },
+    key,
+    context,
+    {
+      write(event) {
+        events.push(structuredClone(event));
+      },
+      complete() {},
+      abort() {},
+    },
+  );
+  const source = events.map((event) =>
+    event.kind === "header"
+      ? event
+      : {
+          ...event,
+          ciphertext: hostile(event.ciphertext),
+          tag: hostile(event.tag),
+        },
+  );
+  let frames = 0,
+    final = 0;
+  await open(() => source, key, context, {
+    writeFrame() {
+      frames++;
+    },
+    writeManifest() {
+      final++;
+    },
+    abort() {},
+  });
+  expect(frames).toBe(2);
+  expect(final).toBe(1);
+  data.key.fill(0);
+  key.fill(0);
+});

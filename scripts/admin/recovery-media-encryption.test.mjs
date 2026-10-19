@@ -604,3 +604,45 @@ test("ready large sources yield an event turn for explicit revocation", async ()
   assert.equal(output.completed, 0);
   assert.equal(output.aborted, 1);
 });
+
+test("intrinsic copies ignore hostile public typed-array length/iterator accessors", async () => {
+  const data = await fixture();
+  const hostile = (bytes) => {
+    const value = new Uint8Array(bytes);
+    for (const name of [
+      "length",
+      "byteLength",
+      "buffer",
+      "byteOffset",
+      Symbol.iterator,
+    ])
+      Object.defineProperty(value, name, {
+        get() {
+          throw new Error("synthetic_public_accessor_used");
+        },
+      });
+    return value;
+  };
+  const key = hostile(data.key),
+    encrypted = encryptedSink();
+  await seal(data.input, read, key, data.identity, encrypted);
+  const events = encrypted.events.map((event) =>
+    event.kind === "header"
+      ? event
+      : {
+          ...event,
+          ciphertext: hostile(event.ciphertext),
+          tag: hostile(event.tag),
+        },
+  );
+  const output = plainSink();
+  await open(() => events, key, data.identity, output);
+  assert.equal(output.frames.length, 2);
+  assert.equal(output.manifests.length, 1);
+  const oversized = new Uint8Array(33);
+  Object.defineProperty(oversized, "length", { value: 32 });
+  await assert.rejects(
+    seal(data.input, read, oversized, data.identity, encryptedSink()),
+    /binary/u,
+  );
+});
