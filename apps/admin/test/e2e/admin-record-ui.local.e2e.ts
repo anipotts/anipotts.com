@@ -752,41 +752,33 @@ test(
         });
       },
     );
-    await app.open("/content/new-project");
-    await unlockSyntheticBrowserRecovery(browser);
-    const title = `Synthetic Astryx project ${await browser.evaluate(() => crypto.randomUUID())}`;
+    // The DEV-only catalog inherits the ordinary legacy boundary. It renders
+    // real native Core controls inside the same RecordPanel as the editor,
+    // without forcing any production route back out of its migrated SDK UI.
+    await app.open("/content/dev-catalog");
+    expect(
+      await browser.evaluate(
+        () =>
+          location.protocol === "http:" &&
+          ["localhost", "127.0.0.1"].includes(location.hostname) &&
+          Boolean(location.port),
+      ),
+    ).toBe(true);
     await screen
-      .getByRole("textbox", { name: "Title", exact: true })
-      .fill(title);
-    await screen
-      .getByRole("button", { name: "Edit address", exact: true })
+      .getByRole("button", { name: "Open native Core fields", exact: true })
       .click();
-    await assertMigrationTypography(
-      browser,
-      ["Title", "Project address"],
-      false,
-    );
-    await screen
-      .getByRole("button", { name: "Create draft", exact: true })
-      .click();
-    await expect
-      .poll(async () => new URL(await browser.url()).pathname)
-      .toMatch(/^\/content\/projects\/synthetic-astryx-project-[a-f0-9-]+$/);
-    await screen
-      .getByRole("button", { name: "Properties", exact: true })
-      .click();
-    await expect(
-      screen.getByRole("textbox", { name: "Year", exact: true }),
-    ).toBeVisible();
-    await assertMigrationTypography(
-      browser,
-      ["Year", "Role", "Duration"],
-      false,
-    );
+    const nativeYear = screen.getByRole("textbox", {
+      name: "Synthetic Core year",
+      exact: true,
+    });
+    await expect(nativeYear).toBeVisible();
+    await nativeYear.fill("2027");
+    await expect(nativeYear).toHaveValue("2027");
+    await assertMigrationTypography(browser, ["Synthetic Core year"], false);
     await assertOwnedSheetInset(browser);
     expect(await panelRelationships(browser)).toEqual([]);
     const selector = screen.getByRole("combobox", {
-      name: "Category",
+      name: "Synthetic Core category",
       exact: true,
     });
     await expect(selector).toHaveAttribute("aria-expanded", "false");
@@ -801,7 +793,7 @@ test(
     await expect(selector).toContainText("Product");
     await expect(selector).toBeFocused();
     await expect(
-      screen.getByRole("textbox", { name: "Year", exact: true }),
+      screen.getByRole("textbox", { name: "Synthetic Core year", exact: true }),
     ).toBeVisible();
     expect(await panelRelationships(browser)).toEqual([]);
     await selector.click();
@@ -812,13 +804,540 @@ test(
     await expect(selector).toHaveAttribute("aria-expanded", "false");
     await expect(selector).toBeFocused();
     await expect(
-      screen.getByRole("textbox", { name: "Year", exact: true }),
+      screen.getByRole("textbox", { name: "Synthetic Core year", exact: true }),
     ).toBeVisible();
     expect(await panelRelationships(browser)).toEqual([]);
     await app.screenshot("astryx-family-core-properties");
     await screen
-      .getByRole("button", { name: "Close properties", exact: true })
+      .getByRole("button", { name: "Close native core fields", exact: true })
       .click();
     expect(publicationWrites).toBe(0);
+  },
+);
+
+/** All mutations below belong to the disposable owner harness. Reject remote
+ * traffic and publication before any synthetic project is created. */
+async function syntheticProject({ app, browser, screen }: Fixtures) {
+  const baseUrl = app.baseUrl;
+  if (!baseUrl) throw new Error("Expected the disposable admin harness URL");
+  const origin = new URL(baseUrl);
+  if (
+    origin.protocol !== "http:" ||
+    !["localhost", "127.0.0.1"].includes(origin.hostname) ||
+    !origin.port
+  )
+    throw new Error("Expected the disposable loopback admin harness");
+  const evidence = { publicationWrites: 0, refusedSaves: 0 };
+  let refuseSaves = false;
+  await browser.route(/.*/, async (route) => {
+    const url = new URL(route.request.url);
+    if (
+      url.origin !== origin.origin ||
+      url.pathname.startsWith("/cdn-cgi/access/")
+    )
+      return route.fulfill({
+        status: 403,
+        body: "synthetic_project_local_only",
+      });
+    if (
+      route.request.method !== "GET" &&
+      /^\/api\/editorial\/(?:publish|unpublish|retry-publication|cancel-publication)$/.test(
+        url.pathname,
+      )
+    ) {
+      evidence.publicationWrites++;
+      return route.fulfill({
+        status: 409,
+        json: { error: "synthetic_test_no_publication" },
+      });
+    }
+    if (
+      refuseSaves &&
+      route.request.method === "POST" &&
+      url.pathname === "/api/editorial/save"
+    ) {
+      evidence.refusedSaves++;
+      return route.fulfill({
+        status: 503,
+        json: { error: "synthetic_project_save_unavailable" },
+      });
+    }
+    return route.continue();
+  });
+  await app.open("/content/new-project");
+  await unlockSyntheticBrowserRecovery(browser);
+  const title = `Synthetic project workspace ${await browser.evaluate(() => crypto.randomUUID())}`;
+  const titleField = screen.getByRole("textbox", {
+    name: "Title",
+    exact: true,
+  });
+  await expect(titleField).toBeVisible({ timeout: 20_000 });
+  await titleField.fill(title);
+  await screen
+    .getByRole("button", { name: "Create draft", exact: true })
+    .click();
+  await expect
+    .poll(async () => new URL(await browser.url()).pathname)
+    .toMatch(/^\/content\/projects\/synthetic-project-workspace-[a-f0-9-]+$/);
+  await expect(titleField).toHaveValue(title);
+  return {
+    title,
+    path: new URL(await browser.url()).pathname,
+    evidence,
+    refuseSaves(value: boolean) {
+      refuseSaves = value;
+    },
+  };
+}
+
+async function readSyntheticProject(browser: Browser, path: string) {
+  return browser.evaluate(async (recordPath) => {
+    if (
+      location.protocol !== "http:" ||
+      !["localhost", "127.0.0.1"].includes(location.hostname) ||
+      !location.port
+    )
+      throw new Error("Local project only");
+    const id =
+      /^\/content\/projects\/(synthetic-project-workspace-[a-f0-9-]+)$/.exec(
+        recordPath,
+      )?.[1];
+    if (!id)
+      throw new Error("Expected a task-owned synthetic project identity");
+    const response = await fetch(
+      `/api/editorial/record?kind=work&id=${encodeURIComponent(id)}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok)
+      throw new Error(`Synthetic project read failed: ${response.status}`);
+    const value = (await response.json()) as {
+      draft?: { source: string; revision: number };
+      publication?: unknown;
+      base?: { publicationId?: string | null };
+    };
+    return {
+      source: value.draft?.source ?? "",
+      revision: value.draft?.revision ?? 0,
+      hasPublication: Boolean(value.publication),
+      hasPublishedBase: Boolean(value.base?.publicationId),
+    };
+  }, path);
+}
+
+async function projectChoice(
+  { screen }: Fixtures,
+  label: string,
+  value: string,
+) {
+  await screen.getByRole("button", { name: label, exact: true }).click();
+  await screen.getByRole("menuitemradio", { name: value, exact: true }).click();
+}
+
+async function projectAppearance(
+  { browser, screen }: Fixtures,
+  mode: "light" | "dark",
+) {
+  for (let count = 0; count < 3; count++) {
+    const label = await browser.evaluate(
+      () =>
+        Array.from(
+          document.querySelectorAll<HTMLButtonElement>(
+            'button[aria-label$=" theme"]',
+          ),
+        )
+          .find((control) => control.getClientRects().length > 0)
+          ?.getAttribute("aria-label") ?? null,
+    );
+    if (label === `${mode === "light" ? "Light" : "Dark"} theme`) break;
+    if (!label) throw new Error("Expected the real shell appearance control");
+    await screen.getByRole("button", { name: label, exact: true }).click();
+  }
+  await expect
+    .poll(() =>
+      browser.evaluate(
+        () =>
+          document.querySelector<HTMLElement>('[data-admin-ui="openai"]')
+            ?.dataset.theme ?? null,
+      ),
+    )
+    .toBe(mode);
+}
+
+/** Tiny real PNG for project wiring only. The separate admin-media journey
+ * qualifies crop geometry, pixel readback, original retention and late uploads. */
+async function projectImage(browser: Browser, inputIndex: number) {
+  return browser.evaluate(async (index) => {
+    const input = document.querySelectorAll<HTMLInputElement>(
+      'input[type="file"][accept*="image/png"]',
+    )[index];
+    if (!input || input.disabled)
+      throw new Error("Expected an enabled project image input");
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 48;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas unavailable");
+    context.fillStyle = index === 1 ? "#145f8b" : "#7c36d5";
+    context.fillRect(0, 0, 64, 48);
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (value) =>
+          value
+            ? resolve(value)
+            : reject(new Error("Synthetic PNG encoding failed")),
+        "image/png",
+      ),
+    );
+    const digest = Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()),
+      ),
+      (byte) => byte.toString(16).padStart(2, "0"),
+    ).join("");
+    const files = new DataTransfer();
+    files.items.add(
+      new File([blob], "synthetic-project-image.png", { type: "image/png" }),
+    );
+    input.files = files.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return { id: `${digest}.png`, size: blob.size };
+  }, inputIndex);
+}
+
+async function projectStoredImage(browser: Browser, id: string) {
+  return browser.evaluate(async (mediaId) => {
+    if (
+      location.protocol !== "http:" ||
+      !["localhost", "127.0.0.1"].includes(location.hostname) ||
+      !location.port ||
+      !/^[a-f0-9]{64}\.png$/.test(mediaId)
+    )
+      throw new Error("Local synthetic image only");
+    const response = await fetch(`/api/editorial/media?id=${mediaId}`, {
+      cache: "no-store",
+    });
+    if (!response.ok)
+      throw new Error(`Synthetic image read failed: ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    const hash = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      (byte) => byte.toString(16).padStart(2, "0"),
+    ).join("");
+    return {
+      id: `${hash}.png`,
+      size: bytes.byteLength,
+      type: response.headers.get("content-type"),
+    };
+  }, id);
+}
+
+test(
+  "Projects shared kit saves and reloads properties, section and media order, preview and review without publication",
+  { timeout: 180_000 },
+  async (fixtures) => {
+    const { app, browser, screen } = fixtures;
+    const project = await syntheticProject(fixtures);
+    await projectAppearance(fixtures, "light");
+    await assertMigrationTypography(browser, ["Title"], true);
+    await screen
+      .getByRole("textbox", { name: "Description", exact: true })
+      .fill("Synthetic project authoring acceptance only.");
+    await screen
+      .getByRole("button", { name: "Properties", exact: true })
+      .click();
+    await screen
+      .getByRole("textbox", { name: "Year", exact: true })
+      .fill("2026");
+    await screen
+      .getByRole("textbox", { name: "Role", exact: true })
+      .fill("Engineering");
+    await screen
+      .getByRole("textbox", { name: "Duration", exact: true })
+      .fill("One synthetic month");
+    await projectChoice(fixtures, "Category", "Product");
+    await projectChoice(fixtures, "Website visibility", "Listed");
+    await projectChoice(fixtures, "Homepage section", "Work");
+    await projectChoice(fixtures, "Project group", "Past");
+    for (const [name, value] of [
+      ["Homepage order", "7"],
+      ["Catalog order", "11"],
+    ]) {
+      const order = screen.getByRole("spinbutton", { name, exact: true });
+      await order.fill(value);
+      await order.press("Enter");
+    }
+    await assertMigrationTypography(
+      browser,
+      ["Year", "Role", "Duration"],
+      true,
+    );
+    expect(await panelRelationships(browser)).toEqual([]);
+    await assertOwnedSheetInset(browser);
+    await app.screenshot("projects-sdk-properties-light");
+    await screen
+      .getByRole("button", { name: "Close properties", exact: true })
+      .click();
+    await projectAppearance(fixtures, "dark");
+    await screen
+      .getByRole("button", { name: "Properties", exact: true })
+      .click();
+    await expect(
+      screen.getByRole("textbox", { name: "Role", exact: true }),
+    ).toHaveValue("Engineering");
+    await app.screenshot("projects-sdk-properties-dark");
+    await screen
+      .getByRole("button", { name: "Close properties", exact: true })
+      .click();
+
+    for (const [index, heading, paragraph] of [
+      [1, "First synthetic section", "First synthetic paragraph."],
+      [2, "Second synthetic section", "Second synthetic paragraph."],
+    ] as const) {
+      await screen
+        .getByRole("button", { name: "Add story section", exact: true })
+        .click();
+      await screen
+        .getByRole("textbox", { name: `Story ${index} heading`, exact: true })
+        .fill(heading);
+      await screen
+        .getByRole("textbox", {
+          name: `Story ${index}, paragraph 1`,
+          exact: true,
+        })
+        .fill(paragraph);
+    }
+    // ProjectMedia orders its real inputs as logo, project preview, then each
+    // story's preview. All bytes are generated inside this disposable browser.
+    await expect(
+      browser.locator('input[type="file"][accept*="image/png"]'),
+    ).toHaveCount(4);
+    const preview = await projectImage(browser, 1);
+    const previewAlt = screen.getByRole("textbox", {
+      name: "Preview alt text",
+      exact: true,
+    });
+    await expect(previewAlt).toBeVisible({ timeout: 20_000 });
+    await previewAlt.fill("Synthetic project preview");
+    await projectChoice(fixtures, "Preview fit", "Contain");
+    const storyImage = await projectImage(browser, 2);
+    const storyAlt = screen.getByRole("textbox", {
+      name: "Story 1 image alt text",
+      exact: true,
+    });
+    await expect(storyAlt).toBeVisible({ timeout: 20_000 });
+    await storyAlt.fill("Synthetic first-story image");
+    await screen
+      .getByRole("textbox", { name: "Story 1 image caption", exact: true })
+      .fill("Media belongs to the first section.");
+    const move = screen.getByRole("button", {
+      name: "Move story 1 down",
+      exact: true,
+    });
+    await expect(move).toBeEnabled();
+    await move.click();
+    await expect(
+      screen.getByRole("textbox", { name: "Story 1 heading", exact: true }),
+    ).toHaveValue("Second synthetic section");
+    await expect(
+      screen.getByRole("textbox", {
+        name: "Story 2 image alt text",
+        exact: true,
+      }),
+    ).toHaveValue("Synthetic first-story image");
+    await expect(
+      screen.getByRole("textbox", {
+        name: "Story 2 image caption",
+        exact: true,
+      }),
+    ).toHaveValue("Media belongs to the first section.");
+    await screen
+      .getByRole("button", { name: "Add roadmap item", exact: true })
+      .click();
+    await screen
+      .getByRole("textbox", { name: "Roadmap item 1", exact: true })
+      .fill("Review this synthetic project");
+    await projectChoice(fixtures, "Roadmap item 1 status", "Done");
+    await viewSource(fixtures, browser);
+    await expect
+      .poll(
+        async () => {
+          const saved = await readSyntheticProject(browser, project.path);
+          return (
+            [
+              "category: product",
+              "public_state: listed",
+              "homepage_placement: work",
+              "catalog_group: past",
+              "homepage_order: 7",
+              "sort_order: 11",
+              preview.id,
+              storyImage.id,
+              "Review this synthetic project",
+              "status: done",
+            ].every((text) => saved.source.includes(text)) &&
+            saved.source.indexOf("Second synthetic section") <
+              saved.source.indexOf("First synthetic section")
+          );
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true);
+    await screen
+      .getByRole("button", { name: "Close source", exact: true })
+      .click();
+    expect(await projectStoredImage(browser, preview.id)).toEqual({
+      ...preview,
+      type: "image/png",
+    });
+    expect(await projectStoredImage(browser, storyImage.id)).toEqual({
+      ...storyImage,
+      type: "image/png",
+    });
+    await browser.reload();
+    await unlockSyntheticBrowserRecovery(browser);
+    await expect(
+      screen.getByRole("textbox", { name: "Title", exact: true }),
+    ).toHaveValue(project.title, { timeout: 20_000 });
+    await expect(
+      screen.getByRole("textbox", { name: "Story 1 heading", exact: true }),
+    ).toHaveValue("Second synthetic section");
+    await expect(
+      screen.getByRole("textbox", {
+        name: "Story 2 image alt text",
+        exact: true,
+      }),
+    ).toHaveValue("Synthetic first-story image");
+    await screen
+      .getByRole("button", { name: "Properties", exact: true })
+      .click();
+    await expect(
+      screen.getByRole("button", { name: "Homepage section", exact: true }),
+    ).toContainText("Work");
+    await expect(
+      screen.getByRole("button", { name: "Project group", exact: true }),
+    ).toContainText("Past");
+    await expect(
+      screen.getByRole("spinbutton", { name: "Homepage order", exact: true }),
+    ).toHaveValue("7");
+    await screen
+      .getByRole("button", { name: "Close properties", exact: true })
+      .click();
+    await screen.getByRole("button", { name: "History", exact: true }).click();
+    await expect(
+      screen.getByRole("button", { name: /^Compare revision / }).first(),
+    ).toBeVisible({ timeout: 20_000 });
+    await screen
+      .getByRole("button", { name: "Close history", exact: true })
+      .click();
+    await screen.getByRole("button", { name: "Preview", exact: true }).click();
+    await expect(
+      browser.locator('iframe[title$=" draft preview"]'),
+    ).toBeVisible({ timeout: 20_000 });
+    // Keep the opaque-origin sandbox intact. The supported native frame scope
+    // reads the rendered document without exposing it to the parent page.
+    const rendered = browser.frameLocator('iframe[title$=" draft preview"]');
+    await expect(
+      rendered.getByText("Second synthetic section", { exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(
+        async () => {
+          const text = (await rendered.locator("body").textContent()) ?? "";
+          return (
+            text.includes("Second synthetic section") &&
+            text.includes("First synthetic section") &&
+            text.indexOf("Second synthetic section") <
+              text.indexOf("First synthetic section")
+          );
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true);
+    await screen.getByRole("button", { name: "Preview", exact: true }).click();
+    await screen.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(
+      screen.getByRole("complementary", {
+        name: "Review changes",
+        exact: true,
+      }),
+    ).toBeVisible();
+    // Local review deliberately refuses activation even for a valid candidate.
+    await expect(
+      screen.getByRole("button", { name: "Publish now", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      screen.getByText(
+        "Publishing is available in the production editor. This draft stays local.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await app.screenshot("projects-sdk-review-no-publication");
+    await screen
+      .getByRole("button", { name: "Close review changes", exact: true })
+      .click();
+    const saved = await readSyntheticProject(browser, project.path);
+    expect(saved.hasPublication).toBe(false);
+    expect(saved.hasPublishedBase).toBe(false);
+    expect(project.evidence.publicationWrites).toBe(0);
+    await app.open("/content/projects");
+    const listed = browser.locator(`main a[href="${project.path}"]`).first();
+    await expect(listed).toBeVisible({ timeout: 20_000 });
+    await expect(listed).toContainText(project.title);
+    await listed.click();
+    await expect(
+      screen.getByRole("textbox", { name: "Title", exact: true }),
+    ).toHaveValue(project.title);
+  },
+);
+
+test(
+  "Projects shared kit recovers an interrupted private edit and saves it only after explicit recovery acknowledgment",
+  { timeout: 120_000 },
+  async (fixtures) => {
+    const { browser, screen } = fixtures;
+    const project = await syntheticProject(fixtures);
+    const original = await readSyntheticProject(browser, project.path);
+    project.refuseSaves(true);
+    const recovered = `${project.title} recovered locally`;
+    const title = screen.getByRole("textbox", { name: "Title", exact: true });
+    await title.fill(recovered);
+    await title.press("Tab");
+    await expect
+      .poll(() => project.evidence.refusedSaves, { timeout: 20_000 })
+      .toBeGreaterThan(0);
+    await expect(
+      screen.getByRole("status", { name: "Draft save status", exact: true }),
+    ).toContainText("Save failed");
+    const offDialog = await browser.onDialog("accept");
+    try {
+      await browser.reload();
+    } finally {
+      await offDialog();
+    }
+    await unlockSyntheticBrowserRecovery(browser);
+    await expect(
+      screen.getByText("Recovered edits are ready to review", { exact: true }),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(title).toHaveValue(recovered);
+    const beforeSave = await readSyntheticProject(browser, project.path);
+    expect(beforeSave.source).toBe(original.source);
+    expect(beforeSave.revision).toBe(original.revision);
+    project.refuseSaves(false);
+    await screen
+      .getByRole("button", { name: "Save recovered edits", exact: true })
+      .click();
+    await expect
+      .poll(
+        async () => (await readSyntheticProject(browser, project.path)).source,
+        { timeout: 20_000 },
+      )
+      .toContain(recovered);
+    await browser.reload();
+    await unlockSyntheticBrowserRecovery(browser);
+    await expect(title).toHaveValue(recovered, { timeout: 20_000 });
+    expect(
+      (await readSyntheticProject(browser, project.path)).hasPublication,
+    ).toBe(false);
+    expect(project.evidence.publicationWrites).toBe(0);
   },
 );

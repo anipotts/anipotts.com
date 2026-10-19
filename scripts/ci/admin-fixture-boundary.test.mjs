@@ -82,6 +82,8 @@ if (existsSync(dist)) {
   const leaks = [
     /admin-openai-synthetic-article/,
     /domain_pk_localhost_dev/,
+    /Open native Core fields/,
+    /Synthetic Core (?:year|category)/,
     /ops_v1\.sample/,
     /ops_events_v1\.synthetic/,
     /data_v1\.synthetic/,
