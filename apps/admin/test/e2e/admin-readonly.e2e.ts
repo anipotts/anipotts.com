@@ -3,7 +3,7 @@ import { expect } from "e2e";
 
 // The ordinary loopback dev preview permits these GET routes. It cannot issue
 // credentials or write drafts, so this suite is safe for an anonymous runner.
-test("project library search opens a committed record", async ({
+test("project library search opens the record recovery gate", async ({
   app,
   browser,
   screen,
@@ -31,8 +31,9 @@ test("project library search opens a committed record", async ({
   await expect(record).toBeVisible();
   await record.click();
 
+  await expect(browser).toHaveURL(/\/content\/projects\/chainedchat(?:\?.*)?$/);
   await expect(
-    screen.getByRole("heading", { name: "chainedchat", level: 1 }),
+    screen.getByRole("heading", { name: "Unlock browser recovery", level: 1 }),
   ).toBeVisible();
 });
 

@@ -1,6 +1,48 @@
 # Website source preparation
 
-## October 19 recovery v3 qualification and review queue
+## October 19 main refresh after approved #539 release
+
+Integration owner remains chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`, Codex on ap-pro.
+This current checkpoint supersedes the pending #539 approval/release statements
+in the preserved revision-specific packets below.
+
+Ani approved #539 at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69`.
+It merged as `cf7b757be2c0bfc72d9886a27599e615b7ec3b66`; the integration owner
+verified the merged tree is identical to the approved tree.
+[Release 39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+succeeded for Admin only. The other five runtime targets were skipped; schema
+remains `0044`, with no migration. Provider readback verifies Admin version
+`ab08369b-bd13-4eb4-aeb0-f544384fb7b9`; all eight private-route probes return
+302 to Access, and the deployable bundle contains no local-owner marker in 344
+files. The public site remains on `79592009`, reporting healthy with D1
+connected. No deploy approvals remain pending. These are the integration owner's
+release receipts, separate from the source merge performed for #541 here.
+
+The #541 refresh normally merges this approved main into its previously pushed
+`7fc1589b97b85e05747628fbd20040ed6cbd6b12` checkpoint. Both histories are
+preserved. Only README and this packet need conflict resolution; no recovery
+runtime compatibility edit is required. Earlier full/source/native evidence
+applies to its named revisions. The refreshed combined tree remains unqualified
+until the owner schedules its checks; this worker runs no tests, build, preview
+or browser and does not push or update the PR.
+
+#540 and #541 remain inactive draft foundations. Operational recovery admission
+still always rejects; migration `0003` is unapplied. No production capture route,
+artifact provider, operational key custody, external copy or restore drill is
+established. The local browser key-file acceptance does not grant operational
+backup custody. The [offline recovery contract](design/admin-workspace/offline-recovery-contract.md)
+retains the qualified v3 evidence and those release gates. #542 remains a
+separate tooling draft undergoing refreshed owner qualification; it selects no
+runtime targets. No approval for #541 is inferred from the approved #539 release.
+
+## Preserved historical checkpoint packets
+
+The following dated packets retain their original source, checks, failed runs
+and decision provenance. Their pending approvals and candidate exclusions describe
+those checkpoints, rather than current release state. Use the current checkpoint
+and root README for active actions.
+
+## October 19 recovery v3 qualification and review queue (historical checkpoint before #539 merge)
 
 Owner chat: `01a14ffb-519c-73b1-a63a-380f9d7274d0`, Codex on ap-pro.
 This checkpoint supersedes the pending-release and recovery-format limitations
@@ -35,6 +77,373 @@ restore drill is established. Browser recovery's accepted local key file does
 not authorize operational backup custody. The full source/native evidence and
 remaining gates are in the [offline recovery contract](design/admin-workspace/offline-recovery-contract.md).
 Keep #540, #541 and #542 draft until their respective gates are met.
+
+## October 19 archive and lock-mapping repair (historical checkpoint)
+
+Source `3e22ecb13ad0f9d659d740f5884e6b0792276437` preserves the archive created by the
+current explicit recovery choice while retaining the existing three-archive bound.
+Random UUID ordering cannot immediately remove that displaced ciphertext. Missing
+Web Locks reports unavailable for a valid document; closed or revoked channels
+report signed-out consistently on reads and writes. Closing expiry capabilities
+retain their existing admission semantics. All45 focused native-crypto/storage
+cases and strict typing pass. Both primary regressions fail on prior source;
+five successive lowest-UUID choices preserve the latest displaced ciphertext,
+foreign-key records and exact encrypted export while keeping three owned archives.
+
+The earlier `78a6b01f` full validation (14tasks /2,460core),42 browser cases,
+CI39223093838, Security Review39223093725 and zero-finding CodeQL39223058028 pass.
+Its completed code review then found these two issues; no approval was requested
+for that head. Full/browser/hosted checks, canonical identity and completed
+current-head code/security review must qualify this new source before exact
+review. Earlier613/b29approval requests remain withdrawn. This candidate is
+admin only, schema0044, no migration; #540/#541/#542 remain excluded.
+
+## October 19 bounded storage-fault candidate
+
+Source `0f4be166df869dbf615dd7002b89d395a4d561f5` combines the explicit-choice archive
+cleanup and the subsequent capture-failure repair. The prior `b29fb42e` approval
+request remains withdrawn. All40 focused native-crypto/storage cases pass.
+After appending a capture, validity/read/prune failure best-effort removes only
+this attempt's exact unchanged new entry. Changed older or new bytes are
+preserved; an older-entry mismatch cannot report success with an unreadable fourth
+capture. Old copies are never removed before a durable new insert. A one-shot
+storage fault leaves the original three captures readable after unlock and allows
+retry. If storage continues refusing cleanup, failure is explicit and all opaque
+bytes remain exportable; no successful seal or readability guarantee is claimed.
+
+Full validation, clean Chromium/WebKit qualification, current-head hosted checks
+and review are the remaining gates. The owner will record their exact frozen-head
+receipts in #539 without another documentation-only head change. This remains
+admin only, schema0044, no migration. Inactive #540/#541 and tool-only #542 are
+excluded. The canonical preview is updated only after qualification; no merge or
+production approval is inferred.
+
+## October 19 quota repair and refreshed candidate
+
+The `b29fb42e` approval request is withdrawn. Its full hosted CI39220395722,
+Security Review39220395857 and zero-finding CodeQL39220352886 pass, but a later
+08:15 UTC review found a quota failure that can retain an unchanged duplicate
+archive after explicit-choice replacement fails. Source `3ba1f6f068d99c848bfa5fbb40973209c6b49d9a`
+reclaims only this attempt's unchanged archive on replacement failure; inaccessible
+or changed bytes are preserved and cleanup cannot mask the original storage error.
+All31 focused native-crypto/storage cases pass, including quota, exact source and
+archive preservation, retry, changed archive and cleanup read/remove failure.
+Combined full/browser checks, canonical preview, refreshed hosted checks and
+current-head review must pass before a new exact approval request. The integration
+owner remains this chat; no new merge/deploy approval is inferred.
+
+Separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542),
+`35a80beced177dba2195b297575f4f2aadcbf718`, removes unused Drizzle CLI tooling on
+main795 without schema/SQL/journal changes. Its isolated frozen install and full
+validation pass all14 workspace tasks; the exact lock audit has zero moderate,
+high or critical findings and one low upstream KaTeX advisory. It selects zero
+runtime targets. That draft and inactive foundations #540/#541 remain excluded
+from this candidate. Source and receipt details are in their same-repository PRs.
+
+## October 19 combined qualification and CodeQL fixture repair
+
+Frozen `1b04edf453d15beeb057683dedcf483d812ee35a` passes full `pnpm validate`:
+all 14 tasks, including 2,447 Admin core / 79 Astro / 98 actual editorial workerd
+and three CSP cases plus one intentional skip. Its clean maintained Admin browser
+run passes 42/42 Chromium/WebKit cases, including real immediate Back, unlock and
+exact title/custom-address restoration. Public browsers pass 13 cases with one
+intentional desktop skip. Production local-owner scan passes all 344 files;
+tracked source stays clean and task ports 8873/18123 have no listener afterward.
+The canonical preview was fast-forwarded cleanly to this checked source, with
+published mirror v17 / 20 records current and no status blockers.
+
+A later CodeQL review of this head reports alert 36, `js/bad-code-sanitization`,
+in synthetic setup-fixture JavaScript construction. Test-only `39e1841c` replaces
+runtime-interpolated program bodies with static programs and separate JSON data.
+All 16 process/config fixtures pass, including quoted / space / newline paths,
+JavaScript-looking configuration values and actual forced shutdown. The runtime
+harness and app source remain byte-identical to `1b04edf4`; its browser proof
+therefore remains applicable. No suppression, dismissal or protection change is
+used. Refreshed exact-head hosted checks and CodeQL alert clearance still gate
+review; no later merge/deploy approval exists. The earlier `613b5711` request
+remains superseded.
+
+Logs are `/private/tmp/anipotts-recovery-later-review-validation.log`,
+`/private/tmp/anipotts-recovery-later-review-admin-browser.log`,
+`/private/tmp/anipotts-recovery-later-review-public-browser.log` and
+`/private/tmp/anipotts-recovery-seeding-static-focused.log`.
+
+## October 19 integrated later-review repairs
+
+The superseded `613b5711` approval request remains withdrawn. The three later
+review findings are implemented in the integration candidate; combined full,
+actual-browser and hosted qualification follows before a new exact-head request.
+No merge, auto-merge or release approval is inferred.
+
+- Navigation source `59cf0d0f` marks typed input unsafe synchronously, awaits a
+  local durable recovery barrier before anchor or requested navigation, and fences
+  stale input/intent, expiry, logout and unmount. Full-document unload warns while
+  input is pending or recovery fails. Article/project creation routes do not host
+  the library's SPA router, so no speculative history-index framework was added.
+  Follow-up `92f94b27` also protects restored CAS conflicts and clearing a durable
+  title to empty; failed comparisons expose the existing explicit choices.
+  Held-native-Web-Crypto regressions pass 38 cases including 25 existing; the
+  original `613b5711` source fails the new early-unload assertion. Strict editorial
+  typing and Astro checking pass. A new real-browser create/back/re-import case
+  awaits owner execution in both engines.
+- Shared-kit source `3e51ea50` moves the existing Writing control implementations
+  into the workspace kit and keeps their 12 compatibility exports unchanged.
+  RecoveryUnlock uses kit exports. Writing's buttons already rendered actual Apps
+  SDK controls; the repair concerns ownership and the shared file field. The file
+  input remains native because the installed SDK text-input wrapper performs
+  selection operations that are invalid for files. No key/session logic, provider,
+  scoped reset or portal boundary changes. Focused gate/control/hydration/portal
+  checks pass 53 cases, with actual SDK and legacy variants.
+- Harness source `35215453` handles cancellation before setup, awaits migration /
+  media-upload / apply child shutdown, and removes temporary D1/R2 state afterward.
+  Setup has task-owned POSIX groups; the final Worker remains in the runner group.
+  All 15 focused fixtures pass, including six phase/signal cancellations and the
+  installed runner's real forced stop against TERM-ignoring descendants. That case
+  closes in 5,015 ms inside its 10-second budget and proves state/PID cleanup.
+  Uncatchable wrapper termination is outside a cleanup guarantee; unconfirmed
+  group closure preserves state rather than deleting it beneath a live command.
+
+The root integration chat owns final qualification and canonical previews; workers
+used separate worktrees and started no previews. Earlier exact-head CI proof below
+is historical and does not cover these later edits. Source-protocol, physical
+custody and operational backup acceptance remain distinct.
+
+## October 19 later review hold and next foundation drafts
+
+The `613b5711` approval request is superseded. Exact-head CI `39214447042`,
+Security Review `39214446961` and CodeQL `39214419654` pass, but a later
+07:23 UTC review added three findings. #539 is back in draft: the Writing
+recovery gate must use the workspace kit, immediate new-writing navigation
+can cancel a pending encrypted snapshot, and cancellation during synchronous
+test seeding can skip temporary-state cleanup. GitHub's blocked merge state is
+consistent with those unresolved conversations, not evidence that protection
+needs weakening. Isolated workers own the three repairs; this chat remains
+integration owner. Refresh source/browser/hosted checks and exact review before
+admin-only release. The earlier `613b5711` CI proof remains valid historical
+qualification, not approval of a repaired head.
+
+The next foundations are now preserved as same-repository drafts:
+
+- [#540](https://github.com/anipotts/anipotts.com/pull/540),
+  `codex/media-processing-foundation`, head `de4f9fcfc`: full validation passes
+  at `c70cff33`; later changes are documentation and a normal main merge, with
+  runtime equality verified. Admin 2,405 core / 79 Astro / 113 actual editorial
+  workerd / three CSP cases plus one intentional skip pass. The missing importer
+  setup was repaired through an offline frozen install into its own physical
+  dependencies, preserving shared targets. Static review passes nine sensitive
+  paths. Actual provider entitlement/decode/crop/resource qualification and
+  activation remain open.
+- [#541](https://github.com/anipotts/anipotts.com/pull/541),
+  `codex/editorial-recovery-capture`, head `94c1e727`: full validation passes
+  at `2deb4fb0`, including fresh Admin test/type-check cache misses, 2,361 core /
+  79 Astro / 105 editorial workerd / 84 recovery Node / 21 recovery workerd and
+  three CSP cases plus one existing browser-gated skip. The new encrypted codec
+  has 33 focused Node and four actual workerd cases, including bounded file-backed
+  20 MiB transport, tamper/order/EOF, cancellation and final-ack checks. Independent
+  review is clear; source is unchanged after qualification documentation. Actual
+  Turbo helper-only probes reproduce stale test/type-check hashes before the
+  input fix and invalidation afterward, restoring exact helper bytes. Static
+  review passes 28 sensitive paths. Operational admission still rejects, older
+  v2 size limits remain, and content-publication 0003 remains unapplied. Inventory,
+  writer enrollment, format integration, custody/external-copy/restore gates remain.
+
+These drafts activate no provider, collector or backup route. No operational key
+custody, binding, migration, merge or deployment approval is inferred from source
+qualification. Full receipts are in each draft and its maintained contract.
+
+## October 19 qualified review repairs
+
+#538 is deployed as `795920090` on all six approved targets, without migration.
+No Production deploy runs were waiting when rechecked at this checkpoint.
+#539's later candidate has no merge or admin-deploy approval.
+
+All three confirmed hosted findings are repaired. Source `79865b9c` persists
+contested expiry input separately, carries exact authenticated capture
+acknowledgments through choices and tombstones, and maps storage exceptions to
+recovery problems. Session fixes `2ea1ea36` / `da075297` revoke failed challenges
+and interrupted setup without revoking a newer successful unlock. Independent
+source review found no remaining blocker in these scoped fixes. Focused adapter
+checks pass 157 cases; session/unlock checks pass 14.
+
+Full `pnpm validate` passes at `7f11a40d`: all 14 workspace tasks, including
+2,428 Admin core, 79 Astro, 98 actual editorial workerd and three CSP cases with
+one intentional skip. The full local Admin browser run exercised 40 cases:
+39 passed and one desktop assertion still expected superseded warning text.
+Its failure screen showed the correct notice. Test-only `357ede55` corrects that
+assertion; all four affected Chromium/WebKit lifecycle cases pass on rerun.
+Application source is unchanged from full validation. All 40 maintained cases
+therefore have passing coverage with that focused rerun; this is not a claim of
+a separate clean 40-case run at the later test head.
+
+The public browser suite passes 13 cases with one intentional desktop skip at
+`357ede55`. The initial hosted CI `39211183263` had passed application checks and
+84/84 CMS route proof before EADDRINUSE at browser startup. Its log identifies
+no occupying socket or PID. Harness fix `14206fcc` uses one shared test-owned
+18123 HTTP port, a validated override, an OS-assigned inspector, refusal to reuse
+foreign listeners and child-close-aware cleanup. Six real runner/process fixtures
+and the actual two-engine public suite pass. Final cleanup finds no task listener
+on 8873 or 18123. Static review passes all 13 affected sensitive files; validation
+preserves tracked source. The older failed logs are retained.
+
+Logs are `/private/tmp/anipotts-recovery-review-fixes-validation-final.log`,
+`/private/tmp/anipotts-recovery-review-fixes-admin-browser.log`,
+`/private/tmp/anipotts-recovery-review-fixes-lifecycle-final.log` and
+`/private/tmp/anipotts-recovery-review-fixes-public-browser.log`.
+Refreshed exact-head hosted checks, current canonical preview and Ani's review
+remain release gates. The target is admin only, schema 0044, no migration.
+Physical-device key custody and authenticated live owner writes remain separate.
+
+The next foundations remain isolated and inactive:
+
+- Media branch `codex/media-processing-foundation` is pushed atc70cff33;
+  runtime source38a9a270 passes44 Node and27 actual workerd cases, full editorial
+  generated-types checking and formatting. Original/derivative/provenance/request
+  receipt commit atomically, with bounded native byte snapshots and immutable
+  replay/corruption checks. Provider activation, whole-app resource qualification
+  and recovery-format support remain open. A read-only Images usage probe returns
+  provider5403 (account invalid or service not authorized); entitlement is unverified.
+- Capture branch `codex/editorial-recovery-capture` is pushed atc99b8edd after
+  normal main795 merge. Full validation passes at33992467: public196/content206,
+  Admin2361 core/79 Astro/101 actual editorial workerd,51 recovery Node and21
+  capture workerd,3 CSP cases plus one intentional skip. The initial CI-path
+  scope failure was corrected by four exact registry/assertion lines; its failed
+  log remains preserved. New plaintext transport uses64KiB frames, incremental
+  hashes, awaited backpressure and final-manifest validation;33 Node and3 native
+  cases include10MiB in both planes without retaining a whole20MiB test buffer.
+  It is not encrypted backup or operational capture integration. Legacy v2 limits,
+  disabled cohort admission, custody/external-copy/restore gates and unapplied
+  content-publication0003 recovery-fence migration remain explicit.
+
+## October 19 approved consolidation release and recovery scheduling repair
+
+Ani approved #538 at `2b797fb5d4a10a4aa63788ac63ed140b31cd8a26` and
+all six targets in owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`.
+Exact-head CI39196056419, Security Review and CodeQL passed; there were no
+unresolved review threads. Strict live main protection was reread immediately
+before protected merge `795920090a594dbf347e2c7de35967e6d1ee76bb` at
+2026-10-19T06:26:22Z. Direct Git tree comparison proves the merge content is
+identical to the approved candidate. [Release39209913406](https://github.com/anipotts/anipotts.com/actions/runs/39209913406)
+passed exact validation and selects www, admin, ingest, newsletter, state and
+weekly email. D1 is unchanged, schema0044, no remote migration selected.
+The same approval was applied to the staged native Production gates. The run
+succeeded, and all six runtime targets deployed; none was skipped. No migration ran.
+
+Native Cloudflare readback confirms these versions active at100%:
+
+| Target       | Active version                         |
+| ------------ | -------------------------------------- |
+| www          | `ffa67ab0-d74c-42ca-8099-87adc1067fd2` |
+| admin        | `d9a482ec-438b-42a0-bcfe-cc4e93c264c9` |
+| ingest       | `35327197-09ec-4886-8ea8-6bb38472b845` |
+| newsletter   | `a405b42d-e04d-4433-ac9b-9ea2442c70a0` |
+| state        | `aa8d4bf1-94c4-4c26-b22c-4cd1c9a6c16a` |
+| weekly email | `8fe78741-5a4a-46ce-b1df-e94bfa0c6919` |
+
+The active admin version message names release795920090/schema0044. Public
+exact-release smoke passed all current22 HTML routes plus security-header and
+redirect probes. The release's eight admin private-route probes redirect to
+Access; authenticated owner writes are not claimed. The deployable bundle scan
+finds no local-owner marker in344 files. Direct public health at06:31:43Z reports
+795920090/oktrue, D1 connected. Newsletter health is200/oktrue; state remains503
+and ingest200/degraded from their separate producer freshness gaps. Weekly email
+is intentionally410/retired. No deliberate newsletter send or producer mutation
+was performed.
+
+#539 is retargeted to main and kept in draft during the next qualification.
+A held-lock probe of source3a3a561f retained24 legal serialized snapshots totaling
+9,440,376 bytes, then encrypted every stale copy. Fix6a8572cc bounds ordinary
+writes to one active and one latest pending copy. Superseded promises have an
+explicit outcome; at most four durable/choice/tombstone barriers preserve
+ordering and failure reporting. Closing capture supersedes obsolete pending
+work within the existing capability and1.5-second expiry cutoff. Consumer
+sequence guards prevent stale completion from clearing newer failures. Focused
+qualification passes127 cases, including native crypto flooding, immutable
+capture, ordered barriers, bounded admission and expiry supersession.
+
+The65,536-nonce lifetime limit remains fail-closed. A maximum-sized repeated
+payload can reach it during a long editing session; actionable save/reload
+messaging and encrypted-export failure handling landed in c877a112 with77 focused tests passing. HomeEditor retains its explicit plaintext Markdown source action; NewWriting names its actual Create draft control.
+This is an availability limit, not a nonce-safety bypass. Earlier receipts below apply to their stated revisions.
+
+Final current-source qualification at
+`d0f31d094d9ad9a8dc89cffda2e6f32bc1180a00` passes full `pnpm validate`:
+all invariants, formatting, six builds, four lint tasks, fourteen typechecks
+and fourteen test tasks. Admin passes2,408 core,79 Astro,98 actual workerd and
+three CSP cases with one intentional CSP skip; public196 and content206 pass.
+All38 maintained native browser cases pass in desktop Chromium and phone
+WebKit (run01a152df-c30e-78cb-80c9-4891f73f66bf). This includes the real native
+Web Lock flood:24 legal128KiB source/saved/pending payloads produce22 explicit
+supersessions and exactly two committed ciphertexts, with exact decrypted
+first/latest content after caller mutation. Existing key-file, expiry, two-tab,
+logout, pagehide/history, hydration, metadata and media journeys also pass.
+
+Actual changed-file static security review passes9 sensitive files. The
+production bundle scan finds no local-owner marker in344 files; source drift
+checks pass after validation and browsers. The task-owned8873 server has ended.
+The classifier selects admin only: www and all four workers are false, D1 is
+unchanged/schema0044, no migration. Final documentation only records this proof;
+hosted main checks, canonical review and exact Ani review still gate release.
+
+## October 19 encrypted browser recovery checkpoint
+
+Integration owner remains chat `01a14ffb-519c-73b1-a63a-380f9d7274d0` on ap-pro.
+[#538](https://github.com/anipotts/anipotts.com/pull/538) is frozen at
+`2b797fb5d4a10a4aa63788ac63ed140b31cd8a26`. CI39196056419, static Security
+Review and CodeQL pass; native code/security review found no findings. The exact
+#534/#535/#537 heads are included and those superseded PRs are closed. #538 still
+awaits Ani’s exact merge/deployment review for all six runtime targets, no migration.
+The canonical preview remains clean at this head: www127.0.0.1:4580,
+adminlocalhost:4311, current published v17/20-record mirror checked04:12:48Z.
+
+The next batch is [#539](https://github.com/anipotts/anipotts.com/pull/539),
+stacked on #538, branch `codex/browser-recovery-unlock`, isolated checkout
+`/private/tmp/anipotts-browser-recovery-unlock`. Ani accepted local recovery key
+files and manual re-unlock on reload/expiry. This accepts the design, not a later
+unreviewed PR release. Production Access and API permissions are unchanged.
+
+The browser engine and consumers now use non-extractable, document-memory keys,
+AES-256-GCM v3 values, authenticated chunk manifests, per-unlock channel
+capabilities and exact-byte CAS under existing Web Locks. Legacy bytes remain
+additive and visible as retained plaintext. Safety exports encrypt current input
+and opaque copies; explicit Markdown source/history exports stay labeled plaintext.
+Lost keys preserve earlier identities and allow an opaque export without claiming
+decryption. Setup requires a downloaded file to be re-imported and challenged.
+The maintained [browser contract](design/admin-workspace/browser-recovery-contract.md)
+describes lifecycle order, bounds and remaining acceptance.
+
+Qualified source checkpoint `dadc2475b8bea8b49cd7f779abb44452cd06ffb7` includes
+review fixes for stale channel/key reuse and storage-dependent hydration. Full
+workspace validation passed at source `4f99e746`: 2,399 Admin core,79 Astro,
+98 workerd,3 CSP cases with one intentional skip;196 public and206 content tests.
+The complete native browser run passed32 existing/key-file/crypto cases at
+`e23ade9a`; its four new lifecycle cases initially failed on test selectors and a
+retired redirect expectation. After test-only corrections, all four lifecycle
+cases pass at `dadc2475` in Chromium and WebKit. This includes independent tab
+unlock, actual competing input, native cross-tab logout storage events, real
+pagehide and history return. The history test accepts either locked retained
+state or a fresh key gate; it does not assert a BFCache hit. Keys, fixtures and
+API writes are synthetic/local only. The final combined check is refreshed on
+the frozen review candidate before it is offered for approval.
+
+Final combined local validation and all36 native browser cases passed at
+`1940a48411309295f0faad8d292b1c62218a98f0`. The subsequent format-tag metadata
+rename at `efae677d` preserves serialized bytes and resolves the hosted scanner’s
+public-label false positive. Actual changed-file static review passes for9
+sensitive files, strict editorial TypeScript and38 affected tests pass; affected
+native cases are refreshed separately. PR539 is ready for hosted full checks,
+while the main-base and canonical-preview gates below remain outstanding.
+
+The recovery-only classifier selects admin, D1 unchanged/schema0044, no migration.
+The canonical preview remains on #538 until that review completes. #539 needs
+base/main-check refresh, canonical integration and Ani’s exact review before
+merge/deploy. Physical-device key custody, live Access expiry/owner save and
+operational recovery custody/restore remain separate acceptance. No remote
+migration, real content mutation, provider setup or production deployment occurred.
+
+The media foundation is parked/pushed at `cd5011b2`; source5692a966 passed32 Node
+and3 actual workerd cases after all three review findings were closed. It remains
+disabled and outside these PRs. Coherent capture remains parked/pushed36178c98,
+with operational admission disabled and its documented upload/cohort/custody gaps.
 
 ## October 18 browser-tools release and next completion batch
 

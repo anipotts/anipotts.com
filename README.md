@@ -13,8 +13,9 @@ pnpm dev:admin
 pnpm dev:status
 ```
 
-Public preview: http://anipotts.localhost:1355/. Admin preview: http://admin.anipotts.localhost:1355/.
-The managed admin review preview on http://localhost:4311/ is separate; preserve it while review is active.
+Use `pnpm dev:status` for this checkout’s URLs. The canonical review checkout and
+public URL are recorded in [the integration lane](docs/local-integration-preview.md).
+Preserve its managed admin review preview on http://localhost:4311/ while review is active.
 See [local development](docs/local-development.md).
 
 ## Content
@@ -29,14 +30,17 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review #539 at `f8e90810` for browser recovery protected by a saved local key file. Full local and hosted checks pass; the proposed deployment affects Admin only.
-- [ ] Finish provider and operational qualification for draft media #540 and recovery #541. Their source checks pass, including bounded encrypted v3 capture/restore; custody, external-copy, migration and activation gates remain open.
-- [ ] Refresh draft #542 after the next approved merge, then review removal of the unused Drizzle CLI. Full source checks pass; no runtime targets are selected.
+- [ ] Qualify and review refreshed [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery against merged #539. The earlier source/native checks pass, including bounded encrypted v3 capture/restore; the refreshed combined tree needs owner qualification. Operational admission, custody, external-copy, migration and restore gates remain open.
+- [ ] Complete the held provider and resource acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing. The qualified foundation remains inactive.
+- [ ] Finish refreshed qualification and review for draft [#542](https://github.com/anipotts/anipotts.com/pull/542), which removes the unused Drizzle CLI and its moderate advisory. One low upstream KaTeX advisory remains; no runtime targets are selected.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#529/#530/#531 and consolidated dependency/usability #538 are merged and deployed.
-#538 released all six approved targets at `79592009`, without a migration.
-#532's successful release selected no runtime targets because it changes browser tooling and documentation.
+#539 was approved and merged as `cf7b757b`. [Release 39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483) deployed Admin only; all other targets were skipped, no migration ran, and private routes retain the Access boundary.
+
+#538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
+
+#529/#530/#531 are merged and deployed. #532 is merged; its successful release
+selected no runtime targets because it changes browser tooling and documentation.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records
 PR containment, verification and remaining work. Earlier receipts stay in that

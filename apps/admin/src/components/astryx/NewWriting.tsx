@@ -1,4 +1,10 @@
+import type { EncryptedBrowserRecovery } from "../../lib/encrypted-browser-recovery";
+import { recoverySession } from "../../lib/browser-recovery-session";
 import { AuthReentry } from "./AuthReentry";
+import {
+  adminNavigationEvent,
+  commitAdminNavigation,
+} from "../../lib/editorial-navigation";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
   protectedAdminJson,
@@ -22,13 +28,11 @@ import { writingId, validWritingId } from "../../lib/writing-draft";
 import {
   newWritingRecoveryKey,
   newProjectRecoveryKey,
-  writingRecovery,
+  encryptedWritingRecovery,
   type NewWritingRecovery,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
 import {
-  exportBrowserRecoveryCopy,
-  type BrowserRecovery,
   type RecoveryProblem,
   type RecoveryRead,
 } from "../../lib/browser-recovery";
@@ -37,6 +41,7 @@ import {
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
 import { readEditorialCsrf } from "../../lib/editorial-client";
+import { RecoveryEncryptionError } from "../../lib/browser-recovery-encryption";
 
 class DraftCreationError extends Error {}
 /** The address is taken: the field names it and links to the record. */
@@ -130,21 +135,36 @@ function NewWritingForm({
   const [recoveryRead, setRecoveryRead] = useState<
     RecoveryRead<NewWritingRecovery>
   >({ status: "missing" });
-  const recoveryChannel = useRef<BrowserRecovery<NewWritingRecovery> | null>(
-    null,
-  );
+  const recoveryChannel =
+    useRef<EncryptedBrowserRecovery<NewWritingRecovery> | null>(null);
   const recoveryKey = recoveryScope
     ? project
       ? newProjectRecoveryKey(recoveryScope)
       : newWritingRecoveryKey(recoveryScope)
     : null;
   const request = useRef<{ key: string; id: string } | null>(null);
+  const recoveryWriteSequence = useRef(0);
+  const editGeneration = useRef(0);
+  const recoveryUnsafe = useRef(false);
+  const leavePending = useRef(false);
+  const leaveIntent = useRef<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState("");
   const latestRecovery = useRef<NewWritingRecovery | null>(null);
   latestRecovery.current = {
     title,
     slug,
     customSlug,
     request: request.current,
+  };
+  const changedRecovery = (value: NewWritingRecovery) => {
+    // The DOM can receive another click or unload before React's write effect.
+    // Mark the exact input unsafe synchronously, before any async encryption.
+    latestRecovery.current = value;
+    editGeneration.current++;
+    recoveryWriteSequence.current++;
+    recoveryUnsafe.current = true;
+    setLeaveError("");
   };
   const active = useRef(true);
   const createAbort = useRef<AbortController | null>(null);
@@ -159,6 +179,16 @@ function NewWritingForm({
     // the keyboard never covers the page before it is wanted.
     if (window.matchMedia?.("(pointer: fine)").matches) field.focus();
   }, [restored, loggedOut]);
+  useEffect(
+    () =>
+      recoverySession().capture(() => {
+        const channel = recoveryChannel.current;
+        return channel && latestRecovery.current
+          ? channel.sealFinal(latestRecovery.current)
+          : Promise.resolve();
+      }),
+    [],
+  );
   useEffect(() => {
     active.current = true;
     const logout = (event: Event) => {
@@ -191,32 +221,35 @@ function NewWritingForm({
     );
     window.addEventListener("storage", logout);
     window.addEventListener(recoveryLogoutKey, logout);
-    try {
-      if (!active.current) {
-        /* A locked document must never restore recovery into memory. */
-      } else if (!recoveryKey) setRecoveryFailed(true);
-      else {
-        const channel = writingRecovery(localStorage, recoveryKey);
-        recoveryChannel.current = channel;
-        const result = channel.read();
-        setRecoveryRead(result);
-        setRecoveryProblem(
-          result.status === "ready" || result.status === "missing"
-            ? null
-            : result.status,
-        );
-        if (result.status === "ready") {
-          const saved = result.value;
-          setTitle(saved.title);
-          setSlug(saved.slug);
-          setCustomSlug(saved.customSlug);
-          request.current = saved.request;
+    void (async () => {
+      try {
+        if (!active.current) {
+          /* A locked document must never restore recovery into memory. */
+        } else if (!recoveryKey) setRecoveryFailed(true);
+        else {
+          const channel = encryptedWritingRecovery(localStorage, recoveryKey);
+          recoveryChannel.current = channel;
+          const result = await channel.read();
+          if (!active.current || recoveryChannel.current !== channel) return;
+          setRecoveryRead(result);
+          setRecoveryProblem(
+            result.status === "ready" || result.status === "missing"
+              ? null
+              : result.status,
+          );
+          if (result.status === "ready") {
+            const saved = result.value;
+            setTitle(saved.title);
+            setSlug(saved.slug);
+            setCustomSlug(saved.customSlug);
+            request.current = saved.request;
+          }
         }
+      } catch {
+        setRecoveryFailed(true);
       }
-    } catch {
-      setRecoveryFailed(true);
-    }
-    setRestored(true);
+      if (active.current) setRestored(true);
+    })();
     return () => {
       stopWatching();
       active.current = false;
@@ -230,23 +263,151 @@ function NewWritingForm({
     if (!restored || !recoveryKey || !active.current) return;
     const channel = recoveryChannel.current;
     if (!channel) return;
+    const sequence = ++recoveryWriteSequence.current;
     void channel
       .write({ title, slug, customSlug, request: request.current })
       .then((problem) => {
-        if (!active.current || recoveryChannel.current !== channel) return;
+        if (
+          !active.current ||
+          recoveryChannel.current !== channel ||
+          sequence !== recoveryWriteSequence.current ||
+          problem === "superseded"
+        )
+          return;
         setRecoveryProblem(problem);
         setRecoveryFailed(Boolean(problem));
+        if (problem === "changed") setRecoveryRead(channel.current());
+        if (problem) {
+          const value = latestRecovery.current;
+          if (editGeneration.current > 0 || value?.title || value?.slug)
+            recoveryUnsafe.current = true;
+        } else {
+          recoveryUnsafe.current = false;
+          setLeaveError("");
+        }
       });
   }, [title, slug, customSlug, restored, recoveryKey]);
+  const leaveDocument = async (href: string) => {
+    if (!active.current || protectedSessionIsLocked()) return;
+    leaveIntent.current = href;
+    if (pending.current) {
+      setLeaveError("Wait for draft creation before leaving.");
+      return;
+    }
+    if (leavePending.current) return;
+    if (!recoveryUnsafe.current) {
+      commitAdminNavigation(href);
+      return;
+    }
+    const channel = recoveryChannel.current;
+    const snapshot = latestRecovery.current;
+    if (!channel || !snapshot) {
+      setRecoveryFailed(true);
+      setLeaveError("Resolve browser recovery before leaving this title.");
+      return;
+    }
+    const generation = editGeneration.current;
+    // An older ordinary acknowledgment cannot settle this newer barrier.
+    recoveryWriteSequence.current++;
+    leavePending.current = true;
+    setLeaving(true);
+    setLeaveError("");
+    try {
+      // This is a local recovery barrier, never draft creation or a server save.
+      const problem = await channel.writeDurable(snapshot);
+      if (
+        !active.current ||
+        protectedSessionIsLocked() ||
+        recoveryChannel.current !== channel
+      )
+        return;
+      if (generation !== editGeneration.current) {
+        setLeaveError(
+          "Your title changed. Try leaving again when you’re ready.",
+        );
+        return;
+      }
+      setRecoveryProblem(problem);
+      setRecoveryFailed(Boolean(problem));
+      if (problem === "changed") setRecoveryRead(channel.current());
+      if (problem) {
+        recoveryUnsafe.current = true;
+        setLeaveError("Resolve browser recovery before leaving this title.");
+        return;
+      }
+      recoveryUnsafe.current = false;
+      commitAdminNavigation(leaveIntent.current ?? href);
+    } catch {
+      if (active.current && recoveryChannel.current === channel) {
+        recoveryUnsafe.current = true;
+        setRecoveryFailed(true);
+        setLeaveError("Resolve browser recovery before leaving this title.");
+      }
+    } finally {
+      leavePending.current = false;
+      if (active.current) setLeaving(false);
+    }
+  };
+  const leaveDocumentRef = useRef(leaveDocument);
+  leaveDocumentRef.current = leaveDocument;
   useEffect(() => {
-    if (!recoveryFailed || (!title && !slug)) return;
-    const preventLoss = (event: BeforeUnloadEvent) => {
+    const requested = (event: Event) => {
+      if (
+        !active.current ||
+        !(event instanceof CustomEvent) ||
+        typeof event.detail !== "string"
+      )
+        return;
       event.preventDefault();
-      event.returnValue = "";
+      void leaveDocumentRef.current(event.detail);
     };
+    const linked = (event: MouseEvent) => {
+      if (
+        !active.current ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (
+        !(anchor instanceof HTMLAnchorElement) ||
+        anchor.hasAttribute("download") ||
+        (anchor.target && anchor.target !== "_self")
+      )
+        return;
+      const url = new URL(anchor.href);
+      if (
+        url.origin !== window.location.origin ||
+        (url.pathname === window.location.pathname &&
+          url.search === window.location.search)
+      )
+        return;
+      event.preventDefault();
+      void leaveDocumentRef.current(anchor.href);
+    };
+    const preventLoss = (event: BeforeUnloadEvent) => {
+      if (active.current && (pending.current || recoveryUnsafe.current)) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener(adminNavigationEvent, requested);
+    // Run before React's sidebar handler can commit an in-document route.
+    document.addEventListener("click", linked, true);
     window.addEventListener("beforeunload", preventLoss);
-    return () => window.removeEventListener("beforeunload", preventLoss);
-  }, [recoveryFailed, title, slug]);
+    return () => {
+      window.removeEventListener(adminNavigationEvent, requested);
+      document.removeEventListener("click", linked, true);
+      window.removeEventListener("beforeunload", preventLoss);
+    };
+  }, []);
   const valid =
     restored &&
     !loggedOut &&
@@ -263,10 +424,11 @@ function NewWritingForm({
     const key = JSON.stringify([title.trim(), slug]);
     if (request.current?.key !== key)
       request.current = { key, id: crypto.randomUUID() };
+    changedRecovery({ title, slug, customSlug, request: request.current });
     try {
       const channel = recoveryChannel.current;
       if (channel) {
-        const problem = await channel.write({
+        const problem = await channel.writeDurable({
           title,
           slug,
           customSlug,
@@ -275,6 +437,7 @@ function NewWritingForm({
         if (!active.current || abort.signal.aborted) return;
         setRecoveryProblem(problem);
         setRecoveryFailed(Boolean(problem));
+        if (!problem) recoveryUnsafe.current = false;
       }
       const csrf = await readEditorialCsrf(
         AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
@@ -322,6 +485,10 @@ function NewWritingForm({
         });
       if (channel) await channel.write(null);
       if (!active.current || abort.signal.aborted) return;
+      // The server confirmed the created record, so leaving no longer risks
+      // losing this form even if local recovery cleanup was unavailable.
+      recoveryUnsafe.current = false;
+      pending.current = false;
       if (onCreated) onCreated({ kind: recordKind, id: slug });
       else window.location.assign(`/content/${collection}/${slug}`);
     } catch (error) {
@@ -396,9 +563,16 @@ function NewWritingForm({
             }
             onChange={(input) => {
               const value = input.replace(/[\r\n]+/gu, " ");
+              const nextSlug = customSlug ? slug : writingId(value);
+              changedRecovery({
+                title: value,
+                slug: nextSlug,
+                customSlug,
+                request: request.current,
+              });
               setTitle(value);
               setTaken(false);
-              if (!customSlug) setSlug(writingId(value));
+              if (!customSlug) setSlug(nextSlug);
             }}
           />
         </VStack>
@@ -414,6 +588,12 @@ function NewWritingForm({
             onEnter={() => form.current?.requestSubmit()}
             onChange={(value) => {
               const next = typedAddress(value);
+              changedRecovery({
+                title,
+                slug: next,
+                customSlug: next.length > 0,
+                request: request.current,
+              });
               setCustomSlug(next.length > 0);
               setTaken(false);
               setSlug(next);
@@ -459,27 +639,26 @@ function NewWritingForm({
         {(recoveryProblem || recoveryFailed) && !loggedOut && (
           <BrowserRecoveryNotice
             problem={recoveryProblem ?? "unavailable"}
-            onDownload={() => {
+            onDownload={async () => {
               try {
                 if (protectedSessionIsLocked() || !active.current) return;
                 const channel = recoveryChannel.current;
-                const contents = exportBrowserRecoveryCopy(
-                  {
-                    key: recoveryKey,
-                    kind: "new-writing",
-                    payload: {
-                      title,
-                      slug,
-                      customSlug,
-                      request: request.current,
-                    },
-                  },
-                  channel ? () => channel.export() : undefined,
-                );
+                if (!channel) throw new Error("Recovery channel unavailable");
+                const contents = await channel.export({
+                  title,
+                  slug,
+                  customSlug,
+                  request: request.current,
+                });
                 if (protectedSessionIsLocked() || !active.current) return;
                 downloadBrowserRecovery(contents);
-              } catch {
-                setRecoveryProblem("unavailable");
+              } catch (cause) {
+                setRecoveryProblem(
+                  cause instanceof RecoveryEncryptionError &&
+                    cause.problem === "key-usage-limit"
+                    ? "key-usage-limit"
+                    : "unavailable",
+                );
               }
             }}
             candidates={
@@ -490,14 +669,21 @@ function NewWritingForm({
                     onChoose: async () => {
                       const channel = recoveryChannel.current;
                       if (!channel) return;
+                      const generation = editGeneration.current;
                       const problem = await channel.choose(value);
                       if (
                         !active.current ||
-                        recoveryChannel.current !== channel
+                        recoveryChannel.current !== channel ||
+                        generation !== editGeneration.current
                       )
                         return;
                       setRecoveryProblem(problem);
                       if (!problem) {
+                        editGeneration.current++;
+                        recoveryWriteSequence.current++;
+                        recoveryUnsafe.current = false;
+                        setRecoveryFailed(false);
+                        setLeaveError("");
                         request.current = value.request;
                         setTitle(value.title);
                         setSlug(value.slug);
@@ -509,6 +695,8 @@ function NewWritingForm({
             }
           />
         )}
+        {leaving && <Text role="status">Keeping title before leaving</Text>}
+        {leaveError && <Banner status="warning" title={leaveError} />}
         {error && !taken && (
           <Banner
             status="error"
