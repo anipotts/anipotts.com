@@ -15,6 +15,7 @@ declare global {
       RECOVERY_SOURCE_DB: D1Database;
       RECOVERY_CONTENT_DB: D1Database;
       RECOVERY_SOURCE_MEDIA: R2Bucket;
+      RECOVERY_ARTIFACTS: R2Bucket;
       RECOVERY_CONTENT_MEDIA: R2Bucket;
       RECOVERY_APPLICATION_REVISION: string;
     }

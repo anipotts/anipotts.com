@@ -35,6 +35,10 @@
   ],
   "r2_buckets": [
     {
+      "binding": "RECOVERY_ARTIFACTS",
+      "bucket_name": "synthetic-recovery-encrypted-artifacts",
+    },
+    {
       "binding": "RECOVERY_SOURCE_MEDIA",
       "bucket_name": "synthetic-recovery-source-media",
     },

@@ -731,3 +731,52 @@ Their exact approvals and release receipts are preserved in the existing queue.
 The canonical preview is clean on `aa860b4b`, with the current published v17 /
 20-record mirror. Operational admission, production artifact/custody/provider
 setup, migration and restore acceptance remain gated.
+
+### Inactive supplied-R2 artifact adapter, source checkpoint
+
+`recovery-artifact-r2.ts` supplies the existing v3 encrypted sink and replayable
+source. It accepts a caller-provided bucket in the current calling context and a
+fresh opaque artifact ID. It neither receives recovery keys nor provisions a
+bucket, selects a live account/destination, introduces a production import or
+binding, activates writers, applies migration0003, or changes custody. Admission
+still always rejects outside the isolated fixture.
+
+The distinct `anipotts.editorial-capture.r2.v1` storage layout uses conditional
+create for a claim, sequential binary event objects, 128-reference index shards
+and a final bounded index. All reads pin exact size, etag, version and SHA256;
+every replay rechecks the final index and each referenced shard/event. The index
+and receipt are storage metadata, not authenticated recovery proof. Consumers
+must still call the v3 codec, which authenticates context, role, sequence,
+transcript and exact EOF before target claim/visibility or source qualification.
+Extra unreferenced objects are preserved as orphans, not added to the artifact.
+
+The event bound is derived from the codec's object count, aggregate-media/frame
+bound, bounded manifest and v3 controls. It includes partial frames for many
+small objects and exceeds5000 events. Metadata never uses an oversized array:
+each shard has at most128 references; the final index contains at most the
+derived shard count. Per-event bodies are at most64KiB ciphertext plus bounded
+metadata/tag. Index reads cap64KiB and shard reads cap128KiB, use a fixed-size
+owned output and verify exact stream EOF/hash. Only one write is admitted at a
+time and caller ciphertext is copied before the first await. These are source
+allocation/reference bounds, not a measured total128MiB isolate guarantee.
+
+A descriptor is returned only after the final conditional put acknowledgment and
+revocation check. An abort or storage failure leaves no successful descriptor;
+partial or ambiguously late persisted ciphertext is preserved. There is no
+cleanup deletion, retry under the same prefix or atomic rollback claim. A caller
+must use a fresh ID after failure. R2 transport metadata is not key custody,
+independent external replication or an operational backup guarantee.
+
+The21 focused synthetic Node transport cases pass under Node24.19.0. They cover
+small-object counts above5000, the derived
+maximum, intrinsic typed-array bounds, caller mutation, collisions, pinned reads,
+corruption/truncation/length, index changes, storage failure and late final
+acknowledgment cancellation. Three additional native cases are prepared using a
+third isolated local artifact bucket. Source and target fixture wrappers acquire
+their own handles in the current DO context and exchange only bounded metadata
+JSON/key/context DTOs, never I/O handles or adapter closures. They cover10MiB in
+both planes plus4MiB-class controls through capture/reopen/restore/release,
+cryptographic rejection, storage faults and changed second-pass storage. These
+new native cases have not run at this checkpoint. Strict editorial TypeScript,
+fixture type generation, working-tree static review (9 paths) and diff checks
+pass. No live provider is contacted.

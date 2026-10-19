@@ -93,6 +93,7 @@ beforeEach(async () => {
   for (const bucket of [
     env.RECOVERY_SOURCE_MEDIA,
     env.RECOVERY_CONTENT_MEDIA,
+    env.RECOVERY_ARTIFACTS,
   ]) {
     const page = await bucket.list();
     if (page.truncated) throw new Error("unexpected_synthetic_bucket_size");
@@ -1251,3 +1252,277 @@ it("v3 changed second pass leaves actual target failed and suspended", async () 
   );
   key.fill(0);
 }, 30_000);
+
+// New supplied-R2 storage qualification. Only the separate local artifact bucket
+// is touched; production has no import, route or artifact binding.
+import {
+  createR2RecoveryArtifact,
+  openR2RecoveryArtifact,
+  RECOVERY_ARTIFACT_R2_LIMITS,
+  type RecoveryArtifactDescriptor,
+  type RecoveryArtifactBucket,
+} from "../../src/editorial/recovery-artifact-r2";
+
+type R2Capture = {
+  captured: {
+    context: RecoveryCaptureV3Context;
+    receipt: import("../../../../scripts/admin/recovery-capture-v3.mjs").RecoveryCaptureV3Receipt;
+    sha256: string;
+  };
+  descriptor: RecoveryArtifactDescriptor;
+};
+it("R2 artifact: actual 10 MiB both planes and 4 MiB-class controls capture, reopen, restore and release", async () => {
+  const { store, id, text } = await seededV3(10 * 1024 * 1024, true);
+  const key = crypto.getRandomValues(new Uint8Array(32));
+  try {
+    const result: R2Capture = JSON.parse(
+      await store.captureToR2(crypto.randomUUID(), key),
+    );
+    const serialized = JSON.stringify(result.descriptor);
+    const page = await env.RECOVERY_ARTIFACTS.list();
+    expect(page.truncated).toBe(false);
+    expect(page.objects.length).toBeGreaterThan(320);
+    for (const object of page.objects)
+      expect(object.size).toBeLessThanOrEqual(
+        RECOVERY_ARTIFACT_R2_LIMITS.shardBytes,
+      );
+    expect(result.captured.receipt.controlBytes).toBeGreaterThan(4_000_000);
+    expect(result.captured.receipt.mediaBytes).toBe(20 * 1024 * 1024);
+    expect(
+      (await env.RECOVERY_SOURCE_MEDIA.list()).objects.map(
+        (object) => object.key,
+      ),
+    ).toEqual([id]);
+    const restored = target();
+    expect(
+      JSON.parse(
+        await restored.installFromR2(serialized, key, result.captured.context),
+      ).sha256,
+    ).toBe(result.captured.sha256);
+    expect((await restored.get(record))?.source).toBe(text);
+    expect(await restored.recoveryStatus()).toMatchObject({
+      phase: "complete",
+      alarmAt: null,
+      mode: "isolated-suspended",
+    });
+    expect(await runDurableObjectAlarm(restored)).toBe(false);
+    const privateHash = await runInDurableObject(
+      restored,
+      async (_instance, state) => {
+        const digest = createHash("sha256");
+        for (let index = 0; index < 160; index++) {
+          const bytes = await state.storage.get<Uint8Array>(
+            `media:${id}:${index}`,
+          );
+          if (!bytes || bytes.byteLength !== 65536)
+            throw new Error("synthetic_private_chunk");
+          digest.update(bytes);
+        }
+        return digest.digest("hex");
+      },
+    );
+    const publicHash = createHash("sha256");
+    for (let offset = 0; offset < 10 * 1024 * 1024; offset += 65536) {
+      const part = await env.RECOVERY_CONTENT_MEDIA.get(id, {
+        range: { offset, length: 65536 },
+      });
+      if (!part) throw new Error("synthetic_public_chunk");
+      const bytes = await part.arrayBuffer();
+      expect(bytes.byteLength).toBe(65536);
+      publicHash.update(new Uint8Array(bytes));
+    }
+    expect(privateHash).toBe(id.split(".")[0]);
+    expect(publicHash.digest("hex")).toBe(privateHash);
+    expect((await env.RECOVERY_CONTENT_MEDIA.head(id))?.customMetadata).toEqual(
+      { fixture: "v3-synthetic" },
+    );
+    expect(
+      await store.completeFromR2(serialized, key, result.captured.context),
+    ).toEqual({ state: "released", sha256: result.captured.sha256 });
+  } finally {
+    key.fill(0);
+  }
+}, 60_000);
+
+it("R2 artifact: actual crypto refuses wrong key/context and forged header/tag/order before target claim", async () => {
+  const { store } = await seededV3(70_001);
+  const key = crypto.getRandomValues(new Uint8Array(32));
+  try {
+    const result: R2Capture = JSON.parse(
+      await store.captureToR2(crypto.randomUUID(), key),
+    );
+    for (const mode of ["key", "context", "header", "tag", "order"]) {
+      let descriptor = result.descriptor;
+      if (["header", "tag", "order"].includes(mode)) {
+        const rewritten = createR2RecoveryArtifact(
+          env.RECOVERY_ARTIFACTS,
+          crypto.randomUUID(),
+        );
+        const signal = new AbortController().signal;
+        for await (const event of openR2RecoveryArtifact(
+          env.RECOVERY_ARTIFACTS,
+          result.descriptor,
+        )()) {
+          if (mode === "header" && event.kind === "header") {
+            const header: Record<string, unknown> = JSON.parse(
+              event.serialized,
+            );
+            header.format = "synthetic-invalid-format";
+            await rewritten.write(
+              { kind: "header", serialized: JSON.stringify(header) },
+              signal,
+            );
+          } else if (
+            event.kind === "record" &&
+            event.sequence === 2 &&
+            ["tag", "order"].includes(mode)
+          ) {
+            if (mode === "tag") event.tag[0] = event.tag[0]! ^ 1;
+            // Structurally legal transport ordering, wrong authenticated record identity.
+            await rewritten.write(
+              mode === "order" ? { ...event, index: event.index + 1 } : event,
+              signal,
+            );
+          } else await rewritten.write(event, signal);
+        }
+        await rewritten.complete(result.captured.receipt, signal);
+        descriptor = rewritten.descriptor();
+      }
+      const restored = target();
+      await failure(
+        restored,
+        (instance) =>
+          instance.installFromR2(
+            JSON.stringify(descriptor),
+            mode === "key" ? new Uint8Array(32) : key,
+            mode === "context"
+              ? {
+                  ...result.captured.context,
+                  contentGeneration:
+                    result.captured.context.contentGeneration + 1,
+                }
+              : result.captured.context,
+          ),
+        "encrypted_recovery_media_",
+      );
+      expect(await restored.recoveryStatus()).toMatchObject({
+        phase: "empty",
+        alarmAt: null,
+      });
+      await failure(
+        restored,
+        (instance) => instance.get(record),
+        "recovery_target_unavailable",
+      );
+    }
+  } finally {
+    key.fill(0);
+  }
+}, 60_000);
+
+it("R2 artifact: real conditional collisions, missing/truncated data, changed second-pass input and late final ack fail closed", async () => {
+  const { store } = await seededV3(70_001);
+  const key = crypto.getRandomValues(new Uint8Array(32));
+  try {
+    const result: R2Capture = JSON.parse(
+      await store.captureToR2(crypto.randomUUID(), key),
+    );
+    const id = result.descriptor.artifactId;
+    const original = openR2RecoveryArtifact(
+      env.RECOVERY_ARTIFACTS,
+      result.descriptor,
+    );
+    const collision = createR2RecoveryArtifact(env.RECOVERY_ARTIFACTS, id);
+    for await (const event of original()) {
+      await expect(
+        collision.write(event, new AbortController().signal),
+      ).rejects.toThrow("collision");
+      break;
+    }
+    for (const mode of ["missing", "truncated"]) {
+      const rewritten = createR2RecoveryArtifact(
+        env.RECOVERY_ARTIFACTS,
+        crypto.randomUUID(),
+      );
+      for await (const event of original())
+        await rewritten.write(event, new AbortController().signal);
+      await rewritten.complete(
+        result.captured.receipt,
+        new AbortController().signal,
+      );
+      const descriptor = rewritten.descriptor();
+      const name = `editorial-recovery-artifacts/v1/${descriptor.artifactId}/events/1`;
+      if (mode === "missing") await env.RECOVERY_ARTIFACTS.delete(name);
+      else await env.RECOVERY_ARTIFACTS.put(name, new Uint8Array([1]));
+      const restored = target();
+      await failure(
+        restored,
+        (instance) =>
+          instance.installFromR2(
+            JSON.stringify(descriptor),
+            key,
+            result.captured.context,
+          ),
+        "encrypted_recovery_media_transfer",
+      );
+      expect(await restored.recoveryStatus()).toMatchObject({
+        phase: "empty",
+        alarmAt: null,
+      });
+    }
+    // Real binding with one deliberately delayed final acknowledgment. No mocked storage.
+    let outstanding = 0,
+      maximum = 0,
+      finalStored = false;
+    const controller = new AbortController();
+    const bucket: RecoveryArtifactBucket = {
+      get: env.RECOVERY_ARTIFACTS.get.bind(env.RECOVERY_ARTIFACTS),
+      async put(name, value, options) {
+        maximum = Math.max(maximum, ++outstanding);
+        try {
+          const stored = await env.RECOVERY_ARTIFACTS.put(name, value, options);
+          if (name.endsWith("/index")) {
+            finalStored = true;
+            controller.abort();
+          }
+          return stored;
+        } finally {
+          outstanding--;
+        }
+      },
+    };
+    const partial = createR2RecoveryArtifact(bucket, crypto.randomUUID());
+    for await (const event of original())
+      await partial.write(event, controller.signal);
+    await expect(
+      partial.complete(result.captured.receipt, controller.signal),
+    ).rejects.toThrow("aborted");
+    expect(finalStored).toBe(true);
+    expect(maximum).toBe(1);
+    expect(() => partial.descriptor()).toThrow("incomplete");
+    // The target acquires the bucket in its own DO context on both passes.
+    const restored = target();
+    await failure(
+      restored,
+      (instance) =>
+        instance.installFromR2(
+          JSON.stringify(result.descriptor),
+          key,
+          result.captured.context,
+          true,
+        ),
+      "encrypted_recovery_media_transfer",
+    );
+    expect(await restored.recoveryStatus()).toMatchObject({
+      phase: "failed",
+      alarmAt: null,
+    });
+    await failure(
+      restored,
+      (instance) => instance.get(record),
+      "recovery_target_unavailable",
+    );
+  } finally {
+    key.fill(0);
+  }
+}, 60_000);
