@@ -348,8 +348,22 @@ fixture is 128 KiB; the separate file-backed Node case covers 20 MiB without
 whole-media retention. Strict editorial typing, focused formatting, static
 security and whitespace checks pass. Two later Node-only final-acknowledgment
 regressions bring focused Node coverage to 33 cases without changing codec or
-native-test source. No full-workspace validation is claimed for this additive
-codec slice.
+native-test source.
+
+Full `pnpm validate` passed at
+`6f2b91182fd652ae1f5286fb66a2b1f4f09e7abd` under Node 24.19.0, beginning
+2026-10-19 07:20:37 UTC and observed complete at 07:24:19 UTC. Source and worktree
+drift checks were clean. The log is
+`/private/tmp/anipotts-capture-codec-full-validation.log`. Repository invariants,
+formatting, both app builds, lint and type checks passed. Admin build, lint,
+typecheck and test tasks executed on cache misses for the changed tree. The
+suite passed 2,361 admin core, 79 Astro, 105 editorial workerd (including these
+four codec cases), 84 recovery Node (18 existing, 33 plaintext transport and 33
+encrypted codec), 21 recovery workerd and three CSP checks. One existing
+browser-gated CSP check was skipped; public 196 and content 206 test results
+used matching cache entries. The actual browser/device matrix is not part of
+this source-only codec qualification. This evidence checkpoint changes only
+this contract after the validated source revision.
 
 These checks qualify the supplied codec only; they do not prove a measured
 128 MiB integrated application memory ceiling, provider behavior, custody,
