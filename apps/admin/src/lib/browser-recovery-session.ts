@@ -84,33 +84,37 @@ export class RecoverySession {
     };
   }
   async unlock(file: string, scope: string, expected?: string) {
-    if (!this.admitted()) throw new RecoveryEncryptionError("stale");
     const epoch = ++this.#epoch;
     this.#capability = null;
+    this.vault.lock();
     this.#set("locked");
-    const imported = await this.vault.unlock(file);
-    if (expected && imported.keyId !== expected) {
-      this.vault.lock();
-      throw new RecoveryEncryptionError("key-id-mismatch");
+    try {
+      if (!this.admitted()) throw new RecoveryEncryptionError("stale");
+      const imported = await this.vault.unlock(file);
+      if (epoch !== this.#epoch) throw new RecoveryEncryptionError("stale");
+      if (expected && imported.keyId !== expected)
+        throw new RecoveryEncryptionError("key-id-mismatch");
+      const context: RecoveryEncryptionContext = {
+        origin: location.origin,
+        ownerScope: scope,
+        recordKind: "new-writing",
+        recordId: "key-custody-challenge",
+        logoutGeneration: null,
+      };
+      const challenge = crypto.randomUUID();
+      const encrypted = await this.vault.encrypt(challenge, context);
+      if ((await this.vault.decrypt(encrypted, context)) !== challenge)
+        throw new RecoveryEncryptionError("authentication-failed");
+      if (epoch !== this.#epoch || !this.admitted())
+        throw new RecoveryEncryptionError("stale");
+      this.#capability = Object.freeze({ keyId: imported.keyId });
+      this.#set("unlocked");
+    } catch (error) {
+      // A rejected challenge must release imported handles. An older failed
+      // attempt has no authority to revoke a newer import or capability.
+      if (epoch === this.#epoch) this.lock();
+      throw error;
     }
-    const context: RecoveryEncryptionContext = {
-      origin: location.origin,
-      ownerScope: scope,
-      recordKind: "new-writing",
-      recordId: "key-custody-challenge",
-      logoutGeneration: null,
-    };
-    const challenge = crypto.randomUUID();
-    const encrypted = await this.vault.encrypt(challenge, context);
-    if ((await this.vault.decrypt(encrypted, context)) !== challenge)
-      throw new RecoveryEncryptionError("authentication-failed");
-    if (epoch !== this.#epoch) throw new RecoveryEncryptionError("stale");
-    if (!this.admitted()) {
-      this.lock();
-      throw new RecoveryEncryptionError("stale");
-    }
-    this.#capability = Object.freeze({ keyId: imported.keyId });
-    this.#set("unlocked");
   }
   lock(lost = false) {
     this.#epoch++;
