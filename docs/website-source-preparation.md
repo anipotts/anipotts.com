@@ -1,5 +1,33 @@
 # Website source preparation
 
+## October 19 completed releases and media refresh
+
+#539 is deployed to Admin at `cf7b757b`; exact provider/schema and eight Access
+redirect probes pass. #542 is merged at `aa860b4b`; its
+[release 39275594601](https://github.com/anipotts/anipotts.com/actions/runs/39275594601)
+succeeded with all six runtime targets and Production skipped, no migration.
+Both exact approvals and source/release receipts are in the existing queue.
+
+Media full qualification at `08029df7108f50323acb597dcb794918893507c1`
+passes all fourteen `pnpm validate` tasks: Admin 2,509 core / 79 Astro / 113
+editorial workerd / three CSP checks plus one existing skip. Focused foundation
+coverage remains 44 Node-environment and 27 actual workerd cases.
+Logs: `/private/tmp/anipotts-media-main539-{install,validation}.log`.
+
+The normal merge of #542 at `62c6117a5ec15d864d9808559f3941533f5746ec`
+changes only the independently qualified unused CLI/config/lock cleanup and
+documentation. All app, package, script, worker, Turbo, workflow, runtime config
+and migration source bytes equal the full-qualified tree. A fresh offline frozen
+install, complete CI invariants and formatting pass on this final combination.
+Post-check drift is clean; nine sensitive changed paths pass static review;
+the earlier full-built 344-file Admin bundle excludes local-owner markers.
+Logs: `/private/tmp/anipotts-media-main542-{install,checks}.log`.
+
+Keep #540 draft. Provider entitlement, actual decode/orientation/crop/resource
+qualification, recovery integration and activation authority remain open.
+Its proposed target remains Admin only; no production setup, route, binding or
+migration is activated. Later checkpoint documentation preserves this source.
+
 ## October 19 inactive media foundation main refresh
 
 The media foundation branch normally merged approved main
