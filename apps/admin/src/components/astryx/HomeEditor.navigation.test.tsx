@@ -658,7 +658,7 @@ it("keeps one loading region through the lazy editor, record read, failed-read r
     ).toHaveLength(1);
     expect(host.querySelector('[data-loading-region="body"]')).not.toBeNull();
     expect(announcements).toEqual([]);
-    await act(async () => finish(jsonResponse("unavailable", 503)));
+    await act(async () => finish(jsonResponse("unavailable", { status: 503 })));
     expect(host.textContent).toContain("Couldn’t load this draft.");
     expect(
       host.querySelector('[role="status"][aria-label="Loading editor"]'),

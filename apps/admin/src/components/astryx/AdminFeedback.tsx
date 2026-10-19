@@ -5,6 +5,7 @@ import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Text } from "@astryxdesign/core/Text";
 import { Banner } from "./WritingControls";
 import { Button } from "./WritingControls";
+import { navigateAdmin } from "../../lib/editorial-navigation";
 
 type LoadingKind = "editor" | "history" | "records" | "record" | "preview";
 const loadingLabels: Record<LoadingKind, string> = {
@@ -18,6 +19,33 @@ const loadingLabels: Record<LoadingKind, string> = {
 const EditorLoadingContext = createContext<((loading: boolean) => void) | null>(
   null,
 );
+
+/** A rejected module stays rejected in the browser's module cache. Recovery
+ * deliberately loads a new document through the existing leave guard. */
+function EditorLoadFailure() {
+  useEditorLoading(false);
+  return (
+    <RecoveryBanner
+      title="Editor could not load"
+      description="Reload this page to try loading the editor again."
+      actionLabel="Reload editor"
+      onRetry={() => navigateAdmin(window.location.href)}
+    />
+  );
+}
+
+class EditorModuleBoundary extends React.Component<
+  { children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? <EditorLoadFailure /> : this.props.children;
+  }
+}
 
 /** One announcement survives the lazy module and its first record read. The
  * existing visual skeletons can change without mounting a second live region. */
@@ -36,7 +64,7 @@ export function EditorLoadingBoundary({
       >
         {loading ? "Loading editor…" : null}
       </Text>
-      {children}
+      <EditorModuleBoundary>{children}</EditorModuleBoundary>
     </EditorLoadingContext.Provider>
   );
 }
