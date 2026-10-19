@@ -17,6 +17,9 @@ const maxEnvelopeBytes = MAX_SOURCE_BYTES * 4 + 65536;
  * for a session is what exhausts the origin quota. */
 const maxArchives = 3;
 export type RecoveryProblem =
+  | "key-required"
+  | "key-lost"
+  | "authentication-failed"
   | "corrupt"
   | "unsupported"
   | "oversized"

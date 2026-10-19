@@ -1,3 +1,5 @@
+import type { EncryptedBrowserRecovery } from "../../lib/encrypted-browser-recovery";
+import { recoverySession } from "../../lib/browser-recovery-session";
 import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
 import {
@@ -22,13 +24,11 @@ import { writingId, validWritingId } from "../../lib/writing-draft";
 import {
   newWritingRecoveryKey,
   newProjectRecoveryKey,
-  writingRecovery,
+  encryptedWritingRecovery,
   type NewWritingRecovery,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
 import {
-  exportBrowserRecoveryCopy,
-  type BrowserRecovery,
   type RecoveryProblem,
   type RecoveryRead,
 } from "../../lib/browser-recovery";
@@ -130,9 +130,8 @@ function NewWritingForm({
   const [recoveryRead, setRecoveryRead] = useState<
     RecoveryRead<NewWritingRecovery>
   >({ status: "missing" });
-  const recoveryChannel = useRef<BrowserRecovery<NewWritingRecovery> | null>(
-    null,
-  );
+  const recoveryChannel =
+    useRef<EncryptedBrowserRecovery<NewWritingRecovery> | null>(null);
   const recoveryKey = recoveryScope
     ? project
       ? newProjectRecoveryKey(recoveryScope)
@@ -159,6 +158,16 @@ function NewWritingForm({
     // the keyboard never covers the page before it is wanted.
     if (window.matchMedia?.("(pointer: fine)").matches) field.focus();
   }, [restored, loggedOut]);
+  useEffect(
+    () =>
+      recoverySession().capture(() => {
+        const channel = recoveryChannel.current;
+        return channel && latestRecovery.current
+          ? channel.sealFinal(latestRecovery.current)
+          : Promise.resolve();
+      }),
+    [],
+  );
   useEffect(() => {
     active.current = true;
     const logout = (event: Event) => {
@@ -191,32 +200,35 @@ function NewWritingForm({
     );
     window.addEventListener("storage", logout);
     window.addEventListener(recoveryLogoutKey, logout);
-    try {
-      if (!active.current) {
-        /* A locked document must never restore recovery into memory. */
-      } else if (!recoveryKey) setRecoveryFailed(true);
-      else {
-        const channel = writingRecovery(localStorage, recoveryKey);
-        recoveryChannel.current = channel;
-        const result = channel.read();
-        setRecoveryRead(result);
-        setRecoveryProblem(
-          result.status === "ready" || result.status === "missing"
-            ? null
-            : result.status,
-        );
-        if (result.status === "ready") {
-          const saved = result.value;
-          setTitle(saved.title);
-          setSlug(saved.slug);
-          setCustomSlug(saved.customSlug);
-          request.current = saved.request;
+    void (async () => {
+      try {
+        if (!active.current) {
+          /* A locked document must never restore recovery into memory. */
+        } else if (!recoveryKey) setRecoveryFailed(true);
+        else {
+          const channel = encryptedWritingRecovery(localStorage, recoveryKey);
+          recoveryChannel.current = channel;
+          const result = await channel.read();
+          if (!active.current || recoveryChannel.current !== channel) return;
+          setRecoveryRead(result);
+          setRecoveryProblem(
+            result.status === "ready" || result.status === "missing"
+              ? null
+              : result.status,
+          );
+          if (result.status === "ready") {
+            const saved = result.value;
+            setTitle(saved.title);
+            setSlug(saved.slug);
+            setCustomSlug(saved.customSlug);
+            request.current = saved.request;
+          }
         }
+      } catch {
+        setRecoveryFailed(true);
       }
-    } catch {
-      setRecoveryFailed(true);
-    }
-    setRestored(true);
+      if (active.current) setRestored(true);
+    })();
     return () => {
       stopWatching();
       active.current = false;
@@ -459,23 +471,17 @@ function NewWritingForm({
         {(recoveryProblem || recoveryFailed) && !loggedOut && (
           <BrowserRecoveryNotice
             problem={recoveryProblem ?? "unavailable"}
-            onDownload={() => {
+            onDownload={async () => {
               try {
                 if (protectedSessionIsLocked() || !active.current) return;
                 const channel = recoveryChannel.current;
-                const contents = exportBrowserRecoveryCopy(
-                  {
-                    key: recoveryKey,
-                    kind: "new-writing",
-                    payload: {
-                      title,
-                      slug,
-                      customSlug,
-                      request: request.current,
-                    },
-                  },
-                  channel ? () => channel.export() : undefined,
-                );
+                if (!channel) throw new Error("Recovery channel unavailable");
+                const contents = await channel.export({
+                  title,
+                  slug,
+                  customSlug,
+                  request: request.current,
+                });
                 if (protectedSessionIsLocked() || !active.current) return;
                 downloadBrowserRecovery(contents);
               } catch {

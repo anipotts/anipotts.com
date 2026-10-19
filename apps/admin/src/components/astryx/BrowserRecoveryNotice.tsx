@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Banner } from "./WritingControls";
 import { Button } from "./WritingControls";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -6,6 +6,12 @@ import { TextArea } from "./WritingControls";
 import type { RecoveryProblem } from "../../lib/browser-recovery";
 
 const descriptions: Record<RecoveryProblem, string> = {
+  "key-required":
+    "Unlock browser recovery with your saved key file. Existing copies have been kept.",
+  "key-lost":
+    "Existing encrypted copies still need their original key. They have been preserved.",
+  "authentication-failed":
+    "This copy could not be decrypted with this key. Its original bytes have been kept.",
   "signed-out":
     "This stored copy belongs to a session that was signed out. It has not been reopened or retried. You can download it for recovery after signing in; current edits cannot replace it.",
   corrupt:
@@ -19,13 +25,16 @@ const descriptions: Record<RecoveryProblem, string> = {
   changed:
     "Another tab changed browser recovery. Both stored copies are retained. Compare a copy below before recovering it, or save this page’s current edits before reopening.",
 };
-export function downloadBrowserRecovery(contents: string) {
+export function downloadBrowserRecovery(
+  contents: string,
+  name = "encrypted-browser-recovery.json",
+) {
   const url = URL.createObjectURL(
     new Blob([contents], { type: "application/json;charset=utf-8" }),
   );
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "private-browser-recovery.json";
+  anchor.download = name;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -35,13 +44,14 @@ export function BrowserRecoveryNotice({
   candidates = [],
 }: {
   problem: RecoveryProblem;
-  onDownload?: () => void;
+  onDownload?: () => void | Promise<void>;
   candidates?: {
     label: string;
     source: string;
     onChoose: () => void | Promise<void>;
   }[];
 }) {
+  const [downloading, setDownloading] = useState(false);
   return (
     <VStack gap={3}>
       <Banner
@@ -51,9 +61,15 @@ export function BrowserRecoveryNotice({
         endContent={
           onDownload && (
             <Button
-              label="Download recovery copies"
+              label="Download encrypted recovery copies"
               size="sm"
-              clickAction={onDownload}
+              isDisabled={downloading}
+              clickAction={() => {
+                setDownloading(true);
+                void Promise.resolve()
+                  .then(onDownload)
+                  .finally(() => setDownloading(false));
+              }}
             />
           )
         }

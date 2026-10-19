@@ -1,3 +1,9 @@
+import {
+  unlockRecoveryFixture,
+  settleRecoveryFixture,
+  readRecoveryFixture,
+  openRecoveryExportFixture,
+} from "../../../test/recovery-key-fixture";
 import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
@@ -151,6 +157,9 @@ async function click(label: string) {
   await act(async () => {
     button(label).click();
   });
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
 }
 function sourceValue(label: string) {
   const found = [...host.querySelectorAll("label")].find(
@@ -166,18 +175,11 @@ function recovery() {
   return JSON.parse(localStorage.getItem(key)!);
 }
 /** The snapshot this tab most recently wrote to browser recovery. */
-function writtenRecovery() {
-  return JSON.parse(localStorage.getItem(versionedRecoveryKey(key))!).payload;
+async function writtenRecovery() {
+  return readRecoveryFixture(key);
 }
-/** Retiring a recovery candidate writes a v2 tombstone rather than deleting the
- * v1 bytes, which stay readable by an older tab. The tombstone is what stops
- * them resurrecting, so assert on it instead of on the v1 key being gone. */
-function expectRecoveryRetired() {
-  const envelope = localStorage.getItem(versionedRecoveryKey(key));
-  expect(envelope).not.toBeNull();
-  const parsed = JSON.parse(envelope!);
-  expect(parsed.version).toBe(2);
-  expect(parsed.payload).toBeNull();
+async function expectRecoveryRetired() {
+  expect(await readRecoveryFixture(key)).toBeNull();
 }
 async function mount(ready = "Compare before saving again") {
   await act(async () => {
@@ -290,6 +292,7 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  await unlockRecoveryFixture();
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -316,7 +319,7 @@ it("compares without retrying or changing the retained operation, then saves onl
   expect(next).toMatchObject({ source: mine, expectedRevision: 3 });
   expect(next.requestId).not.toBe(pending.requestId);
   expect(host.textContent).not.toContain("Compare before saving again");
-  expectRecoveryRetired();
+  await expectRecoveryRetired();
 });
 
 it("can use the compared saved draft without an additional write", async () => {
@@ -332,7 +335,7 @@ it("can use the compared saved draft without an additional write", async () => {
       ) as HTMLTextAreaElement
     ).value,
   ).toContain("Saved on another device.");
-  expectRecoveryRetired();
+  await expectRecoveryRetired();
 });
 
 it("keeps typing buffered during comparison when the owner chooses their version", async () => {
@@ -379,7 +382,7 @@ it("downloads retained edits without retrying or clearing their operation", asyn
   const download = vi
     .spyOn(HTMLAnchorElement.prototype, "click")
     .mockImplementation(() => {});
-  await click("Download draft");
+  await click("Download encrypted draft");
   expect(download).toHaveBeenCalledOnce();
   expect(DownloadURL.createObjectURL).toHaveBeenCalledOnce();
   expect(recovery().pending).toEqual(pending);
@@ -426,7 +429,7 @@ it.each([false, true])(
     const download = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
-    await click("Download recovery copies");
+    await click("Download encrypted recovery copies");
     expect(download).toHaveBeenCalledOnce();
     const blob = DownloadURL.createObjectURL.mock.calls[0][0] as Blob;
     const contents = await new Promise<string>((resolve, reject) => {
@@ -435,7 +438,7 @@ it.each([false, true])(
       reader.onerror = () => reject(reader.error);
       reader.readAsText(blob);
     });
-    const bundle = JSON.parse(contents);
+    const bundle = await openRecoveryExportFixture(contents, key);
     expect(bundle.currentCopy).toMatchObject({
       key,
       kind: "draft",
@@ -465,13 +468,18 @@ it.each(["expired", "logout"] as const)(
       throw new Error("synthetic quota denial");
     });
     await mount();
-    expect(host.textContent).toContain("Download recovery copies");
+    await act(async () => {
+      await settleRecoveryFixture();
+    });
+    expect(host.textContent).toContain("Download encrypted recovery copies");
     await type("Private buffered text before lock.");
     const { lockProtectedSession } =
       await import("../../lib/protected-admin-json");
     await act(async () => lockProtectedSession(reason));
     expect(body()).toBeNull();
-    expect(host.textContent).not.toContain("Download recovery copies");
+    expect(host.textContent).not.toContain(
+      "Download encrypted recovery copies",
+    );
     expect(host.textContent).not.toContain(
       "Private buffered text before lock.",
     );
@@ -487,7 +495,7 @@ it.each(["delayed logout", "session storage denial"])(
       throw new Error("synthetic quota denial");
     });
     await mount();
-    const action = button("Download recovery copies");
+    const action = button("Download encrypted recovery copies");
     class DownloadURL extends URL {
       static createObjectURL = vi.fn((_blob: Blob) => "blob:must-not-download");
       static revokeObjectURL = vi.fn();
@@ -507,7 +515,9 @@ it.each(["delayed logout", "session storage denial"])(
     expect(DownloadURL.createObjectURL).not.toHaveBeenCalled();
     expect(body()).toBeNull();
     expect(host.textContent).toContain("Session ended");
-    expect(host.textContent).not.toContain("Download recovery copies");
+    expect(host.textContent).not.toContain(
+      "Download encrypted recovery copies",
+    );
   },
 );
 
@@ -527,7 +537,10 @@ it.each([false, true])(
         .querySelector<HTMLButtonElement>('[aria-label="Properties"]')!
         .click();
     });
-    expect(host.textContent).toContain("Download recovery copies");
+    await act(async () => {
+      await settleRecoveryFixture();
+    });
+    expect(host.textContent).toContain("Download encrypted recovery copies");
     await type("Ordinary typing with newest buffered body.");
     if (download) {
       class DownloadURL extends URL {
@@ -540,7 +553,7 @@ it.each([false, true])(
       vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
         () => {},
       );
-      await click("Download recovery copies");
+      await click("Download encrypted recovery copies");
       expect(DownloadURL.createObjectURL).toHaveBeenCalledOnce();
     }
     expect(saves()).toHaveLength(0);
@@ -602,7 +615,7 @@ it("keeps retained edits as a new draft when no saved draft exists", async () =>
   );
   expect(host.textContent).not.toContain("comparing again");
   expect(host.textContent).not.toContain("Saved on another tab or device");
-  expect(button("Download draft").disabled).toBe(false);
+  expect(button("Download encrypted draft").disabled).toBe(false);
   expect(recovery().pending).toEqual(pending);
   expect(saves()).toHaveLength(1);
   await click("Keep my version");
@@ -611,7 +624,7 @@ it("keeps retained edits as a new draft when no saved draft exists", async () =>
   expect(next).toMatchObject({ source: mine, expectedRevision: 0 });
   expect(next.requestId).not.toBe(pending.requestId);
   expect(host.textContent).not.toContain("Compare before saving again");
-  expectRecoveryRetired();
+  await expectRecoveryRetired();
 });
 
 it("offers a new draft when a conflict reports no saved draft", async () => {
@@ -642,7 +655,7 @@ it("offers a new draft when a conflict reports no saved draft", async () => {
   expect(next).toMatchObject({ source: mine, expectedRevision: 0 });
   expect(next.requestId).not.toBe(pending.requestId);
   expect(host.textContent).not.toContain("Saved draft not found");
-  expectRecoveryRetired();
+  await expectRecoveryRetired();
 });
 
 it("stops resending a draft the server refused, then saves a different edit", async () => {
@@ -665,9 +678,9 @@ it("stops resending a draft the server refused, then saves a different edit", as
   // The remaining causes are server-side, so editing is not the way out.
   expect(host.textContent).not.toContain("edit the draft");
   expect(host.textContent).not.toContain("Retry save");
-  expect(button("Download draft").disabled).toBe(false);
-  expect(writtenRecovery()).toMatchObject({ pending: null });
-  expect(writtenRecovery().source).toContain("Refused body.");
+  expect(button("Download encrypted draft").disabled).toBe(false);
+  expect(await writtenRecovery()).toMatchObject({ pending: null });
+  expect((await writtenRecovery()).source).toContain("Refused body.");
   await type("Accepted body.");
   await pause();
   expect(saves()).toHaveLength(2);
@@ -699,7 +712,11 @@ it("hides Save now while a save is refused", async () => {
       '[role="menu"][aria-label="More actions"] [role="menuitem"]',
     ),
   ].map((item) => item.textContent ?? "");
-  expect(items.some((label) => label.includes("Download draft"))).toBe(true);
+  expect(
+    items.some((label) =>
+      label.includes("Download Markdown source (plaintext)"),
+    ),
+  ).toBe(true);
   expect(items.some((label) => label.includes("Save now"))).toBe(false);
   expect(saves()).toHaveLength(1);
 });
@@ -717,12 +734,18 @@ it("reloads a refused draft into the saved draft with the edits ready to review"
   const records = () =>
     fetcher.mock.calls.filter(([url]) => String(url).includes("/record?"));
   expect(records()).toHaveLength(1);
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
   // Reload: a fresh editor over the same device storage.
   act(() => root.unmount());
   answerSave = () => undefined;
   root = createRoot(host);
   await act(async () => {
     root.render(<HomeEditor record={record} />);
+  });
+  await act(async () => {
+    await settleRecoveryFixture();
   });
   await act(async () => {
     await vi.waitFor(
@@ -782,7 +805,7 @@ it.each([
     await mountClean();
     await type(text);
     await pause();
-    expect(buttons("Download draft")).toHaveLength(1);
+    expect(buttons("Download encrypted draft")).toHaveLength(1);
     const alerts = host.querySelectorAll('[role="alert"]').length;
     await act(async () => {
       navigation.navigateAdmin("/content");
@@ -791,7 +814,7 @@ it.each([
     // Saving is not possible, so the leave warning must not ask for it.
     expect(host.textContent).not.toContain("Save them before leaving");
     expect(host.querySelectorAll('[role="alert"]')).toHaveLength(alerts);
-    expect(buttons("Download draft")).toHaveLength(1);
+    expect(buttons("Download encrypted draft")).toHaveLength(1);
     expect(host.textContent).toContain(title);
     expect(host.textContent).toContain("Download a copy before leaving");
   },
@@ -903,8 +926,8 @@ it("holds an operation the server says was reused for an explicit comparison", a
   expect(host.textContent).toContain("Compare before saving again");
   expect(host.textContent).toContain("already used for different content");
   expect(host.textContent).not.toContain("Retry save");
-  expect(writtenRecovery().pending.requestId).toBe(reused);
-  expect(writtenRecovery().source).toContain("More typing.");
+  expect((await writtenRecovery()).pending.requestId).toBe(reused);
+  expect((await writtenRecovery()).source).toContain("More typing.");
   await click("Compare saved draft");
   await click("Keep my version");
   expect(saves()).toHaveLength(2);
@@ -945,7 +968,7 @@ it("never sends a draft over the save limit, including bodies the API refuses ou
   const download = vi
     .spyOn(HTMLAnchorElement.prototype, "click")
     .mockImplementation(() => {});
-  await click("Download draft");
+  await click("Download encrypted draft");
   expect(download).toHaveBeenCalledOnce();
   expect(saves()).toHaveLength(0);
 });
@@ -980,7 +1003,9 @@ it("locks on expired save without replay and retains the owner's latest browser 
   expect(host.textContent).toContain("Session ended");
   expect(body()).toBeNull();
   expect(saves()).toHaveLength(1);
-  expect(writtenRecovery().source).toContain("Latest synthetic private edits.");
+  expect((await writtenRecovery()).source).toContain(
+    "Latest synthetic private edits.",
+  );
   const reentry = [...host.querySelectorAll("a")].find((link) =>
     link.textContent?.includes("Sign in again"),
   );
@@ -1018,8 +1043,8 @@ it("retains dirty body and actual title buffers on expiry before the typing paus
     await import("../../lib/protected-admin-json");
   await act(async () => lockProtectedSession("expired"));
   expect(body()).toBeNull();
-  expect(writtenRecovery().source).toContain("Newest unflushed body.");
-  expect(writtenRecovery().source).toContain("Newest buffered title");
+  expect((await writtenRecovery()).source).toContain("Newest unflushed body.");
+  expect((await writtenRecovery()).source).toContain("Newest buffered title");
   await pause();
   expect(saves()).toHaveLength(0);
 });

@@ -1,3 +1,9 @@
+import {
+  unlockRecoveryFixture,
+  settleRecoveryFixture,
+  readRecoveryFixture,
+  openRecoveryExportFixture,
+} from "../../../test/recovery-key-fixture";
 import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
@@ -138,7 +144,7 @@ async function menuItem(label: string) {
   expect(item, label).toBeTruthy();
   await act(async () => item!.click());
 }
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal("React", React);
   vi.stubGlobal(
     "matchMedia",
@@ -171,6 +177,7 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  await unlockRecoveryFixture();
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -474,7 +481,7 @@ it("groups document actions under labeled menu sections, not dividers", async ()
   const inspect = ["Inspect", ["View source", "Compare with website"]];
   const draftActions = [
     "Open production editor",
-    "Download draft",
+    "Download Markdown source (plaintext)",
     "Import draft…",
   ];
   let menu = await openMenu();

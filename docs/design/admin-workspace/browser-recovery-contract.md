@@ -1,5 +1,11 @@
 # Browser recovery compatibility, R3a
 
+The R3a sections below retain the plaintext compatibility baseline. The
+**Consumer integration** section records the new local
+`codex/browser-recovery-unlock` implementation, based on `e43d9557b`. It is not
+the deployed #531 behavior or part of the frozen #538 candidate. Full validation,
+actual browser acceptance and release evidence remain with the integration owner.
+
 This increment implements the browser boundary of the Quiet Precision recovery
 contract. Production private drafts remain authoritative. It does not implement
 encryption, backup guarantees, a cloud replica, publication, or transfer.
@@ -109,7 +115,7 @@ writers, unsupported byte preservation/export, quota/lock denial, and closed
 channels after logout, and old-tab logout while the new tab is closed. Real browser permission denial and owner visual acceptance
 remain release checks; the DOM tests do not claim to emulate provider recovery.
 
-## Opt-in v3 encryption foundation
+## Opt-in v3 encryption foundation, 2026-10-18 checkpoint
 
 Ani accepted the local recovery key-file/manual-unlock tradeoff on 2026-10-18.
 `apps/admin/src/lib/browser-recovery-encryption.ts` implements the bounded engine
@@ -182,3 +188,89 @@ unlock/encryption/decryption, and opaque input preservation. These checks do not
 establish browser key-download custody, storage races, expiry flushing, BFCache,
 two-tab logout, encrypted downloads or recovery UI acceptance. Those require the
 next integration and real-browser gate before activation.
+
+## Consumer integration
+
+The local consumer branch wires the native engine through
+`browser-recovery-session.ts`, `encrypted-browser-recovery.ts` and
+`browser-recovery-bundle.ts`. The retained v1/v2 reader/writer tests cover
+compatibility; normal HomeEditor/NewWriting recovery now uses the asynchronous
+v3 adapter. The production entrypoint inventory found both forms mounted only
+by EditorialApp, with owner scope supplied by EditorialLayout from the existing
+server-defined Access owner. RecoveryUnlock gates both render paths before
+form initialization. Library navigation remains available. Missing scope does
+not enable authoring or select a browser-supplied identity.
+
+Setup controls stay disabled until hydration installs handlers. Setup generates
+a key-file download, then requires re-import of that exact key ID and a native
+encryption/decryption challenge before mounting authoring. Ordinary unlock uses
+the saved file and the same challenge. File reads and imports have per-selection,
+mounted-document and admission guards; a later selection, unmount or session lock
+invalidates pending work. Generation has synchronous duplicate-click protection.
+Raw key-file text and File objects are not component state. The file input clears
+on selection, and download object URLs are revoked after use or on unlock/unmount.
+There is no persisted device key, authentication change or application test bypass.
+
+One v3 storage value is keyed by owner, record kind/ID and key ID. Its encrypted
+bundle contains an authenticated manifest and ordered encrypted chunks; chunks
+are inside that value, not independent storage keys. The manifest binds chunk
+hashes and the exact UTF-16 length; bounded chunk framing preserves opaque strings
+and allows exports larger than one envelope. Bounds are 32 MiB of input UTF-8
+and 64 MiB of serialized bundle. A full storage origin can still reject additive
+recovery writes. This is reported without removing predecessors or falling back
+to plaintext. Encrypted current-copy export remains independent of successful
+record storage reads and writes within its own stated bounds.
+
+Channels capture the immutable current payload before queuing. They bind an
+immutable per-unlock capability and key ID as well as origin, verified owner,
+record and logout generation. Reload, key change, same-key re-import or drain
+timeout cannot re-admit an old channel. Shared lifecycle and record Web Locks
+cover read/decrypt and write/encrypt. Exact current v1/v2/v3 strings, capability,
+logout intent and generation are checked after asynchronous work before commit.
+A compare-and-swap loss preserves competing candidates. Explicit choices archive
+the displaced ciphertext, with the existing three-copy archive bound.
+
+Migration is additive. V1/v2 strings and archives are not rewritten or removed.
+V3 records authenticate predecessor hashes, including acknowledgment tombstones,
+so unchanged older copies cannot resurrect a saved edit. An older tab changing
+plaintext produces a comparison. Unsupported or corrupt values remain exact and
+exportable. Creating a new key is explicit and uses a separate key-ID namespace;
+it does not decrypt or replace copies that need an unavailable earlier key.
+The UI discloses retained plaintext and foreign key identities. This branch
+does not claim that every existing browser value is encrypted.
+
+The document recovery session owns synchronous capture registrations independently
+of form unmount. Auth expiry immediately stops authoring/network admission and
+captures buffered input, then permits only that capability's final local seal
+for at most 1.5 seconds before dropping key handles. An explicit logout or
+pagehide drops handles immediately. Continuous encryption, the existing unload
+warning and explicit navigation safeguards reduce exposure; pagehide cannot
+promise that a last asynchronous write completed. BFCache/auth re-entry retains
+the existing full-document fence and requires a real authenticated navigation,
+followed by key import. No key or decrypted copy is broadcast to other tabs.
+
+BrowserRecoveryNotice and recovery safety actions export the captured current
+payload, retry identity and all record-scoped opaque stored copies inside an
+encrypted bundle, without saving or acknowledging an operation. After key loss,
+the explicit opaque export copies only owner-scoped v3 entries unchanged,
+including unknown/corrupt bytes; it adds no key/current input and excludes v1/v2
+plaintext. It does not attest the contents of arbitrary opaque stored values.
+Explicit authoring exports remain separate: the menu and named history revision
+actions are labeled plaintext Markdown source downloads and retain `.md`
+portability. They are not recovery guarantees or plaintext persistence fallbacks.
+Both export paths check document admission before download.
+
+Explicit logout extends its existing intent latch, exclusive lifecycle barrier,
+canonical record locking, exact-byte removal and failure reporting to v3 values
+and archives. It clears recovery rather than silently retaining encrypted copies.
+Fresh-generation replacements keep their existing preservation rule. Cleanup does
+not need or recover an encryption key and does not mutate server-saved drafts.
+
+Focused checks use explicit test-owned native key/session fixtures and preserve
+the legacy compatibility suites. The separate owner browser acceptance must
+qualify setup/download/re-import, hydration, pending work cancellation, wrong and
+lost keys, encrypted current export, actual reload/expiry, BFCache and two-tab
+logout/CAS. Existing local journey suites must import synthetic key files through
+the real hydrated file input, using the test-only
+`test/support/browser-recovery-key.ts` helper where appropriate. Full checks and
+the owner browser matrix are not claimed by this branch documentation.
