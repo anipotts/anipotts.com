@@ -12,3 +12,8 @@ export function validateOfflineRecovery(serialized: string): {
   report: Record<string, unknown>;
 };
 export function recoveryHash(value: string | Uint8Array): string;
+
+export function validateRecoveryControl(
+  snapshot: Omit<RecoverySnapshot, "publicMedia">,
+  objects: readonly import("./recovery-media-container.mjs").RecoveryMediaObject[],
+): Record<string, unknown>;

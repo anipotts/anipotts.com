@@ -79,3 +79,11 @@ export function verifyRecoveryMediaContainer(
   frames: AsyncIterable<RecoveryMediaFrame> | Iterable<RecoveryMediaFrame>,
   sink: RecoveryMediaSink,
 ): Promise<RecoveryMediaManifest>;
+
+export function canonicalRecoveryMetadata(
+  value: unknown,
+  maximum: number,
+): string;
+export function snapshotRecoveryMediaPlan(
+  plan: RecoveryMediaPlan,
+): RecoveryMediaPlan & Readonly<{ totalBytes: number; totalFrames: number }>;

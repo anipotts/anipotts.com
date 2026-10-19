@@ -85,3 +85,32 @@ export function openEncryptedRecoveryMedia(
   sink: DecryptedRecoveryMediaSink,
   options?: RecoveryMediaCodecOptions,
 ): Promise<RecoveryMediaManifest>;
+
+/** Internal strict profile shared with the additive inactive capture codec. */
+export function createRecoveryFrameCodec(profile: "capture-v3"): {
+  seal(
+    plan: RecoveryMediaPlan,
+    read: RecoveryMediaReader,
+    key: Uint8Array,
+    context: RecoveryMediaEncryptionContext,
+    sink: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Sink,
+    options: RecoveryMediaCodecOptions,
+    control: string,
+  ): Promise<import("./recovery-capture-v3.mjs").RecoveryCaptureV3Receipt>;
+  open(
+    source: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Source,
+    key: Uint8Array,
+    context: RecoveryMediaEncryptionContext,
+    sink: DecryptedRecoveryMediaSink & {
+      begin(
+        control: string,
+        receipt: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Receipt,
+        signal: AbortSignal,
+      ): void | Promise<void>;
+    },
+    options: RecoveryMediaCodecOptions,
+    validateControl: (serialized: string) => RecoveryMediaPlan,
+  ): Promise<{
+    receipt: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Receipt;
+  }>;
+};

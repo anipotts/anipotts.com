@@ -38,7 +38,7 @@ function shape(value, fields) {
 }
 /** Bounded JSON encoding, including escaped-string bytes. Stop before retaining
  * a token that exceeds the budget; depth and array counts are bounded too. */
-function canonical(value, maximum) {
+export function canonicalRecoveryMetadata(value, maximum) {
   let bytes = 0;
   const blocks = [];
   let block = "";
@@ -87,6 +87,7 @@ function canonical(value, maximum) {
       token("]");
     } else if (value && Object.getPrototypeOf(value) === Object.prototype) {
       const keys = Object.keys(value).sort();
+      if (Reflect.ownKeys(value).length !== keys.length) fail("metadata_json");
       if (keys.length > limits.entries) fail("entry_limit");
       token("{");
       keys.forEach((key, index) => {
@@ -125,8 +126,8 @@ function dictionary(value, allowed) {
 function inventory(objects, evidence) {
   if (!Array.isArray(objects) || objects.length > limits.entries)
     fail("entry_limit");
-  canonical(objects, limits.metadataBytes);
-  canonical(evidence, limits.evidenceBytes);
+  canonicalRecoveryMetadata(objects, limits.metadataBytes);
+  canonicalRecoveryMetadata(evidence, limits.evidenceBytes);
   const seen = new Set();
   let totalBytes = 0,
     totalFrames = 0;
@@ -192,11 +193,13 @@ function inventory(objects, evidence) {
   }
   return { totalBytes, totalFrames };
 }
-function planSnapshot(plan) {
+export function snapshotRecoveryMediaPlan(plan) {
   shape(plan, ["objects", "evidence"]);
   // Snapshot all metadata before the first caller-controlled await. The
   // supplied object graph is never retained as deferred mutable authority.
-  const copy = JSON.parse(canonical(plan, limits.manifestBytes));
+  const copy = JSON.parse(
+    canonicalRecoveryMetadata(plan, limits.manifestBytes),
+  );
   const totals = inventory(copy.objects, copy.evidence);
   return freeze({ ...copy, ...totals });
 }
@@ -209,8 +212,11 @@ function manifest(plan) {
     totalBytes: plan.totalBytes,
     totalFrames: plan.totalFrames,
   };
-  return canonical(
-    { ...core, sha256: hash(canonical(core, limits.manifestBytes)) },
+  return canonicalRecoveryMetadata(
+    {
+      ...core,
+      sha256: hash(canonicalRecoveryMetadata(core, limits.manifestBytes)),
+    },
     limits.manifestBytes,
   );
 }
@@ -290,7 +296,7 @@ async function aborted(sink) {
  * acknowledgment is not proof of durable storage or authenticated custody. */
 export async function writeRecoveryMediaContainer(plan, read, sink) {
   sinkContract(sink);
-  const snapshot = planSnapshot(plan);
+  const snapshot = snapshotRecoveryMediaPlan(plan);
   if (typeof read !== "function") fail("reader");
   try {
     for (

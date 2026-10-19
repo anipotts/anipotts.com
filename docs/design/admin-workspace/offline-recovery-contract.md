@@ -502,3 +502,81 @@ checks passed. HEAD and worktree drift checks were clean; this final evidence
 checkpoint changes only this contract. No further heavy run, source/config edit,
 production adapter, provider call, remote migration or operational activation
 is part of this handoff.
+
+## Additive inactive capture v3 integration
+
+The source-only v3 lane joins bounded control records to the qualified media
+frame codec. `recovery-capture-v3.mjs` uses a distinct authenticated format,
+`anipotts.editorial-capture.aes256gcm.v3`. Existing offline v1, capture v2 and
+standalone encrypted-media v1 formats, methods and limits remain supported.
+The v2 collector's 4 MiB collected / 8 MiB envelope restriction remains unchanged;
+only the additive v3 path avoids media base64 and whole-object materialization.
+
+A canonical control document contains actual DO SQL, JSON KV metadata/relations,
+D1 application rows, the ordered private/public media inventory and capture
+proof. The complete document is at most 4 MiB; capture evidence retains its own
+256 KiB ceiling. Binary KV chunks do not appear in this document. The exact
+legacy source/reference/receipt/relation validator is shared with a separate
+metadata-and-inventory path, without fabricated images or placeholder bytes.
+Unknown tables, columns, KV keys, binary chunk names, metadata or extra inventory
+entries fail closed. The adapter retains the 5,000-entry collector limit.
+Media limits remain 10 MiB per object, 64 MiB aggregate and 64 KiB canonical
+frames. The same hash identity can appear once in each distinct media plane.
+
+The shared framing engine has explicit media-v1 and capture-v3 profiles. V3 adds
+ordered control records before media and the final media manifest. It generates
+a fresh ephemeral DEK per seal, wraps it once with the supplied 32-byte key and
+a fresh random 96-bit IV, and uses a single non-reused counter-IV sequence for
+all records under that DEK. AAD binds the strict format, application/capture
+context, role, sequence, object index, chunk index and length. The authenticated
+final commit binds exact control byte count/hash, media byte/frame totals,
+manifest hash/count and the full length-delimited encrypted transcript. Exact EOF
+is required. Owned key buffers are copied before awaits and wiped on completion,
+error, deadline or cancellation; native crypto handles and JavaScript strings
+have no claimed zeroization guarantee.
+
+`captureRecoveryV3` retains the existing source admission/drain, alarm quiet-window
+and DO/D1 fence protocol. It enumerates bounded controls and real metadata;
+private chunks are read individually and R2 bytes through conditional 64 KiB
+range requests with etag/version/size checks. The caller supplies isolated
+artifact staging, acknowledgments and a replayable source. A durable source
+receipt is qualified only after artifact acknowledgment, full reauthentication,
+media verification and both fence checks. No source writer is automatically
+released. `completeRecoveryV3` reauthenticates the supplied artifact before the
+existing D1-first / DO-second durable completion transition.
+
+`SuspendedRecoveryTarget.installRecoveryV3` first authenticates exact EOF,
+control graph, metadata, complete media order and incremental hashes. Only then
+can it claim an empty dedicated target with matching code-owned schemas. A
+second source pass must reproduce the same authenticated transcript. Private
+chunks go to their original ordered keys; public objects use a known-length
+stream and awaited backpressure. The target then recollects bounded controls,
+compares application metadata and independently hashes every restored object
+through bounded reads. Source provider-generated R2 identity is retained as
+capture evidence; target-generated etag/version/upload time may differ. The
+visibility marker is committed only after successful codec return and its final
+revocation/deadline checks. Failures leave partial targets inaccessible and
+suspended; imported alarms and pending work are never executed.
+
+This remains inactive source qualification. `assertRecoveryWriterCohort` still
+always rejects production enrollment. Migration `0003` remains unapplied outside
+the isolated local fixture. No production import, route, RPC export, collector,
+provider binding, custody mechanism or key store is introduced. A supplied sink
+must consume/copy a frame before acknowledging it and preserve staging until
+successful finalization; the codec cannot undo arbitrary uncooperative sink
+side effects. The caller remains responsible for durable encrypted artifact
+custody. This does not establish a live backup or a production restore path.
+
+Focused Node qualification currently passes 98 cases, including the existing
+84 and 14 new v3 cases. The new large fixture transports 10 MiB in each media
+plane alongside more than 4,000,000 bytes of control, spools encrypted events to
+task-owned temporary files, verifies exact two-pass replay and observes one
+outstanding awaited frame. It also covers wrong keys/context, header/tag damage,
+order/duplicate/truncated/trailing records, changed second pass, control limits,
+metadata mismatch and held-final-ack cancellation. These are synthetic hash/type
+transport fixtures, not image decoding qualification. Strict editorial TypeScript
+passes. Three additional actual local DO/D1/R2 cases are wired into the existing
+recovery test configuration but have not yet run at this checkpoint. No numeric
+128 MiB peak-memory or provider integration claim follows from bounded frame
+references or Node file-spool evidence. Full/native qualification remains an
+integration-owner gate on the exact frozen source.

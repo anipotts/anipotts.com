@@ -16,7 +16,7 @@ function keys(value, names) {
   )
     throw new Error("capture_schema");
 }
-function evidence(value) {
+export function validateRecoveryCaptureEvidence(value) {
   if (
     Buffer.byteLength(JSON.stringify(value) ?? "") > CAPTURE_EVIDENCE_BYTE_LIMIT
   )
@@ -194,7 +194,7 @@ export function serializeRecoveryR2HttpMetadata(metadata) {
 }
 
 export function sealRecoveryCapture(snapshot, proof) {
-  evidence(proof);
+  validateRecoveryCaptureEvidence(proof);
   const payload = exportOfflineRecovery(snapshot);
   objectCoverage(snapshot, proof);
   const core = JSON.stringify({
@@ -222,7 +222,7 @@ export function openRecoveryCapture(serialized) {
   keys(value, ["format", "payload", "evidence", "sha256"]);
   if (value.format !== CAPTURE_FORMAT || typeof value.payload !== "string")
     throw new Error("capture_schema");
-  evidence(value.evidence);
+  validateRecoveryCaptureEvidence(value.evidence);
   const core = JSON.stringify({
     format: value.format,
     payload: value.payload,

@@ -850,3 +850,301 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     }
   });
 });
+
+// v3 artifact events are staged in a separate disposable object using existing
+// local fixture bindings, never added to the captured source or target stores.
+import {
+  captureRecoveryV3,
+  completeRecoveryV3,
+} from "../../src/editorial/recovery-storage";
+import {
+  type RecoveryCaptureV3Event,
+  type RecoveryCaptureV3Context,
+} from "../../../../scripts/admin/recovery-capture-v3.mjs";
+
+function artifactV3() {
+  const spool = fresh();
+  let records = 0,
+    outstanding = 0,
+    maximum = 0,
+    complete = false;
+  return {
+    async write(event: RecoveryCaptureV3Event) {
+      maximum = Math.max(maximum, ++outstanding);
+      const index = records++;
+      try {
+        await runInDurableObject(spool, (_instance, state) =>
+          state.storage.put(`artifact:${index}`, event),
+        );
+      } finally {
+        outstanding--;
+      }
+    },
+    complete() {
+      complete = true;
+    },
+    abort() {
+      complete = false;
+    },
+    source: async function* () {
+      for (let index = 0; index < records; index++)
+        yield await runInDurableObject(
+          spool,
+          async (_instance, state) =>
+            (await state.storage.get<RecoveryCaptureV3Event>(
+              `artifact:${index}`,
+            ))!,
+        );
+    },
+    stats() {
+      return { records, maximum, complete };
+    },
+  };
+}
+async function seededV3(size: number, largeControl = false) {
+  const store = fresh(),
+    digest = createHash("sha256");
+  for (let offset = 0; offset < size; offset += 65536)
+    digest.update(new Uint8Array(Math.min(65536, size - offset)).fill(71));
+  const id = `${digest.digest("hex")}.png`;
+  const text =
+    `/images/editorial/${id}\n` + "x".repeat(largeControl ? 509_900 : 64);
+  await runInDurableObject(store, async (_instance, state) => {
+    await new RecoveryCoordinator(state.storage).writer(
+      "synthetic-v3-seed",
+      async () => {
+        const draft = {
+          key: "content/public/writing/synthetic-recovery.md",
+          source: text,
+          baseCommit: "a".repeat(40),
+          baseFileHash: null,
+          revision: largeControl ? 7 : 1,
+          updatedAt: 1,
+          discardedAt: null,
+        };
+        for (let revision = 1; revision <= draft.revision; revision++)
+          state.storage.sql.exec(
+            "INSERT INTO revisions(key,revision,snapshot) VALUES(?,?,?)",
+            draft.key,
+            revision,
+            JSON.stringify({ ...draft, revision }),
+          );
+        state.storage.sql.exec(
+          "INSERT INTO drafts(key,source,baseCommit,baseFileHash,revision,updatedAt,discardedAt) VALUES(?,?,?,?,?,?,?)",
+          draft.key,
+          draft.source,
+          draft.baseCommit,
+          null,
+          draft.revision,
+          1,
+          null,
+        );
+        await state.storage.put(`media:${id}`, { id, type: "image/png", size });
+        for (let offset = 0, index = 0; offset < size; offset += 65536, index++)
+          await state.storage.put(
+            `media:${id}:${index}`,
+            new Uint8Array(Math.min(65536, size - offset)).fill(71),
+          );
+      },
+    );
+  });
+  await withRecoveryWriter(
+    env.RECOVERY_SOURCE_DB,
+    "synthetic-v3-public",
+    async () => {
+      const stream = new FixedLengthStream(size),
+        writer = stream.writable.getWriter();
+      const upload = env.RECOVERY_SOURCE_MEDIA.put(id, stream.readable, {
+        httpMetadata: {
+          contentType: "image/png",
+          cacheControl: "public, max-age=60",
+        },
+        customMetadata: { fixture: "v3-synthetic" },
+      });
+      void upload.catch(() => {});
+      for (let offset = 0; offset < size; offset += 65536)
+        await writer.write(
+          new Uint8Array(Math.min(65536, size - offset)).fill(71),
+        );
+      await writer.close();
+      await upload;
+    },
+  );
+  return { store, id, text };
+}
+it("v3 captures 10 MiB in both planes with 4 MiB-class controls through encrypted export and suspended restore/readback", async () => {
+  const { store, id, text } = await seededV3(10 * 1024 * 1024, true),
+    artifact = artifactV3(),
+    key = crypto.getRandomValues(new Uint8Array(32));
+  const captured = await runInDurableObject(store, (_instance, state) =>
+    captureRecoveryV3(
+      state.storage,
+      env.RECOVERY_SOURCE_DB,
+      env.RECOVERY_SOURCE_MEDIA,
+      env.RECOVERY_APPLICATION_REVISION,
+      key,
+      artifact,
+    ),
+  );
+  expect(artifact.stats()).toMatchObject({ maximum: 1, complete: true });
+  expect(captured.receipt.controlBytes).toBeGreaterThan(4_000_000);
+  expect(captured.receipt.mediaBytes).toBe(20 * 1024 * 1024);
+  const restored = target();
+  const result = await runInDurableObject(restored, (instance) =>
+    instance.installRecoveryV3(artifact.source, key, captured.context),
+  );
+  expect(result.sha256).toBe(captured.sha256);
+  expect((await restored.get(record))?.source).toBe(text);
+  expect(await restored.recoveryStatus()).toMatchObject({
+    phase: "complete",
+    alarmAt: null,
+    mode: "isolated-suspended",
+  });
+  expect(await runDurableObjectAlarm(restored)).toBe(false);
+  const privateHash = await runInDurableObject(
+    restored,
+    async (_instance, state) => {
+      const digest = createHash("sha256");
+      for (let index = 0; index < 160; index++) {
+        const bytes = await state.storage.get<Uint8Array>(
+          `media:${id}:${index}`,
+        );
+        expect(bytes?.byteLength).toBe(65536);
+        digest.update(bytes!);
+      }
+      return digest.digest("hex");
+    },
+  );
+  const publicDigest = createHash("sha256");
+  for (let offset = 0; offset < 10 * 1024 * 1024; offset += 65536) {
+    const part = await env.RECOVERY_CONTENT_MEDIA.get(id, {
+      range: { offset, length: 65536 },
+    });
+    const bytes = new Uint8Array(await part!.arrayBuffer());
+    expect(bytes.byteLength).toBe(65536);
+    publicDigest.update(bytes);
+  }
+  expect(privateHash).toBe(id.split(".")[0]);
+  expect(publicDigest.digest("hex")).toBe(privateHash);
+  expect((await env.RECOVERY_CONTENT_MEDIA.head(id))?.customMetadata).toEqual({
+    fixture: "v3-synthetic",
+  });
+  await failure(
+    restored,
+    (instance) => instance.save(save(7)),
+    "recovery_write_fenced",
+  );
+  await failure(
+    store,
+    (instance) => instance.save(save(7)),
+    "recovery_write_fenced",
+  );
+  expect(
+    await runInDurableObject(store, (_instance, state) =>
+      completeRecoveryV3(
+        state.storage,
+        env.RECOVERY_SOURCE_DB,
+        artifact.source,
+        key,
+        captured.context,
+      ),
+    ),
+  ).toEqual({ state: "released", sha256: captured.sha256 });
+  key.fill(0);
+}, 60_000);
+it("v3 first-pass tag/truncation/context failures leave actual target empty and inaccessible", async () => {
+  const { store } = await seededV3(70_001),
+    artifact = artifactV3(),
+    key = crypto.getRandomValues(new Uint8Array(32));
+  const captured = await runInDurableObject(store, (_instance, state) =>
+    captureRecoveryV3(
+      state.storage,
+      env.RECOVERY_SOURCE_DB,
+      env.RECOVERY_SOURCE_MEDIA,
+      env.RECOVERY_APPLICATION_REVISION,
+      key,
+      artifact,
+    ),
+  );
+  for (const mode of ["tag", "truncated", "context"]) {
+    const restored = target();
+    let index = 0;
+    const source = async function* () {
+      for await (const event of artifact.source()) {
+        if (
+          mode === "truncated" &&
+          event.kind === "record" &&
+          event.role === "commit"
+        )
+          return;
+        if (mode === "tag" && ++index === 2 && event.kind === "record")
+          event.tag[0] = event.tag[0]! ^ 1;
+        yield event;
+      }
+    };
+    const identity: RecoveryCaptureV3Context =
+      mode === "context"
+        ? { ...captured.context, editorialGeneration: 999 }
+        : captured.context;
+    await failure(
+      restored,
+      (instance) => instance.installRecoveryV3(source, key, identity),
+      "encrypted_recovery_media_",
+    );
+    expect(await restored.recoveryStatus()).toMatchObject({
+      phase: "empty",
+      alarmAt: null,
+    });
+    await failure(
+      restored,
+      (instance) => instance.get(record),
+      "recovery_target_unavailable",
+    );
+  }
+  key.fill(0);
+}, 30_000);
+it("v3 changed second pass leaves actual target failed and suspended", async () => {
+  const { store } = await seededV3(70_001),
+    artifact = artifactV3(),
+    key = crypto.getRandomValues(new Uint8Array(32));
+  const captured = await runInDurableObject(store, (_instance, state) =>
+    captureRecoveryV3(
+      state.storage,
+      env.RECOVERY_SOURCE_DB,
+      env.RECOVERY_SOURCE_MEDIA,
+      env.RECOVERY_APPLICATION_REVISION,
+      key,
+      artifact,
+    ),
+  );
+  let opens = 0;
+  const source = async function* () {
+    opens++;
+    for await (const event of artifact.source()) {
+      if (opens === 2 && event.kind === "record" && event.role === "commit")
+        event.tag[0] = event.tag[0]! ^ 1;
+      yield event;
+    }
+  };
+  const restored = target();
+  await failure(
+    restored,
+    (instance) => instance.installRecoveryV3(source, key, captured.context),
+    "encrypted_recovery_media_",
+  );
+  expect(await restored.recoveryStatus()).toMatchObject({
+    phase: "failed",
+    alarmAt: null,
+  });
+  await failure(
+    restored,
+    (instance) => instance.get(record),
+    "recovery_target_unavailable",
+  );
+  await failure(
+    store,
+    (instance) => instance.save(save(1)),
+    "recovery_write_fenced",
+  );
+  key.fill(0);
+}, 30_000);

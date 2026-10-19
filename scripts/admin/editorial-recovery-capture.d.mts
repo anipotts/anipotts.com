@@ -48,3 +48,5 @@ export function openRecoveryCapture(serialized: string): {
   sha256: string;
   report: Record<string, unknown>;
 };
+
+export function validateRecoveryCaptureEvidence(value: RecoveryEvidence): void;
