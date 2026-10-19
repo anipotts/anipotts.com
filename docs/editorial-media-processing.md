@@ -75,3 +75,33 @@ are not Cloudflare charged CPU; the actual account allowance remains unqueried.
 Preserving 16 MP processing needs a different qualified implementation or an
 approved existing processing service. No billing, binding, CPU setting, feature
 flag or default upload policy change is authorized by this document.
+
+## Recommended replacement, October 18
+
+Prefer a private Images binding for decoding/normalization, retaining originals
+and immutable derivative/provenance records in the existing stores. This is a
+source proposal, not a configured binding or provider qualification.
+
+The [current binding API](https://developers.cloudflare.com/images/optimization/binding/)
+accepts raw streams without making originals public. Its documented input cap is
+20 MB, above current upload admission. Local Vitest/Wrangler emulation supports
+only a subset of transformations, so it cannot qualify production crop behavior.
+The [Images Free plan](https://developers.cloudflare.com/images/pricing/) currently
+allows 5,000 unique monthly transformations and rejects new transformations above
+that cap without overage charges. This account's actual Images entitlement and
+billing mode have not been verified. Do not enable a paid plan or add the binding
+as part of the dependency/admin release.
+
+Before requesting activation, prepare a disabled adapter with synthetic fixtures
+for malformed pixels, orientation, animation rejection, boundary dimensions,
+timeout/cancellation, exact stored bytes and immutable parent/derivative identity.
+Stream bounded output into storage; avoid decoding pixel buffers in Admin's
+Worker. Keep private response cache controls and preserve existing media reads.
+A production-compatible synthetic probe must demonstrate the full 10 MiB/16 MP
+admission, charged CPU and memory, crop coordinates, provider failure behavior
+and no partial successful metadata. Provider output and bytes must agree.
+
+Activation needs exact approval for the Admin binding/provider setup and any
+required additive provenance migration after that evidence is ready. Retain the
+previous verified Admin deployment and original media for rollback. No existing
+media should be rewritten, deleted or newly published by activation.
