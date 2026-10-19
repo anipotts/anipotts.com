@@ -1,3 +1,9 @@
+import {
+  unlockRecoveryFixture,
+  settleRecoveryFixture,
+  readRecoveryFixture,
+  openRecoveryExportFixture,
+} from "../../../test/recovery-key-fixture";
 import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
@@ -48,7 +54,7 @@ function snapshot(source: string) {
     publishing: "not_configured",
   };
 }
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal("React", React);
   vi.stubGlobal(
     "matchMedia",
@@ -74,6 +80,7 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  await unlockRecoveryFixture();
 });
 afterEach(() => {
   act(() => root.unmount());

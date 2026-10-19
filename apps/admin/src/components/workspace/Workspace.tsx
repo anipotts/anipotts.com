@@ -2392,3 +2392,11 @@ export function PendingChangesIndicator({ pending }: { pending: boolean }) {
     </HStack>
   );
 }
+
+// Layout remains composed here; SDK controls opt in through AdminUIProvider.
+export { VStack as WorkspaceStack, Heading as WorkspaceHeading };
+export {
+  Button as WorkspaceButton,
+  Banner as WorkspaceBanner,
+  FileInput as WorkspaceFileInput,
+} from "./WorkspaceControls";

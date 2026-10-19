@@ -1,6 +1,11 @@
 import { MAX_SOURCE_BYTES } from "@anipotts/content/editorial/record";
 import type { RecoverySnapshot } from "./home-autosave";
 import {
+  EncryptedBrowserRecovery,
+  encryptedRecoveryLegacyKey,
+  recoveryV3Prefix,
+} from "./encrypted-browser-recovery";
+import {
   BrowserRecovery,
   browserRecoveryLock,
   browserRecoveryRecordLock,
@@ -78,12 +83,20 @@ export function draftRecovery(storage: Storage, key: string) {
     browserRecoveryLock(key),
   );
 }
+export function encryptedDraftRecovery(storage: Storage, key: string) {
+  return new EncryptedBrowserRecovery(storage, key, "draft", validateRecovery);
+}
 const recoveryKeys = (storage: Storage) =>
   Object.keys(storage).filter(
-    (key) => key.startsWith(prefix) || key.startsWith(recoveryV2Prefix),
+    (key) =>
+      key.startsWith(prefix) ||
+      key.startsWith(recoveryV2Prefix) ||
+      key.startsWith(recoveryV3Prefix),
   );
 /** Translate every envelope/archive storage key to the writer's v1 identity. */
 function recoveryRecordKey(key: string) {
+  if (key.startsWith(recoveryV3Prefix))
+    return encryptedRecoveryLegacyKey(key) ?? key;
   if (key.startsWith(prefix)) return key;
   const identity = key
     .slice(recoveryV2Prefix.length)
@@ -93,6 +106,20 @@ function recoveryRecordKey(key: string) {
 function belongsToGeneration(raw: string, generation: string) {
   try {
     const value = JSON.parse(raw);
+    if (
+      value?.format === "anipotts.browser-recovery-bundle" &&
+      value.version === 3 &&
+      typeof value.manifest === "string"
+    ) {
+      // This nonsecret check only preserves a fresh replacement; it never
+      // authorizes decryption or authenticates a stored header.
+      const manifest = JSON.parse(value.manifest);
+      return (
+        manifest?.header?.format === "anipotts.browser-recovery" &&
+        manifest.header.version === 3 &&
+        manifest.header.logoutGeneration === generation
+      );
+    }
     return (
       value?.format === "anipotts.browser-recovery" &&
       value.version === 2 &&
@@ -185,7 +212,8 @@ export async function clearEditorialRecovery(
             const raw = storage.getItem(key);
             if (raw === null) continue;
             if (
-              key.startsWith(recoveryV2Prefix) &&
+              (key.startsWith(recoveryV2Prefix) ||
+                key.startsWith(recoveryV3Prefix)) &&
               belongsToGeneration(raw, generation)
             )
               continue;
@@ -199,7 +227,8 @@ export async function clearEditorialRecovery(
         const raw = storage.getItem(key);
         return (
           raw === null ||
-          (key.startsWith(recoveryV2Prefix) &&
+          ((key.startsWith(recoveryV2Prefix) ||
+            key.startsWith(recoveryV3Prefix)) &&
             belongsToGeneration(raw, generation))
         );
       });
@@ -278,5 +307,13 @@ export function writingRecovery(storage: Storage, key: string) {
     "new-writing",
     validateNewWritingRecovery,
     browserRecoveryLock(key),
+  );
+}
+export function encryptedWritingRecovery(storage: Storage, key: string) {
+  return new EncryptedBrowserRecovery(
+    storage,
+    key,
+    "new-writing",
+    validateNewWritingRecovery,
   );
 }

@@ -1,3 +1,9 @@
+import {
+  unlockRecoveryFixture,
+  settleRecoveryFixture,
+  readRecoveryFixture,
+  openRecoveryExportFixture,
+} from "../../../test/recovery-key-fixture";
 import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
@@ -285,6 +291,7 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  await unlockRecoveryFixture();
   viewCreated = true;
 });
 afterEach(async () => {
@@ -619,6 +626,7 @@ it("keeps one loading region through the lazy editor, record read, failed-read r
   act(() =>
     root.render(
       <EditorialApp
+        recoveryScope="synthetic-component-fixture"
         title="Writing"
         area="content"
         localPreview
@@ -772,6 +780,7 @@ it("does not clear recovery when sign-out navigation is canceled", async () => {
   await act(async () => {
     root.render(
       <EditorialApp
+        recoveryScope="synthetic-component-fixture"
         title="Content"
         area="content"
         localPreview={false}
@@ -875,9 +884,7 @@ it.each(
     expect(writes).toHaveLength(1);
     expect(writes[0].url).toContain("/save?");
     expect(writes[0].body).toEqual(pending);
-    expect(
-      JSON.parse(localStorage.getItem(versionedRecoveryKey(key))!).payload,
-    ).toBeNull();
+    expect(await readRecoveryFixture(key)).toBeNull();
   },
 );
 it("preserves opaque recovery and renders a bounded explanation instead of replacing it with server text", async () => {
@@ -892,7 +899,7 @@ it("preserves opaque recovery and renders a bounded explanation instead of repla
   );
   await mount();
   expect(host.textContent).toContain("This browser copy needs a newer editor");
-  expect(host.textContent).toContain("Download recovery copies");
+  expect(host.textContent).toContain("Download encrypted recovery copies");
   expect(host.textContent).not.toContain("private future copy");
   expect(localStorage.getItem(versionedRecoveryKey(key))).toBe(raw);
 });
@@ -920,8 +927,13 @@ it("offers divergent old-tab recovery explicitly and does not save the selection
   );
   vi.stubGlobal("fetch", fetcher);
   await mount();
-  expect(host.textContent).toContain("Another tab changed browser recovery");
+  expect(host.textContent).toContain(
+    "Browser recovery contains competing copies",
+  );
   await click("Recover older tab copy");
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
   expect(
     host.querySelector<HTMLTextAreaElement>(
       'textarea[aria-label="Test article body"]',
