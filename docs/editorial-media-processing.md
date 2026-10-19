@@ -133,7 +133,7 @@ must not replace existing upload admission. Provenance records exact byte hashes
 application plan/quantization versions and provider identity; its encoder version
 is explicitly unknown. It is not a persisted relationship or recovery record.
 
-Source checkpoint `91ae3f95f0571580696c2e1d0d06b2e0099307cf` passed 27 focused
+Initial source checkpoint `91ae3f95f0571580696c2e1d0d06b2e0099307cf` passed 27 focused
 Node unit tests covering framing/CRC/hash boundaries, EOF and late errors,
 limits, geometry, schema rejection, cancellation and deadlines. Strict source/test
 typing and formatting also passed. The integration owner then ran
@@ -153,8 +153,21 @@ CRC/copy/hash work and final candidate assembly, a validated intent snapshot
 before provider awaits, and fixed 64 KiB retention blocks independent of fragment
 count. Focused regressions include a valid ready stream past its deadline, intent
 mutation during held provider work, and allocation bounds for a valid multi-MiB
-PNG with tens of thousands of one-byte fragments. The updated focused Node suite
-passes 32 tests; the 3 native passes above apply only to the earlier exact source
-checkpoint until the owner repeats them. Cooperative event-turn checkpoints let
+PNG with tens of thousands of one-byte fragments. Qualified source checkpoint
+`5692a966f2794e3adf3cfe42bb97a6d8571d177a` passed all 32 focused Node tests and
+strict source/test typing. The integration owner repeated the actual
+`cloudflareTest`/workerd suite with `remoteBindings: false` at that exact source:
+all 3 native tests passed, with local receipt
+`/private/tmp/anipotts-media-processing-fixed-native.log`. Independent review of
+`5692a966` closed all three findings and reported no new blocker. This is narrow
+source/stream evidence, not a provider or production qualification.
+Cooperative event-turn checkpoints let
 timers run during ready streams. [Deployed Workers clocks advance after I/O](https://developers.cloudflare.com/workers/runtime-apis/performance/),
 so these checks do not establish CPU preemption or charged-resource limits.
+
+This foundation is parked for a future integration candidate. It is not a
+completed authoring feature and is excluded from the current release. Provider
+setup/entitlement, real Images qualification and activation remain held. No
+custody, backup integration or persisted provenance protocol was added; those
+requirements still need their own reviewed implementation and evidence. No PR,
+provider resource or production activation was created for this checkpoint.
