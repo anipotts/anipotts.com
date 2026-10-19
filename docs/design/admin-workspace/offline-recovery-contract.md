@@ -327,12 +327,33 @@ Synthetic Node coverage includes a file-backed encrypted round trip of 10 MiB
 in each plane, reading one ciphertext frame at a time instead of retaining a
 20 MiB binary fixture. It also covers wrong keys/context, header/tag/AAD damage,
 order/duplication/missing/trailing records, changed second pass, held sink
-backpressure, revocation, deadlines and late completion. A separate native
-workerd test file is prepared for bounded AES-GCM, two-pass, tag failure and
-revocation qualification. Native execution and exact revision evidence remain
-pending the integration owner's shared heavy slot. These checks qualify the
-supplied codec only; they do not prove a 128 MiB integrated application memory
-ceiling, provider behavior, custody, collector coverage or live recovery.
+backpressure, revocation, deadlines and late completion. Both encryption's
+`complete` and opening's `writeManifest` are tested with their final
+acknowledgment held across cancellation: the operation rejects, its signal is
+revoked, and a later acknowledgment cannot return success. The cooperative sink
+fixture checks the signal before visibility; this does not promise rollback of
+arbitrary caller side effects.
+
+At codec/declaration/native-test revision
+`4fe82d9477cbfd5e9ba58f1b4c3ad2515931d2d8`, actual local workerd qualification
+passed all four new cases through the existing editorial config and
+`nodejs_compat`, without new bindings. It covers native AES-GCM, awaited staged
+plaintext, two-pass verification, damaged tags, second-pass truncation,
+revocation and hostile typed-array public length/accessor overrides. The command
+was `node scripts/dev/heavy-slot.mjs 'pnpm --filter @anipotts/admin exec vitest run --config vitest.editorial.config.ts test/editorial/recovery-media-encryption.test.ts --maxWorkers=1'`
+under Node 24.19.0 on 2026-10-19, beginning 07:18:38 UTC; Vitest took 760 ms and
+completion was observed at 07:18:58 UTC. The local log is
+`/private/tmp/anipotts-recovery-media-encryption-native.log`. The native binary
+fixture is 128 KiB; the separate file-backed Node case covers 20 MiB without
+whole-media retention. Strict editorial typing, focused formatting, static
+security and whitespace checks pass. Two later Node-only final-acknowledgment
+regressions bring focused Node coverage to 33 cases without changing codec or
+native-test source. No full-workspace validation is claimed for this additive
+codec slice.
+
+These checks qualify the supplied codec only; they do not prove a measured
+128 MiB integrated application memory ceiling, provider behavior, custody,
+collector coverage or live recovery.
 
 ## Proposed browser key and unlock design
 

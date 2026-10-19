@@ -646,3 +646,69 @@ test("intrinsic copies ignore hostile public typed-array length/iterator accesso
     /binary/u,
   );
 });
+
+for (const direction of ["seal", "open"]) {
+  test(`${direction} cancellation while final acknowledgment is held cannot report success`, async () => {
+    const data = await fixture(),
+      controller = new AbortController();
+    const entered = gate(),
+      held = gate(),
+      acknowledged = gate();
+    let operationSignal,
+      finalCalls = 0,
+      cooperativeVisibility = 0,
+      returnedSuccess = false;
+    const final = async (signal) => {
+      operationSignal = signal;
+      finalCalls++;
+      entered.release();
+      await held.promise;
+      // This is a cooperative supplied sink, not a claim that arbitrary caller
+      // effects can be rolled back after the final callback has been invoked.
+      if (!signal.aborted) cooperativeVisibility++;
+      acknowledged.release();
+    };
+    const sink =
+      direction === "seal"
+        ? {
+            ...encryptedSink(),
+            complete(_receipt, signal) {
+              return final(signal);
+            },
+          }
+        : {
+            ...plainSink(),
+            writeManifest(_serialized, signal) {
+              return final(signal);
+            },
+          };
+    const pending =
+      direction === "seal"
+        ? seal(data.input, read, data.key, data.identity, sink, {
+            signal: controller.signal,
+          })
+        : open(() => data.sink.events, data.key, data.identity, sink, {
+            signal: controller.signal,
+          });
+    void pending.then(
+      () => {
+        returnedSuccess = true;
+      },
+      () => {},
+    );
+    const rejection = assert.rejects(pending, /aborted/u);
+    await entered.promise;
+    assert.equal(operationSignal.aborted, false);
+    assert.equal(finalCalls, 1);
+    assert.equal(returnedSuccess, false);
+    controller.abort();
+    await rejection;
+    assert.equal(operationSignal.aborted, true);
+    assert.equal(sink.aborted, 1);
+    held.release();
+    await acknowledged.promise;
+    assert.equal(finalCalls, 1);
+    assert.equal(cooperativeVisibility, 0);
+    assert.equal(returnedSuccess, false);
+  });
+}
