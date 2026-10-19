@@ -13,7 +13,7 @@ all four workers were skipped. Browser tooling and receipt documentation do not
 change deployed bundles. D1 was unchanged; no migration or Production approval
 was required. Production remains on the verified #531 release94889ee.
 
-The next source candidate combines the remaining dependency branches #534/#535/#536,
+The next source candidate combines the remaining dependency branches #534/#535/#537 (which supersedes #536),
 aligns the full Tiptap family, and replaces lint-staged's vulnerable braces chain
 with its supported17.6release. The current lock audit has no high or critical
 advisories. Moderate legacy esbuild under Drizzle Kit and low KaTeX under Apps SDK
@@ -25,8 +25,10 @@ Article properties now expose the existing source/demo URL, label and type;
 clearing an optional value removes its YAML key. Shared settings, body, comments,
 and line endings remain intact. This completes the normal editor path for the
 already-deployed public article source link. Admin native scroll indicators and
-one cold-record loading announcement are the next UI repairs. Synthetic media
-browser acceptance and the final integrated checks are still in progress.
+one continuous cold-record loading announcement are implemented. A rejected
+editor module now leaves navigation available and offers a deliberate guarded
+page reload, without automatic retry or write replay. Synthetic media browser
+acceptance and the final integrated checks are still in progress.
 
 Per-article social imagery is superseded by the approved canonical brand card,
 enforced by current Shell and painter tests. The unused writing-seed lookup and

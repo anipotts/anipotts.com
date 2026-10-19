@@ -7,7 +7,8 @@ import "./EditorialApp";
 let root: Root;
 let host: HTMLDivElement;
 let rejectModule: (error: Error) => void;
-let loadModule: ReturnType<typeof vi.fn>;
+type EditorModule = typeof import("./HomeEditor");
+let loadModule: ReturnType<typeof vi.fn<() => Promise<EditorModule>>>;
 let EditorialApp: typeof import("./EditorialApp").EditorialApp;
 let navigation: typeof import("../../lib/editorial-navigation");
 let session: typeof import("../../lib/protected-admin-json");
@@ -35,9 +36,9 @@ beforeEach(async () => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   vi.stubGlobal("fetch", vi.fn());
-  loadModule = vi.fn(
+  loadModule = vi.fn<() => Promise<EditorModule>>(
     () =>
-      new Promise((_resolve, reject) => {
+      new Promise<EditorModule>((_resolve, reject) => {
         rejectModule = reject;
       }),
   );

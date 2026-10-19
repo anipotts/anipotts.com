@@ -1,5 +1,35 @@
 # worker inventory
 
+## Current host readback, October 18, 2026
+
+Read-only public DNS/HTTPS and authenticated Cloudflare/Vercel metadata were
+checked around22:49–22:52ET (02:49–02:52UTC on October19). No provider settings,
+private policies, secrets or content were changed/read for this inventory.
+
+| Host                                | Fresh observed ownership                                                                                                         |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| apex                                | Cloudflare public Worker; HTTP200, release94889ee/schema0044/publication17                                                       |
+| www                                 | Proxied Vercel CNAME and Vercel308 to apex; still a live redirect dependency                                                     |
+| admin                               | Cloudflare admin Worker; unauthenticated Access302; sole scoped Access app,24hour session; workers.dev/version previews disabled |
+| api                                 | State Worker; root JSON200; operational /health freshness is a separate check                                                    |
+| staging                             | Same production public Worker/release/publication as apex, not an isolated stage                                                 |
+| legacy-admin and legacy-admin-solid | No exact DNS records or Worker custom-domain bindings; wildcard resolves them to Vercel and both return525                       |
+
+The old claim below that legacy-admin directly serves Astro Admin is historical
+and superseded by this readback. The retired Solid Worker is also absent. The
+wildcard CNAME `*.anipotts.com → cname.vercel-dns.com` remains proxied; any removal
+requires checking intended wildcard consumers and exact DNS approval. Retiring
+staging or migrating www's live redirect are separate provider decisions. Vercel's
+verified apex/www domain claims do not by themselves establish DNS traffic;
+apex is actually served by Cloudflare, while www still reaches Vercel.
+
+This inspection does not prove the Access policy's login-method semantics,
+wrong-user denial or owner-device acceptance; private policy contents and live
+sign-in were not inspected. Existing release receipts establish the deployed
+versions separately. No historical section below is fresh provider proof.
+
+## Historical September inventory
+
 Last reviewed: 2026-09-23
 
 This inventory supports the platform cleanup goal: retain only production

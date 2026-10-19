@@ -451,10 +451,12 @@ test(
     });
     await expect(text).toHaveValue(body);
     const textarea = await browser.evaluate(() => {
-      const target = [...window.document.querySelectorAll("textarea")].find(
+      const target = Array.from(
+        window.document.querySelectorAll("textarea"),
+      ).find(
         (field) =>
           field.getAttribute("aria-label") === "Article body" ||
-          [...(field.labels ?? [])].some(
+          Array.from(field.labels ?? []).some(
             (label) => label.textContent?.trim() === "Article body",
           ),
       );

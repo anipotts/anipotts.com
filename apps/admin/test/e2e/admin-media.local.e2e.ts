@@ -402,8 +402,8 @@ test(
       expect(
         await browser.evaluate(
           (id) =>
-            [...document.querySelectorAll(".ProseMirror img")].some((image) =>
-              image.getAttribute("src")?.includes(id),
+            Array.from(document.querySelectorAll(".ProseMirror img")).some(
+              (image) => image.getAttribute("src")?.includes(id),
             ),
           abandoned.id,
         ),
