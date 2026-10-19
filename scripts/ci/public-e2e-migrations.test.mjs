@@ -2,14 +2,16 @@ import assert from "node:assert/strict";
 import {
   existsSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -275,5 +277,208 @@ test("runner owns the wrapper, Worker and descendants; shutdown waits for child 
     new RegExp(
       `\\[www-e2e\\] pid=\\d+ http=127\\.0\\.0\\.1:${port} inspector=0`,
     ),
+  );
+});
+
+function setupFixture(t, { hold, fail } = {}) {
+  const directory = fixtureDirectory(t);
+  const events = join(directory, "events.jsonl");
+  const held = join(directory, "held.json");
+  const finished = join(directory, "finished.json");
+  const closed = join(directory, "child-closed");
+  const migrations = join(
+    directory,
+    "apps/admin/migrations/content-publication",
+  );
+  mkdirSync(migrations, { recursive: true });
+  writeFileSync(
+    join(migrations, "0001_fixture.sql"),
+    "CREATE TABLE synthetic (id TEXT);\n",
+  );
+  const seedDir = join(directory, "scripts/content");
+  mkdirSync(seedDir, { recursive: true });
+  const grandchild = join(directory, "grandchild.mjs");
+  writeFileSync(
+    grandchild,
+    "process.send('ready'); setInterval(() => {}, 1000);\n",
+  );
+  const cli = join(directory, "cli.mjs");
+  writeFileSync(
+    cli,
+    `
+    import { spawn } from 'node:child_process';
+    import { once } from 'node:events';
+    import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+    import { dirname, join } from 'node:path';
+    const args = process.argv.slice(2);
+    const phase = args[0] === 'd1' ? 'migration' : args[0] === 'dev' ? 'serve' : args.includes('--upload-media') ? 'upload' : 'apply';
+    const state = args[args.indexOf('--persist-to') + 1];
+    const temporary = dirname(state);
+    mkdirSync(state, { recursive: true });
+    writeFileSync(join(state, 'synthetic-state'), 'temporary synthetic D1/R2 state');
+    appendFileSync(${JSON.stringify(events)}, JSON.stringify({ phase, args, temporary }) + ${JSON.stringify("\n")});
+    if (phase === ${JSON.stringify(hold)}) {
+      const child = spawn(process.execPath, [${JSON.stringify(grandchild)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+      let stopping = false;
+      function stop() {
+        if (stopping) return; stopping = true;
+        child.once('close', () => {
+          writeFileSync(${JSON.stringify(closed)}, String(existsSync(temporary)));
+          setTimeout(() => process.exit(0), 75);
+        });
+        child.kill('SIGTERM');
+      }
+      process.on('SIGTERM', stop); process.on('SIGINT', stop);
+      await once(child, 'message');
+      writeFileSync(${JSON.stringify(held)}, JSON.stringify({ pids: [process.pid, child.pid], temporary }));
+    } else if (phase === ${JSON.stringify(fail)}) { process.exitCode = 17; }
+  `,
+  );
+  // Both normal seed invocations use the production argument construction and
+  // execute the synthetic CLI, without adding test flags to the real harness.
+  writeFileSync(
+    join(seedDir, "seed-content-d1.mjs"),
+    `import ${JSON.stringify(pathToFileURL(cli).href)};\n`,
+  );
+  const wrapper = join(directory, "wrapper.mjs");
+  const implementation = new URL("./public-e2e-server.mjs", import.meta.url)
+    .href;
+  writeFileSync(
+    wrapper,
+    `
+    import { runPublicE2EServer } from ${JSON.stringify(implementation)};
+    import { writeFileSync } from 'node:fs';
+    try {
+      const code = await runPublicE2EServer({ port: 18123, root: ${JSON.stringify(directory)}, cli: ${JSON.stringify(cli)} });
+      writeFileSync(${JSON.stringify(finished)}, JSON.stringify({ code }));
+    } catch (error) {
+      writeFileSync(${JSON.stringify(finished)}, JSON.stringify({ error: error.message }));
+      process.exitCode = 1;
+    }
+  `,
+  );
+  const child = spawn(process.execPath, [wrapper], { stdio: "ignore" });
+  const exited = once(child, "close");
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+      await Promise.race([exited, delay(2000)]);
+      if (child.exitCode === null && child.signalCode === null)
+        child.kill("SIGKILL");
+    }
+    // Preserve cleanup even when an assertion fails in this lifecycle test.
+    if (existsSync(held)) {
+      const record = JSON.parse(readFileSync(held, "utf8"));
+      try {
+        process.kill(-record.pids[0], "SIGKILL");
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
+      rmSync(record.temporary, { recursive: true, force: true });
+    }
+  });
+  return { child, exited, events, held, finished, closed };
+}
+async function waitForFixture(path, fixture) {
+  for (let attempt = 0; attempt < 150; attempt++) {
+    if (existsSync(path)) return JSON.parse(readFileSync(path, "utf8"));
+    if (existsSync(fixture.finished))
+      assert.fail(readFileSync(fixture.finished, "utf8"));
+    await delay(20);
+  }
+  assert.fail(`synthetic child did not reach ${path}`);
+}
+async function closedFixture(fixture) {
+  const result = await Promise.race([
+    fixture.exited,
+    delay(4000, undefined, { ref: false }).then(() => "timeout"),
+  ]);
+  assert.notEqual(result, "timeout", "owned wrapper failed to close");
+  return result;
+}
+
+for (const phase of ["migration", "upload", "apply"]) {
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    test(`cancellation during ${phase} via ${signal} closes descendants before removing temporary state`, async (t) => {
+      const fixture = setupFixture(t, { hold: phase });
+      const record = await waitForFixture(fixture.held, fixture);
+      // Signal only the wrapper, not the seed process group. The harness must
+      // forward cancellation and reap both owned descendants itself.
+      fixture.child.kill(signal);
+      assert.deepEqual(await closedFixture(fixture), [0, null]);
+      assert.deepEqual(JSON.parse(readFileSync(fixture.finished, "utf8")), {
+        code: 0,
+      });
+      assert.equal(
+        readFileSync(fixture.closed, "utf8"),
+        "true",
+        "state removed before delayed child close",
+      );
+      assert.equal(existsSync(record.temporary), false);
+      const phases = readFileSync(fixture.events, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line).phase);
+      assert.deepEqual(
+        phases,
+        ["migration", "upload", "apply"].slice(
+          0,
+          ["migration", "upload", "apply"].indexOf(phase) + 1,
+        ),
+      );
+      for (const pid of record.pids)
+        assert.throws(
+          () => process.kill(pid, 0),
+          (error) => error.code === "ESRCH",
+        );
+    });
+  }
+}
+
+test("successful setup preserves migration, media upload, apply and serve order and local seed arguments", async (t) => {
+  const fixture = setupFixture(t);
+  assert.deepEqual(await closedFixture(fixture), [0, null]);
+  const events = readFileSync(fixture.events, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual(
+    events.map((event) => event.phase),
+    ["migration", "upload", "apply", "serve"],
+  );
+  for (const event of events) {
+    assert.equal(event.args.includes("--local"), true);
+    assert.equal(existsSync(event.temporary), false);
+    assert.equal(event.temporary, events[0].temporary);
+  }
+  assert.equal(events[0].args.includes("--file"), true);
+  assert.equal(events[1].args.includes("--upload-media"), true);
+  assert.equal(events[2].args.includes("--media-ready"), true);
+  assert.equal(
+    events[2].args[events[2].args.indexOf("--published-at") + 1],
+    "2026-09-21T00:00:00.000Z",
+  );
+  assert.equal(events[3].args[events[3].args.indexOf("--port") + 1], "18123");
+  assert.equal(
+    events[3].args[events[3].args.indexOf("--inspector-port") + 1],
+    "0",
+  );
+});
+
+test("failed media seeding closes the wrapper and removes state without applying or serving", async (t) => {
+  const fixture = setupFixture(t, { fail: "upload" });
+  assert.deepEqual(await closedFixture(fixture), [1, null]);
+  const events = readFileSync(fixture.events, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual(
+    events.map((event) => event.phase),
+    ["migration", "upload"],
+  );
+  assert.equal(existsSync(events[0].temporary), false);
+  assert.match(
+    JSON.parse(readFileSync(fixture.finished, "utf8")).error,
+    /failed/,
   );
 });
