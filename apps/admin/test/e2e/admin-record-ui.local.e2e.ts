@@ -497,3 +497,328 @@ test(
     // real overflow, non-suppression in CSS, and keyboard movement only.
   },
 );
+
+/** Read the browser's actual CSS/media and field styles. A phone-sized viewport
+ * is not proof of touch: the installed runner cannot emulate pointer media. */
+async function migrationTypography(browser: Browser, labels: string[]) {
+  return browser.evaluate((names) => {
+    const fields = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'input, textarea, [contenteditable="true"][role="textbox"]',
+      ),
+    );
+    return {
+      width: innerWidth,
+      coarse: matchMedia("(pointer: coarse)").matches,
+      hover: matchMedia("(hover: hover)").matches,
+      fields: names.map((label) => {
+        const field = fields.find(
+          (item) =>
+            item.getAttribute("aria-label") === label ||
+            Array.from((item as HTMLInputElement).labels ?? []).some(
+              (node) => node.textContent?.trim() === label,
+            ),
+        );
+        if (!field) throw new Error(`Expected synthetic ${label} field`);
+        const style = getComputedStyle(field);
+        return {
+          label,
+          fontSize: Number.parseFloat(style.fontSize),
+          fontFamily: style.fontFamily,
+          sdk: Boolean(field.closest('[data-admin-ui="openai"]')),
+        };
+      }),
+    };
+  }, labels);
+}
+
+async function assertMigrationTypography(
+  browser: Browser,
+  labels: string[],
+  sdk: boolean,
+) {
+  const evidence = await migrationTypography(browser, labels);
+  for (const field of evidence.fields) {
+    expect(field.sdk).toBe(sdk);
+    expect(field.fontFamily).toContain("Instrument Sans");
+    expect(field.fontSize).toBeGreaterThan(0);
+    if (evidence.coarse) expect(field.fontSize).toBeGreaterThanOrEqual(16);
+  }
+  console.info("astryx-family-native-typography", JSON.stringify(evidence));
+  // These assertions do not claim that a fine-pointer phone viewport exercised
+  // the coarse adaptation, or that a computed family proves a font downloaded.
+}
+
+async function panelRelationships(browser: Browser) {
+  return browser.evaluate(() => {
+    const panel = document.querySelector(".record-panel-host");
+    if (!panel) throw new Error("Expected the actual record panel");
+    return Array.from(
+      panel.querySelectorAll(
+        "[aria-controls],[aria-describedby],[aria-labelledby]",
+      ),
+    ).flatMap((element) =>
+      ["aria-controls", "aria-describedby", "aria-labelledby"].flatMap(
+        (attribute) => {
+          const value = element.getAttribute(attribute);
+          if (value === null) return [];
+          const ids = value.split(/\s+/).filter(Boolean);
+          if (ids.length === 0) return [`${attribute}=empty`];
+          return ids
+            .filter((id) => !document.getElementById(id))
+            .map((id) => `${attribute}=${id}`);
+        },
+      ),
+    );
+  });
+}
+
+/** Measure the app's own inset, rather than hashing upstream StyleX classes.
+ * A second default BottomSheet inset would move the anchor by spacing-4. */
+async function assertOwnedSheetInset(browser: Browser, actionSheet = false) {
+  const geometry = await browser.evaluate((actions) => {
+    if (innerWidth > 640) return null;
+    const panel = document.querySelector<HTMLElement>(
+      actions ? ".editor-action-sheet" : ".record-panel-sheet",
+    );
+    const anchor = panel?.querySelector<HTMLElement>(
+      actions ? ".editor-action-sheet-item" : "h2",
+    );
+    if (!panel || !anchor)
+      throw new Error("Expected the actual compact sheet content");
+    let stack = anchor.parentElement;
+    while (
+      stack &&
+      stack !== panel &&
+      Number.parseFloat(getComputedStyle(stack).paddingInlineStart) === 0
+    )
+      stack = stack.parentElement;
+    if (!stack || stack === panel)
+      throw new Error("Expected the application's padded stack");
+    return {
+      inset:
+        anchor.getBoundingClientRect().left -
+        panel.getBoundingClientRect().left -
+        Number.parseFloat(getComputedStyle(panel).borderLeftWidth),
+      ownedPadding: Number.parseFloat(
+        getComputedStyle(stack).paddingInlineStart,
+      ),
+    };
+  }, actionSheet);
+  if (!geometry) return;
+  expect(geometry.ownedPadding).toBeGreaterThan(0);
+  expect(Math.abs(geometry.inset - geometry.ownedPadding)).toBeLessThanOrEqual(
+    2,
+  );
+}
+
+async function titleGeometry(browser: Browser) {
+  return browser.evaluate(() => {
+    const field = Array.from(document.querySelectorAll("textarea")).find(
+      (item) =>
+        item.getAttribute("aria-label") === "Title" ||
+        Array.from(item.labels ?? []).some(
+          (label) => label.textContent?.trim() === "Title",
+        ),
+    );
+    if (!field) throw new Error("Expected the actual autosize title textarea");
+    return {
+      height: field.clientHeight,
+      scrollHeight: field.scrollHeight,
+      rows: field.rows,
+    };
+  });
+}
+
+test(
+  "Astryx migration preserves Writing typography, autosize, tooltip Escape and SDK selectors in sheets",
+  { timeout: 120_000 },
+  async (fixtures) => {
+    const { app, browser, screen } = fixtures;
+    const article = await syntheticArticle(fixtures);
+    await assertMigrationTypography(browser, ["Title", "Subtitle"], true);
+    const title = screen.getByRole("textbox", { name: "Title", exact: true });
+    await title.fill("Short synthetic title");
+    const short = await titleGeometry(browser);
+    const longTitle =
+      "Synthetic acceptance title that wraps across the writing surface. "
+        .repeat(2)
+        .trim();
+    await title.fill(longTitle);
+    await expect
+      .poll(async () => (await titleGeometry(browser)).height)
+      .toBeGreaterThan(short.height);
+    const long = await titleGeometry(browser);
+    expect(long.rows).toBe(1);
+    expect(long.scrollHeight - long.height).toBeLessThanOrEqual(2);
+    await title.fill("Short synthetic title");
+    await expect
+      .poll(async () => (await titleGeometry(browser)).height)
+      .toBeLessThan(long.height);
+
+    // This control deliberately uses Core's useTooltip over the SDK button.
+    // Native hover opens it; Escape must cancel any pending focus show without
+    // taking focus away or reopening after the authored 300ms hover delay.
+    const properties = screen.getByRole("button", {
+      name: "Properties",
+      exact: true,
+    });
+    await properties.hover();
+    const tooltip = browser.locator('[role="tooltip"][popover]:popover-open');
+    await expect(tooltip).toContainText("Properties");
+    await properties.focus();
+    await browser.keyboard.press("Escape");
+    await expect(tooltip).toHaveCount(0);
+    await expect(properties).toBeFocused();
+    const stayedClosed = await browser.evaluate(async () => {
+      let reopened = false;
+      const sample = () => {
+        if (document.querySelector('[role="tooltip"][popover]:popover-open'))
+          reopened = true;
+      };
+      const timer = setInterval(sample, 16);
+      try {
+        await new Promise<void>((resolve) => setTimeout(resolve, 500));
+        sample();
+        return !reopened;
+      } finally {
+        clearInterval(timer);
+      }
+    });
+    expect(stayedClosed).toBe(true);
+    await expect(properties).toBeFocused();
+
+    if (await browser.evaluate(() => innerWidth <= 640)) {
+      await screen
+        .getByRole("button", { name: "More actions", exact: true })
+        .click();
+      await expect(
+        screen.getByRole("dialog", { name: "More actions", exact: true }),
+      ).toBeVisible();
+      await assertOwnedSheetInset(browser, true);
+      await browser.keyboard.press("Escape");
+      await expect(
+        screen.getByRole("button", { name: "More actions", exact: true }),
+      ).toBeFocused();
+    }
+    await properties.click();
+    await expect(
+      screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
+    ).toBeVisible();
+    await assertMigrationTypography(
+      browser,
+      ["Source or demo link", "Link label"],
+      true,
+    );
+    await assertOwnedSheetInset(browser);
+    expect(await panelRelationships(browser)).toEqual([]);
+    const selector = screen.getByRole("button", {
+      name: "Link type",
+      exact: true,
+    });
+    await selector.click();
+    await expect(
+      screen.getByRole("menuitemradio", { name: "Demo", exact: true }),
+    ).toBeVisible();
+    expect(await panelRelationships(browser)).toEqual([]);
+    await browser.keyboard.press("Escape");
+    await expect(selector).toBeFocused();
+    await expect(
+      screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
+    ).toBeVisible();
+    expect(await panelRelationships(browser)).toEqual([]);
+    await chooseType(fixtures, "Demo");
+    await app.screenshot("astryx-family-writing-properties");
+    await screen
+      .getByRole("button", { name: "Close properties", exact: true })
+      .click();
+    expect(article.publicationWrites()).toBe(0);
+  },
+);
+
+test(
+  "Astryx migration preserves native Core fields and nested selector focus and relationships",
+  { timeout: 120_000 },
+  async ({ app, browser, screen }) => {
+    let publicationWrites = 0;
+    await browser.route(
+      /\/api\/editorial\/(?:publish|unpublish|retry-publication|cancel-publication)(?:\?|$)/,
+      async (route) => {
+        if (route.request.method === "GET") return route.continue();
+        publicationWrites++;
+        await route.fulfill({
+          status: 409,
+          json: { error: "synthetic_test_no_publication" },
+        });
+      },
+    );
+    await app.open("/content/new-project");
+    await unlockSyntheticBrowserRecovery(browser);
+    const title = `Synthetic Astryx project ${await browser.evaluate(() => crypto.randomUUID())}`;
+    await screen
+      .getByRole("textbox", { name: "Title", exact: true })
+      .fill(title);
+    await screen
+      .getByRole("button", { name: "Edit address", exact: true })
+      .click();
+    await assertMigrationTypography(
+      browser,
+      ["Title", "Project address"],
+      false,
+    );
+    await screen
+      .getByRole("button", { name: "Create draft", exact: true })
+      .click();
+    await expect
+      .poll(async () => new URL(await browser.url()).pathname)
+      .toMatch(/^\/content\/projects\/synthetic-astryx-project-[a-f0-9-]+$/);
+    await screen
+      .getByRole("button", { name: "Properties", exact: true })
+      .click();
+    await expect(
+      screen.getByRole("textbox", { name: "Year", exact: true }),
+    ).toBeVisible();
+    await assertMigrationTypography(
+      browser,
+      ["Year", "Role", "Duration"],
+      false,
+    );
+    await assertOwnedSheetInset(browser);
+    expect(await panelRelationships(browser)).toEqual([]);
+    const selector = screen.getByRole("combobox", {
+      name: "Category",
+      exact: true,
+    });
+    await expect(selector).toHaveAttribute("aria-expanded", "false");
+    await selector.click();
+    await expect(
+      screen.getByRole("option", { name: "Product", exact: true }),
+    ).toBeVisible();
+    await expect(selector).toHaveAttribute("aria-expanded", "true");
+    await expect(selector).toHaveAttribute("aria-controls");
+    expect(await panelRelationships(browser)).toEqual([]);
+    await screen.getByRole("option", { name: "Product", exact: true }).click();
+    await expect(selector).toContainText("Product");
+    await expect(selector).toBeFocused();
+    await expect(
+      screen.getByRole("textbox", { name: "Year", exact: true }),
+    ).toBeVisible();
+    expect(await panelRelationships(browser)).toEqual([]);
+    await selector.click();
+    await expect(
+      screen.getByRole("option", { name: "Product", exact: true }),
+    ).toBeVisible();
+    await browser.keyboard.press("Escape");
+    await expect(selector).toHaveAttribute("aria-expanded", "false");
+    await expect(selector).toBeFocused();
+    await expect(
+      screen.getByRole("textbox", { name: "Year", exact: true }),
+    ).toBeVisible();
+    expect(await panelRelationships(browser)).toEqual([]);
+    await app.screenshot("astryx-family-core-properties");
+    await screen
+      .getByRole("button", { name: "Close properties", exact: true })
+      .click();
+    expect(publicationWrites).toBe(0);
+  },
+);
