@@ -1,7 +1,7 @@
-/** Opt-in codec only. No storage, DOM, network, authentication or recovery writer
- * imports: the existing v1/v2 consumers remain unchanged until separately wired. */
+/** Pure recovery codec. Storage, UI and document admission belong to the
+ * separately tested session and channel adapters; this module owns no I/O. */
 const envelopeFormat = "anipotts.browser-recovery";
-const keyFormat = "anipotts.browser-recovery-key";
+const fileFormat = "anipotts.browser-recovery-key";
 const algorithm = "AES-256-GCM";
 export const RECOVERY_PLAINTEXT_BYTE_LIMIT = 4 * 512 * 1024 + 65536;
 export const RECOVERY_CIPHERTEXT_BYTE_LIMIT =
@@ -217,7 +217,7 @@ export async function createBrowserRecoveryKeyFile(): Promise<string> {
   const bytes = provider().getRandomValues(new Uint8Array(32));
   try {
     return JSON.stringify({
-      format: keyFormat,
+      format: fileFormat,
       version: 1,
       algorithm,
       keyId: await keyId(bytes),
@@ -266,7 +266,7 @@ export class BrowserRecoveryVault {
     const file = json(serialized, keyFileByteLimit);
     fields(file, ["format", "version", "algorithm", "keyId", "key"]);
     if (
-      file.format !== keyFormat ||
+      file.format !== fileFormat ||
       file.version !== 1 ||
       file.algorithm !== algorithm
     )
