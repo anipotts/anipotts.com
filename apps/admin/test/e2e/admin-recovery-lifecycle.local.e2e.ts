@@ -72,7 +72,7 @@ async function openPeer(browser: Browser) {
           return (
             peer.location.origin === location.origin &&
             Boolean(input && !input.disabled) &&
-            !peer.document.querySelector('textarea[aria-label="Title"]')
+            !peer.document.querySelector('textarea[placeholder="Title"]')
           );
         } catch {
           return false;
@@ -139,7 +139,7 @@ async function importPeerKey(browser: Browser) {
           "syntheticRecoveryPeer",
         ) as Window | null;
         return Boolean(
-          peer?.document.querySelector('textarea[aria-label="Title"]'),
+          peer?.document.querySelector('textarea[placeholder="Title"]'),
         );
       }),
     )
@@ -288,7 +288,7 @@ test(
             const peer = Reflect.get(window, "syntheticRecoveryPeer") as Window;
             return (
               peer.document.querySelector<HTMLTextAreaElement>(
-                'textarea[aria-label="Title"]',
+                'textarea[placeholder="Title"]',
               )?.value === text
             );
           }, baseline),
@@ -303,7 +303,7 @@ test(
           const peer = Reflect.get(window, "syntheticRecoveryPeer") as Window &
             typeof globalThis;
           const input = peer.document.querySelector<HTMLTextAreaElement>(
-            'textarea[aria-label="Title"]',
+            'textarea[placeholder="Title"]',
           );
           if (!input) return false;
           Object.getOwnPropertyDescriptor(
@@ -338,10 +338,10 @@ test(
             const peer = Reflect.get(window, "syntheticRecoveryPeer") as Window;
             return (
               document.querySelector<HTMLTextAreaElement>(
-                'textarea[aria-label="Title"]',
+                'textarea[placeholder="Title"]',
               )?.value === parent &&
               peer.document.querySelector<HTMLTextAreaElement>(
-                'textarea[aria-label="Title"]',
+                'textarea[placeholder="Title"]',
               )?.value === child
             );
           },
@@ -457,7 +457,7 @@ test(
               peer.document ===
               Reflect.get(window, "syntheticRecoveryPriorDocument");
             const title = peer.document.querySelector(
-              'textarea[aria-label="Title"]',
+              'textarea[placeholder="Title"]',
             );
             const input =
               peer.document.querySelector<HTMLInputElement>(selector);

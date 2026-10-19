@@ -328,7 +328,7 @@ it("keeps shared phone navigation on locked authoring and record review without 
     review: { back: "/content/writing", status: "draft" },
   });
   expect(locked).toContain("Unlock browser recovery");
-  expect(locked).not.toContain('aria-label="Title"');
+  expect(locked).not.toContain('placeholder="Title"');
   expect(review).toContain("editor-bar");
   for (const record of [locked, review]) {
     expect(record).toContain("admin-phone-bar");
