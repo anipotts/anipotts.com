@@ -30,7 +30,7 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Finish [#539](https://github.com/anipotts/anipotts.com/pull/539): saved-key unlock and encrypted browser recovery. Exact-head CI passes, but a later review found pending-navigation loss, workspace-kit integration and test-seeding cleanup gaps. Repair these before refreshed checks and Ani’s review for admin-only deployment.
+- [ ] Qualify [#539](https://github.com/anipotts/anipotts.com/pull/539): later navigation, shared-kit and seeding-cleanup repairs are integrated. Focused regressions pass; the combined full/browser/hosted checks and Ani’s exact review still gate admin-only deployment.
 - [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 

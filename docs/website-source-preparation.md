@@ -1,5 +1,43 @@
 # Website source preparation
 
+## October 19 integrated later-review repairs
+
+The superseded `613b5711` approval request remains withdrawn. The three later
+review findings are implemented in the integration candidate; combined full,
+actual-browser and hosted qualification follows before a new exact-head request.
+No merge, auto-merge or release approval is inferred.
+
+- Navigation source `59cf0d0f` marks typed input unsafe synchronously, awaits a
+  local durable recovery barrier before anchor or requested navigation, and fences
+  stale input/intent, expiry, logout and unmount. Full-document unload warns while
+  input is pending or recovery fails. Article/project creation routes do not host
+  the library's SPA router, so no speculative history-index framework was added.
+  Held-native-Web-Crypto regressions pass 35 cases including 25 existing; the
+  original `613b5711` source fails the new early-unload assertion. Strict editorial
+  typing and Astro checking pass. A new real-browser create/back/re-import case
+  awaits owner execution in both engines.
+- Shared-kit source `3e51ea50` moves the existing Writing control implementations
+  into the workspace kit and keeps their 12 compatibility exports unchanged.
+  RecoveryUnlock uses kit exports. Writing's buttons already rendered actual Apps
+  SDK controls; the repair concerns ownership and the shared file field. The file
+  input remains native because the installed SDK text-input wrapper performs
+  selection operations that are invalid for files. No key/session logic, provider,
+  scoped reset or portal boundary changes. Focused gate/control/hydration/portal
+  checks pass 53 cases, with actual SDK and legacy variants.
+- Harness source `35215453` handles cancellation before setup, awaits migration /
+  media-upload / apply child shutdown, and removes temporary D1/R2 state afterward.
+  Setup has task-owned POSIX groups; the final Worker remains in the runner group.
+  All 15 focused fixtures pass, including six phase/signal cancellations and the
+  installed runner's real forced stop against TERM-ignoring descendants. That case
+  closes in 5,015 ms inside its 10-second budget and proves state/PID cleanup.
+  Uncatchable wrapper termination is outside a cleanup guarantee; unconfirmed
+  group closure preserves state rather than deleting it beneath a live command.
+
+The root integration chat owns final qualification and canonical previews; workers
+used separate worktrees and started no previews. Earlier exact-head CI proof below
+is historical and does not cover these later edits. Source-protocol, physical
+custody and operational backup acceptance remain distinct.
+
 ## October 19 later review hold and next foundation drafts
 
 The `613b5711` approval request is superseded. Exact-head CI `39214447042`,

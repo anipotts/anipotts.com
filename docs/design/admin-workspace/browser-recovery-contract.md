@@ -426,3 +426,28 @@ using one shared server startup, recorded in
 These are local synthetic qualification receipts. They do not establish actual
 Access expiry, physical-device custody, Ani's exact-head review, merge or
 production deployment of #539. The integration owner retains those release gates.
+
+## Later review: navigation, kit and setup lifecycle
+
+New-writing inputs become unsafe synchronously in their input callbacks, before
+Web Crypto can await. Ordinary acknowledgments clear only the same input
+generation. A local durable barrier precedes named Back and requested navigation;
+a newer input or destination supersedes a stale completion. Unavailable storage,
+CAS loss or invalid admission keeps the form and its warning. Expiry, logout or
+unmount fences late navigation. Full-document unload warns while input remains
+pending or recovery fails. This does not submit or publish a draft. The actual
+article/project create pages do not mount the in-document library history router.
+
+The workspace kit owns the existing opt-in control adapters; old WritingControls
+imports keep the same implementations through a compatibility shim. The recovery
+gate imports kit exports and uses its native file field. The installed SDK input
+assumes text selection, so substituting it for a native file input would break file
+semantics. SDK controls, native file refs, both hydration modes and scoped portals
+have focused coverage without changing key admission or authentication.
+
+The public browser wrapper installs cancellation before migration and media
+seeding, waits for owned children and descendants to close, then removes temporary
+state. The final Worker retains runner process-group ownership. Real runner
+forced-shutdown coverage fits its configured ten-second default; no guarantee is
+made for an uncatchable wrapper kill or an unclosed group. Combined source/browser
+and refreshed hosted qualification remain the integration owner's release gate.
