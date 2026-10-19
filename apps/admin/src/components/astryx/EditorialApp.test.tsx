@@ -304,7 +304,7 @@ it("titles each library page with its own name and no Overview heading", () => {
   }
 });
 
-it("keeps shared phone navigation alongside record editor controls without retired tabs", () => {
+it("keeps shared phone navigation on locked authoring and record review without retired tabs", () => {
   const page = (props: Partial<React.ComponentProps<typeof EditorialApp>>) =>
     renderToStaticMarkup(
       <EditorialApp
@@ -323,11 +323,14 @@ it("keeps shared phone navigation alongside record editor controls without retir
   expect(library).toContain("admin-navigation-drawer");
   expect(library).not.toContain("admin-phone-pages");
   expect(library).toContain('aria-label="Open navigation"');
-  for (const record of [
-    page({ newWriting: true }),
-    page({ review: { back: "/content/writing", status: "draft" } }),
-  ]) {
-    expect(record).toContain("editor-bar");
+  const locked = page({ newWriting: true, recoveryScope: "synthetic-owner" });
+  const review = page({
+    review: { back: "/content/writing", status: "draft" },
+  });
+  expect(locked).toContain("Unlock browser recovery");
+  expect(locked).not.toContain('aria-label="Title"');
+  expect(review).toContain("editor-bar");
+  for (const record of [locked, review]) {
     expect(record).toContain("admin-phone-bar");
     expect(record).toContain("admin-navigation-drawer");
     expect(record).toContain('data-record-page="true"');
