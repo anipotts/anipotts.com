@@ -8,6 +8,22 @@ type Fixtures = Pick<TestFixtures, "app" | "screen"> & { browser: Browser };
 // to these synthetic attempts, never Ani. Do not log or assert raw key bytes.
 async function localNewWriting({ app, browser, screen }: Fixtures) {
   let writes = 0;
+  await browser.addInitScript(() => {
+    let hydrationErrors = 0;
+    Reflect.set(
+      window,
+      "syntheticRecoveryHydrationErrors",
+      () => hydrationErrors,
+    );
+    window.addEventListener("error", (event) => {
+      if (
+        /hydration (?:failed|mismatch)/i.test(
+          String(event.error?.message ?? event.message),
+        )
+      )
+        hydrationErrors++;
+    });
+  });
   await browser.route(/\/api\//, async (route) => {
     if (["GET", "HEAD", "OPTIONS"].includes(route.request.method))
       return route.continue();
@@ -49,13 +65,27 @@ async function setupKey({ browser, screen }: Fixtures) {
   await expect(
     screen.getByRole("textbox", { name: "Title", exact: true }),
   ).not.toBeVisible();
-  await browser
-    .locator('input[type="file"][accept="application/json,.json"]')
-    .setInputFiles(download.absolutePath);
+  await importKey(browser, download.absolutePath);
   await expect(
     screen.getByRole("textbox", { name: "Title", exact: true }),
   ).toBeVisible({ timeout: 20_000 });
   return download.absolutePath;
+}
+
+async function noHydrationError(browser: Browser) {
+  expect(
+    await browser.evaluate(
+      () => Reflect.get(window, "syntheticRecoveryHydrationErrors")?.() ?? -1,
+    ),
+  ).toBe(0);
+}
+async function importKey(browser: Browser, path: string) {
+  const input = browser.locator(
+    'input[type="file"][accept="application/json,.json"]',
+  );
+  await expect(input).toBeEnabled({ timeout: 20_000 });
+  await noHydrationError(browser);
+  await input.setInputFiles(path);
 }
 
 async function ciphertextInventory(browser: Browser, marker: string) {
@@ -126,6 +156,10 @@ async function exactEncryptedTitle(
 }
 
 async function selectWrongKey(browser: Browser) {
+  await expect(
+    browser.locator('input[type="file"][accept="application/json,.json"]'),
+  ).toBeEnabled({ timeout: 20_000 });
+  await noHydrationError(browser);
   await browser.evaluate(async () => {
     const moduleUrl = "/src/lib/browser-recovery-encryption.ts";
     const engine = (await import(
@@ -200,9 +234,7 @@ test(
       "This key does not match",
     );
     expect(await inventoryDigest(browser)).toBe(before);
-    await browser
-      .locator('input[type="file"][accept="application/json,.json"]')
-      .setInputFiles(keyPath);
+    await importKey(browser, keyPath);
     await expect(
       screen.getByRole("textbox", { name: "Title", exact: true }),
     ).toHaveValue(marker, { timeout: 20_000 });
@@ -216,6 +248,7 @@ test(
       }, raw),
     ).toBe(true);
     expect(local.writes()).toBe(0);
+    await noHydrationError(browser);
   },
 );
 
@@ -286,6 +319,7 @@ test(
       }),
     ).toBeVisible();
     expect(local.writes()).toBe(0);
+    await noHydrationError(browser);
   },
 );
 
@@ -326,12 +360,11 @@ test(
         exact: true,
       }),
     ).toBeVisible({ timeout: 20_000 });
-    await browser
-      .locator('input[type="file"][accept="application/json,.json"]')
-      .setInputFiles(keyPath);
+    await importKey(browser, keyPath);
     await expect(
       screen.getByRole("textbox", { name: "Title", exact: true }),
     ).toHaveValue(marker, { timeout: 20_000 });
     expect(local.writes()).toBe(0);
+    await noHydrationError(browser);
   },
 );
