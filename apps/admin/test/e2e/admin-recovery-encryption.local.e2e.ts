@@ -1,3 +1,4 @@
+import { unlockSyntheticBrowserRecovery } from "../support/browser-recovery-key";
 import { test, type Browser } from "@e2e-dev/web";
 import { expect, type TestFixtures } from "e2e";
 
@@ -5,9 +6,10 @@ type Fixtures = Pick<TestFixtures, "app"> & { browser: Browser };
 
 // e2e.admin.config.ts owns a disposable local D1/DO and both browser targets.
 // Import the actual engine separately from the UI to qualify native crypto.
-// Key files, key bytes and recovered input never leave evaluate(), enter the
-// DOM/storage, get downloaded or appear in assertion/console output. Channel
-// qualification stores only task-owned ciphertext and removes it in finally.
+// Engine cases keep key files, key bytes and recovered input inside evaluate().
+// The final UI case uses explicit synthetic title/address fixtures and the real
+// file-input helper. Keys never enter logs or persisted storage. Channel
+// qualification stores only task-owned ciphertext and restores it in finally.
 async function localEnginePage({ app, browser }: Fixtures) {
   let mutations = 0;
   await browser.route(/\/api\//, async (route) => {
@@ -718,5 +720,197 @@ test(
       noUnexpectedError: true,
     });
     expect(page.mutations()).toBe(0);
+  },
+);
+
+test(
+  "new article and project Back await native encryption before document unload",
+  { timeout: 120_000 },
+  async ({ app, browser, screen }) => {
+    let mutations = 0;
+    await browser.route(/.*/, async (route) => {
+      const url = new URL(route.request.url);
+      if (
+        url.protocol !== "http:" ||
+        !["127.0.0.1", "localhost"].includes(url.hostname) ||
+        !url.port ||
+        url.pathname.startsWith("/cdn-cgi/access/")
+      )
+        return route.fulfill({ status: 403, body: "synthetic_local_only" });
+      if (!["GET", "HEAD", "OPTIONS"].includes(route.request.method)) {
+        mutations++;
+        return route.fulfill({
+          status: 409,
+          json: { error: "synthetic_navigation_no_mutation" },
+        });
+      }
+      return route.continue();
+    });
+    const offDialog = await browser.onDialog("dismiss");
+    try {
+      for (const project of [false, true]) {
+        const path = project ? "/content/new-project" : "/content/new";
+        const title = `Synthetic pending ${project ? "project" : "article"}`;
+        const address = project
+          ? "synthetic-custom-project-address"
+          : "synthetic-custom-article-address";
+        const snapshotKey = `synthetic-recovery-navigation:${project ? "project" : "article"}`;
+        try {
+          await app.open(path);
+          await unlockSyntheticBrowserRecovery(browser);
+          const field = screen.getByRole("textbox", {
+            name: "Title",
+            exact: true,
+          });
+          await expect(field).toBeEnabled();
+          // This browser context is disposable. Never replace pre-existing input.
+          await expect(field).toHaveValue("");
+          expect(
+            await browser.evaluate(
+              async ({ project, snapshotKey }) => {
+                const draftsPath = "/src/lib/draft-recovery.ts",
+                  ownerPath = "/src/lib/editorial-owner.ts",
+                  sessionPath = "/src/lib/browser-recovery-session.ts";
+                const drafts = (await import(
+                  draftsPath
+                )) as typeof import("../../src/lib/draft-recovery");
+                const { EDITORIAL_OWNER_EMAIL } = (await import(
+                  ownerPath
+                )) as typeof import("../../src/lib/editorial-owner");
+                const { recoverySession } = (await import(
+                  sessionPath
+                )) as typeof import("../../src/lib/browser-recovery-session");
+                await recoverySession().settled();
+                const legacy = project
+                  ? drafts.newProjectRecoveryKey(EDITORIAL_OWNER_EMAIL)
+                  : drafts.newWritingRecoveryKey(EDITORIAL_OWNER_EMAIL);
+                const channel = drafts.encryptedWritingRecovery(
+                  localStorage,
+                  legacy,
+                );
+                // Keep only the prior ciphertext in a task-owned session slot so the
+                // finally block can restore this exact entry after real navigation.
+                sessionStorage.setItem(
+                  snapshotKey,
+                  JSON.stringify({
+                    key: channel.key,
+                    raw: localStorage.getItem(channel.key),
+                  }),
+                );
+                channel.close();
+                const native = crypto.subtle.encrypt.bind(crypto.subtle);
+                let release!: () => void;
+                const held = new Promise<void>((resolve) => {
+                  release = resolve;
+                });
+                const control = {
+                  entered: false,
+                  release,
+                  restore: () => {
+                    crypto.subtle.encrypt = native;
+                  },
+                };
+                Reflect.set(window, "syntheticRecoveryNavigation", control);
+                // Hold the actual first native encryption after the writer has
+                // entered its real record/lifecycle Web Locks. No engine bypass.
+                crypto.subtle.encrypt = async (...args) => {
+                  if (!control.entered) {
+                    control.entered = true;
+                    await held;
+                  }
+                  return native(...args);
+                };
+                return true;
+              },
+              { project, snapshotKey },
+            ),
+          ).toBe(true);
+          await field.fill(title);
+          await expect
+            .poll(() =>
+              browser.evaluate(() =>
+                Boolean(
+                  (
+                    Reflect.get(window, "syntheticRecoveryNavigation") as
+                      { entered?: boolean } | undefined
+                  )?.entered,
+                ),
+              ),
+            )
+            .toBe(true);
+          await screen
+            .getByRole("button", { name: "Edit address", exact: true })
+            .click();
+          const addressField = screen.getByRole("textbox", {
+            name: project ? "Project address" : "Article address",
+            exact: true,
+          });
+          await addressField.fill(address);
+          await browser.locator("a.editor-bar-back").click();
+          await expect(field).toHaveValue(title);
+          await expect(
+            screen.getByText("Keeping title before leaving", { exact: true }),
+          ).toBeVisible();
+          expect(new URL(await browser.url()).pathname).toBe(path);
+          expect(
+            await browser.evaluate(() => {
+              const event = new Event("beforeunload", { cancelable: true });
+              window.dispatchEvent(event);
+              const control = Reflect.get(
+                window,
+                "syntheticRecoveryNavigation",
+              ) as { release(): void; restore(): void } | undefined;
+              control?.restore();
+              control?.release();
+              return event.defaultPrevented;
+            }),
+          ).toBe(true);
+          await expect
+            .poll(async () => new URL(await browser.url()).pathname)
+            .toBe(project ? "/content/projects" : "/content/writing");
+          // A real pagehide drops the key. Re-import through the actual input,
+          // then verify the UI restores the exact title and custom address.
+          await app.open(path);
+          await unlockSyntheticBrowserRecovery(browser);
+          await expect(field).toHaveValue(title);
+          await screen
+            .getByRole("button", { name: "Edit address", exact: true })
+            .click();
+          await expect(addressField).toHaveValue(address);
+        } finally {
+          await browser.evaluate(async (snapshotKey) => {
+            const control = Reflect.get(
+              window,
+              "syntheticRecoveryNavigation",
+            ) as { release(): void; restore(): void } | undefined;
+            control?.restore();
+            control?.release();
+            Reflect.deleteProperty(window, "syntheticRecoveryNavigation");
+            const sessionPath = "/src/lib/browser-recovery-session.ts";
+            const { recoverySession } = (await import(
+              sessionPath
+            )) as typeof import("../../src/lib/browser-recovery-session");
+            await recoverySession().settled();
+            const raw = sessionStorage.getItem(snapshotKey);
+            if (raw) {
+              const prior = JSON.parse(raw) as {
+                key: string;
+                raw: string | null;
+              };
+              if (prior.key.startsWith("editorial-recovery:v3:")) {
+                if (prior.raw === null) localStorage.removeItem(prior.key);
+                else localStorage.setItem(prior.key, prior.raw);
+              }
+              sessionStorage.removeItem(snapshotKey);
+            }
+            recoverySession().lock();
+            return true;
+          }, snapshotKey);
+        }
+      }
+      expect(mutations).toBe(0);
+    } finally {
+      await offDialog();
+    }
   },
 );
