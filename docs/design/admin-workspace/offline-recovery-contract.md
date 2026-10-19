@@ -152,3 +152,47 @@ operational restore provisioning and a live isolated drill remain undone.
 Quiet Precision's encrypted backup, one-hour loss target and one-working-day
 recovery target remain unproven until those separately authorized integrations
 and operational evidence exist.
+
+## Disabled supplied media transport
+
+`scripts/admin/recovery-media-container.mjs` is a separate version-one plaintext
+transport primitive. It accepts a supplied inventory, per-object readers and a
+staging sink. It has no filesystem or provider adapter, production route/RPC,
+writer eligibility override, capture-fence integration, encryption or key custody.
+The existing offline-v1 and binding-capture-v2 formats and limits stay unchanged.
+
+Private and public objects retain separate identities even when their byte hashes
+match. Private chunk indexes preserve the existing 64 KiB order. Public entries
+retain the R2 etag, version, upload time, HTTP metadata and custom metadata. The
+canonical manifest rejects unknown fields/versions and duplicate identities;
+metadata is snapshotted before the first reader await.
+
+Readers supply ordered 64 KiB binary frames, with only the last frame shorter.
+The transport copies one frame, updates native `node:crypto` incremental SHA-256,
+and awaits the sink before requesting another frame. Object hashes and exact
+lengths, frame indexes, object order and final EOF must all match. There is no
+whole-object concatenation or base64 media string. The explicit limits are
+10 MiB per object, 64 MiB aggregate media, 5,000 inventory entries, 4 MiB serialized
+object metadata and 256 KiB serialized opaque evidence. The manifest has a
+separate limit of those metadata/evidence budgets plus 4 KiB of framing. Its
+checksum detects accidental changes; it provides no authentication.
+
+Only the final manifest marks a successful transfer, after all object bytes and
+EOF have been verified. A sink must stage frames, consume/copy each frame before
+acknowledging it, and keep partial output inaccessible after failure. Its abort
+callback is attempted on transfer failure; an unsuccessful cleanup never produces
+a complete manifest. Sink acknowledgment does not establish durable external
+storage. Supplied readers/sinks remain responsible for their own allocation and
+storage behavior; the transport bounds its own outstanding binary frame and
+metadata, not arbitrary caller retention.
+
+Focused Node tests cover a 10 MiB object in each plane, backpressure, exact
+metadata and copied bytes, size/count limits, malformed manifests, missing,
+corrupted, duplicate, reordered and trailing frames, and sink failure. The native
+hash API is already used by the worker-side recovery modules and the isolated
+runtime enables `nodejs_compat`; this new transport still requires its own
+workerd/resource qualification. There is no claim of provider or operational
+qualification. Authenticated encryption/finalization and a complete staged
+capture/restore integration remain future work. Inventory alone is never counted
+as preserved media, and this primitive does not close the existing v2 size gap or
+the encrypted-backup requirement.
