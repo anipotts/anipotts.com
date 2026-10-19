@@ -174,8 +174,19 @@ export async function publishDirect(
     ]);
     if (results.length !== 4 || results.some((result) => !result.success))
       throw new Error("publication_transaction_failed");
+    const changed = results[0]!.meta?.changes;
+    if (changed !== 0 && changed !== 1)
+      throw new Error("publication_transaction_unconfirmed");
+    if (
+      results[1]!.meta?.changes !== changed ||
+      results[2]!.meta?.changes !== changed
+    )
+      throw new Error("publication_pointer_unconfirmed");
     const row = results[3]!.results[0];
-    if (!row) return { status: "conflict" };
+    if (!row) {
+      if (changed !== 0) throw new Error("publication_transaction_unconfirmed");
+      return { status: "conflict" };
+    }
     if (
       row.record_kind !== kind ||
       row.content_schema_version !== value.contentSchemaVersion ||
@@ -187,14 +198,6 @@ export async function publishDirect(
       row.expected_inventory_version !== value.expectedInventoryVersion
     )
       return { status: "idempotency_conflict" };
-    const changed = results[0]!.meta?.changes;
-    if (changed !== 0 && changed !== 1)
-      throw new Error("publication_transaction_unconfirmed");
-    if (
-      results[1]!.meta?.changes !== changed ||
-      results[2]!.meta?.changes !== changed
-    )
-      throw new Error("publication_pointer_unconfirmed");
     return {
       status: changed === 1 ? "published" : "replayed",
       publication: await snapshot(row),

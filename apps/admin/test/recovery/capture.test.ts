@@ -3,25 +3,22 @@
 import { createHash } from "node:crypto";
 import { env } from "cloudflare:workers";
 import {
+  applyD1Migrations,
   evictDurableObject,
   runDurableObjectAlarm,
   runInDurableObject,
 } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  DIRECT_PUBLICATION_SCHEMA_SQL,
-  DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
-  publishDirect,
-} from "@anipotts/content/editorial/direct-publication";
+import { publishDirect } from "@anipotts/content/editorial/direct-publication";
 import {
   acquireRecoveryWriter,
   freezeRecoveryDatabase,
   withRecoveryWriter,
 } from "@anipotts/content/editorial/recovery-fence";
-import migration from "../../migrations/content-publication/0003_recovery_fence.sql?raw";
 import { openRecoveryCapture } from "../../../../scripts/admin/editorial-recovery-capture.mjs";
 import { exportOfflineRecovery } from "../../../../scripts/admin/editorial-recovery.mjs";
 
+declare const __EDITORIAL_RECOVERY_MIGRATIONS__: import("cloudflare:test").D1Migration[];
 const source =
   "---\ntitle: Synthetic recovery\nsummary: Fixture only\nstatus: published\npublished_at: 2026-10-10\n---\n\nExact synthetic bytes: café 🌱\n";
 const record = { kind: "writing", id: "synthetic-recovery" } as const;
@@ -55,23 +52,16 @@ beforeEach(async () => {
   // These bindings are distinct disposable local databases. No production config
   // or account is loaded, and remoteBindings is disabled by the fixture config.
   for (const db of [env.RECOVERY_SOURCE_DB, env.RECOVERY_CONTENT_DB]) {
-    const tables = await db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-      )
-      .all<{ name: string }>();
-    for (const { name } of tables.results.reverse()) {
-      if (!/^[a-z_]+$/.test(name))
-        throw new Error("unexpected_synthetic_table");
-      await db.prepare(`DROP TABLE ${name}`).run();
-    }
-    await db.batch(
-      [
-        ...DIRECT_PUBLICATION_SCHEMA_SQL,
-        ...DIRECT_PUBLICATION_CONTRACT_MIGRATION_SQL,
-      ].map((sql) => db.prepare(sql)),
-    );
-    await db.exec(migration);
+    for (const name of [
+      "editorial_published_active",
+      "editorial_published_revisions",
+      "editorial_published_inventory",
+      "editorial_recovery_writers",
+      "editorial_recovery_control",
+      "d1_migrations",
+    ])
+      await db.prepare(`DROP TABLE IF EXISTS ${name}`).run();
+    await applyD1Migrations(db, __EDITORIAL_RECOVERY_MIGRATIONS__);
   }
   for (const bucket of [
     env.RECOVERY_SOURCE_MEDIA,

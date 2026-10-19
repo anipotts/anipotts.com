@@ -9,7 +9,8 @@
   "include": [
     "src/editorial/**/*.ts",
     "test/**/*.ts",
-    "vitest.editorial.config.ts"
+    "vitest.editorial.config.ts",
+    "vitest.recovery.config.ts"
   ],
   "exclude": []
 }
