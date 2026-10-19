@@ -171,3 +171,39 @@ setup/entitlement, real Images qualification and activation remain held. No
 custody, backup integration or persisted provenance protocol was added; those
 requirements still need their own reviewed implementation and evidence. No PR,
 provider resource or production activation was created for this checkpoint.
+
+## Atomic private-media persistence preparation, October 19
+
+The unconnected `commitPreparedCrop` primitive snapshots original/output bytes
+and strictly parses the existing candidate/provenance records before its first
+storage await. Both encoded images retain 10 MiB/16 MP admission; crop output
+must agree with the planned dimensions and actual 8-bit RGB/RGBA PNG framing.
+The pure admission helper is extracted from existing `EditorialMediaStore.save`
+without changing its checks, errors, byte IDs or stored metadata/chunk layout.
+Neither admission nor persistence independently proves provider decoding.
+
+One existing DO storage transaction checks immutable existing values and writes
+missing original/derivative chunks, the provenance edge and request receipt.
+Provider work and byte validation stay outside the retryable transaction.
+`media-processing-provenance:v1:<derivativeId>:<provenanceId>` preserves separate
+edges for shared outputs and permits self identity. Canonical UUID request keys
+under `media-processing-request:v1:` bind a receipt to the canonical provenance
+fingerprint. Identical retries verify and replay durable state without rewrites;
+changed candidates under the same request reject. Corrupt existing metadata,
+chunks, edges and receipts fail without repair. A lost acknowledgement can be
+resolved by replaying the request; cancellation is not a promise to undo an
+already committed transaction.
+
+This source adds no production RPC, route, provider lookup, binding or activation.
+It needs no D1 or DO-class migration; the new KV namespaces are an additive data
+schema extension. Recovery deliberately continues rejecting these namespaces
+until explicit format support preserves their records and references. No backup,
+custody, public publication or provider qualification is implied. The existing
+10 MiB whole-publication budget is unchanged.
+
+The 42 focused Node tests pass, including 10 primitive/admission tests; strict
+primitive/test typing also passes using the existing generated synthetic binding
+declarations. Native test source covers actual SQLite rollback at five write
+points, concurrent/replayed requests, lost acknowledgement, shared/self edges,
+caller mutation and corruption. Its execution is pending the owner's focused
+runtime slot; Node's memory transaction fixture is not native atomicity proof.
