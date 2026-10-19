@@ -149,7 +149,7 @@ describe("compiled local owner CSRF cookie", () => {
     ).toBe("json_required");
   });
 
-  it.each([false, true])(
+  it.each([undefined, false, true])(
     "retains the production Secure cookie and checker with flag %s",
     (enabled) => {
       vi.stubGlobal("__LOCAL_OWNER_BUILD__", enabled);

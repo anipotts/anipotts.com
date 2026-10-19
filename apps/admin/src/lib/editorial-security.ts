@@ -12,6 +12,7 @@ function csrfCookiePolicy(request?: Request) {
   // Keep the local name inside the build-time branch so release bundles remove
   // it entirely. Plain HTTP WebKit refuses Secure cookies, including loopback.
   if (
+    typeof __LOCAL_OWNER_BUILD__ !== "undefined" &&
     __LOCAL_OWNER_BUILD__ &&
     request &&
     isLocalOwnerHttpCsrfRequest(request, true)
