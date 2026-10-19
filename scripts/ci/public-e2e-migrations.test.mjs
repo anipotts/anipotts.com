@@ -280,12 +280,17 @@ test("runner owns the wrapper, Worker and descendants; shutdown waits for child 
   );
 });
 
-function setupFixture(t, { hold, fail } = {}) {
+function setupFixture(
+  t,
+  { hold, fail, launch = true, ignoreTermination = false } = {},
+) {
   const directory = fixtureDirectory(t);
   const events = join(directory, "events.jsonl");
   const held = join(directory, "held.json");
   const finished = join(directory, "finished.json");
   const closed = join(directory, "child-closed");
+  const seedIgnored = join(directory, "seed-ignored-term");
+  const grandchildIgnored = join(directory, "grandchild-ignored-term");
   const migrations = join(
     directory,
     "apps/admin/migrations/content-publication",
@@ -300,7 +305,11 @@ function setupFixture(t, { hold, fail } = {}) {
   const grandchild = join(directory, "grandchild.mjs");
   writeFileSync(
     grandchild,
-    "process.send('ready'); setInterval(() => {}, 1000);\n",
+    `
+    import { writeFileSync } from 'node:fs';
+    if (${ignoreTermination}) process.on('SIGTERM', () => writeFileSync(${JSON.stringify(grandchildIgnored)}, 'ignored'));
+    process.send('ready'); setInterval(() => {}, 1000);
+    `,
   );
   const cli = join(directory, "cli.mjs");
   writeFileSync(
@@ -321,6 +330,7 @@ function setupFixture(t, { hold, fail } = {}) {
       const child = spawn(process.execPath, [${JSON.stringify(grandchild)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
       let stopping = false;
       function stop() {
+        if (${ignoreTermination}) { writeFileSync(${JSON.stringify(seedIgnored)}, 'ignored'); return; }
         if (stopping) return; stopping = true;
         child.once('close', () => {
           writeFileSync(${JSON.stringify(closed)}, String(existsSync(temporary)));
@@ -357,10 +367,12 @@ function setupFixture(t, { hold, fail } = {}) {
     }
   `,
   );
-  const child = spawn(process.execPath, [wrapper], { stdio: "ignore" });
-  const exited = once(child, "close");
+  const child = launch
+    ? spawn(process.execPath, [wrapper], { stdio: "ignore" })
+    : undefined;
+  const exited = child ? once(child, "close") : undefined;
   t.after(async () => {
-    if (child.exitCode === null && child.signalCode === null) {
+    if (child && child.exitCode === null && child.signalCode === null) {
       child.kill("SIGTERM");
       await Promise.race([exited, delay(2000)]);
       if (child.exitCode === null && child.signalCode === null)
@@ -377,7 +389,18 @@ function setupFixture(t, { hold, fail } = {}) {
       rmSync(record.temporary, { recursive: true, force: true });
     }
   });
-  return { child, exited, events, held, finished, closed };
+  return {
+    child,
+    exited,
+    events,
+    held,
+    finished,
+    closed,
+    seedIgnored,
+    grandchildIgnored,
+    wrapper,
+    directory,
+  };
 }
 async function waitForFixture(path, fixture) {
   for (let attempt = 0; attempt < 150; attempt++) {
@@ -481,4 +504,85 @@ test("failed media seeding closes the wrapper and removes state without applying
     JSON.parse(readFileSync(fixture.finished, "utf8")).error,
     /failed/,
   );
+});
+
+test("actual runner stop force-closes a SIGTERM-ignoring setup group before its default shutdown budget", async (t) => {
+  const fixture = setupFixture(t, {
+    hold: "upload",
+    launch: false,
+    ignoreTermination: true,
+  });
+  const managed = new ManagedProcess(
+    "synthetic uncooperative setup",
+    {
+      executable: process.execPath,
+      args: [fixture.wrapper],
+      startupTimeout: 20_000,
+      // Leave shutdownTimeout unset: exercise the installed runner's 10s default.
+      log: join(fixture.directory, "runner.log"),
+    },
+    projectRoot,
+    {},
+    { ci: true },
+  );
+  const startup = managed.start(new AbortController().signal).then(
+    () => undefined,
+    (error) => error,
+  );
+  let record;
+  try {
+    record = await waitForFixture(fixture.held, fixture);
+    const start = performance.now();
+    await managed.stop();
+    const elapsed = performance.now() - start;
+    assert.equal(await startup, undefined);
+    assert.ok(
+      elapsed >= 4_500,
+      `forced escalation was not exercised (${elapsed}ms)`,
+    );
+    assert.ok(
+      elapsed < 10_000,
+      `shutdown exceeded runner budget (${elapsed}ms)`,
+    );
+    assert.equal(readFileSync(fixture.seedIgnored, "utf8"), "ignored");
+    assert.equal(readFileSync(fixture.grandchildIgnored, "utf8"), "ignored");
+    assert.deepEqual(JSON.parse(readFileSync(fixture.finished, "utf8")), {
+      code: 0,
+    });
+    assert.equal(existsSync(record.temporary), false);
+    assert.equal(
+      existsSync(fixture.closed),
+      false,
+      "cooperative shutdown unexpectedly ran",
+    );
+    for (const pid of record.pids)
+      assert.throws(
+        () => process.kill(pid, 0),
+        (error) => error.code === "ESRCH",
+      );
+    const phases = readFileSync(fixture.events, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line).phase);
+    assert.deepEqual(phases, ["migration", "upload"]);
+    t.diagnostic(
+      `owned setup group forced closed in ${Math.round(elapsed)}ms (runner budget 10000ms)`,
+    );
+  } finally {
+    await managed.stop();
+    // Only fixture-owned IDs are eligible for fallback cleanup, including when
+    // a failing assertion leaves the wrapper or detached setup group alive.
+    record ??= existsSync(fixture.held)
+      ? JSON.parse(readFileSync(fixture.held, "utf8"))
+      : undefined;
+    if (record) {
+      try {
+        process.kill(-record.pids[0], "SIGKILL");
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
+      rmSync(record.temporary, { recursive: true, force: true });
+    }
+    await startup;
+  }
 });
