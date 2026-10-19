@@ -47,7 +47,7 @@ describe("plain HTTP local owner CSRF eligibility", () => {
     expect(isLocalOwnerHttpCsrfRequest(request(origin), true)).toBe(false);
   });
 
-  it.each([
+  it.each<Record<string, string>>([
     { Host: "evil.example" },
     { "X-Forwarded-Host": "evil.example" },
     { "X-Forwarded-For": "203.0.113.10" },
