@@ -329,7 +329,7 @@ test(
         screen.getByText("Browser recovery needs attention", { exact: true }),
       ).toBeVisible();
       await expect(
-        screen.getByText(/Another tab changed browser recovery/),
+        screen.getByText(/Browser recovery contains competing copies\./),
       ).toBeVisible();
       await settleLocalRecovery(browser);
       expect(await recoveryDigest(browser)).toBe(childStored);
