@@ -323,12 +323,49 @@
     {
       "id": "site-completion-oct18",
       "title": "Consolidated dependencies and completed editor journeys",
-      "revision": null,
+      "revision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
       "sourceRevision": "18329ff14eaa174e56ef5ac5acd9c0571146e979",
+      "lane": "code",
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
+          "by": "Ani",
+          "evidence": "Owner chat01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered approve #538 and deploy all affected targets to the exact2b797fb5/all-six-target approval question on October19,2026.",
+          "at": "2026-10-19T06:28:53.402440+00:00"
+        },
+        "production": {
+          "revision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
+          "by": "Ani",
+          "evidence": "Owner chat01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered approve #538 and deploy all affected targets to the exact2b797fb5/all-six-target approval question on October19,2026.",
+          "at": "2026-10-19T06:28:53.402440+00:00"
+        }
+      },
+      "note": "Approved candidate merged and all six targets deployed by39209913406. Direct tree equality, public exact-release smoke, active provider versions at100% and admin release/schema/eight Access boundary probes pass. D1false/schema0044/no migration. Existing state/Brands freshness gaps remain separate. Recovery/media excluded.",
+      "updatedAt": "2026-10-19T06:32:08.800212+00:00",
+      "release": {
+        "revision": "795920090a594dbf347e2c7de35967e6d1ee76bb",
+        "reviewedRevision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
+        "evidence": "Strict protection reread immediately before protected merge. Exact-head CI39196056419/Security/CodeQL passed; direct git tree comparison proves approved and merge trees identical.",
+        "at": "2026-10-19T06:26:22Z"
+      },
+      "deployment": {
+        "revision": "795920090a594dbf347e2c7de35967e6d1ee76bb",
+        "target": "www, admin, ingest, newsletter, state, weekly_email",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39209913406 succeeded all six targets; none skipped. Native provider readback confirms each new version active100%. Public exact-release smoke and admin provider/schema0044/eight owner boundary checks pass. No migration.",
+        "at": "2026-10-19T06:32:08.800212+00:00"
+      }
+    },
+    {
+      "id": "browser-recovery-key-file-oct19",
+      "title": "Local key-file unlock and encrypted browser recovery",
+      "revision": null,
+      "sourceRevision": "3e22ecb13ad0f9d659d740f5884e6b0792276437",
       "lane": "code",
       "state": "locally-integrated",
       "approvals": {},
-      "note": "Local source checks passed: full validate,22 Admin browser cases,84 CMS routes,public runtime and344-file local-owner absence scan. Contains current PR heads534/535/537. Exact final review head remains the candidate PR head after receipt documentation; no merge/deployment approval. All six runtime targets selected, D1 unchanged/schema0044/no migration. Isolated recovery/media/encryption prototypes excluded."
+      "note": "78a6b01f full2460core/native42/CI/security/CodeQLpass, thencompletedreviewfoundnewestarchivepruning andnullWebLocksmapping. Integrated21c07993 preservescurrentarchive/max3 and distinguishesunavailablefromsignedout;45focused+negativeoldsource+strictpass. Combined/browser/hosted/current-headcode-securityreview/canonicalpending; admin-only/schema0044/no migration; noapproval,613/b29requestswithdrawn,540/541/542excluded.",
+      "updatedAt": "2026-10-19T08:43:43.394531+00:00"
     }
   ]
 }

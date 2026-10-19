@@ -1,3 +1,9 @@
+import {
+  unlockRecoveryFixture,
+  settleRecoveryFixture,
+  readRecoveryFixture,
+  openRecoveryExportFixture,
+} from "../../../test/recovery-key-fixture";
 import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
@@ -26,6 +32,9 @@ async function render(scope = "owner") {
       </AdminUIProvider>,
     );
   });
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
 }
 /** The title: the create page's first, large field. */
 const titleField = () => host.querySelector("textarea")!;
@@ -37,6 +46,9 @@ async function type(value: string) {
       "value",
     )!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => {
+    await settleRecoveryFixture();
   });
 }
 beforeEach(async () => {
@@ -71,6 +83,7 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  await unlockRecoveryFixture();
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -161,12 +174,13 @@ it("restores only the server-provided account and preserves legacy unscoped data
   );
   await type("New draft");
   expect(
-    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!,
+    (await readRecoveryFixture(newWritingRecoveryKey("owner"), "new-writing"))!,
   ).toMatchObject({ title: "New draft", slug: "new-draft" });
   await render("other");
   expect(titleField().value).toBe("Other account");
   expect(
-    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!.title,
+    (await readRecoveryFixture(newWritingRecoveryKey("owner"), "new-writing"))!
+      .title,
   ).toBe("New draft");
 });
 it("clears creation recovery on same-tab logout and does not repopulate it", async () => {
@@ -212,6 +226,9 @@ it("blocks duplicate submissions and stops creation when logout happens during C
       .querySelector("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
   expect(fetcher).toHaveBeenCalledTimes(1);
   await act(async () => {
     await clearEditorialRecovery(localStorage);
@@ -219,6 +236,9 @@ it("blocks duplicate submissions and stops creation when logout happens during C
   await act(async () =>
     resolve(jsonResponse(JSON.stringify({ csrf: "test" }), { status: 200 })),
   );
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(localStorage.getItem(newWritingRecoveryKey("owner"))).toBeNull();
 });
@@ -248,13 +268,14 @@ it("retains creation operation identity after an ambiguous network failure", asy
         .dispatchEvent(
           new Event("submit", { bubbles: true, cancelable: true }),
         );
+      await settleRecoveryFixture();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   }
   expect(ids).toHaveLength(2);
   expect(ids[0]).toBe(ids[1]);
   expect(
-    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner"))!
+    (await readRecoveryFixture(newWritingRecoveryKey("owner"), "new-writing"))!
       .request!.id,
   ).toBe(ids[0]);
   expect(titleField().value).toBe("Retry me");
@@ -279,6 +300,9 @@ it("downloads current creation fields and its ambiguous retry identity after sto
       .querySelector("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
   expect(requestId).toBeTruthy();
   const before = fetcher.mock.calls.length;
   const originalGetItem = Storage.prototype.getItem;
@@ -302,8 +326,13 @@ it("downloads current creation fields and its ambiguous retry identity after sto
     .mockImplementation(() => {});
   await act(async () => {
     Array.from(host.querySelectorAll("button"))
-      .find((button) => button.textContent === "Download recovery copies")!
+      .find(
+        (button) => button.textContent === "Download encrypted recovery copies",
+      )!
       .click();
+  });
+  await act(async () => {
+    await settleRecoveryFixture();
   });
   expect(download).toHaveBeenCalledOnce();
   const blob = DownloadURL.createObjectURL.mock.calls[0][0];
@@ -313,7 +342,11 @@ it("downloads current creation fields and its ambiguous retry identity after sto
     reader.onerror = () => reject(reader.error);
     reader.readAsText(blob);
   });
-  const bundle = JSON.parse(contents);
+  const bundle = await openRecoveryExportFixture(
+    contents,
+    newWritingRecoveryKey("owner"),
+    "new-writing",
+  );
   expect(bundle.currentCopy).toEqual({
     key: newWritingRecoveryKey("owner"),
     kind: "new-writing",
@@ -341,7 +374,7 @@ it("locks creation without offering plaintext download when storage denial preve
   await render();
   expect(titleField()).toBeNull();
   expect(host.textContent).toContain("Session ended");
-  expect(host.textContent).not.toContain("Download recovery copies");
+  expect(host.textContent).not.toContain("Download encrypted recovery copies");
   expect(fetcher).not.toHaveBeenCalled();
 });
 
@@ -350,7 +383,7 @@ it("offers current-copy download when no recovery storage key was available", as
   vi.stubGlobal("fetch", fetcher);
   await render("");
   await type("Current fields remain available");
-  expect(host.textContent).toContain("Download recovery copies");
+  expect(host.textContent).toContain("Download encrypted recovery copies");
   expect(fetcher).not.toHaveBeenCalled();
 });
 
@@ -362,12 +395,14 @@ it.each(["expired", "logout"] as const)(
       throw new Error("synthetic quota denial");
     });
     await type("Private creation fields before lock");
-    expect(host.textContent).toContain("Download recovery copies");
+    expect(host.textContent).toContain("Download encrypted recovery copies");
     const { lockProtectedSession } =
       await import("../../lib/protected-admin-json");
     await act(async () => lockProtectedSession(reason));
     expect(titleField()).toBeNull();
-    expect(host.textContent).not.toContain("Download recovery copies");
+    expect(host.textContent).not.toContain(
+      "Download encrypted recovery copies",
+    );
     expect(host.textContent).not.toContain(
       "Private creation fields before lock",
     );
@@ -384,7 +419,7 @@ it("refuses plaintext creation download after a persisted logout before its even
   });
   await type("Private creation fields before delayed logout");
   const action = Array.from(host.querySelectorAll("button")).find(
-    (button) => button.textContent === "Download recovery copies",
+    (button) => button.textContent === "Download encrypted recovery copies",
   )!;
   class DownloadURL extends URL {
     static createObjectURL = vi.fn((_blob: Blob) => "blob:must-not-download");
@@ -482,6 +517,7 @@ it("keeps project recovery separate and creates with project identity", async ()
     host
       .querySelector("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await settleRecoveryFixture();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
   expect(calls).toEqual([
@@ -494,6 +530,9 @@ it("keeps project recovery separate and creates with project identity", async ()
   await act(async () =>
     root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
   );
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
   expect(titleField().value).toBe("New project");
 });
 
@@ -521,6 +560,7 @@ it.each(["network", "malformed"])(
           .dispatchEvent(
             new Event("submit", { bubbles: true, cancelable: true }),
           );
+        await settleRecoveryFixture();
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
       expect(host.textContent).toContain("Couldn’t confirm draft creation");
@@ -572,7 +612,7 @@ it("shows explicit creation while typing and incidental blur only preserves brow
   });
   expect(fetcher).not.toHaveBeenCalled();
   expect(
-    readNewWritingRecovery(localStorage, newWritingRecoveryKey("owner")),
+    await readRecoveryFixture(newWritingRecoveryKey("owner"), "new-writing"),
   ).toMatchObject({ title: "Unfinished idea", slug: "unfinished-idea" });
 });
 
@@ -651,4 +691,43 @@ it("retains a custom address when title changes and Enter submits explicitly", a
   expect(fetcher.mock.calls[1]![0]).toBe(
     "/api/editorial/create?kind=writing&id=custom-address",
   );
+});
+
+it("preserves encrypted-export exhaustion and offers the existing Create draft action without inventing plaintext source export", async () => {
+  await render();
+  const { EncryptedBrowserRecovery } =
+    await import("../../lib/encrypted-browser-recovery");
+  const { RecoveryEncryptionError } =
+    await import("../../lib/browser-recovery-encryption");
+  const encrypted = vi
+    .spyOn(EncryptedBrowserRecovery.prototype, "export")
+    .mockRejectedValue(new RecoveryEncryptionError("key-usage-limit"));
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("synthetic storage quota");
+  });
+  await type("Synthetic exhausted title");
+  const button = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    (node) => node.textContent === "Download encrypted recovery copies",
+  )!;
+  expect(button.disabled).toBe(false);
+  await act(async () => button.click());
+  expect(host.textContent).toContain(
+    "This document reached its encryption limit",
+  );
+  expect(host.textContent).toContain(
+    "Choose Create draft to save your title and address to the server before reloading",
+  );
+  expect(host.textContent).not.toContain("Download Markdown source");
+  expect(button.disabled).toBe(true);
+  await act(async () => button.click());
+  expect(encrypted).toHaveBeenCalledTimes(1);
+  const create = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    (node) => node.textContent === "Create draft",
+  )!;
+  expect(create.disabled).toBe(false);
+  const { lockProtectedSession } =
+    await import("../../lib/protected-admin-json");
+  await act(async () => lockProtectedSession("expired"));
+  expect(titleField()).toBeNull();
+  expect(host.textContent).not.toContain("Download encrypted recovery copies");
 });

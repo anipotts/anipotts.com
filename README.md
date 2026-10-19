@@ -13,8 +13,9 @@ pnpm dev:admin
 pnpm dev:status
 ```
 
-Public preview: http://anipotts.localhost:1355/. Admin preview: http://admin.anipotts.localhost:1355/.
-The managed admin review preview on http://localhost:4311/ is separate; preserve it while review is active.
+Use `pnpm dev:status` for this checkout’s URLs. The canonical review checkout and
+public URL are recorded in [the integration lane](docs/local-integration-preview.md).
+Preserve its managed admin review preview on http://localhost:4311/ while review is active.
 See [local development](docs/local-development.md).
 
 ## Content
@@ -29,9 +30,12 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review the next consolidated dependency/admin usability batch with passing local checks: native scrolling, continuous loading, writing source/demo controls, hydration and mobile menu repairs. Hosted checks and exact review remain release gates.
-- [ ] Finish isolated media and coherent recovery qualification; retain the current upload limits and production storage until the required evidence and activation approvals exist.
+- [ ] Refresh combined/browser/hosted checks for [#539](https://github.com/anipotts/anipotts.com/pull/539) after the quota/archive repair. Earlier full CI, zero-finding CodeQL and 42 browser cases pass; the `b29fb42e` approval request is withdrawn. Admin-only release needs new exact review; no migration.
+- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
+- [ ] Integrate and review separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542): unused Drizzle CLI removal passes full validation and removes the moderate advisory; one low upstream KaTeX advisory remains. It selects no runtime targets and is excluded from this candidate.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
 
 #529/#530/#531 are merged and deployed. #532 is merged; its successful release
 selected no runtime targets because it changes browser tooling and documentation.

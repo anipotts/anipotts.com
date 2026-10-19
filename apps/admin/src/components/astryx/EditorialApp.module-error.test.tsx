@@ -1,3 +1,9 @@
+import {
+  unlockRecoveryFixture,
+  settleRecoveryFixture,
+  readRecoveryFixture,
+  openRecoveryExportFixture,
+} from "../../../test/recovery-key-fixture";
 // @vitest-environment jsdom
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -54,6 +60,7 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  await unlockRecoveryFixture();
 });
 
 afterEach(async () => {
@@ -69,6 +76,7 @@ async function failModule() {
   await act(async () =>
     root.render(
       <EditorialApp
+        recoveryScope="synthetic-component-fixture"
         title="Writing"
         area="content"
         localPreview

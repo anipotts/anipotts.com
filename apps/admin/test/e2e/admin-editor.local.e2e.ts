@@ -1,3 +1,4 @@
+import { unlockSyntheticBrowserRecovery } from "../support/browser-recovery-key";
 import { test } from "@e2e-dev/web";
 import { expect } from "e2e";
 import { editorialFixtures } from "../support/editorial-fixtures";
@@ -17,6 +18,7 @@ test("an interrupted project edit is recovered for review", async ({
     });
   });
   await app.open("/content/projects/chainedchat");
+  await unlockSyntheticBrowserRecovery(browser);
 
   const title = screen.getByRole("textbox", "Title");
   await expect(title).toBeVisible({ timeout: 20_000 });
@@ -30,7 +32,7 @@ test("an interrupted project edit is recovered for review", async ({
     .poll(() =>
       browser.evaluate(() =>
         Object.keys(localStorage).some((key) =>
-          key.startsWith("editorial-recovery:v2:"),
+          key.startsWith("editorial-recovery:v3:"),
         ),
       ),
     )
@@ -40,6 +42,7 @@ test("an interrupted project edit is recovered for review", async ({
   const offDialog = await browser.onDialog("accept");
   await browser.reload();
   await offDialog();
+  await unlockSyntheticBrowserRecovery(browser);
 
   await expect(
     screen.getByText("Recovered edits are ready to review"),
