@@ -1,5 +1,28 @@
 # Website source preparation
 
+## October 19 inactive media foundation main refresh
+
+The media foundation branch normally merged approved main
+`cf7b757be2c0bfc72d9886a27599e615b7ec3b66` into prior head
+`de4f9fcfc42337bf51ba3fcb44f95f195e034cf3`, preserving both histories at merge
+`f178670b751b9bc56de74852abb075c5b71fb36d`. Media adapter, stream/plan,
+atomic commit, admission helper and their focused fixture/test source are
+unchanged by this refresh. Earlier exact-head qualification remains historical;
+the integration owner must qualify the refreshed candidate before review.
+
+Approved #539 merged as `cf7b757b`. Its [successful admin-only deployment
+39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+records provider version `ab08369b` and eight protected-route 302 responses at the
+Cloudflare Access boundary. No migration or media-processing activation was
+selected. Earlier withdrawn approval requests below remain historical receipts.
+
+Inactive draft #540 has no merge approval from this refresh. Upload admission
+remains 10 MiB/16 MP, retained images and the whole-publication media budget remain
+10 MiB, and the browser crop policy is unchanged. Images binding/provider setup,
+real-provider qualification, persisted provenance activation, recovery namespace
+support and custody remain held. No tests, install, build, browser or preview
+were run during this normal-main merge, and no push was performed.
+
 ## October 19 latest archive and lock-mapping repair
 
 Source `3e22ecb13ad0f9d659d740f5884e6b0792276437` preserves the archive created by the
