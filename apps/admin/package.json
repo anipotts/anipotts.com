@@ -68,7 +68,7 @@
     "@astrojs/check": "^0.9.10",
     "@astrojs/markdown-remark": "7.3.3",
     "@astryxdesign/cli": "0.7.1",
-    "@cloudflare/vitest-plugin": "1.4.3",
+    "@cloudflare/vitest-plugin": "1.4.4",
     "@cloudflare/workers-types": "5.20261016.1",
     "@iconify-json/logos": "^1.2.16",
     "@iconify-json/simple-icons": "^1.2.100",
