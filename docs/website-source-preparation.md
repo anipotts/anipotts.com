@@ -27,8 +27,50 @@ and line endings remain intact. This completes the normal editor path for the
 already-deployed public article source link. Admin native scroll indicators and
 one continuous cold-record loading announcement are implemented. A rejected
 editor module now leaves navigation available and offers a deliberate guarded
-page reload, without automatic retry or write replay. Synthetic media browser
-acceptance and the final integrated checks are still in progress.
+page reload, without automatic retry or write replay. New-record inputs wait for
+hydration/recovery initialization; typing before hydration can no longer leave
+the visible title disconnected from Create. SDK menus remain inside their native
+modal owner, fixing untappable phone Properties controls. A distinct CSRF cookie
+is restricted to compiled HTTP-loopback owner builds; production retains the
+Secure `__Host` cookie, fixed origin and token checks.
+
+Local source qualification at `18329ff14eaa174e56ef5ac5acd9c0571146e979`:
+
+- `pnpm validate` passed: all invariants, formatting, six builds, four lint tasks,
+  fourteen typechecks and fourteen test tasks. Admin passed 2,361 core, 79 Astro,
+  98 editorial and three CSP cases with one intentional CSP skip; www passed 196
+  tests and shared content passed 206.
+- The complete local admin browser command passed 22 cases across desktop
+  Chromium and phone WebKit: metadata/source/review, loading failure/retry/lock,
+  native scroll/keyboard movement, real stored crop output/original retention,
+  upload cancellation, CSRF and existing editor/read-only journeys. Synthetic
+  records only; no production content writes or publication.
+- Public workerd/D1 publication and unpublication proof and all 84 CMS routes
+  passed. Public browser journeys passed 13 cases with one intentional desktop
+  skip on this dependency graph; subsequent app edits were Admin-only.
+- The deployable Admin scan found no local-owner marker or flag in 344 files.
+  This includes the HTTP-only cookie name. The lock audit has zero high/critical,
+  one moderate and one low advisory.
+
+The checked classifier selects all six runtime targets because shared dependency
+changes affect the app/worker graph. D1 is unchanged, schema is `0044`, migration
+risk is none and no remote migration is selected. Required hosted checks and
+Ani's exact merge/deployment review still gate release.
+
+The coherent recovery prototype is preserved separately at
+`codex/editorial-recovery-capture`, checkpoint
+`36178c98559b43f595803cfea8b4119529543baf`: 18 formatter/crypto tests and 21 real
+local DO/D1/R2 cases pass at source `2793c460`. Operational capture is disabled;
+writer-cohort enrollment, full upload coverage, key custody, external copy and
+operational restore remain unfinished. The 4 MiB collected / 8 MiB envelope
+bounds do not cover every valid 10 MiB upload. It is excluded from this release.
+
+Ani accepted local key-file custody and manual unlock for browser recovery.
+Its separate `codex/browser-recovery-encryption` foundation has 19 native Web
+Crypto tests; storage/UI migration and browser qualification remain separate.
+Current production browser recovery remains plaintext. The
+[private Images proposal](editorial-media-processing.md) preserves upload and
+publication limits and does not configure a provider or activate decoding.
 
 Per-article social imagery is superseded by the approved canonical brand card,
 enforced by current Shell and painter tests. The unused writing-seed lookup and
