@@ -1,9 +1,4 @@
 import { createHash } from "node:crypto";
-import type {
-  ImagesBinding,
-  ImageInfoResponse,
-  ImageTransform,
-} from "@cloudflare/workers-types/index.ts";
 import {
   MAX_MEDIA_BYTES,
   MAX_MEDIA_DIMENSION,

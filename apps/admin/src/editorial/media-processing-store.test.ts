@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   commitPreparedCrop,
   mediaProcessingProvenanceKey,
@@ -303,6 +303,75 @@ describe("unconnected atomic private-media persistence", () => {
         mediaProcessingProvenanceKey(expected.candidate.provenance),
       ),
     ).toEqual(expected.candidate.provenance);
+  });
+  it("copies actual typed-array bytes without calling forged length fields or custom iterators", async () => {
+    const memory = new MemoryTransactions(),
+      input = request();
+    const expected = clone(input);
+    let iterators = 0,
+      lengths = 0;
+    for (const bytes of [input.originalBytes, input.candidate.bytes]) {
+      Object.defineProperty(bytes, "length", {
+        get() {
+          lengths++;
+          return MAX_MEDIA_BYTES + 1;
+        },
+      });
+      Object.defineProperty(bytes, "byteLength", {
+        get() {
+          lengths++;
+          return 0;
+        },
+      });
+      Object.defineProperty(bytes, Symbol.iterator, {
+        value() {
+          iterators++;
+          throw new Error("must_not_iterate");
+        },
+      });
+    }
+    const receipt = await commitPreparedCrop(memory, input);
+    expect(iterators).toBe(0);
+    expect(lengths).toBe(0);
+    assertImage(memory.values, receipt.parentId, expected.originalBytes);
+    assertImage(memory.values, receipt.derivativeId, expected.candidate.bytes);
+  });
+  it("rejects the intrinsic oversize before copying despite forged short lengths and an iterator", async () => {
+    for (const field of ["original", "output"] as const) {
+      const memory = new MemoryTransactions(),
+        input = request();
+      const NativeBytes = Uint8Array;
+      const oversized = new NativeBytes(MAX_MEDIA_BYTES + 1);
+      let iterators = 0,
+        copies = 0;
+      Object.defineProperty(oversized, "length", { value: 1 });
+      Object.defineProperty(oversized, "byteLength", { value: 1 });
+      Object.defineProperty(oversized, Symbol.iterator, {
+        value() {
+          iterators++;
+          return [0][Symbol.iterator]();
+        },
+      });
+      if (field === "original") input.originalBytes = oversized;
+      else input.candidate.bytes = oversized;
+      const observed = new Proxy(NativeBytes, {
+        construct(target, args, newTarget) {
+          if (args[0] === oversized) copies++;
+          return Reflect.construct(target, args, newTarget);
+        },
+      });
+      vi.stubGlobal("Uint8Array", observed);
+      try {
+        await expect(commitPreparedCrop(memory, input)).rejects.toMatchObject({
+          code: "invalid_candidate",
+        });
+        expect(iterators).toBe(0);
+        expect(copies).toBe(0);
+        expect(memory.transactions).toBe(0);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
   });
   it("rejects signature-only originals, changed metadata, mismatched geometry and unknown input fields before any transaction", async () => {
     const valid = request();

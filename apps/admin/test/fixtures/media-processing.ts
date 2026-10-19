@@ -1,10 +1,4 @@
 import { crc32, deflateSync } from "node:zlib";
-import type {
-  ImageInfoResponse,
-  ImageOutputOptions,
-  ImageTransform,
-  ImageTransformer,
-} from "@cloudflare/workers-types/index.ts";
 import type { PrivateImages } from "../../src/editorial/media-images-adapter";
 
 /** Synthetic encoded fixtures. No Images decoder is emulated or qualified. */

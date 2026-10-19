@@ -129,6 +129,36 @@ export function parseMediaCommitReceipt(value: unknown): MediaCommitReceipt {
   };
 }
 
+// Capture the native brand-checking getter once. Own length/byteLength fields
+// and custom iterators on caller-owned typed arrays are not admission evidence.
+const typedArrayByteLength: (this: Uint8Array) => unknown =
+  Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(Uint8Array.prototype),
+    "byteLength",
+  )?.get ??
+  function () {
+    throw new Error("typed_array_byte_length_unavailable");
+  };
+function boundedByteSnapshot(value: unknown): Uint8Array {
+  if (!(value instanceof Uint8Array)) return fail("invalid_candidate");
+  let size: unknown;
+  try {
+    size = typedArrayByteLength.call(value);
+  } catch {
+    return fail("invalid_candidate");
+  }
+  if (
+    typeof size !== "number" ||
+    !Number.isSafeInteger(size) ||
+    size < 1 ||
+    size > MAX_MEDIA_BYTES
+  )
+    return fail("invalid_candidate");
+  // Native TypedArray-to-TypedArray construction copies internal indexed bytes;
+  // unlike Uint8Array.from(), this does not consume a caller's iterator/length.
+  return new Uint8Array(value);
+}
+
 function snapshotCandidate(input: {
   requestId: string;
   originalBytes: Uint8Array;
@@ -139,22 +169,12 @@ function snapshotCandidate(input: {
   const requestKey = mediaProcessingRequestKey(input.requestId);
   const originalInput = input.originalBytes;
   const candidate = input.candidate;
-  if (
-    !(originalInput instanceof Uint8Array) ||
-    originalInput.length > MAX_MEDIA_BYTES ||
-    !shape(candidate, ["bytes", "media", "decode", "provenance"])
-  )
+  if (!shape(candidate, ["bytes", "media", "decode", "provenance"]))
     return fail("invalid_candidate");
   // Copy all caller-owned bytes and parse into fresh canonical records before the
   // first storage await. Neither an existing receipt nor a provider label bypasses admission.
-  const originalBytes = Uint8Array.from(originalInput);
-  const outputInput = candidate.bytes;
-  if (
-    !(outputInput instanceof Uint8Array) ||
-    outputInput.length > MAX_MEDIA_BYTES
-  )
-    return fail("invalid_candidate");
-  const outputBytes = Uint8Array.from(outputInput);
+  const originalBytes = boundedByteSnapshot(originalInput);
+  const outputBytes = boundedByteSnapshot(candidate.bytes);
   const original = inspectEditorialMediaAdmission(originalBytes);
   const output = inspectEditorialMediaAdmission(outputBytes);
   if (!original.ok || !output.ok || output.media.type !== "image/png")
