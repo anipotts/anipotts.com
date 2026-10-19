@@ -19,6 +19,7 @@ const maxArchives = 3;
 export type RecoveryProblem =
   | "key-required"
   | "key-lost"
+  | "key-usage-limit"
   | "authentication-failed"
   | "corrupt"
   | "unsupported"

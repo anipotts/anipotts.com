@@ -97,6 +97,7 @@ import {
   type RecoveryRead,
 } from "../../lib/browser-recovery";
 import type { RecoverySnapshot } from "../../lib/home-autosave";
+import { RecoveryEncryptionError } from "../../lib/browser-recovery-encryption";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
@@ -1292,8 +1293,13 @@ function HomeEditorImpl({
       const contents = await channel.export(controller.recovery());
       if (protectedSessionIsLocked() || sessionLocked.current) return;
       downloadBrowserRecovery(contents, `${record.id}-draft.encrypted.json`);
-    } catch {
-      setRecoveryProblem("unavailable");
+    } catch (cause) {
+      setRecoveryProblem(
+        cause instanceof RecoveryEncryptionError &&
+          cause.problem === "key-usage-limit"
+          ? "key-usage-limit"
+          : "unavailable",
+      );
     }
   };
   const downloadSource = (source?: string, name = `${record.id}-draft.md`) => {
@@ -2159,6 +2165,7 @@ function HomeEditorImpl({
           {recoveryProblem && (
             <BrowserRecoveryNotice
               problem={recoveryProblem}
+              hasPlaintextSourceDownload
               onDownload={
                 editor.current
                   ? async () => {
@@ -2183,8 +2190,13 @@ function HomeEditorImpl({
                         if (protectedSessionIsLocked() || sessionLocked.current)
                           return;
                         downloadBrowserRecovery(contents);
-                      } catch {
-                        setRecoveryProblem("unavailable");
+                      } catch (cause) {
+                        setRecoveryProblem(
+                          cause instanceof RecoveryEncryptionError &&
+                            cause.problem === "key-usage-limit"
+                            ? "key-usage-limit"
+                            : "unavailable",
+                        );
                       }
                     }
                   : undefined
@@ -2259,6 +2271,7 @@ function HomeEditorImpl({
                     <Button
                       label="Download encrypted draft"
                       size="sm"
+                      isDisabled={recoveryProblem === "key-usage-limit"}
                       onClick={() => downloadRecovery()}
                     />
                   </HStack>
@@ -2273,7 +2286,11 @@ function HomeEditorImpl({
               title={refusal.title}
               description={refusal.description}
               actionLabel="Download encrypted draft"
-              onRetry={() => downloadRecovery()}
+              onRetry={
+                recoveryProblem === "key-usage-limit"
+                  ? undefined
+                  : () => downloadRecovery()
+              }
             />
           ) : state.saveFailed ? (
             <RecoveryBanner
@@ -2291,7 +2308,11 @@ function HomeEditorImpl({
             <RecoveryBanner
               title={error}
               actionLabel="Download encrypted draft"
-              onRetry={() => downloadRecovery()}
+              onRetry={
+                recoveryProblem === "key-usage-limit"
+                  ? undefined
+                  : () => downloadRecovery()
+              }
             />
           ) : null}
           {error && tab !== "publish" && (

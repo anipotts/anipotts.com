@@ -1071,3 +1071,56 @@ it("dirty body and title unmount callbacks cannot throw or repopulate on explici
   await pause();
   expect(saves()).toHaveLength(0);
 });
+
+it("preserves exhaustion from an encrypted safety export and keeps only the explicit plaintext source option usable", async () => {
+  await mount();
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
+  const { EncryptedBrowserRecovery } =
+    await import("../../lib/encrypted-browser-recovery");
+  const { RecoveryEncryptionError } =
+    await import("../../lib/browser-recovery-encryption");
+  const encrypted = vi
+    .spyOn(EncryptedBrowserRecovery.prototype, "export")
+    .mockRejectedValue(new RecoveryEncryptionError("key-usage-limit"));
+  await click("Download encrypted draft");
+  expect(host.textContent).toContain(
+    "This document reached its encryption limit",
+  );
+  expect(host.textContent).not.toContain("Choose Create draft");
+  expect(button("Download encrypted recovery copies").disabled).toBe(true);
+  expect(button("Download encrypted draft").disabled).toBe(true);
+  await click("Download encrypted recovery copies");
+  expect(encrypted).toHaveBeenCalledTimes(1);
+  class DownloadURL extends URL {
+    static createObjectURL = vi.fn(
+      (_blob: Blob) => "blob:synthetic-plaintext-source",
+    );
+    static revokeObjectURL = vi.fn();
+  }
+  vi.stubGlobal("URL", DownloadURL);
+  const download = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => {});
+  await act(async () => {
+    (
+      host.querySelector(
+        'button[aria-label="More actions"]',
+      ) as HTMLButtonElement
+    ).click();
+  });
+  const sourceAction = [
+    ...document.querySelectorAll<HTMLElement>(
+      '[role="menu"][aria-label="More actions"] [role="menuitem"]',
+    ),
+  ].find((item) => item.textContent === "Download Markdown source (plaintext)");
+  expect(sourceAction).toBeTruthy();
+  expect(sourceAction!.getAttribute("aria-disabled")).not.toBe("true");
+  await act(async () => sourceAction!.click());
+  expect(DownloadURL.createObjectURL).toHaveBeenCalledTimes(1);
+  expect(DownloadURL.createObjectURL.mock.calls[0]![0].type).toBe(
+    "text/markdown;charset=utf-8",
+  );
+  expect(download).toHaveBeenCalledTimes(1);
+});

@@ -10,6 +10,8 @@ const descriptions: Record<RecoveryProblem, string> = {
     "Unlock browser recovery with your saved key file. Existing copies have been kept.",
   "key-lost":
     "Existing encrypted copies still need their original key. They have been preserved.",
+  "key-usage-limit":
+    "This document reached its encryption limit. Keep this page open until your edits are saved or copied. Then reload and re-import your saved recovery key. Encrypted recovery downloads are unavailable in this document.",
   "authentication-failed":
     "This copy could not be decrypted with this key. Its original bytes have been kept.",
   "signed-out":
@@ -41,10 +43,12 @@ export function downloadBrowserRecovery(
 export function BrowserRecoveryNotice({
   problem,
   onDownload,
+  hasPlaintextSourceDownload = false,
   candidates = [],
 }: {
   problem: RecoveryProblem;
   onDownload?: () => void | Promise<void>;
+  hasPlaintextSourceDownload?: boolean;
   candidates?: {
     label: string;
     source: string;
@@ -52,19 +56,28 @@ export function BrowserRecoveryNotice({
   }[];
 }) {
   const [downloading, setDownloading] = useState(false);
+  const exhausted = problem === "key-usage-limit";
+  const description = exhausted
+    ? `${descriptions[problem]} ${
+        hasPlaintextSourceDownload
+          ? "Save your draft to the server, or choose Download Markdown source (plaintext) to keep a source file before reloading."
+          : "Choose Create draft to save your title and address to the server before reloading."
+      }`
+    : descriptions[problem];
   return (
     <VStack gap={3}>
       <Banner
         status="warning"
         title="Browser recovery needs attention"
-        description={descriptions[problem]}
+        description={description}
         endContent={
           onDownload && (
             <Button
               label="Download encrypted recovery copies"
               size="sm"
-              isDisabled={downloading}
+              isDisabled={downloading || exhausted}
               clickAction={() => {
+                if (exhausted) return;
                 setDownloading(true);
                 void Promise.resolve()
                   .then(onDownload)
@@ -85,6 +98,7 @@ export function BrowserRecoveryNotice({
           <Button
             label={`Recover ${candidate.label.toLowerCase()}`}
             variant="secondary"
+            isDisabled={exhausted}
             clickAction={candidate.onChoose}
           />
         </VStack>

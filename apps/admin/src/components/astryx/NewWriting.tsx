@@ -37,6 +37,7 @@ import {
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
 import { readEditorialCsrf } from "../../lib/editorial-client";
+import { RecoveryEncryptionError } from "../../lib/browser-recovery-encryption";
 
 class DraftCreationError extends Error {}
 /** The address is taken: the field names it and links to the record. */
@@ -492,8 +493,13 @@ function NewWritingForm({
                 });
                 if (protectedSessionIsLocked() || !active.current) return;
                 downloadBrowserRecovery(contents);
-              } catch {
-                setRecoveryProblem("unavailable");
+              } catch (cause) {
+                setRecoveryProblem(
+                  cause instanceof RecoveryEncryptionError &&
+                    cause.problem === "key-usage-limit"
+                    ? "key-usage-limit"
+                    : "unavailable",
+                );
               }
             }}
             candidates={

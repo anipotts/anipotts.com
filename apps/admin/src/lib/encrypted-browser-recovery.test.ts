@@ -7,7 +7,10 @@ import {
   type RecoveryLock,
 } from "./browser-recovery";
 import { RecoverySession } from "./browser-recovery-session";
-import { createBrowserRecoveryKeyFile } from "./browser-recovery-encryption";
+import {
+  createBrowserRecoveryKeyFile,
+  RecoveryEncryptionError,
+} from "./browser-recovery-encryption";
 import {
   encryptRecoveryBundle,
   decryptRecoveryBundle,
@@ -512,4 +515,31 @@ it("expiry discards pending normal input and barriers and seals only the closing
   );
   expect(await recovered.read()).toEqual({ status: "ready", value: payload });
   next.lock();
+});
+
+it("maps usage exhaustion distinctly, preserves ciphertext and refuses encrypted exports without bypassing admission", async () => {
+  const { channel, session } = await fixture();
+  // Inject only the native exhaustion outcome; keep the prior stored bundle and
+  // subsequent decryption real, without 65536 expensive native encryptions.
+  const writer = channel();
+  await writer.read();
+  expect(await writer.write(payload)).toBeNull();
+  const before = localStorage.getItem(writer.key);
+  const encrypt = vi
+    .spyOn(session.vault, "encrypt")
+    .mockRejectedValue(new RecoveryEncryptionError("key-usage-limit"));
+  expect(
+    await writer.write({ ...payload, source: "still in this document" }),
+  ).toBe("key-usage-limit");
+  expect(localStorage.getItem(writer.key)).toBe(before);
+  await expect(writer.export(payload)).rejects.toMatchObject({
+    problem: "key-usage-limit",
+  });
+  encrypt.mockRestore();
+  expect(await channel().read()).toEqual({ status: "ready", value: payload });
+  session.lock();
+  expect(await writer.write(payload)).toBe("signed-out");
+  await expect(writer.export(payload)).rejects.toMatchObject({
+    problem: "stale",
+  });
 });

@@ -52,7 +52,11 @@ type Observation = {
 };
 function issue(error: unknown): RecoveryProblem {
   if (error instanceof RecoveryEncryptionError) {
-    if (["unsupported", "corrupt", "oversized"].includes(error.problem))
+    if (
+      ["unsupported", "corrupt", "oversized", "key-usage-limit"].includes(
+        error.problem,
+      )
+    )
       return error.problem as RecoveryProblem;
     if (
       error.problem === "authentication-failed" ||

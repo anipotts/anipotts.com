@@ -692,3 +692,42 @@ it("retains a custom address when title changes and Enter submits explicitly", a
     "/api/editorial/create?kind=writing&id=custom-address",
   );
 });
+
+it("preserves encrypted-export exhaustion and offers the existing Create draft action without inventing plaintext source export", async () => {
+  await render();
+  const { EncryptedBrowserRecovery } =
+    await import("../../lib/encrypted-browser-recovery");
+  const { RecoveryEncryptionError } =
+    await import("../../lib/browser-recovery-encryption");
+  const encrypted = vi
+    .spyOn(EncryptedBrowserRecovery.prototype, "export")
+    .mockRejectedValue(new RecoveryEncryptionError("key-usage-limit"));
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("synthetic storage quota");
+  });
+  await type("Synthetic exhausted title");
+  const button = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    (node) => node.textContent === "Download encrypted recovery copies",
+  )!;
+  expect(button.disabled).toBe(false);
+  await act(async () => button.click());
+  expect(host.textContent).toContain(
+    "This document reached its encryption limit",
+  );
+  expect(host.textContent).toContain(
+    "Choose Create draft to save your title and address to the server before reloading",
+  );
+  expect(host.textContent).not.toContain("Download Markdown source");
+  expect(button.disabled).toBe(true);
+  await act(async () => button.click());
+  expect(encrypted).toHaveBeenCalledTimes(1);
+  const create = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    (node) => node.textContent === "Create draft",
+  )!;
+  expect(create.disabled).toBe(false);
+  const { lockProtectedSession } =
+    await import("../../lib/protected-admin-json");
+  await act(async () => lockProtectedSession("expired"));
+  expect(titleField()).toBeNull();
+  expect(host.textContent).not.toContain("Download encrypted recovery copies");
+});
