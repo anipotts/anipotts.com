@@ -125,6 +125,132 @@ it("refuses stale CAS writes, preserves both candidates and archives the exact d
   expect(localStorage.getItem(archive!)).toBe(original);
   session.lock();
 });
+it("reclaims a failed choice archive under quota and retries without losing the exact source or other archives", async () => {
+  const { channel, session } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.writeDurable(payload);
+  const original = localStorage.getItem(current.key)!;
+  const priorArchive = `${current.key}:archive:${crypto.randomUUID()}`;
+  const foreignArchive = `editorial-recovery:v3:${JSON.stringify(["foreign@example.test", "writing", "test", "b".repeat(64)])}:archive:${crypto.randomUUID()}`;
+  localStorage.setItem(priorArchive, "opaque earlier archive");
+  localStorage.setItem(foreignArchive, "opaque foreign archive");
+  const before = { ...localStorage };
+  const storageBytes = () =>
+    Object.values(localStorage).reduce(
+      (total, value) => total + value.length,
+      0,
+    );
+  // The archive fits, but replacing the source with a larger ciphertext does
+  // not. Use real encrypted storage, with only the browser quota simulated.
+  let capacity = storageBytes() + original.length;
+  const nativeSet = Storage.prototype.setItem;
+  const acceptedArchives: string[] = [];
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+    this: Storage,
+    name,
+    raw,
+  ) {
+    const nextBytes =
+      storageBytes() - (this.getItem(name)?.length ?? 0) + raw.length;
+    if (nextBytes > capacity)
+      throw new DOMException("synthetic quota", "QuotaExceededError");
+    nativeSet.call(this, name, raw);
+    if (name.startsWith(`${current.key}:archive:`)) acceptedArchives.push(name);
+  });
+  const chosen = { ...payload, source: "larger chosen copy ".repeat(300) };
+  expect(await current.choose(chosen)).toBe("unavailable");
+  expect(acceptedArchives).toHaveLength(1);
+  expect({ ...localStorage }).toEqual(before);
+  expect(storageBytes()).toBe(capacity - original.length);
+  expect(await channel().read()).toEqual({ status: "ready", value: payload });
+  capacity += 100_000;
+  expect(await current.choose(chosen)).toBeNull();
+  expect(await channel().read()).toEqual({ status: "ready", value: chosen });
+  expect(localStorage.getItem(acceptedArchives[0]!)).toBeNull();
+  expect(localStorage.getItem(acceptedArchives[1]!)).toBe(original);
+  expect(localStorage.getItem(priorArchive)).toBe(before[priorArchive]);
+  expect(localStorage.getItem(foreignArchive)).toBe(before[foreignArchive]);
+  session.lock();
+});
+it("preserves a failed choice archive if its exact bytes changed before rollback", async () => {
+  const { channel, session } = await fixture();
+  const current = channel();
+  await current.read();
+  await current.writeDurable(payload);
+  const original = localStorage.getItem(current.key);
+  const nativeSet = Storage.prototype.setItem;
+  let archive = "";
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+    this: Storage,
+    name,
+    raw,
+  ) {
+    if (name === current.key) {
+      nativeSet.call(this, archive, "external replacement bytes");
+      throw new DOMException("synthetic quota", "QuotaExceededError");
+    }
+    nativeSet.call(this, name, raw);
+    if (name.startsWith(`${current.key}:archive:`)) archive = name;
+  });
+  expect(await current.choose({ ...payload, source: "chosen copy" })).toBe(
+    "unavailable",
+  );
+  expect(localStorage.getItem(current.key)).toBe(original);
+  expect(localStorage.getItem(archive)).toBe("external replacement bytes");
+  expect(await channel().read()).toEqual({ status: "ready", value: payload });
+  session.lock();
+});
+it.each(["read", "remove"] as const)(
+  "keeps the original failure and source when archive rollback %s fails",
+  async (failure) => {
+    const { channel, session } = await fixture();
+    const current = channel();
+    await current.read();
+    await current.writeDurable(payload);
+    const original = localStorage.getItem(current.key);
+    const nativeSet = Storage.prototype.setItem;
+    const nativeGet = Storage.prototype.getItem;
+    const nativeRemove = Storage.prototype.removeItem;
+    let archive = "";
+    let failed = false;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      name,
+      raw,
+    ) {
+      if (name === current.key) {
+        failed = true;
+        throw new DOMException("synthetic quota", "QuotaExceededError");
+      }
+      nativeSet.call(this, name, raw);
+      if (name.startsWith(`${current.key}:archive:`)) archive = name;
+    });
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+      this: Storage,
+      name,
+    ) {
+      if (failed && failure === "read" && name === archive)
+        throw new SyntaxError("synthetic cleanup read refusal");
+      return nativeGet.call(this, name);
+    });
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (
+      this: Storage,
+      name,
+    ) {
+      if (failed && failure === "remove" && name === archive)
+        throw new SyntaxError("synthetic cleanup remove refusal");
+      return nativeRemove.call(this, name);
+    });
+    expect(await current.choose({ ...payload, source: "chosen copy" })).toBe(
+      "unavailable",
+    );
+    expect(nativeGet.call(localStorage, current.key)).toBe(original);
+    expect(nativeGet.call(localStorage, archive)).toBe(original);
+    expect(await channel().read()).toEqual({ status: "ready", value: payload });
+    session.lock();
+  },
+);
 it("keeps corrupt/unsupported and foreign-key bytes untouched and encrypts every opaque copy with current edits in export", async () => {
   const { channel, session } = await fixture();
   const current = channel();

@@ -560,7 +560,23 @@ export class EncryptedBrowserRecovery<T> {
             ? this.#contested(captured, final)
             : "signed-out";
         }
-        this.storage.setItem(this.key, raw);
+        try {
+          this.storage.setItem(this.key, raw);
+        } catch (error) {
+          // Archiving and replacement are separate storage writes. A failed
+          // replacement must not consume quota with a duplicate of the source.
+          // Remove only this attempt's unchanged archive, without masking the
+          // original failure if storage also refuses best-effort cleanup.
+          if (archive) {
+            try {
+              if (this.storage.getItem(archive) === observed.current)
+                this.storage.removeItem(archive);
+            } catch {
+              /* Preserve inaccessible or changed bytes and the original error. */
+            }
+          }
+          throw error;
+        }
         if (!this.#valid(final)) {
           if (this.storage.getItem(this.key) === raw)
             this.storage.removeItem(this.key);
