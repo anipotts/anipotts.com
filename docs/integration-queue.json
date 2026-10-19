@@ -360,12 +360,12 @@
       "id": "browser-recovery-key-file-oct19",
       "title": "Local key-file unlock and encrypted browser recovery",
       "revision": null,
-      "sourceRevision": "c877a1129e5c29b79aa6dc53ffffea46852e8624",
+      "sourceRevision": "d0f31d094d9ad9a8dc89cffda2e6f32bc1180a00",
       "lane": "code",
       "state": "implementing",
       "approvals": {},
-      "note": "PR539 draft on main.6a8572cc bounded/coalesced writes pass127 focused tests;08149d4d adds real-browser held-lock regression; c877a112 cap-specific guidance/disabled exhausted exports passes77 focused tests. Full source and native browser refresh underway; canonical preview and exact Ani review still gate admin-only/no-migration release.",
-      "updatedAt": "2026-10-19T06:32:08.800212+00:00"
+      "note": "PR539 retargeted main. Full pnpm validate and all38native Chromium/WebKit cases pass atd0f31d094, including real held-lock flood, keyfile, expiry, two-tab CAS/logout and history. Static gate9sensitive files, production owner absence344files and builddrift pass. Final documentation records qualification; hosted exact-head checks/canonical review and exact Ani review still gate admin-only/no-migration release. No production changes.",
+      "updatedAt": "2026-10-19T06:39:13.651074+00:00"
     }
   ]
 }

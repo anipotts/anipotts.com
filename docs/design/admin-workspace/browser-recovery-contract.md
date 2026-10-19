@@ -329,3 +329,10 @@ source menu; NewWriting names Create draft. A failed export preserves this
 outcome rather than replacing it with a generic storage warning. The cap,
 nonce-reuse defenses and key lifetime remain unchanged. This guidance does not
 promise a final encrypted export after exhaustion.
+
+Full current-source validation and all38 maintained Chromium/WebKit cases pass
+at `d0f31d094d9ad9a8dc89cffda2e6f32bc1180a00`, including the actual native
+Web Lock flood in both engines. Source review found no further scheduling
+blocker; metadata/nonce-limit consumer tests preserve prior storage and explicit
+source portability. Hosted checks and exact review remain release gates.
+Physical-device custody and authenticated live owner acceptance remain separate.

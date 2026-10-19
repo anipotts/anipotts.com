@@ -49,9 +49,26 @@ capture, ordered barriers, bounded admission and expiry supersession.
 The65,536-nonce lifetime limit remains fail-closed. A maximum-sized repeated
 payload can reach it during a long editing session; actionable save/reload
 messaging and encrypted-export failure handling landed in c877a112 with77 focused tests passing. HomeEditor retains its explicit plaintext Markdown source action; NewWriting names its actual Create draft control.
-This is an availability limit, not a nonce-safety bypass. Earlier full/browser
-receipts below apply to their stated revisions; final source validation, hosted
-main checks, canonical review and exact Ani review still gate #539 release.
+This is an availability limit, not a nonce-safety bypass. Earlier receipts below apply to their stated revisions.
+
+Final current-source qualification at
+`d0f31d094d9ad9a8dc89cffda2e6f32bc1180a00` passes full `pnpm validate`:
+all invariants, formatting, six builds, four lint tasks, fourteen typechecks
+and fourteen test tasks. Admin passes2,408 core,79 Astro,98 actual workerd and
+three CSP cases with one intentional CSP skip; public196 and content206 pass.
+All38 maintained native browser cases pass in desktop Chromium and phone
+WebKit (run01a152df-c30e-78cb-80c9-4891f73f66bf). This includes the real native
+Web Lock flood:24 legal128KiB source/saved/pending payloads produce22 explicit
+supersessions and exactly two committed ciphertexts, with exact decrypted
+first/latest content after caller mutation. Existing key-file, expiry, two-tab,
+logout, pagehide/history, hydration, metadata and media journeys also pass.
+
+Actual changed-file static security review passes9 sensitive files. The
+production bundle scan finds no local-owner marker in344 files; source drift
+checks pass after validation and browsers. The task-owned8873 server has ended.
+The classifier selects admin only: www and all four workers are false, D1 is
+unchanged/schema0044, no migration. Final documentation only records this proof;
+hosted main checks, canonical review and exact Ani review still gate release.
 
 ## October 19 encrypted browser recovery checkpoint
 
