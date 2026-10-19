@@ -127,6 +127,12 @@ export class RecoverySession {
       this.lock();
       return;
     }
+    if (this.#snapshot.status === "locked") {
+      // A key can be imported while its custody challenge is still pending.
+      // Expiry must revoke that attempt even before a capability is admitted.
+      this.lock(this.#snapshot.lost);
+      return;
+    }
     if (this.#snapshot.status !== "unlocked") return;
     const epoch = ++this.#epoch;
     this.#snapshot = { ...this.#snapshot, status: "closing" };

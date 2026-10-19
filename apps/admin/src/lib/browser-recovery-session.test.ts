@@ -117,3 +117,35 @@ it.each(["denied", "throws"] as const)(
     expect(session.vault.state.status).toBe("locked");
   },
 );
+
+it("drops a pending challenge handle immediately when the document expires", async () => {
+  const session = new RecoverySession(() => true);
+  const encrypt = session.vault.encrypt.bind(session.vault);
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.spyOn(session.vault, "encrypt").mockImplementationOnce(async (...args) => {
+    const encrypted = await encrypt(...args);
+    entered();
+    await held;
+    return encrypted;
+  });
+  const attempt = session.unlock(await createBrowserRecoveryKeyFile(), scope);
+  const rejected = expect(attempt).rejects.toMatchObject({
+    problem: "key-required",
+  });
+  await started;
+  expect(session.snapshot().status).toBe("locked");
+  expect(session.vault.state.status).toBe("unlocked");
+  session.end("expired");
+  expect(session.vault.state.status).toBe("locked");
+  expect(session.capability()).toBeNull();
+  release();
+  await rejected;
+  expect(session.snapshot().keyId).toBeNull();
+});
