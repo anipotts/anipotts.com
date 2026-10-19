@@ -71,26 +71,29 @@ export function validDimensions(value: unknown): value is DisplayDimensions {
   );
 }
 
+/** Validate and copy caller intent before any asynchronous provider work. */
+export function snapshotCropIntent(intent: CropIntent): CropIntent {
+  if (!exact(intent, ["ratio", "zoom", "x", "y"]))
+    throw new MediaProcessingError("invalid_crop");
+  const { ratio, zoom, x, y } = intent;
+  if (![ratio, zoom, x, y].every(finite) || ratio <= 0 || zoom < 1)
+    throw new MediaProcessingError("invalid_crop");
+  return {
+    ratio,
+    zoom,
+    x: Math.min(100, Math.max(0, x)),
+    y: Math.min(100, Math.max(0, y)),
+  };
+}
+
 /** The existing browser output policy, with a separately recorded integer trim
  * rectangle. This is not a claim of fractional Canvas sampling equivalence. */
 export function planMediaCrop(
   source: DisplayDimensions,
   intent: CropIntent,
 ): CropPlan {
-  if (
-    !validDimensions(source) ||
-    !exact(intent, ["ratio", "zoom", "x", "y"]) ||
-    !Object.values(intent).every(finite) ||
-    intent.ratio <= 0 ||
-    intent.zoom < 1
-  )
-    throw new MediaProcessingError("invalid_crop");
-  const requested = {
-    ratio: intent.ratio,
-    zoom: intent.zoom,
-    x: Math.min(100, Math.max(0, intent.x)),
-    y: Math.min(100, Math.max(0, intent.y)),
-  };
+  if (!validDimensions(source)) throw new MediaProcessingError("invalid_crop");
+  const requested = snapshotCropIntent(intent);
   const selected = imageCrop(
     source.width,
     source.height,

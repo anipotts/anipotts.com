@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { ProcessingBudget } from "./media-processing-stream";
 import { mediaImagesAdapter, type PrivateImages } from "./media-images-adapter";
 import { MAX_MEDIA_BYTES } from "./media-store";
 import {
@@ -144,6 +145,101 @@ describe("disabled Images foundation with synthetic provider outputs", () => {
     expect((await pending).original.id).toBe(
       `${createHash("sha256").update(original).digest("hex")}.png`,
     );
+  });
+  it("snapshots validated crop intent before held metadata or transcode awaits", async () => {
+    for (const phase of ["info", "transcode"]) {
+      const fixture = syntheticImages({
+        info,
+        outputs: [reply(original), reply(pngFixture(6, 6))],
+      });
+      const baseline = syntheticImages({
+        info,
+        outputs: [reply(original), reply(pngFixture(6, 6))],
+      });
+      const expected = await mediaImagesAdapter(baseline.binding).prepareCrop(
+        original,
+        intent,
+      );
+      let entered!: () => void;
+      const waiting = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const originalInfo = fixture.binding.info;
+      const originalInput = fixture.binding.input;
+      if (phase === "info")
+        fixture.binding.info = async (...args) => {
+          const result = await originalInfo(...args);
+          entered();
+          await held;
+          return result;
+        };
+      else
+        fixture.binding.input = (...args) => {
+          const transformer = originalInput(...args);
+          const output = transformer.output;
+          transformer.output = async (options) => {
+            const result = await output(options);
+            entered();
+            await held;
+            return result;
+          };
+          return transformer;
+        };
+      const mutable = { ...intent };
+      const pending = mediaImagesAdapter(fixture.binding).prepareCrop(
+        original,
+        mutable,
+      );
+      await waiting;
+      mutable.ratio = 2.4;
+      mutable.zoom = 2;
+      mutable.x = 100;
+      release();
+      const result = await pending;
+      expect(result.provenance).toEqual(expected.provenance);
+      expect(result.bytes).toEqual(expected.bytes);
+    }
+    const fixture = syntheticImages({ info, outputs: [] });
+    await expect(
+      mediaImagesAdapter(fixture.binding).prepareCrop(original, {
+        ...intent,
+        ratio: NaN,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_crop" });
+    expect(fixture.calls().infoCalls).toBe(0);
+  });
+  it("checks the deadline after final crop provenance assembly", async () => {
+    const fixture = syntheticImages({
+      info,
+      outputs: [reply(original), reply(pngFixture(6, 6))],
+    });
+    const clock = vi.spyOn(performance, "now");
+    let time = 0,
+      checkpoints = 0;
+    clock.mockImplementation(() => time);
+    const originalCheckpoint = ProcessingBudget.prototype.checkpoint;
+    const checkpoint = vi
+      .spyOn(ProcessingBudget.prototype, "checkpoint")
+      .mockImplementation(async function (this: ProcessingBudget) {
+        checkpoints++;
+        if (checkpoints === 3) time = 1001; // Final assembly, after both PNG streams completed.
+        return originalCheckpoint.call(this);
+      });
+    try {
+      await expect(
+        mediaImagesAdapter(fixture.binding).prepareCrop(original, intent, {
+          timeoutMs: 1000,
+        }),
+      ).rejects.toMatchObject({ code: "processing_timeout" });
+      expect(checkpoints).toBe(3);
+    } finally {
+      checkpoint.mockRestore();
+      clock.mockRestore();
+    }
   });
   it("requires admitted metadata and unchanged-or-rotated display dimensions, not info() success alone", async () => {
     for (const bad of [

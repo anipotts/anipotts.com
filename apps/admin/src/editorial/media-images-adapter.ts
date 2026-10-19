@@ -18,6 +18,7 @@ import {
 import {
   mediaCropProvenance,
   planMediaCrop,
+  snapshotCropIntent,
   validDimensions,
   type CropIntent,
   type DecodeEvidence,
@@ -187,7 +188,11 @@ export function mediaImagesAdapter(images?: PrivateImages) {
       // A bounded snapshot prevents caller mutation while asynchronous work runs.
       const original = Uint8Array.from(bytes),
         type = inputType(original);
-      return await operation(original, type, budget, images);
+      budget.check();
+      const result = await operation(original, type, budget, images);
+      // Include all final hashes, encoded copies and provenance assembly.
+      await budget.checkpoint();
+      return result;
     } catch (error) {
       if (error instanceof MediaProcessingError) throw error;
       throw new MediaProcessingError("provider_failure");
@@ -249,10 +254,12 @@ export function mediaImagesAdapter(images?: PrivateImages) {
       intent: CropIntent,
       options: ProcessingOptions = {},
     ) {
+      // Executed synchronously within run, before its first provider await.
       return run(bytes, options, async (original, type, budget, binding) => {
+        const requested = snapshotCropIntent(intent);
         const decode = await inspect(original, type, budget, binding);
         budget.check();
-        const plan = planMediaCrop(decode.display, intent);
+        const plan = planMediaCrop(decode.display, requested);
         const trim: ImageTransform = {
           trim: {
             left: plan.effective.x,

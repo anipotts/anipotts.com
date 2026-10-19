@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { deflateSync } from "node:zlib";
 import {
   consumePng,
   PngInspector,
@@ -223,6 +224,101 @@ describe("bounded PNG container stream, not a pixel decoder", () => {
       budget.finish();
     }
     expect(cancelled).toBe(1);
+  });
+  it("rejects a valid all-ready PNG after its absolute deadline without waiting for the watchdog timer", async () => {
+    const bytes = pngFixture();
+    const stream = bytesStream([bytes]);
+    const budget = new ProcessingBudget(2);
+    let timerRan = false;
+    const timer = setTimeout(() => {
+      timerRan = true;
+    }, 0);
+    // Keep this same event turn busy: a signal-only budget would still succeed.
+    const until = performance.now() + 5;
+    while (performance.now() < until) {
+      /* Deliberately starve timers. */
+    }
+    expect(timerRan).toBe(false);
+    try {
+      await expect(consumePng(stream, policy, budget)).rejects.toMatchObject({
+        code: "processing_timeout",
+      });
+      expect(timerRan).toBe(false);
+    } finally {
+      clearTimeout(timer);
+      budget.finish();
+    }
+  });
+  it("checks expiry after ready-stream CRC work before returning a successful observation", async () => {
+    const bytes = pngFixture();
+    const clock = vi.spyOn(performance, "now");
+    let time = 0;
+    clock.mockImplementation(() => time);
+    const budget = new ProcessingBudget(1000);
+    const originalFeed = PngInspector.prototype.feed;
+    const feed = vi
+      .spyOn(PngInspector.prototype, "feed")
+      .mockImplementation(function (this: PngInspector, part) {
+        originalFeed.call(this, part);
+        time = 1001; // Deterministic CPU-boundary fault injection, no timer event.
+      });
+    try {
+      await expect(
+        consumePng(bytesStream([bytes]), policy, budget),
+      ).rejects.toMatchObject({ code: "processing_timeout" });
+    } finally {
+      budget.finish();
+      feed.mockRestore();
+      clock.mockRestore();
+    }
+  });
+  it("retains bounded 64 KiB blocks for a multi-MiB valid PNG with 32k one-byte provider fragments", async () => {
+    const NativeBytes = Uint8Array;
+    const raw = new NativeBytes((512 * 4 + 1) * 1024);
+    const bytes = pngFixture(512, 1024, {
+      data: deflateSync(raw, { level: 0 }),
+    });
+    expect(bytes.length).toBeGreaterThan(2 * 1024 * 1024);
+    const allocations: number[] = [];
+    const observed = new Proxy(NativeBytes, {
+      construct(target, args, newTarget) {
+        if (typeof args[0] === "number") allocations.push(args[0]);
+        return Reflect.construct(target, args, newTarget);
+      },
+    });
+    let offset = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (offset === bytes.length) {
+            controller.close();
+            return;
+          }
+          const size = offset < 32 * 1024 ? 1 : 64 * 1024;
+          const end = Math.min(bytes.length, offset + size);
+          controller.enqueue(bytes.subarray(offset, end));
+          offset = end;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const budget = new ProcessingBudget();
+    vi.stubGlobal("Uint8Array", observed);
+    try {
+      const result = await consumePng(stream, policy, budget, true);
+      expect(result.bytes).toEqual(bytes);
+      // Includes small parser scratch and one final exact-length encoded buffer.
+      expect(allocations.length).toBeLessThanOrEqual(
+        Math.ceil(bytes.length / (64 * 1024)) + 3,
+      );
+      expect(allocations.filter((size) => size > 64 * 1024)).toEqual([
+        bytes.length,
+      ]);
+      expect(allocations.filter((size) => size === 1)).toHaveLength(0);
+    } finally {
+      budget.finish();
+      vi.unstubAllGlobals();
+    }
   });
   it("times out stalled output and observes late rejection without returning a receipt", async () => {
     const budget = new ProcessingBudget(5);

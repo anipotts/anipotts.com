@@ -27,6 +27,7 @@ export class MediaProcessingError extends Error {
 export class ProcessingBudget {
   private controller = new AbortController();
   private timer: ReturnType<typeof setTimeout>;
+  private readonly deadline: number;
   private parent?: AbortSignal;
   private abortParent = () => this.controller.abort("processing_cancelled");
   readonly signal = this.controller.signal;
@@ -34,6 +35,7 @@ export class ProcessingBudget {
   constructor(timeoutMs = 15_000, signal?: AbortSignal) {
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000)
       throw new MediaProcessingError("processing_timeout");
+    this.deadline = performance.now() + timeoutMs;
     this.parent = signal;
     signal?.addEventListener("abort", this.abortParent, { once: true });
     if (signal?.aborted) this.abortParent();
@@ -44,6 +46,8 @@ export class ProcessingBudget {
   }
 
   check() {
+    if (!this.signal.aborted && performance.now() >= this.deadline)
+      this.controller.abort("processing_timeout");
     if (this.signal.aborted)
       throw new MediaProcessingError(
         this.signal.reason === "processing_timeout"
@@ -69,6 +73,16 @@ export class ProcessingBudget {
       if (this.signal.aborted) abort();
       promise.then(
         (value) => {
+          // An already-ready promise can win before the watchdog gets a turn.
+          try {
+            this.check();
+          } catch (error) {
+            if (!settled) {
+              settled = true;
+              this.signal.removeEventListener("abort", abort);
+              reject(error);
+            }
+          }
           if (settled) {
             try {
               discard?.(value);
@@ -88,7 +102,31 @@ export class ProcessingBudget {
           reject(error);
         },
       );
+      // Observe the promise even if this immediately expires the budget.
+      try {
+        this.check();
+      } catch {
+        abort();
+      }
     });
+  }
+
+  /** Yield an actual event turn, not another ready microtask. Deployed Workers
+   * freeze performance.now() within CPU-only work, unlike local workerd/Node.
+   * This is cooperative checking, not preemption or charged-CPU qualification. */
+  async checkpoint() {
+    this.check();
+    let complete!: () => void;
+    const turn = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    const timer = setTimeout(complete, 0);
+    try {
+      await this.wait(turn);
+      this.check();
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   finish() {
@@ -331,6 +369,8 @@ export async function consumePng(
   const chunks: Uint8Array[] = [];
   let success = false;
   let emptyChunks = 0;
+  let bytesSinceTurn = 0;
+  let collectedBytes = 0;
   try {
     while (true) {
       budget.check();
@@ -347,22 +387,54 @@ export async function consumePng(
         throw new MediaProcessingError("output_too_large");
       for (let offset = 0; offset < chunk.length; offset += 64 * 1024) {
         const part = chunk.subarray(offset, offset + 64 * 1024);
+        budget.check();
         inspector.feed(part);
-        if (collect) chunks.push(Uint8Array.from(part));
+        budget.check();
+        if (collect) {
+          // Retention depends on encoded bytes, never provider fragmentation.
+          // A million one-byte fragments still occupy <= ceil(size/64 KiB) blocks.
+          let offset = 0;
+          while (offset < part.length) {
+            const index = Math.floor(collectedBytes / (64 * 1024));
+            const used = collectedBytes % (64 * 1024);
+            let block = chunks[index];
+            if (!block) {
+              block = new Uint8Array(
+                Math.min(64 * 1024, policy.maxBytes - collectedBytes),
+              );
+              chunks.push(block);
+            }
+            const size = Math.min(block.length - used, part.length - offset);
+            block.set(part.subarray(offset, offset + size), used);
+            offset += size;
+            collectedBytes += size;
+          }
+        }
+        budget.check();
+        bytesSinceTurn += part.length;
+        if (bytesSinceTurn >= 1024 * 1024) {
+          await budget.checkpoint();
+          bytesSinceTurn = 0;
+        }
       }
     }
     budget.check();
     const observation = inspector.finish();
+    budget.check();
     if (collect) {
       const bytes = new Uint8Array(observation.size);
       let offset = 0;
       for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.length;
+        const used = Math.min(chunk.length, bytes.length - offset);
+        bytes.set(chunk.subarray(0, used), offset);
+        offset += used;
+        budget.check();
       }
+      await budget.checkpoint();
       success = true;
       return { ...observation, bytes };
     }
+    await budget.checkpoint();
     success = true;
     return observation;
   } finally {

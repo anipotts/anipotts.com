@@ -147,3 +147,14 @@ orientations, trim/resize ordering, actual 8-bit output, malformed-input behavio
 charged CPU, peak memory and cancellation remain held. A timeout cancels owned
 streams and discards late output, but does not prove immediate termination of
 provider work. No account setup, remote probe or paid usage was performed.
+
+The independent review follow-up adds absolute monotonic-deadline checks after
+CRC/copy/hash work and final candidate assembly, a validated intent snapshot
+before provider awaits, and fixed 64 KiB retention blocks independent of fragment
+count. Focused regressions include a valid ready stream past its deadline, intent
+mutation during held provider work, and allocation bounds for a valid multi-MiB
+PNG with tens of thousands of one-byte fragments. The updated focused Node suite
+passes 32 tests; the 3 native passes above apply only to the earlier exact source
+checkpoint until the owner repeats them. Cooperative event-turn checkpoints let
+timers run during ready streams. [Deployed Workers clocks advance after I/O](https://developers.cloudflare.com/workers/runtime-apis/performance/),
+so these checks do not establish CPU preemption or charged-resource limits.
