@@ -138,6 +138,7 @@ function NewWritingForm({
       : newWritingRecoveryKey(recoveryScope)
     : null;
   const request = useRef<{ key: string; id: string } | null>(null);
+  const recoveryWriteSequence = useRef(0);
   const latestRecovery = useRef<NewWritingRecovery | null>(null);
   latestRecovery.current = {
     title,
@@ -242,10 +243,17 @@ function NewWritingForm({
     if (!restored || !recoveryKey || !active.current) return;
     const channel = recoveryChannel.current;
     if (!channel) return;
+    const sequence = ++recoveryWriteSequence.current;
     void channel
       .write({ title, slug, customSlug, request: request.current })
       .then((problem) => {
-        if (!active.current || recoveryChannel.current !== channel) return;
+        if (
+          !active.current ||
+          recoveryChannel.current !== channel ||
+          sequence !== recoveryWriteSequence.current ||
+          problem === "superseded"
+        )
+          return;
         setRecoveryProblem(problem);
         setRecoveryFailed(Boolean(problem));
       });
@@ -278,7 +286,7 @@ function NewWritingForm({
     try {
       const channel = recoveryChannel.current;
       if (channel) {
-        const problem = await channel.write({
+        const problem = await channel.writeDurable({
           title,
           slug,
           customSlug,

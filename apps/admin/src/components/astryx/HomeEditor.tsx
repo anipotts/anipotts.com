@@ -397,6 +397,7 @@ function HomeEditorImpl({
   const [leaveRefused, setLeaveRefused] = useState(false);
   const leavePending = useRef(false);
   const [previewRevision, setPreviewRevision] = useState<number | null>(null);
+  const recoveryWriteSequence = useRef(0);
   const editor = useRef<HomeAutosave | null>(null);
   const saveScheduler = useRef<SaveScheduler | null>(null);
   const titleFlush = useRef<(() => void) | null>(null);
@@ -752,13 +753,19 @@ function HomeEditorImpl({
               const key = recoveryStorageKey.current;
               if (!key || !editor.current) return;
               const channel = recoveryChannel.current;
+              const sequence = ++recoveryWriteSequence.current;
               if (channel)
                 void channel
                   .write(
                     next.status === "saved" ? null : editor.current.recovery(),
                   )
                   .then((problem) => {
-                    if (cancelled || recoveryChannel.current !== channel)
+                    if (
+                      cancelled ||
+                      recoveryChannel.current !== channel ||
+                      sequence !== recoveryWriteSequence.current ||
+                      problem === "superseded"
+                    )
                       return;
                     setRecoveryProblem(problem);
                     // Another tab won the write. Surface its copy alongside

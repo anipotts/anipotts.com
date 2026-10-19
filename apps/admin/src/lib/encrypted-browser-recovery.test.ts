@@ -339,3 +339,177 @@ it("chunks oversized opaque export strings exactly and rejects missing/reordered
   }
   session.lock();
 });
+
+async function heldWriter() {
+  const fixtureState = await fixture();
+  let release!: () => void;
+  const pause = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let held = false;
+  let entered = 0;
+  const lock: RecoveryLock = async (task) => {
+    entered++;
+    if (held) await pause;
+    return task();
+  };
+  const current = new EncryptedBrowserRecovery(
+    localStorage,
+    key,
+    "draft",
+    validateRecovery,
+    fixtureState.session,
+    lock,
+  );
+  await current.read();
+  held = true;
+  return { ...fixtureState, current, release, entered: () => entered };
+}
+
+it("coalesces 24 large native snapshots into one active plus the latest pending without acknowledging superseded durability", async () => {
+  const { current, channel, session, release, entered } = await heldWriter();
+  const writes = vi.spyOn(Storage.prototype, "setItem");
+  const large = {
+    ...payload,
+    saved: "s".repeat(196608),
+    source: "x".repeat(196608),
+  };
+  let pending = 0;
+  const operations = Array.from({ length: 24 }, (_, index) => {
+    const captured = { ...large, source: `${index}:${large.source}` };
+    pending++;
+    const operation = current.write(captured).finally(() => {
+      pending--;
+    });
+    captured.source = captured.saved = "discard caller reference";
+    return operation;
+  });
+  // Superseded promises settle before the native lock is released. They retain
+  // no pending payload or success acknowledgment; only first/latest may persist.
+  expect(await Promise.all(operations.slice(1, -1))).toEqual(
+    Array(22).fill("superseded"),
+  );
+  expect(pending).toBe(2);
+  expect(entered()).toBe(2); // initial read plus exactly one active write
+  expect(writes).not.toHaveBeenCalled();
+  release();
+  expect(await operations[0]).toBeNull();
+  expect(await operations.at(-1)).toBeNull();
+  expect(pending).toBe(0);
+  expect(entered()).toBe(3);
+  expect(
+    writes.mock.calls.filter(([name]) => name === current.key),
+  ).toHaveLength(2);
+  expect(await channel().read()).toEqual({
+    status: "ready",
+    value: { ...large, source: `23:${large.source}` },
+  });
+  session.lock();
+});
+
+it("orders bounded durable identities, tombstones and explicit archival before newer replaceable input", async () => {
+  const { current, session, release } = await heldWriter();
+  const stored: string[] = [];
+  const original = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+    this: Storage,
+    name,
+    raw,
+  ) {
+    if (name === current.key) stored.push(raw);
+    return original.call(this, name, raw);
+  });
+  const copy = (source: string) => ({ ...payload, source });
+  const first = current.write(copy("active"));
+  const olderInput = current.write(copy("replace before identity"));
+  const identity = current.writeDurable(copy("creation identity"));
+  const beforeSave = current.write(copy("replace before tombstone"));
+  const acknowledged = current.write(null);
+  const identityAfterSave = current.writeDurable(copy("retry after save"));
+  const chosen = current.choose(copy("explicit choice"));
+  const latest = current.write(copy("latest after barriers"));
+  expect(await current.writeDurable(copy("excess barrier"))).toBe(
+    "unavailable",
+  );
+  expect(await olderInput).toBe("superseded");
+  expect(await beforeSave).toBe("superseded");
+  expect(stored).toEqual([]);
+  release();
+  expect(
+    await Promise.all([
+      first,
+      identity,
+      acknowledged,
+      identityAfterSave,
+      chosen,
+      latest,
+    ]),
+  ).toEqual(Array(6).fill(null));
+  const outcomes = [];
+  for (const raw of stored) {
+    const decoded = JSON.parse(
+      await decryptRecoveryBundle(session.vault, raw, current.context),
+    );
+    outcomes.push(decoded.payload?.source ?? null);
+  }
+  expect(outcomes).toEqual([
+    "active",
+    "creation identity",
+    null,
+    "retry after save",
+    "explicit choice",
+    "latest after barriers",
+  ]);
+  const archive = Object.keys(localStorage).find((name) =>
+    name.startsWith(`${current.key}:archive:`),
+  );
+  expect(localStorage.getItem(archive!)).toBe(stored[3]);
+  session.lock();
+});
+
+it("expiry discards pending normal input and barriers and seals only the closing capture after in-flight work", async () => {
+  const { current, session, file, release } = await heldWriter();
+  const writes = vi.spyOn(Storage.prototype, "setItem");
+  const active = current.write({ ...payload, source: "obsolete active" });
+  const barrier = current.writeDurable({
+    ...payload,
+    source: "obsolete queued identity",
+  });
+  const latest = current.write({
+    ...payload,
+    source: "obsolete pending input",
+  });
+  let final!: Promise<unknown>;
+  session.capture(() => {
+    final = current.sealFinal(payload);
+    return final;
+  });
+  const ended = new Promise<void>((resolve) =>
+    session.subscribe(() => {
+      if (session.snapshot().status === "locked") resolve();
+    }),
+  );
+  session.end("expired");
+  current.close();
+  expect(await barrier).toBe("signed-out");
+  expect(await latest).toBe("signed-out");
+  release();
+  expect(await active).toBe("signed-out");
+  expect(await final).toBeNull();
+  await ended;
+  expect(
+    writes.mock.calls.filter(([name]) => name === current.key),
+  ).toHaveLength(1);
+  const next = new RecoverySession(() => true);
+  await next.unlock(file, "synthetic@example.test");
+  const recovered = new EncryptedBrowserRecovery(
+    localStorage,
+    key,
+    "draft",
+    validateRecovery,
+    next,
+    mutex(),
+  );
+  expect(await recovered.read()).toEqual({ status: "ready", value: payload });
+  next.lock();
+});
