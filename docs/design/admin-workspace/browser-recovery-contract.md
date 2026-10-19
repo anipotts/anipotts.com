@@ -1,10 +1,13 @@
 # Browser recovery compatibility, R3a
 
-The R3a sections below retain the plaintext compatibility baseline. The
-**Consumer integration** section records the new local
-`codex/browser-recovery-unlock` implementation, based on `e43d9557b`. It is not
-the deployed #531 behavior or part of the frozen #538 candidate. Full validation,
-actual browser acceptance and release evidence remain with the integration owner.
+The R3a sections below retain the historical plaintext compatibility baseline.
+**Consumer integration** records the v3 implementation originally based on
+`e43d9557b`; it is separate from the #531 and #538 implementations. Dated
+qualification sections retain their revision-specific receipts. **Reviewed
+recovery repairs** records the current reviewed behavior and outstanding
+acceptance. Release evidence remains with the integration owner.
+
+## Historical R3a baseline
 
 This increment implements the browser boundary of the Quiet Precision recovery
 contract. Production private drafts remain authoritative. It does not implement
@@ -336,3 +339,90 @@ Web Lock flood in both engines. Source review found no further scheduling
 blocker; metadata/nonce-limit consumer tests preserve prior storage and explicit
 source portability. Hosted checks and exact review remain release gates.
 Physical-device custody and authenticated live owner acceptance remain separate.
+
+## Reviewed recovery repairs, October 19
+
+Adapter and capture-discovery repairs are recorded at `79865b9c`. Session
+challenge cleanup and expiry fencing include `2ea1ea36e` and `da075297c`.
+These are source repairs in the #539 review candidate, not deployment proof.
+The earlier qualification sections describe their named historical revisions.
+
+When expiry finds competing recovery, the closing capability seals the captured
+current payload and retry identity into a separate
+`<current-v3-key>:capture:<uuid>` entry. It leaves the competing canonical and
+legacy strings unchanged. This path also applies when a compare-and-swap loss
+is discovered during the final seal. Reopening with the original key discovers
+these entries and offers supported copies for explicit comparison and choice.
+A valid capture can be offered beside unreadable canonical or legacy bytes;
+choosing it archives the exact displaced canonical string and preserves legacy
+bytes. No ended capture is adopted automatically.
+
+The observed capture inventory includes exact storage keys and raw strings.
+Admission, capability, logout generation and that inventory are checked around
+asynchronous work. Explicit choice stores authenticated `resolvedCaptures`
+hashes binding each observed capture key and its exact bytes. Ordinary writes
+and null acknowledgment tombstones retain those hashes. Unchanged acknowledged
+captures cannot resurrect a saved draft; changing a capture's bytes makes it a
+new competing copy rather than silently inheriting the old acknowledgment.
+Unknown or unsupported capture data remains opaque and exportable, and blocks
+unsafe acknowledgment.
+
+Normal retention is bounded to three current-key captures, separately from the
+existing three displaced-canonical archives. A newly sealed capture is retained.
+Pruning selects only a previously authenticated, supported capture whose exact
+bytes remain unchanged, using deterministic existing-key order. It does not
+prune foreign-key namespaces or unreadable/replaced capture bytes. If safe room
+cannot be made, sealing reports failure. An unexpected fourth existing capture
+reports `oversized` and preserves all entries rather than clearing them.
+
+Capture keys participate in record normalization, encrypted record export and
+explicit logout cleanup. RecoveryUnlock recognizes capture-only key identities,
+including when no canonical v3 value exists, so an unrelated imported key cannot
+silently adopt those copies. Lost-key opaque export includes owner-scoped capture
+entries unchanged. Inventory still waits until after hydration; server markup
+and the first client render do not depend on localStorage contents.
+
+Constructor and read failures caused by revoked storage produce `unavailable`.
+Write, durable-create, choice and final-seal admission failures resolve to a
+recovery problem rather than escaping as rejected write promises. Export reports
+a typed `unavailable` failure if its admission checks cannot read storage; a
+record-only read failure can still produce an encrypted current-copy export with
+`storedStatus: "unavailable"` while document admission remains valid. No path
+uses plaintext persistence or bypasses the protected document fence.
+
+Starting an unlock drops the prior handle and immutable capability. A failed
+import, custody challenge, wrong-key check or denied admission drops the current
+attempt's handle. An older failed attempt cannot revoke a newer successful one.
+Expiry also revokes an import whose challenge is pending, before authoring has
+been admitted. An already unlocked session permits only its synchronously
+captured final work during the existing 1.5-second closing window. A stalled
+lock, encryption, storage failure or cutoff can prevent a completed seal; there
+is no guarantee beyond that window. Pagehide and explicit logout still drop
+handles immediately, and later re-import cannot re-admit stale work.
+
+Focused source qualification passed 157 cases across eight affected suites,
+including native crypto, compatibility, consumers and capture-only hydration/key
+custody. The owner's separate session/unlock qualification passed 14 cases.
+Strict focused typing covered the adapter tests and the native browser test
+import graph. The added native regression uses independent sessions, real Web
+Locks, WebCrypto and localStorage to exercise contested expiry, reopen, explicit
+choice and tombstone acknowledgment. It does not claim actual Access expiry or
+physical-device custody.
+
+Full validation passed at `7f11a40d8`: 2,428 core, 79 Astro, 98 native workerd and
+three CSP cases, with one intentional CSP skip. The preceding full native browser
+run passed 39 of 40 cases. Its remaining lifecycle assertion expected retired
+notice text even though the native failure snapshot showed the current competing
+copies notice. Test-only repair `357ede55` leaves application source unchanged.
+At that revision, the affected lifecycle rerun passed all four Chromium/WebKit
+cases, recorded in
+`/private/tmp/anipotts-recovery-review-fixes-lifecycle-final.log`.
+All 40 maintained admin cases have therefore been exercised and passed across
+the full run and affected rerun; this is not a single clean 40-case run.
+
+Public browser acceptance at `357ede55` passed 13 cases with one intentional skip,
+using one shared server startup, recorded in
+`/private/tmp/anipotts-recovery-review-fixes-public-browser.log`.
+These are local synthetic qualification receipts. They do not establish actual
+Access expiry, physical-device custody, Ani's exact-head review, merge or
+production deployment of #539. The integration owner retains those release gates.
