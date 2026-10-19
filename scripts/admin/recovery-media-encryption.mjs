@@ -664,7 +664,11 @@ export function createRecoveryFrameCodec(profile = "media-v1") {
     validateControl,
   ) {
     operation.check();
-    const source = iterator(factory());
+    // Only capture-v3 has the optional operation-signal source contract.
+    // Keep media-v1 factory invocation and wire semantics unchanged.
+    const source = iterator(
+      capture ? factory(operation.controller.signal) : factory(),
+    );
     let dek;
     let chunks = [],
       totalManifest = 0,

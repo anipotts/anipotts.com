@@ -166,14 +166,14 @@ export class SuspendedRecoveryTarget extends RecoveryTarget {
     const source = openR2RecoveryArtifact(this.#artifacts, descriptor);
     let opens = 0;
     const bucket = this.#artifacts;
-    const replay = async function* () {
+    const replay = async function* (signal?: AbortSignal) {
       if (++opens === 2 && changeSecondPass) {
         const name = `editorial-recovery-artifacts/v1/${descriptor.artifactId}/index`;
         const value = await bucket.get(name);
         if (!value || value.size > 65536) throw new Error("synthetic_index");
         await bucket.put(name, await value.arrayBuffer());
       }
-      yield* source();
+      yield* source(signal);
     };
     // The generic report contains unknown values; JSON is a bounded by-value DTO,
     // not a remote capability or an I/O handle.

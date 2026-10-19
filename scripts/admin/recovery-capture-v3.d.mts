@@ -38,8 +38,11 @@ export type RecoveryCaptureV3Event =
       ciphertext: Uint8Array;
       tag: Uint8Array;
     }>;
-export type RecoveryCaptureV3Source = () =>
-  AsyncIterable<RecoveryCaptureV3Event> | Iterable<RecoveryCaptureV3Event>;
+/** The capture-v3 codec supplies its operation signal on each pass. Sources
+ * should forward it through pending I/O; zero-argument legacy callers remain valid. */
+export type RecoveryCaptureV3Source = (
+  signal?: AbortSignal,
+) => AsyncIterable<RecoveryCaptureV3Event> | Iterable<RecoveryCaptureV3Event>;
 export type RecoveryCaptureV3Sink = {
   write(
     event: RecoveryCaptureV3Event,

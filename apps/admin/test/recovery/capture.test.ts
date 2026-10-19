@@ -1432,6 +1432,73 @@ it("R2 artifact: real conditional collisions, missing/truncated data, changed se
       env.RECOVERY_ARTIFACTS,
       result.descriptor,
     );
+    // A real R2 GET with a deliberately stalled transport body. The native
+    // ReadableStream cancellation acknowledgment also never resolves.
+    const readController = new AbortController();
+    let entered!: () => void,
+      cancelled = 0;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let stalledBody: ReadableStream<Uint8Array> | undefined;
+    const stalledBucket: RecoveryArtifactBucket = {
+      put: env.RECOVERY_ARTIFACTS.put.bind(env.RECOVERY_ARTIFACTS),
+      async get(name, options) {
+        const value = await env.RECOVERY_ARTIFACTS.get(name, options);
+        if (!value || !("body" in value) || !name.endsWith("/events/0"))
+          return value;
+        void value.body.cancel().catch(() => {});
+        stalledBody = new ReadableStream<Uint8Array>(
+          {
+            pull() {
+              entered();
+              return new Promise<void>(() => {});
+            },
+            cancel() {
+              cancelled++;
+              return new Promise<void>(() => {});
+            },
+          },
+          { highWaterMark: 0 },
+        );
+        return {
+          size: value.size,
+          etag: value.etag,
+          version: value.version,
+          body: stalledBody,
+        };
+      },
+    };
+    const stalledSource = openR2RecoveryArtifact(
+      stalledBucket,
+      result.descriptor,
+      readController.signal,
+    );
+    const iterator = (async function* () {
+      yield* stalledSource();
+    })();
+    const reading = iterator.next();
+    await started;
+    readController.abort();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await expect(
+        Promise.race([
+          reading,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("synthetic_cancel_did_not_settle")),
+              500,
+            );
+          }),
+        ]),
+      ).rejects.toThrow("recovery_artifact_aborted");
+    } finally {
+      clearTimeout(timer);
+    }
+    expect(cancelled).toBe(1);
+    expect(stalledBody?.locked).toBe(false);
+
     const collision = createR2RecoveryArtifact(env.RECOVERY_ARTIFACTS, id);
     for await (const event of original()) {
       await expect(

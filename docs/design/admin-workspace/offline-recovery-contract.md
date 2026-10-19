@@ -780,3 +780,32 @@ cryptographic rejection, storage faults and changed second-pass storage. These
 new native cases have not run at this checkpoint. Strict editorial TypeScript,
 fixture type generation, working-tree static review (9 paths) and diff checks
 pass. No live provider is contacted.
+
+#### Pending-I/O cancellation correction
+
+Independent source review of `a457638d6` found that checking the signal after
+`reader.read()` could leave a stalled body/read buffer alive after the codec's
+outer deadline. The bounded negative probe against that exact original adapter
+fails with `synthetic_cancellation_did_not_settle`; evidence is retained in
+`/private/tmp/anipotts-recovery-artifact-old-abort-regression.log`.
+
+The adapter now races pending GET, body-read and PUT acknowledgments against its
+supplied signals. Aborting a body read cancels/releases its reader without
+awaiting an uncooperative underlying cancellation acknowledgment. A GET that
+returns after cancellation has its body closed; a late PUT remains ambiguous
+persisted ciphertext and cannot create a successful descriptor or advance writes.
+No claim is made that native provider requests were retracted.
+
+The compatible optional signal argument on `RecoveryCaptureV3Source` carries the
+v3 codec operation's cancellation/deadline into each replay. `writer.source` and
+the target fixture wrapper forward it. The legacy media-v1 factory still receives
+zero arguments and retains its formats/behavior. Direct callers outside the v3
+codec must provide a signal to interrupt pending I/O; an async generator's queued
+`return()` alone does not interrupt a stalled `next()`. The adapter's26 focused
+Node cases include held-body/uncooperative-cancel, pending-GET/late-body, held-PUT
+and actual v3-codec deadline/external-abort propagation. Native qualification is
+still pending the integration owner's resource slot. The existing third native
+case now also prepares a real-R2-GET/native-stream held-body fault with a never
+settling cancel acknowledgment; its execution remains pending. The focused
+shared codec/adapter Node run passes78 cases (including the26 adapter cases),
+and strict editorial TypeScript, formatting, static review and diff checks pass.

@@ -335,20 +335,80 @@ function receiptCopy(value: unknown): RecoveryCaptureV3Receipt {
     controlHash: text(value.controlHash, 64),
   });
 }
-function checkSignal(signal?: AbortSignal) {
-  if (signal?.aborted) fail("aborted");
+function checkSignals(signals: readonly AbortSignal[]) {
+  if (signals.some((signal) => signal.aborted)) fail("aborted");
+}
+/** Stop awaiting promptly without claiming native I/O was retracted. Observe
+ * both fulfillment/rejection of late I/O, disposing any late read body. Cleanup
+ * is deliberately synchronous/fire-and-forget, never another awaited gate. */
+function abortable<T>(
+  pending: Promise<T>,
+  signals: readonly AbortSignal[],
+  onAbort: () => void = () => {},
+  onLate: (value: T) => void = () => {},
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      for (const signal of signals)
+        signal.removeEventListener("abort", aborted);
+    };
+    const aborted = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      onAbort();
+      reject(new Error("recovery_artifact_aborted"));
+    };
+    for (const signal of signals)
+      signal.addEventListener("abort", aborted, { once: true });
+    pending.then(
+      (value) => {
+        if (settled) {
+          onLate(value);
+          return;
+        }
+        if (signals.some((signal) => signal.aborted)) {
+          aborted();
+          onLate(value);
+          return;
+        }
+        settled = true;
+        cleanup();
+        resolve(value);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      },
+    );
+    if (signals.some((signal) => signal.aborted)) aborted();
+  });
+}
+function cancelBody(body?: ReadableStream<Uint8Array>) {
+  try {
+    void body?.cancel().catch(() => {});
+  } catch {
+    /* already owned/closed */
+  }
 }
 async function put(
   bucket: RecoveryArtifactBucket,
   key: string,
   bytes: Uint8Array,
   check: () => void,
+  signals: readonly AbortSignal[],
 ): Promise<Reference> {
   check();
   const digest = hash(bytes);
-  const stored = await bucket.put(key, bytes, {
-    onlyIf: { etagDoesNotMatch: "*" },
-  });
+  const stored = await abortable(
+    bucket.put(key, bytes, {
+      onlyIf: { etagDoesNotMatch: "*" },
+    }),
+    signals,
+  );
   check();
   if (!stored) fail("collision");
   if (stored.size !== bytes.byteLength) fail("storage");
@@ -367,15 +427,38 @@ async function read(
   key: string,
   ref: Reference,
   check: () => void,
+  signals: readonly AbortSignal[],
 ): Promise<Uint8Array> {
   check();
-  const value = await bucket.get(key, { onlyIf: { etagMatches: ref.etag } });
+  const value = await abortable(
+    bucket.get(key, { onlyIf: { etagMatches: ref.etag } }),
+    signals,
+    undefined,
+    (late) => cancelBody(late?.body),
+  );
   if (!value?.body) {
     check();
     fail("changed");
   }
   const reader = value.body.getReader();
-  let done = false;
+  let done = false,
+    cancelled = false;
+  const cancel = () => {
+    if (cancelled) return;
+    cancelled = true;
+    // cancel() settles the owned read requests even when the underlying source's
+    // cancellation acknowledgment never settles. Do not await that acknowledgment.
+    try {
+      void reader.cancel().catch(() => {});
+    } catch {
+      /* already closed */
+    }
+    try {
+      reader.releaseLock();
+    } catch {
+      /* release again from finally */
+    }
+  };
   try {
     check();
     if (
@@ -387,7 +470,7 @@ async function read(
     const output = new Uint8Array(ref.size);
     let offset = 0;
     for (;;) {
-      const part = await reader.read();
+      const part = await abortable(reader.read(), signals, cancel);
       check();
       if (part.done) {
         done = true;
@@ -402,8 +485,12 @@ async function read(
       fail("integrity");
     return output;
   } finally {
-    if (!done) await reader.cancel().catch(() => {});
-    reader.releaseLock();
+    if (!done) cancel();
+    try {
+      reader.releaseLock();
+    } catch {
+      /* pending native cleanup already observed */
+    }
   }
 }
 /** Descriptor metadata is not proof of authenticated content. Every consumer
@@ -414,14 +501,19 @@ export function openR2RecoveryArtifact(
   signal?: AbortSignal,
 ): RecoveryCaptureV3Source {
   const descriptor = descriptorCopy(input);
-  return async function* () {
-    const check = () => checkSignal(signal);
+  return async function* (operationSignal) {
+    const signals: AbortSignal[] = [];
+    if (signal) signals.push(signal);
+    if (operationSignal && operationSignal !== signal)
+      signals.push(operationSignal);
+    const check = () => checkSignals(signals);
     const root = parse(
       await read(
         bucket,
         indexKey(descriptor.artifactId),
         descriptor.index,
         check,
+        signals,
       ),
       limits.indexBytes,
     );
@@ -448,6 +540,7 @@ export function openR2RecoveryArtifact(
             shardKey(descriptor.artifactId, shardIndex),
             shards[shardIndex]!,
             check,
+            signals,
           ),
           limits.shardBytes,
         ),
@@ -463,6 +556,7 @@ export function openR2RecoveryArtifact(
             eventKey(descriptor.artifactId, position),
             ref,
             check,
+            signals,
           ),
           position,
         );
@@ -512,7 +606,7 @@ export function createR2RecoveryArtifact(
     }
     busy = true;
     const check = () => {
-      checkSignal(signal);
+      checkSignals([signal]);
       if (state === "failed") fail("state");
     };
     try {
@@ -528,7 +622,7 @@ export function createR2RecoveryArtifact(
       busy = false;
     }
   }
-  async function flush(check: () => void) {
+  async function flush(check: () => void, signal: AbortSignal) {
     if (!entries.length) return;
     if (shards.length >= limits.shards) fail("bounds");
     const ref = await put(
@@ -536,6 +630,7 @@ export function createR2RecoveryArtifact(
       shardKey(id, shards.length),
       jsonBytes(entries, limits.shardBytes),
       check,
+      [signal],
     );
     shards.push(ref);
     entries = [];
@@ -556,21 +651,24 @@ export function createR2RecoveryArtifact(
               512,
             ),
             check,
+            [signal],
           );
           state = "writing";
         }
-        const ref = await put(bucket, eventKey(id, count), encoded, check);
+        const ref = await put(bucket, eventKey(id, count), encoded, check, [
+          signal,
+        ]);
         entries.push(ref);
         count++;
         committed = terminal;
-        if (entries.length === limits.shardEntries) await flush(check);
+        if (entries.length === limits.shardEntries) await flush(check, signal);
       });
     },
     async complete(input, signal) {
       const receipt = receiptCopy(input);
       await guarded(signal, async (check) => {
         if (!committed || receipt.records + 2 !== count) fail("receipt");
-        await flush(check);
+        await flush(check, signal);
         const bytes = jsonBytes(
           {
             format: RECOVERY_ARTIFACT_R2_FORMAT,
@@ -581,7 +679,7 @@ export function createR2RecoveryArtifact(
           },
           limits.indexBytes,
         );
-        const ref = await put(bucket, indexKey(id), bytes, check);
+        const ref = await put(bucket, indexKey(id), bytes, check, [signal]);
         completed = Object.freeze({
           format: RECOVERY_ARTIFACT_R2_FORMAT,
           artifactId: id,
@@ -597,8 +695,8 @@ export function createR2RecoveryArtifact(
       clear();
     },
     descriptor,
-    source: async function* () {
-      yield* openR2RecoveryArtifact(bucket, descriptor())();
+    source: async function* (signal) {
+      yield* openR2RecoveryArtifact(bucket, descriptor())(signal);
     },
   };
 }

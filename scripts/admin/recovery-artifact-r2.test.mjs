@@ -407,3 +407,163 @@ test("opaque header text preserves BOM and Unicode exactly rather than normalizi
   await writer.complete(receipt(), sig);
   assert.deepEqual((await collect(writer.source))[0], event);
 });
+
+// These gates are intentionally never manually released to make cancellation
+// prove cleanup rather than merely noticing a late acknowledgment.
+function within(promise, ms = 500) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error("synthetic_cancellation_did_not_settle")),
+        ms,
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+function stallBody(b, name) {
+  const get = b.get.bind(b),
+    entered = deferred();
+  let cancelled = 0,
+    pulls = 0,
+    body;
+  b.get = async (...args) => {
+    const value = await get(...args);
+    if (args[0] !== name || !value?.body) return value;
+    void value.body.cancel();
+    body = new ReadableStream(
+      {
+        pull() {
+          pulls++;
+          entered.resolve();
+          return new Promise(() => {});
+        },
+        cancel() {
+          cancelled++;
+          return new Promise(() => {});
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    return { ...value, body };
+  };
+  return {
+    entered: entered.promise,
+    stats: () => ({ cancelled, pulls, locked: body?.locked }),
+  };
+}
+test("abort interrupts a stalled body read, releases lock and never awaits uncooperative cancel", async () => {
+  const { b, descriptor } = await sealed();
+  const controller = new AbortController();
+  const stalled = stallBody(b, key("synthetic", "events/1"));
+  const iterator = openR2RecoveryArtifact(b, descriptor, controller.signal)();
+  await iterator.next();
+  const pending = iterator.next();
+  await stalled.entered;
+  controller.abort();
+  await within(assert.rejects(pending, /aborted/));
+  assert.deepEqual(stalled.stats(), { cancelled: 1, pulls: 1, locked: false });
+  assert.equal((await within(iterator.next())).done, true);
+  assert.equal((await within(iterator.return())).done, true);
+  assert.equal(stalled.stats().pulls, 1);
+});
+test("abort interrupts pending R2 GET and disposes the body if the provider eventually returns", async () => {
+  const { b, descriptor } = await sealed();
+  const controller = new AbortController(),
+    hold = deferred(),
+    entered = deferred();
+  const get = b.get.bind(b);
+  let cancelled = 0;
+  b.get = async (...args) => {
+    entered.resolve();
+    await hold.promise;
+    const value = await get(...args);
+    void value.body.cancel();
+    return {
+      ...value,
+      body: new ReadableStream({
+        cancel() {
+          cancelled++;
+          return new Promise(() => {});
+        },
+      }),
+    };
+  };
+  const iterator = openR2RecoveryArtifact(b, descriptor, controller.signal)();
+  const pending = iterator.next();
+  await entered.promise;
+  controller.abort();
+  await within(assert.rejects(pending, /aborted/));
+  assert.equal((await within(iterator.return())).done, true);
+  hold.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(cancelled, 1);
+});
+for (const mode of ["deadline", "external-abort"]) {
+  test(`capture-v3 ${mode} reaches writer.source and the actual pending R2 body read`, async () => {
+    const { openRecoveryCaptureV3 } = await import("./recovery-capture-v3.mjs");
+    const { b, writer } = await sealed();
+    const stalled = stallBody(b, key("synthetic", "events/0"));
+    const controller = new AbortController();
+    let operationSignal;
+    const source = (signal) => {
+      operationSignal = signal;
+      return writer.source(signal);
+    };
+    const pending = openRecoveryCaptureV3(
+      source,
+      new Uint8Array(32),
+      {
+        captureId: "00000000-0000-0000-0000-000000000003",
+        applicationRevision: "a".repeat(40),
+        contentSchemaVersion: 1,
+        editorialGeneration: 2,
+        contentGeneration: 3,
+      },
+      {
+        begin() {},
+        writeFrame() {},
+        complete() {
+          assert.fail("no finalization");
+        },
+        abort() {},
+      },
+      { signal: controller.signal, timeoutMs: mode === "deadline" ? 40 : 5000 },
+    );
+    // Attach rejection handling before the deliberate external abort/deadline.
+    const rejected = assert.rejects(pending, /encrypted_recovery_media_/);
+    await within(stalled.entered);
+    assert.ok(operationSignal instanceof AbortSignal);
+    if (mode === "external-abort") controller.abort();
+    await within(rejected);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(operationSignal.aborted, true);
+    assert.deepEqual(stalled.stats(), {
+      cancelled: 1,
+      pulls: 1,
+      locked: false,
+    });
+  });
+}
+test("aborting a held PUT settles the caller without claiming provider write retraction", async () => {
+  const b = bucket(),
+    writer = createR2RecoveryArtifact(b, "held-put"),
+    controller = new AbortController();
+  const entered = deferred(),
+    hold = deferred();
+  b.afterPut = async () => {
+    entered.resolve();
+    await hold.promise;
+  };
+  const pending = writer.write(header(), controller.signal);
+  await entered.promise;
+  controller.abort();
+  await within(assert.rejects(pending, /aborted/));
+  assert.throws(() => writer.descriptor(), /incomplete/);
+  assert.ok(b.objects.has(key("held-put", "claim")));
+  assert.equal(b.objects.has(key("held-put", "events/0")), false);
+  hold.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(b.objects.has(key("held-put", "events/0")), false);
+});
