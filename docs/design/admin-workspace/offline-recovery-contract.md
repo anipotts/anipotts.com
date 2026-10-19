@@ -654,3 +654,43 @@ refuses added fields, changed row order and actual DDL drift. Downstream v3
 control/readback/metadata comparisons already use bounded canonical equality;
 fingerprint generation hashes normalized SQL text and is independent of object
 key insertion order. This correction does not enable operational eligibility.
+
+### V3 exact-source qualification, October 19
+
+The filtered three-case native run at
+`84e0e4d544e78ba4101a4c37d3d010235686a638` passed on
+2026-10-19 09:22:12 to 09:22:18 UTC. Its receipt is
+`/private/tmp/anipotts-v3-native-three-r4.log`. It covers a full 10 MiB object
+in each private/public plane with more than 4,000,000 bytes of control,
+authenticated first-pass rejection before target mutation, and a changed second
+pass leaving a failed suspended target rather than visible content.
+
+The first full run at that source stopped at the Admin build-input invariant:
+the three newly imported runtime codecs were still classified as offline scripts.
+That failure is retained in `/private/tmp/anipotts-v3-full-validation.log`.
+Commit `926bcdad91dd1eaa717b2a7bf6f589bc73ffc12b` adds exactly those modules
+to the existing Admin runtime input rule. Helper-only changes select Admin alone.
+The regenerated corpus replays 5,364 entries in 409 classes with zero differences;
+independent expansion confirms all 5,124 existing records retain their
+classification, with none removed and 240 current-tree records added.
+
+Full `pnpm validate` then passed on that clean exact commit, completing on
+October 19 before 09:36 UTC. Receipt:
+`/private/tmp/anipotts-v3-full-validation-r2.log`. All invariants, formatting,
+builds, lint, typechecks and fourteen test tasks passed. Admin ran fresh:
+2,361 core, 79 Astro, 105 editorial workerd, 103 recovery Node and all 24 native
+recovery cases. CSP passed three checks with one existing browser-gated skip.
+Unchanged workspace test tasks reused normal Turbo cache; shared content reports
+206 cases and www 196.
+
+Independent source and release-policy reviews found no remaining blocker.
+Static review passes all 33 sensitive changed paths. The deployable Admin
+bundle excludes every local-owner marker, and the post-validation drift check
+preserves the reviewed source tree. The full proposed PR delta selects www and
+Admin, skips all four retained workers, and does not apply migration 0003.
+Subsequent checkpoint documentation preserves the qualified runtime tree.
+
+These results supersede the earlier pending-native/full-check statements above.
+The operational limitations remain: cohort admission always rejects, the
+production artifact adapter is unwired, and inventory, custody, external copy,
+migration/activation authority and an operational restore drill remain open.

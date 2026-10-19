@@ -1,5 +1,41 @@
 # Website source preparation
 
+## October 19 recovery v3 qualification and review queue
+
+Owner chat: `01a14ffb-519c-73b1-a63a-380f9d7274d0`, Codex on ap-pro.
+This checkpoint supersedes the pending-release and recovery-format limitations
+in the older October 18 and earlier source packets below.
+
+- #538 merged as `795920090a594dbf347e2c7de35967e6d1ee76bb`.
+  [Release 39209913406](https://github.com/anipotts/anipotts.com/actions/runs/39209913406)
+  succeeded for all six approved targets; no migration was selected, schema
+  remains `0044`. State's producer status and Brands freshness remain separate
+  operational issues, rather than a claim that every service is healthy.
+- #539 is ready at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69`.
+  Exact-head CI, Security Review, CodeQL and completed automated code/security
+  reviews passed, with all conversations resolved. Full local validation and
+  all 42 Chromium/WebKit browser cases passed. Ani's exact review is pending;
+  its proposed release affects Admin only. No merge/deploy is claimed.
+- #540 remains a draft inactive media-processing foundation. The current
+  `de4f9fcf` documentation head preserves its fully checked runtime.
+  Actual provider entitlement, resource qualification and activation remain open.
+- #541 adds an inactive encrypted v3 capture/restore path to the existing
+  coherent recovery foundation. It supports streamed 10 MiB objects in each
+  media plane and structured control data without the legacy base64 envelope
+  limitation. The legacy v1/v2 formats retain their original bounds.
+- #542 is a separate draft dependency cleanup at `e6aafc63`, with fully
+  qualified source `e9578615`. Removing the unused Drizzle CLI eliminates the
+  remaining moderate advisory. The lock audit has zero moderate/high/critical
+  advisories and one low upstream KaTeX advisory. No runtime targets are selected.
+  Refresh against later approved main before preparing exact-head review.
+
+Operational recovery admission still always rejects. Migration 0003 is unapplied;
+no production capture route, artifact provider, key custody, external copy or
+restore drill is established. Browser recovery's accepted local key file does
+not authorize operational backup custody. The full source/native evidence and
+remaining gates are in the [offline recovery contract](design/admin-workspace/offline-recovery-contract.md).
+Keep #540, #541 and #542 draft until their respective gates are met.
+
 ## October 18 browser-tools release and next completion batch
 
 Ani approved #532 at `8243909232b955c279e7c48a40765f7c79313d85` for merge and

@@ -29,12 +29,14 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Review the next consolidated dependency/admin usability batch with passing local checks: native scrolling, continuous loading, writing source/demo controls, hydration and mobile menu repairs. Hosted checks and exact review remain release gates.
-- [ ] Finish isolated media and coherent recovery qualification; retain the current upload limits and production storage until the required evidence and activation approvals exist.
+- [ ] Review #539 at `f8e90810` for browser recovery protected by a saved local key file. Full local and hosted checks pass; the proposed deployment affects Admin only.
+- [ ] Finish provider and operational qualification for draft media #540 and recovery #541. Their source checks pass, including bounded encrypted v3 capture/restore; custody, external-copy, migration and activation gates remain open.
+- [ ] Refresh draft #542 after the next approved merge, then review removal of the unused Drizzle CLI. Full source checks pass; no runtime targets are selected.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#529/#530/#531 are merged and deployed. #532 is merged; its successful release
-selected no runtime targets because it changes browser tooling and documentation.
+#529/#530/#531 and consolidated dependency/usability #538 are merged and deployed.
+#538 released all six approved targets at `79592009`, without a migration.
+#532's successful release selected no runtime targets because it changes browser tooling and documentation.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records
 PR containment, verification and remaining work. Earlier receipts stay in that
