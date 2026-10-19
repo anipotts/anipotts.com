@@ -1,3 +1,4 @@
+import { unlockSyntheticBrowserRecovery } from "../support/browser-recovery-key";
 import { randomUUID } from "node:crypto";
 import { test, type Browser } from "@e2e-dev/web";
 import { expect, type TestFixtures } from "e2e";
@@ -12,6 +13,7 @@ const mediaRoute = /\/api\/editorial\/media(?:\?|$)/;
 // they never publish, use an existing article, or call a production origin.
 async function newArticle({ app, browser, screen }: MediaFixtures) {
   await app.open("/content/new");
+  await unlockSyntheticBrowserRecovery(browser);
   const local = await browser.evaluate(
     () =>
       ["127.0.0.1", "localhost"].includes(location.hostname) &&

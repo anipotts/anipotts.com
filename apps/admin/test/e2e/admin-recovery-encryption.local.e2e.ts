@@ -4,7 +4,7 @@ import { expect, type TestFixtures } from "e2e";
 type Fixtures = Pick<TestFixtures, "app"> & { browser: Browser };
 
 // e2e.admin.config.ts owns a disposable local D1/DO and both browser targets.
-// The engine remains unwired: import its actual dev source inside the page.
+// Import the actual engine separately from the UI to qualify native crypto.
 // Key files, key bytes, ciphertext and recovered input never leave evaluate(),
 // enter the DOM/storage, get downloaded or appear in assertion/console output.
 async function localEnginePage({ app, browser }: Fixtures) {

@@ -1,3 +1,4 @@
+import { unlockSyntheticBrowserRecovery } from "../support/browser-recovery-key";
 import { test, type Browser } from "@e2e-dev/web";
 import { expect, type TestFixtures } from "e2e";
 
@@ -20,6 +21,7 @@ async function syntheticArticle({ app, browser, screen }: Fixtures) {
     },
   );
   await app.open("/content/new");
+  await unlockSyntheticBrowserRecovery(browser);
   expect(
     await browser.evaluate(
       () =>
@@ -306,6 +308,7 @@ test(
     });
     try {
       await browser.reload();
+      await unlockSyntheticBrowserRecovery(browser);
       await expect.poll(() => reads).toBe(1);
       const loading = screen.getByRole("status", {
         name: "Loading editor",
@@ -345,6 +348,7 @@ test(
         }),
       );
       await browser.reload();
+      await unlockSyntheticBrowserRecovery(browser);
       await expect(
         screen.getByRole("textbox", { name: "Title", exact: true }),
       ).toHaveValue(article.title, { timeout: 20_000 });
@@ -358,6 +362,7 @@ test(
       );
       deny = true;
       await browser.reload();
+      await unlockSyntheticBrowserRecovery(browser);
       await expect(
         screen.getByRole("heading", { name: "Session ended", exact: true }),
       ).toBeVisible({ timeout: 20_000 });
