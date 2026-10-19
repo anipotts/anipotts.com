@@ -120,15 +120,7 @@ function NewWritingForm({
     }
   }, []);
   const form = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    const field = titleHost.current?.querySelector("textarea");
-    if (!field) return;
-    field.setAttribute("enterkeyhint", "go");
-    field.setAttribute("autocapitalize", "off");
-    // A hardware keyboard starts typing at once; a phone waits for a tap, so
-    // the keyboard never covers the page before it is wanted.
-    if (window.matchMedia?.("(pointer: fine)").matches) field.focus();
-  }, []);
+
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [restored, setRestored] = useState(false);
@@ -157,6 +149,16 @@ function NewWritingForm({
   const active = useRef(true);
   const createAbort = useRef<AbortController | null>(null);
   const [loggedOut, setLoggedOut] = useState(false);
+  useEffect(() => {
+    if (!restored || loggedOut) return;
+    const field = titleHost.current?.querySelector("textarea");
+    if (!field) return;
+    field.setAttribute("enterkeyhint", "go");
+    field.setAttribute("autocapitalize", "off");
+    // A hardware keyboard starts typing at once; a phone waits for a tap, so
+    // the keyboard never covers the page before it is wanted.
+    if (window.matchMedia?.("(pointer: fine)").matches) field.focus();
+  }, [restored, loggedOut]);
   useEffect(() => {
     active.current = true;
     const logout = (event: Event) => {
@@ -386,7 +388,7 @@ function NewWritingForm({
             isLabelHidden
             placeholder="Title"
             value={title}
-            isDisabled={busy || loggedOut}
+            isDisabled={!restored || busy || loggedOut}
             status={
               title.length > 300
                 ? { type: "error", message: "Up to 300 characters" }
@@ -405,7 +407,7 @@ function NewWritingForm({
             label={addressLabel}
             value={slug}
             ref={addressField}
-            isDisabled={busy || loggedOut}
+            isDisabled={!restored || busy || loggedOut}
             status={
               slugError ? { type: "error", message: slugError } : undefined
             }
@@ -430,7 +432,7 @@ function NewWritingForm({
               variant="ghost"
               size="sm"
               icon={<PencilSimpleIcon weight="regular" aria-hidden="true" />}
-              isDisabled={busy || loggedOut}
+              isDisabled={!restored || busy || loggedOut}
               onClick={() => {
                 focusAddress.current = true;
                 setEditingSlug(true);

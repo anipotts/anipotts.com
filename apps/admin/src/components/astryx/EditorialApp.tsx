@@ -47,7 +47,7 @@ import {
   MetadataListItem,
 } from "@astryxdesign/core/MetadataList";
 import { editorialFields } from "../../lib/editorial-fields";
-import { AdminSkeleton } from "./AdminFeedback";
+import { AdminSkeleton, EditorLoadingBoundary } from "./AdminFeedback";
 import type { AdminSearchResult } from "../../data/admin-search";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -431,36 +431,41 @@ export function EditorialApp({
               />
             )}
             {(editHome || openRecord) && (
-              <React.Suspense
-                fallback={
-                  <VStack gap={3} className="editor-workspace">
-                    <EditorActionBar back={back} title={title} />
-                    <AdminSkeleton
-                      fields={editorialFields(
-                        openRecord ?? { kind: "page", id: "home" },
-                      )}
-                    />
-                  </VStack>
-                }
+              <EditorLoadingBoundary
+                key={`${openRecord?.kind ?? "page"}:${openRecord?.id ?? "home"}`}
               >
-                <HomeEditor
-                  pageTitle={
-                    openRecord?.kind === "writing" ||
-                    openRecord?.kind === "work"
-                      ? undefined
-                      : title
+                <React.Suspense
+                  fallback={
+                    <VStack gap={3} className="editor-workspace">
+                      <EditorActionBar back={back} title={title} />
+                      <AdminSkeleton
+                        announce={false}
+                        fields={editorialFields(
+                          openRecord ?? { kind: "page", id: "home" },
+                        )}
+                      />
+                    </VStack>
                   }
-                  back={back}
-                  publicUrl={(path) =>
-                    themedUrl(new URL(path, comparisonSiteUrl).href, mode)
-                  }
-                  homepageWritingOptions={homepageWritingOptions}
-                  localPreview={localPreview}
-                  key={openRecord?.id ?? "home"}
-                  record={openRecord ?? { kind: "page", id: "home" }}
-                  autoFocus={Boolean(created)}
-                />
-              </React.Suspense>
+                >
+                  <HomeEditor
+                    pageTitle={
+                      openRecord?.kind === "writing" ||
+                      openRecord?.kind === "work"
+                        ? undefined
+                        : title
+                    }
+                    back={back}
+                    publicUrl={(path) =>
+                      themedUrl(new URL(path, comparisonSiteUrl).href, mode)
+                    }
+                    homepageWritingOptions={homepageWritingOptions}
+                    localPreview={localPreview}
+                    key={openRecord?.id ?? "home"}
+                    record={openRecord ?? { kind: "page", id: "home" }}
+                    autoFocus={Boolean(created)}
+                  />
+                </React.Suspense>
+              </EditorLoadingBoundary>
             )}
             {review && !editHome && !editorRecord && (
               <>

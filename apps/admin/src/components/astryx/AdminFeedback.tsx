@@ -1,10 +1,11 @@
-import React from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Text } from "@astryxdesign/core/Text";
 import { Banner } from "./WritingControls";
 import { Button } from "./WritingControls";
+import { navigateAdmin } from "../../lib/editorial-navigation";
 
 type LoadingKind = "editor" | "history" | "records" | "record" | "preview";
 const loadingLabels: Record<LoadingKind, string> = {
@@ -14,6 +15,69 @@ const loadingLabels: Record<LoadingKind, string> = {
   record: "record details",
   preview: "preview",
 };
+
+const EditorLoadingContext = createContext<((loading: boolean) => void) | null>(
+  null,
+);
+
+/** A rejected module stays rejected in the browser's module cache. Recovery
+ * deliberately loads a new document through the existing leave guard. */
+function EditorLoadFailure() {
+  useEditorLoading(false);
+  return (
+    <RecoveryBanner
+      title="Editor could not load"
+      description="Reload this page to try loading the editor again."
+      actionLabel="Reload editor"
+      onRetry={() => navigateAdmin(window.location.href)}
+    />
+  );
+}
+
+class EditorModuleBoundary extends React.Component<
+  { children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? <EditorLoadFailure /> : this.props.children;
+  }
+}
+
+/** One announcement survives the lazy module and its first record read. The
+ * existing visual skeletons can change without mounting a second live region. */
+export function EditorLoadingBoundary({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [loading, setLoading] = useState(true);
+  return (
+    <EditorLoadingContext.Provider value={setLoading}>
+      <Text
+        className="sr-only"
+        role={loading ? "status" : undefined}
+        aria-label={loading ? "Loading editor" : undefined}
+      >
+        {loading ? "Loading editor…" : null}
+      </Text>
+      <EditorModuleBoundary>{children}</EditorModuleBoundary>
+    </EditorLoadingContext.Provider>
+  );
+}
+
+/** Standalone editors keep owning their feedback; an enclosing route owns the
+ * complete wait when its lazy module and record request load in sequence. */
+export function useEditorLoading(loading: boolean): boolean {
+  const report = useContext(EditorLoadingContext);
+  useEffect(() => {
+    report?.(loading);
+  }, [loading, report]);
+  return report !== null;
+}
 
 /** Shared text geometry for a readable document, not a single oversized block. */
 function DocumentLines() {
@@ -35,8 +99,10 @@ function DocumentLines() {
 export function AdminSkeleton({
   kind = "editor",
   fields = [{}, { rich: true }],
+  announce = true,
 }: {
   kind?: LoadingKind;
+  announce?: boolean;
   fields?: ReadonlyArray<{ rich?: boolean; path?: readonly string[] }>;
 }) {
   const writing = fields.some((field) => field.path?.[0] === "summary");
@@ -44,11 +110,11 @@ export function AdminSkeleton({
   return (
     <VStack
       gap={3}
-      role="status"
-      aria-label={`Loading ${label}`}
+      role={announce ? "status" : undefined}
+      aria-label={announce ? `Loading ${label}` : undefined}
       className="admin-loading"
     >
-      <Text className="sr-only">Loading {label}…</Text>
+      {announce && <Text className="sr-only">Loading {label}…</Text>}
       <VStack gap={3} aria-hidden="true">
         {kind === "editor" && (
           <>

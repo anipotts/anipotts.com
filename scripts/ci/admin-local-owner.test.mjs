@@ -30,6 +30,7 @@ test("a deployable bundle passes only without every local owner marker", () => {
     "_worker.js/chunks/middleware.mjs":
       'const email = "local-owner@localhost";',
     "_astro/editorial.js": 'jsx("div", { "data-admin-local-owner": "true" })',
+    "_worker.js/chunks/csrf.mjs": 'const name = "editorial-local-owner-csrf";',
   });
   try {
     assert.equal(verifyBuild(clean, "absent").ok, true);
@@ -38,6 +39,7 @@ test("a deployable bundle passes only without every local owner marker", () => {
     assert.equal(result.ok, false);
     assert.deepEqual(result.problems.sort(), [
       "_astro/editorial.js contains local owner marker data-admin-local-owner",
+      "_worker.js/chunks/csrf.mjs contains local owner marker editorial-local-owner-csrf",
       "_worker.js/chunks/middleware.mjs contains local owner marker local-owner@localhost",
     ]);
     assert.equal(verifyBuild(leaked, "present").ok, true);

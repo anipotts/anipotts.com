@@ -26,6 +26,23 @@ describe("writing publication review", () => {
     );
     expect(changes.some((change) => change.label === "opening")).toBe(false);
   });
+  it("names source and demo link changes like the article properties controls", () => {
+    const before =
+      "---\ntitle: Article\nsummary: Summary\nstatus: draft\n---\nBody";
+    const after = before.replace(
+      "status: draft",
+      "status: draft\nartifact_url: /work/example\nartifact_label: Try it\nartifact_type: demo",
+    );
+    expect(
+      writingReviewChanges(before, after).filter(
+        (change) => change.before !== change.after,
+      ),
+    ).toEqual([
+      { label: "Source or demo link", before: "", after: "/work/example" },
+      { label: "Link label", before: "", after: "Try it" },
+      { label: "Link type", before: "", after: "demo" },
+    ]);
+  });
   it("keeps formatting and image address edits visible", () => {
     const prefix =
       "---\ntitle: Article\nsummary: Summary\nstatus: draft\n---\n\n";

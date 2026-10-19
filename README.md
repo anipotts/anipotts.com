@@ -27,11 +27,14 @@ See [local development](docs/local-development.md).
 - `pnpm content:check` rejects drift without changing files. Generated files are never independently edited.
 - Private drafts and read-only operational data remain separate from published content.
 
-## Current review
+## Current work
 
-- [ ] Review [#532](https://github.com/anipotts/anipotts.com/pull/532): browser tools upgraded and checked on released #530/#531.
-- [ ] Investigate state commit-publisher receipts and silent ingest capture through their owning sources.
-- [ ] Merge #532 only after Ani reviews its exact checked revision. #530/#531 are merged and deployed; publication changes remain separate.
+- [ ] Review the next consolidated dependency/admin usability batch with passing local checks: native scrolling, continuous loading, writing source/demo controls, hydration and mobile menu repairs. Hosted checks and exact review remain release gates.
+- [ ] Finish isolated media and coherent recovery qualification; retain the current upload limits and production storage until the required evidence and activation approvals exist.
+- [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#529/#530/#531 are merged and deployed. #532 is merged; its successful release
+selected no runtime targets because it changes browser tooling and documentation.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records
 PR containment, verification and remaining work. Earlier receipts stay in that

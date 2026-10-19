@@ -3,10 +3,12 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ComponentProps,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { AppsSDKUIProvider } from "@openai/apps-sdk-ui/components/AppsSDKUIProvider";
 import { Menu } from "@openai/apps-sdk-ui/components/Menu";
@@ -63,12 +65,70 @@ export function AdminUIProvider({
   );
 }
 
+type PortalOwner = {
+  element: RefObject<HTMLDivElement | null>;
+  parent: PortalOwner | null;
+};
+const AdminPortalOwner = createContext<PortalOwner | null>(null);
+
 /** SDK 0.2.2 Menu does not expose a portal container. Mark only the owned
  * portal ancestors before paint so its surface inherits the scoped tokens.
  * Never mark body or a legacy sibling; clean up when this content unmounts. */
-export function AdminPortalScope({ children }: { children: ReactNode }) {
+export function AdminPortalScope({
+  children,
+  portalContent = false,
+}: {
+  children: ReactNode;
+  /** Only SDK menu content owns a body portal that may need relocation. */
+  portalContent?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const { enabled, mode } = useContext(AdminUIContext);
+  const parent = useContext(AdminPortalOwner);
+  const owner = useMemo(() => ({ element: ref, parent }), [parent]);
+  useLayoutEffect(() => {
+    if (!enabled || !portalContent || !ref.current) return;
+    // Native modal dialogs make body portals inert, regardless of z-index.
+    // React ancestry identifies this menu's owner even through nested portals.
+    let ancestor = parent;
+    let dialog: HTMLDialogElement | null = null;
+    while (ancestor && !dialog) {
+      dialog =
+        ancestor.element.current?.closest<HTMLDialogElement>("dialog[open]") ??
+        null;
+      ancestor = ancestor.parent;
+    }
+    // Never move an existing dialog or a portal another modal already owns.
+    if (!dialog || ref.current.closest("dialog")) return;
+    let portal: HTMLElement = ref.current;
+    while (portal.parentElement && portal.parentElement !== document.body)
+      portal = portal.parentElement;
+    if (portal.parentElement !== document.body) return;
+    const container = portal.parentElement;
+    const next = portal.nextSibling;
+    dialog.appendChild(portal);
+    // React still owns this portal under body. Restore that relationship before
+    // its teardown, including an auth-lock unmount of the entire dialog.
+    return () => {
+      if (portal.parentElement === dialog)
+        container.insertBefore(
+          portal,
+          next?.parentNode === container ? next : null,
+        );
+    };
+  }, [enabled, parent, portalContent]);
+  useLayoutEffect(() => {
+    if (!enabled || !portalContent || !ref.current) return;
+    const content =
+      ref.current.closest<HTMLElement>('[role="menu"]') ?? ref.current;
+    const reserveEscape = (event: KeyboardEvent) => {
+      // The SDK closes its top menu from a body listener. Prevent native dialog
+      // cancellation first, without stopping that listener from receiving Escape.
+      if (event.key === "Escape" && !event.isComposing) event.preventDefault();
+    };
+    content.addEventListener("keydown", reserveEscape);
+    return () => content.removeEventListener("keydown", reserveEscape);
+  }, [enabled, portalContent]);
   useLayoutEffect(() => {
     if (!enabled || !ref.current) return;
     const marked: Array<{
@@ -100,7 +160,13 @@ export function AdminPortalScope({ children }: { children: ReactNode }) {
         else node.setAttribute("data-theme", theme);
       });
   }, [enabled, mode]);
-  return enabled ? <div ref={ref}>{children}</div> : children;
+  return enabled ? (
+    <AdminPortalOwner.Provider value={owner}>
+      <div ref={ref}>{children}</div>
+    </AdminPortalOwner.Provider>
+  ) : (
+    children
+  );
 }
 export function AdminMenuContent({
   children,
@@ -108,7 +174,7 @@ export function AdminMenuContent({
 }: ComponentProps<typeof Menu.Content>) {
   return (
     <Menu.Content {...props}>
-      <AdminPortalScope>{children}</AdminPortalScope>
+      <AdminPortalScope portalContent>{children}</AdminPortalScope>
     </Menu.Content>
   );
 }

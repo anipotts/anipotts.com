@@ -1,5 +1,84 @@
 # Website source preparation
 
+## October 18 browser-tools release and next completion batch
+
+Ani approved #532 at `8243909232b955c279e7c48a40765f7c79313d85` for merge and
+affected-target deployment in owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`.
+Required CI39169709333, Security Review and CodeQL passed. Live strict protection
+was reread before protected merge `0517843d68a1ed47e6e76c8bcff34e9923a945ef`;
+the merged tree is identical to the reviewed tree.
+[Release39190784351](https://github.com/anipotts/anipotts.com/actions/runs/39190784351)
+passed exact-release validation and selected no runtime targets: www, admin and
+all four workers were skipped. Browser tooling and receipt documentation do not
+change deployed bundles. D1 was unchanged; no migration or Production approval
+was required. Production remains on the verified #531 release94889ee.
+
+The next source candidate combines the remaining dependency branches #534/#535/#537 (which supersedes #536),
+aligns the full Tiptap family, and replaces lint-staged's vulnerable braces chain
+with its supported17.6release. The current lock audit has no high or critical
+advisories. Moderate legacy esbuild under Drizzle Kit and low KaTeX under Apps SDK
+remain upstream limitations, not a clean-audit claim. Astryx CLI0.7.1 compiles the
+existing Core/Neutral0.4.6 theme with its compatibility guard active; generated
+outputs and source instructions follow the installed compiler.
+
+Article properties now expose the existing source/demo URL, label and type;
+clearing an optional value removes its YAML key. Shared settings, body, comments,
+and line endings remain intact. This completes the normal editor path for the
+already-deployed public article source link. Admin native scroll indicators and
+one continuous cold-record loading announcement are implemented. A rejected
+editor module now leaves navigation available and offers a deliberate guarded
+page reload, without automatic retry or write replay. New-record inputs wait for
+hydration/recovery initialization; typing before hydration can no longer leave
+the visible title disconnected from Create. SDK menus remain inside their native
+modal owner, fixing untappable phone Properties controls. A distinct CSRF cookie
+is restricted to compiled HTTP-loopback owner builds; production retains the
+Secure `__Host` cookie, fixed origin and token checks.
+
+Local source qualification at `18329ff14eaa174e56ef5ac5acd9c0571146e979`:
+
+- `pnpm validate` passed: all invariants, formatting, six builds, four lint tasks,
+  fourteen typechecks and fourteen test tasks. Admin passed 2,361 core, 79 Astro,
+  98 editorial and three CSP cases with one intentional CSP skip; www passed 196
+  tests and shared content passed 206.
+- The complete local admin browser command passed 22 cases across desktop
+  Chromium and phone WebKit: metadata/source/review, loading failure/retry/lock,
+  native scroll/keyboard movement, real stored crop output/original retention,
+  upload cancellation, CSRF and existing editor/read-only journeys. Synthetic
+  records only; no production content writes or publication.
+- Public workerd/D1 publication and unpublication proof and all 84 CMS routes
+  passed. Public browser journeys passed 13 cases with one intentional desktop
+  skip on this dependency graph; subsequent app edits were Admin-only.
+- The deployable Admin scan found no local-owner marker or flag in 344 files.
+  This includes the HTTP-only cookie name. The lock audit has zero high/critical,
+  one moderate and one low advisory.
+
+The checked classifier selects all six runtime targets because shared dependency
+changes affect the app/worker graph. D1 is unchanged, schema is `0044`, migration
+risk is none and no remote migration is selected. Required hosted checks and
+Ani's exact merge/deployment review still gate release.
+
+The coherent recovery prototype is preserved separately at
+`codex/editorial-recovery-capture`, checkpoint
+`36178c98559b43f595803cfea8b4119529543baf`: 18 formatter/crypto tests and 21 real
+local DO/D1/R2 cases pass at source `2793c460`. Operational capture is disabled;
+writer-cohort enrollment, full upload coverage, key custody, external copy and
+operational restore remain unfinished. The 4 MiB collected / 8 MiB envelope
+bounds do not cover every valid 10 MiB upload. It is excluded from this release.
+
+Ani accepted local key-file custody and manual unlock for browser recovery.
+Its separate `codex/browser-recovery-encryption` foundation has 19 native Web
+Crypto tests; storage/UI migration and browser qualification remain separate.
+Current production browser recovery remains plaintext. The
+[private Images proposal](editorial-media-processing.md) preserves upload and
+publication limits and does not configure a provider or activate decoding.
+
+Per-article social imagery is superseded by the approved canonical brand card,
+enforced by current Shell and painter tests. The unused writing-seed lookup and
+ignored card prop are removed. No new image renderer, artwork or published prose
+is introduced. The [current completeness audit](website-completeness-audit.md)
+separates active software work, explicit deferrals and reserved live operations.
+This next candidate remains unapproved for merge/deployment.
+
 ## October 18 approved production release
 
 Ani explicitly approved corrected #529 at
@@ -113,7 +192,7 @@ Frozen install, full pnpm validate,13public browser tests (one intentional deskt
 skip) and10admin browser tests passed with the new CLI on desktop Chromium and
 phone WebKit. These are deterministic synthetic local tests, with no model-driven
 browser calls or production writes. Final hosted checks cover the actual PR head.
-Ani's review of that head is still required; #532 has not been merged or deployed.
+Ani subsequently approved that exact head; its completed no-target release is recorded above.
 
 ## October 18 review corrections and second batch
 
@@ -247,9 +326,10 @@ workers because dependencies are shared. There is no D1 migration change.
 Future release needs Ani's exact review plus current protection and release
 checks; the classification does not grant production permission. Content,
 Access, secrets, database bindings, migrations, backup custody and provider
-configuration are unchanged. The existing waiting worker deployment remains
-separate. Operational backup qualification, held media-decoder research and
-publication-aware social images remain follow-up work.
+configuration are unchanged. The former waiting worker deployment was completed by #529. Operational backup
+qualification and held media-decoder research remain follow-up work. The older
+per-article social-image proposal is superseded by the canonical brand-card
+contract; it is not an active rendering gap.
 
 ## October 10 checkpoint (historical)
 
