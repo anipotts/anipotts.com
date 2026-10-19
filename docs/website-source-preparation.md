@@ -12,7 +12,9 @@ No merge, auto-merge or release approval is inferred.
   stale input/intent, expiry, logout and unmount. Full-document unload warns while
   input is pending or recovery fails. Article/project creation routes do not host
   the library's SPA router, so no speculative history-index framework was added.
-  Held-native-Web-Crypto regressions pass 35 cases including 25 existing; the
+  Follow-up `92f94b27` also protects restored CAS conflicts and clearing a durable
+  title to empty; failed comparisons expose the existing explicit choices.
+  Held-native-Web-Crypto regressions pass 38 cases including 25 existing; the
   original `613b5711` source fails the new early-unload assertion. Strict editorial
   typing and Astro checking pass. A new real-browser create/back/re-import case
   awaits owner execution in both engines.

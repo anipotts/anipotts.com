@@ -451,3 +451,12 @@ state. The final Worker retains runner process-group ownership. Real runner
 forced-shutdown coverage fits its configured ten-second default; no guarantee is
 made for an uncatchable wrapper kill or an unclosed group. Combined source/browser
 and refreshed hosted qualification remain the integration owner's release gate.
+
+Independent follow-up review also covers a restored copy that loses a CAS before
+its first rewrite and clearing a previously durable title to empty. Both remain
+unsafe until their own acknowledgment. Changed results expose the existing
+explicit comparison choices; selecting this tab preserves the competing exact
+ciphertext in an archive. A pristine blank form does not acquire an unload
+warning merely because storage is unavailable. The 38 focused navigation cases
+include these actual encrypted storage races; combined native qualification still
+belongs to the integration owner.
