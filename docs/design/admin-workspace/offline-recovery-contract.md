@@ -190,9 +190,38 @@ Focused Node tests cover a 10 MiB object in each plane, backpressure, exact
 metadata and copied bytes, size/count limits, malformed manifests, missing,
 corrupted, duplicate, reordered and trailing frames, and sink failure. The native
 hash API is already used by the worker-side recovery modules and the isolated
-runtime enables `nodejs_compat`; this new transport still requires its own
-workerd/resource qualification. There is no claim of provider or operational
-qualification. Authenticated encryption/finalization and a complete staged
+runtime enables `nodejs_compat`. The focused native checkpoint below qualifies
+that API path; full integration resource qualification remains separate. There
+is no claim of provider or operational qualification. Authenticated encryption/finalization and a complete staged
 capture/restore integration remain future work. Inventory alone is never counted
 as preserved media, and this primitive does not close the existing v2 size gap or
 the encrypted-backup requirement.
+
+### Local workerd checkpoint
+
+Source `a8b4efdadef3bb90e134ba7c414f5957c4539c0b` passed all 33 focused Node
+tests and the strict editorial TypeScript check. A single focused native workerd
+run on 2026-10-19, started at 06:43:33 UTC and completed by 06:43:43 UTC, passed
+all three cases in `apps/admin/test/editorial/recovery-media-container.test.ts`
+with no unhandled failures. Vitest reported 55 ms test time and 837 ms total.
+The local receipt is `/private/tmp/anipotts-recovery-media-container-workerd.log`.
+
+The command, from `apps/admin`, was:
+
+```bash
+pnpm exec vitest run --config vitest.editorial.config.ts test/editorial/recovery-media-container.test.ts --maxWorkers=1
+```
+
+The native fixture generates each 10 MiB object from one reused 64 KiB input
+block. It verifies both planes against a fixed Node-generated SHA-256 reference,
+checks exact metadata/order, and holds the sink to demonstrate one outstanding
+awaited frame. Verification regenerates the deterministic frames rather than
+retaining a 20 MiB test payload; the Node tests separately exercise a retained
+binary round trip. Corruption and truncation abort staging without a final
+manifest. These are opaque transport fixtures, not image decoding fixtures.
+
+Source/reference bounds and this local binding runtime evidence do not establish
+a measured 128 MiB application memory ceiling, provider behavior, live capture,
+encrypted custody or operational restore. No production adapter, route, binding,
+RPC or eligibility change was made. The existing v2 size gap and operational
+eligibility refusal remain in place.
