@@ -1,5 +1,40 @@
 # Website source preparation
 
+## October 18 browser-tools release and next completion batch
+
+Ani approved #532 at `8243909232b955c279e7c48a40765f7c79313d85` for merge and
+affected-target deployment in owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`.
+Required CI39169709333, Security Review and CodeQL passed. Live strict protection
+was reread before protected merge `0517843d68a1ed47e6e76c8bcff34e9923a945ef`;
+the merged tree is identical to the reviewed tree.
+[Release39190784351](https://github.com/anipotts/anipotts.com/actions/runs/39190784351)
+passed exact-release validation and selected no runtime targets: www, admin and
+all four workers were skipped. Browser tooling and receipt documentation do not
+change deployed bundles. D1 was unchanged; no migration or Production approval
+was required. Production remains on the verified #531 release94889ee.
+
+The next source candidate combines the remaining dependency branches #534/#535/#536,
+aligns the full Tiptap family, and replaces lint-staged's vulnerable braces chain
+with its supported17.6release. The current lock audit has no high or critical
+advisories. Moderate legacy esbuild under Drizzle Kit and low KaTeX under Apps SDK
+remain upstream limitations, not a clean-audit claim. Astryx CLI0.7.1 compiles the
+existing Core/Neutral0.4.6 theme with its compatibility guard active; generated
+outputs and source instructions follow the installed compiler.
+
+Article properties now expose the existing source/demo URL, label and type;
+clearing an optional value removes its YAML key. Shared settings, body, comments,
+and line endings remain intact. This completes the normal editor path for the
+already-deployed public article source link. Admin native scroll indicators and
+one cold-record loading announcement are the next UI repairs. Synthetic media
+browser acceptance and the final integrated checks are still in progress.
+
+Per-article social imagery is superseded by the approved canonical brand card,
+enforced by current Shell and painter tests. The unused writing-seed lookup and
+ignored card prop are removed. No new image renderer, artwork or published prose
+is introduced. The [current completeness audit](website-completeness-audit.md)
+separates active software work, explicit deferrals and reserved live operations.
+This next candidate remains unapproved for merge/deployment.
+
 ## October 18 approved production release
 
 Ani explicitly approved corrected #529 at
@@ -113,7 +148,7 @@ Frozen install, full pnpm validate,13public browser tests (one intentional deskt
 skip) and10admin browser tests passed with the new CLI on desktop Chromium and
 phone WebKit. These are deterministic synthetic local tests, with no model-driven
 browser calls or production writes. Final hosted checks cover the actual PR head.
-Ani's review of that head is still required; #532 has not been merged or deployed.
+Ani subsequently approved that exact head; its completed no-target release is recorded above.
 
 ## October 18 review corrections and second batch
 
@@ -247,9 +282,10 @@ workers because dependencies are shared. There is no D1 migration change.
 Future release needs Ani's exact review plus current protection and release
 checks; the classification does not grant production permission. Content,
 Access, secrets, database bindings, migrations, backup custody and provider
-configuration are unchanged. The existing waiting worker deployment remains
-separate. Operational backup qualification, held media-decoder research and
-publication-aware social images remain follow-up work.
+configuration are unchanged. The former waiting worker deployment was completed by #529. Operational backup
+qualification and held media-decoder research remain follow-up work. The older
+per-article social-image proposal is superseded by the canonical brand-card
+contract; it is not an active rendering gap.
 
 ## October 10 checkpoint (historical)
 

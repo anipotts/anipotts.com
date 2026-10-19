@@ -294,12 +294,31 @@
     {
       "id": "pr-532",
       "title": "Browser tools upgrade qualified on released main",
-      "revision": "021d65921f9f864a0092c50900601129534885ee",
+      "revision": "8243909232b955c279e7c48a40765f7c79313d85",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "Source checkpoint includes released main94889ee and browser tools only: e2e0.21.1/playwright1.64.1. Frozen install/full validate/public13pass1skip/admin10pass. Receipt-only docs accompany final PR head; its exact hosted checks and Ani review remain required. No merge/deploy authority inferred.",
-      "updatedAt": "2026-10-18T21:51:34.602Z"
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "8243909232b955c279e7c48a40765f7c79313d85",
+          "by": "Ani",
+          "evidence": "Owner chat01a14ffb-519c-73b1-a63a-380f9d7274d0: go ahead and merge #532, deploy the affected targets, then move on to the next batch. Exact checked head824390923 approved.",
+          "at": "2026-10-19T02:46:35.468Z"
+        },
+        "production": {
+          "revision": "8243909232b955c279e7c48a40765f7c79313d85",
+          "by": "Ani",
+          "evidence": "Owner chat01a14ffb-519c-73b1-a63a-380f9d7274d0: go ahead and merge #532, deploy the affected targets, then move on to the next batch. Exact checked head824390923 approved.",
+          "at": "2026-10-19T02:46:35.468Z"
+        }
+      },
+      "note": "Source release complete. Run39190784351 succeeded with all six runtime targets and Production migration gate skipped; tooling/docs-only. No deployment was needed and no migration ran. Production remains94889ee. State approved plus release map records source-only completion, not a pending deployment consent.",
+      "updatedAt": "2026-10-19T02:46:35.468Z",
+      "release": {
+        "revision": "0517843d68a1ed47e6e76c8bcff34e9923a945ef",
+        "reviewedRevision": "8243909232b955c279e7c48a40765f7c79313d85",
+        "evidence": "Strict protected merge after current passing CI39169709333/Security/CodeQL; direct tree comparison passed.",
+        "at": "2026-10-19T02:36:39Z"
+      }
     }
   ]
 }

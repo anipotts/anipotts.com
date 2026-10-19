@@ -1,5 +1,49 @@
 # Website completeness audit
 
+## Current reconciliation, October 18
+
+Current source base: `0517843d68a1ed47e6e76c8bcff34e9923a945ef`. This current
+section supersedes historical status claims below; dated findings/evidence stay
+preserved. #529/#530/#531 are merged and deployed. #532 is merged; its exact
+release selected zero runtime targets because it changes test tooling/docs.
+There are no old Production approvals waiting. See the [release receipts](website-source-preparation.md).
+
+The remaining software work is finite:
+
+| Action                                          | Current disposition and acceptance                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin scroll indicators and cold record loading | In the next review batch: native indicators across main/editor/drawers; one stable loading announcement through lazy module + record fetch, with failure/retry preserved. Measure current navigation/layout behavior, not obsolete speed-plan routes.                                                                                                                                                            |
+| Writing source/artifact controls                | In the next review batch: edit existing URL/label/type fields normally; preserve optional YAML, comments and body; review labels match public output.                                                                                                                                                                                                                                                            |
+| Dependency consolidation                        | In the next review batch: #534/#535/#536 containment, whole-family Tiptap peers, Node24 declarations, guarded theme generation and zero high/critical audit findings. Two upstream advisories remain.                                                                                                                                                                                                            |
+| Media qualification and lifecycle               | Current upload admission is10MiB/16MP and does not prove server pixel decoding. Real synthetic browser upload/crop/stored-preview/original-retention coverage is being added. The held1MP WASM prototype has no safe128MiB full-Worker memory bound; do not lower existing limits or introduce paid processing silently. Server decode/provenance remains open until a qualified implementation is demonstrated. |
+| Portable recovery capture/restore               | Existing supplied-snapshot validation/encryption and memory restore are implemented. Real DO/D1/R2 capture requires a durable common fence, drained writers, complete schema/media inventory, suspended restore and interrupted-install proof. Implementation is isolated for local synthetic qualification; no production capture route, credentials or activation.                                             |
+| Browser recovery encryption                     | Current owner-scoped recovery values/downloads are plaintext. Authenticated reentry, old-format preservation, lost-key behavior and two-tab expiry/logout require a reviewed key/unlock design before runtime wiring. Existing logout fencing is implemented.                                                                                                                                                    |
+
+Reserved live gates stay separate from source completion: exact merge/release
+review; named-record authenticated draft-write acceptance; physical IME/mobile
+keyboard/resume/screen-reader acceptance; Knowledge/Health source/credential
+grants; backup destination/key custody and operational restore drill; provider
+Access/host/DNS cutover; state/Brands producers/collectors; newsletter-send
+semantics. None is implied by green tests. Read-only investigation may proceed
+without changing their providers, private content or credentials.
+
+Explicit product deferrals remain deferred: multi-record publication, schedules,
+published slug redirects, permanent staging, page builders, Finance/persistent
+personal agent and a personal cloud replica. Existing single-record publication
+continues to reject unsupported effects. Public story rewrites need evidence and
+Ani's editorial intent; software work does not authorize new published claims.
+
+Completed/superseded findings: shared site settings, homepage ordering/visibility,
+project card metadata, public source links, missing/error/timeout preview states,
+editor transaction serialization, upload cancellation, ancient conflict replay,
+page edit-capability mapping, retired native auth/GitHub publisher/MCP routes,
+and old logout/theme/navigation findings. Current source and #529/#530 receipts
+cover these; the old hashes below are historical evidence. Per-article social
+imagery is superseded by the approved canonical brand card, whose invariant is
+tested. Its ignored legacy prop/seed lookup is removed in the next batch.
+
+## Historical assessment, October 10
+
 Assessment date: October 10, 2026. Baseline: GitHub main
 `b1c2928c443f7f8677a82b092e01333ab95b5094`.
 

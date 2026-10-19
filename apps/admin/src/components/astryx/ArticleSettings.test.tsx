@@ -14,7 +14,7 @@ const initial =
 let host: HTMLDivElement;
 let root: Root;
 let source: string;
-let changed: ReturnType<typeof vi.fn>;
+let changed: ReturnType<typeof vi.fn<(next: string) => void>>;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal(
@@ -30,7 +30,7 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   source = initial;
-  changed = vi.fn();
+  changed = vi.fn<(next: string) => void>();
 });
 afterEach(() => {
   act(() => root.unmount());
