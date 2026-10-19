@@ -25,7 +25,7 @@ const descriptions: Record<RecoveryProblem, string> = {
   unavailable:
     "Browser storage or safe tab coordination is unavailable. Keep this page open and save or download your edits before leaving.",
   changed:
-    "Another tab changed browser recovery. Both stored copies are retained. Compare a copy below before recovering it, or save this page’s current edits before reopening.",
+    "Browser recovery contains competing copies. The stored copies are retained. Compare a copy below before recovering it, or save this page’s current edits before reopening.",
 };
 export function downloadBrowserRecovery(
   contents: string,
