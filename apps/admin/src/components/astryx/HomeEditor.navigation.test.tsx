@@ -605,6 +605,88 @@ it("typing during a navigation save keeps the newer buffer on screen", async () 
     ).value,
   ).toBe("Newer edit while saving.");
 });
+it("keeps one loading region through the lazy editor, record read, failed-read retry and ready state", async () => {
+  let finish!: (response: Response) => void;
+  const pending = () =>
+    new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+  const fetch = vi.fn(pending);
+  vi.stubGlobal("fetch", fetch);
+  window.history.replaceState(null, "", "/content/writing/test");
+  // Synchronous mount observes the real route's lazy-module fallback, before
+  // its imported HomeEditor can start the deferred record read.
+  act(() =>
+    root.render(
+      <EditorialApp
+        title="Writing"
+        area="content"
+        localPreview
+        siteUrl="http://127.0.0.1:4580/"
+        editorRecord={{ kind: "writing", id: "test" }}
+      />,
+    ),
+  );
+  const region = host.querySelector(
+    '[role="status"][aria-label="Loading editor"]',
+  );
+  expect(region).not.toBeNull();
+  expect(
+    host.querySelectorAll('[role="status"][aria-label="Loading editor"]'),
+  ).toHaveLength(1);
+  const initialText = region!.textContent;
+  const announcements: string[] = [];
+  const observer = new MutationObserver(() => {
+    if (region!.textContent && region!.textContent !== initialText)
+      announcements.push(region!.textContent);
+  });
+  observer.observe(region!, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+  try {
+    await act(async () => {});
+    expect(fetch).toHaveBeenCalled();
+    // The module handed off to its record request without replacing or
+    // re-announcing the loading owner. The actual skeleton remains visible.
+    expect(
+      host.querySelector('[role="status"][aria-label="Loading editor"]'),
+    ).toBe(region);
+    expect(
+      host.querySelectorAll('[role="status"][aria-label="Loading editor"]'),
+    ).toHaveLength(1);
+    expect(host.querySelector('[data-loading-region="body"]')).not.toBeNull();
+    expect(announcements).toEqual([]);
+    await act(async () => finish(jsonResponse("unavailable", { status: 503 })));
+    expect(host.textContent).toContain("Couldn’t load this draft.");
+    expect(
+      host.querySelector('[role="status"][aria-label="Loading editor"]'),
+    ).toBeNull();
+    await click("Try again");
+    expect(
+      host.querySelector('[role="status"][aria-label="Loading editor"]'),
+    ).toBe(region);
+    expect(
+      host.querySelectorAll('[role="status"][aria-label="Loading editor"]'),
+    ).toHaveLength(1);
+    await act(async () => finish(response(snapshot)));
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(
+          host.querySelector('textarea[aria-label="Test article body"]'),
+        ).not.toBeNull(),
+      );
+    });
+    expect(
+      host.querySelector('[role="status"][aria-label="Loading editor"]'),
+    ).toBeNull();
+    expect(host.querySelector('[data-loading-region="body"]')).toBeNull();
+  } finally {
+    observer.disconnect();
+  }
+});
+
 it.each(["loading", "failed"])(
   "allows workspace navigation while the initial editor is %s",
   async (mode) => {

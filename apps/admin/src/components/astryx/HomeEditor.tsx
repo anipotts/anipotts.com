@@ -81,7 +81,11 @@ import { DataTable, RelativeTime, StateNotice } from "../workspace/Workspace";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { useToast } from "@astryxdesign/core/Toast";
-import { AdminSkeleton, RecoveryBanner } from "./AdminFeedback";
+import {
+  AdminSkeleton,
+  RecoveryBanner,
+  useEditorLoading,
+} from "./AdminFeedback";
 import {
   BrowserRecoveryNotice,
   downloadBrowserRecovery,
@@ -1116,6 +1120,9 @@ function HomeEditorImpl({
     record.kind,
     record.id,
   ]);
+  const loadingOwned = useEditorLoading(
+    !locked && !error && (!state || !snapshot),
+  );
   if (locked)
     return (
       <VStack gap={3}>
@@ -1138,7 +1145,10 @@ function HomeEditorImpl({
             onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
           />
         ) : (
-          <AdminSkeleton fields={editorialFields(record)} />
+          <AdminSkeleton
+            fields={editorialFields(record)}
+            announce={!loadingOwned}
+          />
         )}
       </VStack>
     );

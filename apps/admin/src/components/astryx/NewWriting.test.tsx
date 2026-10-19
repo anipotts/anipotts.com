@@ -1,7 +1,8 @@
 import { jsonResponse } from "../../lib/test-json-response";
 // @vitest-environment jsdom
 import React, { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 // Transform the shared SDK/Astryx graph during collection, before timed setup.
 import "./NewWriting";
@@ -77,6 +78,73 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+it.each(["writing", "work"] as const)(
+  "keeps server-rendered %s creation inputs disabled until hydration restores recovery",
+  async (recordKind) => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const page = (
+      <AdminUIProvider enabled mode="light">
+        <NewWriting recoveryScope="owner" recordKind={recordKind} />
+      </AdminUIProvider>
+    );
+    act(() => root.unmount());
+    host.innerHTML = renderToString(page);
+    expect(titleField().disabled).toBe(true);
+    expect(createButton().disabled).toBe(true);
+    expect(
+      host.querySelector<HTMLButtonElement>(
+        'button[aria-label="Edit address"]',
+      )!.disabled,
+    ).toBe(true);
+    titleField().focus();
+    expect(document.activeElement).not.toBe(titleField());
+    await act(async () => {
+      root = hydrateRoot(host, page);
+    });
+    expect(titleField().disabled).toBe(false);
+    expect(
+      host.querySelector<HTMLButtonElement>(
+        'button[aria-label="Edit address"]',
+      )!.disabled,
+    ).toBe(false);
+    await type("Ready after hydration");
+    expect(titleField().value).toBe("Ready after hydration");
+    expect(host.querySelector(".editor-address-path")!.textContent).toBe(
+      `/${recordKind === "work" ? "work" : "writing"}/ready-after-hydration`,
+    );
+    expect(createButton().disabled).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+  },
+);
+
+it.each([true, false])(
+  "focuses the ready title only for a hardware pointer (fine=%s)",
+  async (fine) => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: fine,
+        addEventListener() {},
+        removeEventListener() {},
+      })),
+    );
+    const focusReadiness: boolean[] = [];
+    const nativeFocus = HTMLTextAreaElement.prototype.focus;
+    vi.spyOn(HTMLTextAreaElement.prototype, "focus").mockImplementation(
+      function (this: HTMLTextAreaElement) {
+        focusReadiness.push(!this.disabled);
+        nativeFocus.call(this);
+      },
+    );
+    await render();
+    expect(titleField().disabled).toBe(false);
+    expect(focusReadiness).toEqual(fine ? [true] : []);
+    if (fine) expect(document.activeElement).toBe(titleField());
+    else expect(document.activeElement).not.toBe(titleField());
+  },
+);
+
 it("restores only the server-provided account and preserves legacy unscoped data without adopting it", async () => {
   sessionStorage.setItem(
     "editorial:new-writing",

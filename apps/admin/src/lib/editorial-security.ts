@@ -1,8 +1,25 @@
 import { readBoundedBytes } from "./bounded-body";
 import { constantTimeEqual, randomHex } from "./crypto";
 import { HEX64 } from "./patterns";
+import { isLocalOwnerHttpCsrfRequest } from "./editorial-local-csrf-policy";
+
+// Also checked by the standalone editorial typecheck, without env.d.ts.
+declare const __LOCAL_OWNER_BUILD__: boolean;
 
 const csrfCookie = "__Host-editorial-csrf";
+
+function csrfCookiePolicy(request?: Request) {
+  // Keep the local name inside the build-time branch so release bundles remove
+  // it entirely. Plain HTTP WebKit refuses Secure cookies, including loopback.
+  if (
+    typeof __LOCAL_OWNER_BUILD__ !== "undefined" &&
+    __LOCAL_OWNER_BUILD__ &&
+    request &&
+    isLocalOwnerHttpCsrfRequest(request, true)
+  )
+    return { name: "editorial-local-owner-csrf", secure: false };
+  return { name: csrfCookie, secure: true };
+}
 
 /** The one private JSON response: never cached, indexed, framed or sniffed.
  * Failures carry `{ error: code }`. */
@@ -31,17 +48,18 @@ export function privateJson(
 
 /** Call only after verifying the Access assertion. The token grants no identity. */
 export function issueEditorialCsrf(request?: Request): Response {
+  const policy = csrfCookiePolicy(request);
   const existing = (request?.headers.get("Cookie") ?? "")
     .split(";")
     .map((value) => value.trim())
-    .filter((value) => value.startsWith(`${csrfCookie}=`));
+    .filter((value) => value.startsWith(`${policy.name}=`));
   const previous =
-    existing.length === 1 ? existing[0]!.slice(csrfCookie.length + 1) : "";
+    existing.length === 1 ? existing[0]!.slice(policy.name.length + 1) : "";
   const token = HEX64.test(previous) ? previous : randomHex(32);
   const response = privateJson({ csrf: token });
   response.headers.set(
     "Set-Cookie",
-    `${csrfCookie}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
+    `${policy.name}=${token}; Path=/; HttpOnly;${policy.secure ? " Secure;" : ""} SameSite=Strict`,
   );
   return response;
 }
@@ -58,13 +76,14 @@ export function checkEditorialMutation(
   const fetchSite = request.headers.get("Sec-Fetch-Site");
   if (fetchSite !== null && fetchSite !== "same-origin")
     return "origin_required";
+  const policy = csrfCookiePolicy(request);
   const cookies = (request.headers.get("Cookie") ?? "")
     .split(";")
     .map((cookie) => cookie.trim())
-    .filter((cookie) => cookie.startsWith(`${csrfCookie}=`));
+    .filter((cookie) => cookie.startsWith(`${policy.name}=`));
   // Duplicate cookies are ambiguous and rejected instead of choosing first/last.
   if (cookies.length !== 1) return "csrf_required";
-  const cookie = cookies[0]!.slice(csrfCookie.length + 1);
+  const cookie = cookies[0]!.slice(policy.name.length + 1);
   const supplied = request.headers.get("X-Editorial-CSRF");
   if (
     !HEX64.test(cookie) ||

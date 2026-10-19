@@ -1,7 +1,8 @@
 import React from "react";
 import { ArticleDate } from "./ArticleDate";
 import { TagInput } from "./TagInput";
-import { Selector } from "./WritingControls";
+import { Selector, TextInput } from "./WritingControls";
+import { setArticleArtifactField } from "../../lib/article-artifact";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -112,6 +113,45 @@ export function ArticleSettings({
         disabled={disabled}
         error={errors.get("tags")}
         onChange={(tags) => update("tags", tags)}
+      />
+      <TextInput
+        label="Source or demo link"
+        description="Use an HTTPS URL, a site path, or a section link."
+        value={typeof data.artifact_url === "string" ? data.artifact_url : ""}
+        status={fieldStatus("artifact_url")}
+        isDisabled={disabled}
+        onChange={(value) =>
+          onChange(setArticleArtifactField(source, "artifact_url", value))
+        }
+      />
+      <TextInput
+        label="Link label"
+        description="Optional text shown with the link on the article."
+        value={
+          typeof data.artifact_label === "string" ? data.artifact_label : ""
+        }
+        status={fieldStatus("artifact_label")}
+        isDisabled={disabled}
+        onChange={(value) =>
+          onChange(setArticleArtifactField(source, "artifact_label", value))
+        }
+      />
+      <Selector
+        label="Link type"
+        value={typeof data.artifact_type === "string" ? data.artifact_type : ""}
+        status={fieldStatus("artifact_type")}
+        isDisabled={disabled}
+        options={[
+          { value: "", label: "Not specified" },
+          { value: "repo", label: "Repository" },
+          { value: "gist", label: "Gist" },
+          { value: "demo", label: "Demo" },
+          { value: "screenshot", label: "Screenshot" },
+          { value: "recording", label: "Recording" },
+        ]}
+        onChange={(value) =>
+          onChange(setArticleArtifactField(source, "artifact_type", value))
+        }
       />
       <Address
         path={`/writing/${typeof data.slug === "string" && data.slug ? data.slug : id}`}

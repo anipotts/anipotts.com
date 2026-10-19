@@ -23,7 +23,7 @@ for coverage, intentional differences and the migration sequence.
 Run `pnpm theme:build` to regenerate the editorial theme and `pnpm theme:check`
 to verify its outputs, from `apps/admin`. These scripts use the repository's
 theme wrapper with the installed CLI. Core and Neutral remain at 0.4.6; the CLI
-is 0.6.7.
+is 0.7.1.
 
 For direct theme commands, including commands copied from generated headers,
 set the scoped Jiti transform environment on each invocation:

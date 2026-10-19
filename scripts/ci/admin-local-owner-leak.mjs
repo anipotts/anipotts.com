@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 export const LOCAL_OWNER_MARKERS = [
   "local-owner@localhost",
   "data-admin-local-owner",
+  "editorial-local-owner-csrf",
 ];
 
 // Vite replaces the flag with a literal. Either name surviving in any build

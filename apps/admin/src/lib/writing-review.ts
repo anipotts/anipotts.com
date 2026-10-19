@@ -7,6 +7,9 @@ const labels: Record<string, string> = {
   scheduled_at: "Scheduled date",
   tags: "Tags",
   slug: "Article address",
+  artifact_url: "Source or demo link",
+  artifact_label: "Link label",
+  artifact_type: "Link type",
 };
 
 /** Authored text fields have their own controls; include every other saved value. */

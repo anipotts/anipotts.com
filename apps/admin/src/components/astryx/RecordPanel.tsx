@@ -107,7 +107,14 @@ export function RecordPanel({
     if (mode === "inspector") heading.current?.focus({ preventScroll: true });
   }, [mode, title]);
   const dismiss = (open: boolean) => {
-    if (!open) close.current();
+    // The SDK's body Escape stack dismisses its menu after the sheet handler.
+    // Keep that key owned by the open menu; native cancellation is prevented
+    // by AdminPortalScope before it reaches the enclosing dialog.
+    if (
+      !open &&
+      !marker.current?.querySelector('[role="menu"][data-state="open"]')
+    )
+      close.current();
   };
   return (
     <VStack ref={marker} className="record-panel-host">

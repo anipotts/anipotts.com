@@ -9,7 +9,6 @@ import Shell from "../layouts/Shell.astro";
 import { Icon } from "astro-icon/components";
 import {
   publishedWriting,
-  bundledWritingSeed,
   publicContentContext,
   formatDate,
   writingSlug,
@@ -18,7 +17,6 @@ import {
 import { siteConfig } from "@anipotts/content/public";
 import { personId } from "../lib/identity";
 import { isExternalDestination } from "../lib/link-destination";
-import { writingCard } from "../lib/social-card/routes";
 
 interface Props {
   preview?: boolean;
@@ -39,12 +37,6 @@ const moreWriting = (
 )
   .filter((post) => writingSlug(post) !== slug)
   .slice(0, 2);
-// Cards are prerendered from Git writing. A CMS record keeps its bundled card
-// by slug; only a slug with no bundled card falls back to the site card.
-const bundledCard = (await bundledWritingSeed()).some(
-  (post) => writingSlug(post) === slug,
-);
-
 const articleLd = {
   "@context": "https://schema.org",
   "@type": "Article",
@@ -69,9 +61,6 @@ const articleLd = {
   jsonLd={articleLd}
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
-  socialCard={Astro.props.preview || !bundledCard
-    ? undefined
-    : writingCard(slug)}
 >
   {
     Astro.props.preview && (
