@@ -335,12 +335,12 @@
       "id": "browser-recovery-key-file-oct19",
       "title": "Local key-file unlock and encrypted browser recovery",
       "revision": null,
-      "sourceRevision": "dadc2475b8bea8b49cd7f779abb44452cd06ffb7",
+      "sourceRevision": "efae677d1f86702b2f46f43f28ca449f5bb0a68a",
       "lane": "code",
       "state": "implementing",
       "approvals": {},
-      "note": "Draft PR539 stacked on538; isolated codex/browser-recovery-unlock in /private/tmp/anipotts-browser-recovery-unlock. Accepted design is manual local key-file custody/re-unlock, not exact release consent. Source review and full source checks pass;32 browser regressions plus4 corrected native two-tab/history cases pass. Final combined qualification is refreshed before review. Admin-only/no migration. Await538 merge, main/CI refresh, canonical integration and exact Ani review. No production changes.",
-      "updatedAt": "2026-10-19T04:26:49Z"
+      "note": "PR539 ready for hosted full checks, stacked on538; isolated codex/browser-recovery-unlock in /private/tmp/anipotts-browser-recovery-unlock. Accepted design is manual local key-file custody/re-unlock, not exact release consent. Full validate and all36 native cases pass at1940a484; metadata-only public-format renameefae677d passes actual static gate9 files, strict TypeScript and38 affected tests. Affected native cases refreshed separately. Admin-only/no migration. Await538 merge, main/CI refresh, canonical integration and exact Ani review. No production changes.",
+      "updatedAt": "2026-10-19T04:35:30Z"
     }
   ]
 }

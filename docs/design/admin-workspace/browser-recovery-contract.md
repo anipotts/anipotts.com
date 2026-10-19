@@ -277,7 +277,7 @@ the owner browser matrix are not claimed by this branch documentation.
 
 ## October 19 owner qualification
 
-Source `dadc2475b8bea8b49cd7f779abb44452cd06ffb7` is preserved in draft #539,
+Source `dadc2475b8bea8b49cd7f779abb44452cd06ffb7` is preserved in PR #539,
 stacked on the frozen #538 candidate. Source review found no remaining blocker
 in the scoped protocol and entrypoint review. Stale channel reuse across same-
 or different-key imports and expired final work is fenced by per-unlock capability

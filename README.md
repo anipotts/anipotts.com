@@ -31,7 +31,7 @@ See [local development](docs/local-development.md).
 ## Current work
 
 - [ ] Review [#538](https://github.com/anipotts/anipotts.com/pull/538) at `2b797fb5`: dependency consolidation and completed editor journeys. Local and hosted checks pass; merge and all six deploy targets await Ani’s exact review. No migration.
-- [ ] Integrate [draft #539](https://github.com/anipotts/anipotts.com/pull/539) after #538: encrypted browser recovery with the accepted local key-file/manual-unlock design. Refresh main checks and the canonical preview before review and admin-only deployment.
+- [ ] Integrate [#539](https://github.com/anipotts/anipotts.com/pull/539) after #538: encrypted browser recovery with the accepted local key-file/manual-unlock design. Refresh main checks and the canonical preview before review and admin-only deployment.
 - [ ] Finish isolated media and coherent recovery qualification. Native-qualified foundations are preserved separately; provider activation, persisted media provenance and operational backup coverage/custody/restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 

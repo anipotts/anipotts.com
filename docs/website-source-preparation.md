@@ -11,7 +11,7 @@ awaits Ani’s exact merge/deployment review for all six runtime targets, no mig
 The canonical preview remains clean at this head: www127.0.0.1:4580,
 adminlocalhost:4311, current published v17/20-record mirror checked04:12:48Z.
 
-The next batch is [draft #539](https://github.com/anipotts/anipotts.com/pull/539),
+The next batch is [#539](https://github.com/anipotts/anipotts.com/pull/539),
 stacked on #538, branch `codex/browser-recovery-unlock`, isolated checkout
 `/private/tmp/anipotts-browser-recovery-unlock`. Ani accepted local recovery key
 files and manual re-unlock on reload/expiry. This accepts the design, not a later
@@ -40,6 +40,14 @@ pagehide and history return. The history test accepts either locked retained
 state or a fresh key gate; it does not assert a BFCache hit. Keys, fixtures and
 API writes are synthetic/local only. The final combined check is refreshed on
 the frozen review candidate before it is offered for approval.
+
+Final combined local validation and all36 native browser cases passed at
+`1940a48411309295f0faad8d292b1c62218a98f0`. The subsequent format-tag metadata
+rename at `efae677d` preserves serialized bytes and resolves the hosted scanner’s
+public-label false positive. Actual changed-file static review passes for9
+sensitive files, strict editorial TypeScript and38 affected tests pass; affected
+native cases are refreshed separately. PR539 is ready for hosted full checks,
+while the main-base and canonical-preview gates below remain outstanding.
 
 The recovery-only classifier selects admin, D1 unchanged/schema0044, no migration.
 The canonical preview remains on #538 until that review completes. #539 needs
