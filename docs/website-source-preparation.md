@@ -1,5 +1,58 @@
 # Website source preparation
 
+## October 19 approved consolidation release and recovery scheduling repair
+
+Ani approved #538 at `2b797fb5d4a10a4aa63788ac63ed140b31cd8a26` and
+all six targets in owner chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`.
+Exact-head CI39196056419, Security Review and CodeQL passed; there were no
+unresolved review threads. Strict live main protection was reread immediately
+before protected merge `795920090a594dbf347e2c7de35967e6d1ee76bb` at
+2026-10-19T06:26:22Z. Direct Git tree comparison proves the merge content is
+identical to the approved candidate. [Release39209913406](https://github.com/anipotts/anipotts.com/actions/runs/39209913406)
+passed exact validation and selects www, admin, ingest, newsletter, state and
+weekly email. D1 is unchanged, schema0044, no remote migration selected.
+The same approval was applied to the staged native Production gates. The run
+succeeded, and all six runtime targets deployed; none was skipped. No migration ran.
+
+Native Cloudflare readback confirms these versions active at100%:
+
+| Target       | Active version                         |
+| ------------ | -------------------------------------- |
+| www          | `ffa67ab0-d74c-42ca-8099-87adc1067fd2` |
+| admin        | `d9a482ec-438b-42a0-bcfe-cc4e93c264c9` |
+| ingest       | `35327197-09ec-4886-8ea8-6bb38472b845` |
+| newsletter   | `a405b42d-e04d-4433-ac9b-9ea2442c70a0` |
+| state        | `aa8d4bf1-94c4-4c26-b22c-4cd1c9a6c16a` |
+| weekly email | `8fe78741-5a4a-46ce-b1df-e94bfa0c6919` |
+
+The active admin version message names release795920090/schema0044. Public
+exact-release smoke passed all current22 HTML routes plus security-header and
+redirect probes. The release's eight admin private-route probes redirect to
+Access; authenticated owner writes are not claimed. The deployable bundle scan
+finds no local-owner marker in344 files. Direct public health at06:31:43Z reports
+795920090/oktrue, D1 connected. Newsletter health is200/oktrue; state remains503
+and ingest200/degraded from their separate producer freshness gaps. Weekly email
+is intentionally410/retired. No deliberate newsletter send or producer mutation
+was performed.
+
+#539 is retargeted to main and kept in draft during the next qualification.
+A held-lock probe of source3a3a561f retained24 legal serialized snapshots totaling
+9,440,376 bytes, then encrypted every stale copy. Fix6a8572cc bounds ordinary
+writes to one active and one latest pending copy. Superseded promises have an
+explicit outcome; at most four durable/choice/tombstone barriers preserve
+ordering and failure reporting. Closing capture supersedes obsolete pending
+work within the existing capability and1.5-second expiry cutoff. Consumer
+sequence guards prevent stale completion from clearing newer failures. Focused
+qualification passes127 cases, including native crypto flooding, immutable
+capture, ordered barriers, bounded admission and expiry supersession.
+
+The65,536-nonce lifetime limit remains fail-closed. A maximum-sized repeated
+payload can reach it during a long editing session; actionable save/reload
+messaging and encrypted-export failure handling landed in c877a112 with77 focused tests passing. HomeEditor retains its explicit plaintext Markdown source action; NewWriting names its actual Create draft control.
+This is an availability limit, not a nonce-safety bypass. Earlier full/browser
+receipts below apply to their stated revisions; final source validation, hosted
+main checks, canonical review and exact Ani review still gate #539 release.
+
 ## October 19 encrypted browser recovery checkpoint
 
 Integration owner remains chat `01a14ffb-519c-73b1-a63a-380f9d7274d0` on ap-pro.

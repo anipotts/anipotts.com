@@ -1,46 +1,47 @@
 # Website completeness audit
 
-## Current reconciliation, October 18
+## Current reconciliation, October 19
 
-Current source base: `0517843d68a1ed47e6e76c8bcff34e9923a945ef`. This current
-section supersedes historical status claims below; dated findings/evidence stay
-preserved. #529/#530/#531 are merged and deployed. #532 is merged; its exact
-release selected zero runtime targets because it changes test tooling/docs.
-There are no old Production approvals waiting. See the [release receipts](website-source-preparation.md).
+Current main is `795920090a594dbf347e2c7de35967e6d1ee76bb`, the protected
+merge of Ani-reviewed #538. Its approved all-six-target release39209913406 succeeded, with every new provider
+version active at100%, public smoke/admin Access proof passing, schema0044 and
+no migration. #529/#530/#531 are deployed; #532
+selected zero runtime targets. Old October10 Production approvals were
+superseded and cancelled. See [release receipts](website-source-preparation.md).
 
 The remaining software work is finite:
 
-| Action                                          | Current disposition and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Admin scroll indicators and cold record loading | In the next review batch: native indicators across main/editor/drawers; one stable loading announcement through lazy module + record fetch, with failure/retry preserved. Measure current navigation/layout behavior, not obsolete speed-plan routes.                                                                                                                                                                                                                                            |
-| Writing source/artifact controls                | In the next review batch: edit existing URL/label/type fields normally; preserve optional YAML, comments and body; review labels match public output.                                                                                                                                                                                                                                                                                                                                            |
-| Dependency consolidation                        | In the next review batch: #534/#535/#537 (which supersedes #536) containment, whole-family Tiptap peers, Node24 declarations, guarded theme generation and zero high/critical audit findings. Two upstream advisories remain.                                                                                                                                                                                                                                                                    |
-| Media qualification and lifecycle               | Current upload admission is10MiB/16MP and does not prove server pixel decoding. Real synthetic browser upload/crop/stored-preview/original-retention coverage is being added. The held1MP WASM prototype has no safe128MiB full-Worker memory bound; do not lower existing limits or introduce paid processing silently. Server decode/provenance remains open until a qualified implementation is demonstrated.                                                                                 |
-| Portable recovery capture/restore               | Existing supplied-snapshot validation/encryption and memory restore are implemented. Real DO/D1/R2 capture requires a durable common fence, drained writers, complete schema/media inventory, suspended restore and interrupted-install proof. Isolated checkpoint36178c98 passes18 formatter/crypto and21 real local DO/D1/R2 cases. Operational cohort eligibility is disabled;4MiB/8MiB capture bounds cannot cover all10MiB uploads. No production capture route, credentials or activation. |
-| Browser recovery encryption                     | Current owner-scoped recovery values/downloads are plaintext. Ani accepted local key-file custody/manual unlock; separate opt-in encryption foundation passes19 native Web Crypto tests. Authenticated setup, storage/CAS migration, downloads and two-tab expiry/logout still need integration and browser qualification. Existing logout fencing is implemented.                                                                                                                               |
+| Action                            | Current disposition and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encrypted browser recovery        | #539 on main implements the accepted saved-key/manual-unlock design in both authoring entry points, native v3 encryption, legacy preservation, expiry/logout and encrypted safety exports. Earlier full validation and36 native browser cases pass at1940a484. A large-draft probe then exposed an unbounded write queue.6a8572cc bounds/coalesces it and preserves ordered durable barriers;127 focused cases pass. Native browser flood proof and clear nonce-limit guidance are being qualified. #539 stays draft pending refreshed full/main checks, canonical preview and exact Ani review; admin-only release. |
+| Media qualification and lifecycle | Browser upload/crop/stored-preview/original-retention proof shipped in #538. Upload admission remains10MiB/16MP. Separate disabled foundationcd5011b2, runtime source5692a966, passes32 Node and3 actual workerd cases after three review fixes. Provider decode/orientation/crop/resource qualification, entitlement and atomically persisted provenance remain open. No paid activation or silent limit reduction.                                                                                                                                                                                                 |
+| Portable recovery capture/restore | Separate disabled foundation36178c98 passes18 formatter/crypto and21 actual local DO/D1/R2 cases, with writer fences, journal and suspended restore. Operational eligibility always rejects.4MiB/8MiB capture bounds cannot cover every10MiB upload; old-writer enrollment, complete inventory, custody, external copy and restore drill remain open. No production capture route, credentials or activation.                                                                                                                                                                                                        |
 
-Reserved live gates stay separate from source completion: exact merge/release
-review; named-record authenticated draft-write acceptance; physical IME/mobile
-keyboard/resume/screen-reader acceptance; Knowledge/Health source/credential
-grants; backup destination/key custody and operational restore drill; provider
-Access/host/DNS cutover; state/Brands producers/collectors; newsletter-send
-semantics. None is implied by green tests. Read-only investigation may proceed
-without changing their providers, private content or credentials.
+Completed in #538: native scroll indicators, stable cold-record loading,
+recoverable module failure, writing source/artifact controls, hydrated creation,
+phone modal properties and loopback-only local CSRF. Dependency #534/#535/#537
+heads are preserved and consolidated, with whole-family Tiptap alignment,
+Node24 declarations, guarded theme generation and zero high/critical lock-audit
+findings. Two upstream advisories remain. The ignored per-article social-card
+prop/seed lookup is removed; the approved canonical brand card remains invariant.
+
+Reserved live gates stay separate: exact review for each new PR; named-record
+owner draft-write acceptance; physical IME/mobile keyboard/resume/screen-reader
+acceptance; Knowledge/Health source grants; backup destination/key custody and
+operational restore drill; Access/host/DNS cutover; state/Brands producers and
+collectors; newsletter-send semantics. None is implied by green tests. Read-only
+investigation may proceed without changing providers, private content or credentials.
 
 Explicit product deferrals remain deferred: multi-record publication, schedules,
 published slug redirects, permanent staging, page builders, Finance/persistent
-personal agent and a personal cloud replica. Existing single-record publication
-continues to reject unsupported effects. Public story rewrites need evidence and
-Ani's editorial intent; software work does not authorize new published claims.
+personal agent and a personal cloud replica. Public story rewrites need evidence
+and Ani's editorial intent; software work does not authorize new published claims.
 
-Completed/superseded findings: shared site settings, homepage ordering/visibility,
-project card metadata, public source links, missing/error/timeout preview states,
-editor transaction serialization, upload cancellation, ancient conflict replay,
-page edit-capability mapping, retired native auth/GitHub publisher/MCP routes,
-and old logout/theme/navigation findings. Current source and #529/#530 receipts
-cover these; the old hashes below are historical evidence. Per-article social
-imagery is superseded by the approved canonical brand card, whose invariant is
-tested. Its ignored legacy prop/seed lookup is removed in the next batch.
+Earlier completed findings include shared site settings, homepage ordering and
+visibility, project metadata, public source links, preview error/timeout states,
+serialized editor transactions, upload cancellation, conflict replay, edit
+capability mapping, retired native auth/publisher/MCP routes and logout/theme
+repairs. Dated assessments below preserve their original evidence and uncertainty.
 
 ## Historical assessment, October 10
 

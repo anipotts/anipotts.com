@@ -299,3 +299,33 @@ refreshed before review. They do not establish physical Files-app custody, a
 particular BFCache hit, authenticated live owner expiry/save, production deployment,
 or operational snapshot/backup key custody. The canonical review preview remains
 on #538 while it awaits review; #539 is not merged or deployed.
+
+## Bounded v3 scheduling, October 19
+
+Ordinary recovery writes retain one active and one latest pending serialized
+snapshot. A replaced pending write resolves explicitly as `superseded`, never
+as a durable success. Consumers ignore superseded and stale sequence results.
+The latest snapshot is captured immediately, so later caller mutation cannot
+change its payload. `writeDurable`, explicit choices and null acknowledgment
+tombstones are ordered barriers; at most four outstanding barriers are admitted.
+Excess barrier requests fail explicitly without disturbing admitted work.
+An admitted barrier supersedes an older pending ordinary snapshot because it
+captures complete authoritative state. Later ordinary input stays after the
+admitted barriers. Choices retain archival/CAS behavior and create retry
+identities await their durable barrier.
+
+Expiry discards queued ordinary and normal barrier work, then admits one final
+closing-capability capture after at most the already active write. It preserves
+the1.5-second deadline and capability checks; a stalled active write can still
+exhaust that bounded window. Expiry does not promise a final completed seal.
+The native held-lock regression admits24 large snapshots, observes22 explicit
+supersessions, then verifies only two writes and the exact latest payload.
+
+At the document's65,536-nonce encryption limit, recovery reports
+`key-usage-limit` specifically. It disables encrypted safety exports and recovery
+choices, preserves prior bytes and explains saving to the server before reload
+and saved-key re-import. HomeEditor also names its existing plaintext Markdown
+source menu; NewWriting names Create draft. A failed export preserves this
+outcome rather than replacing it with a generic storage warning. The cap,
+nonce-reuse defenses and key lifetime remain unchanged. This guidance does not
+promise a final encrypted export after exhaustion.

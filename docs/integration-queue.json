@@ -229,18 +229,18 @@
         "code": {
           "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
           "by": "Ani",
-          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed “go ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too” on October 18, 2026.",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed \u201cgo ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too\u201d on October 18, 2026.",
           "at": "2026-10-18T21:46:27.064Z"
         },
         "production": {
           "revision": "742c4a2d3a05510a0633ba212615cb8266af80f0",
           "by": "Ani",
-          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed “go ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too” on October 18, 2026.",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani instructed \u201cgo ahead and merge #530 and #531, deploy the affected targets, and get #532 checked and ready too\u201d on October 18, 2026.",
           "at": "2026-10-18T21:46:27.064Z"
         }
       },
       "sourceRevision": "c814e41ec66e541eb274c397fde85ba3fc007ac6",
-      "note": "Ani approved #530 for merge and affected-target deployment. Exact-head protected checks passed; reviewed and merged trees are identical. www and admin deployed; four retained workers skipped; no migration. Visual acceptance remains Ani’s review.",
+      "note": "Ani approved #530 for merge and affected-target deployment. Exact-head protected checks passed; reviewed and merged trees are identical. www and admin deployed; four retained workers skipped; no migration. Visual acceptance remains Ani\u2019s review.",
       "updatedAt": "2026-10-18T21:46:27.064Z",
       "release": {
         "revision": "93f8c087ef262a20674572b3b2ee86e4ad402f82",
@@ -326,21 +326,46 @@
       "revision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
       "sourceRevision": "18329ff14eaa174e56ef5ac5acd9c0571146e979",
       "lane": "code",
-      "state": "awaiting-review",
-      "approvals": {},
-      "note": "PR538 frozen at2b797fb5. Exact-head hosted CI39196056419/Security/CodeQL and native code/security review pass; local full validation,22 Admin browser cases,84 CMS routes and public runtime proof pass. Superseded PR534/535/537 closed with exact heads preserved in ancestry. All six targets selected; schema0044/no migration. Ani exact merge/deployment review remains pending. Canonical preview is this exact head; recovery/media prototypes excluded.",
-      "updatedAt": "2026-10-19T04:26:49Z"
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
+          "by": "Ani",
+          "evidence": "Owner chat01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered approve #538 and deploy all affected targets to the exact2b797fb5/all-six-target approval question on October19,2026.",
+          "at": "2026-10-19T06:28:53.402440+00:00"
+        },
+        "production": {
+          "revision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
+          "by": "Ani",
+          "evidence": "Owner chat01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered approve #538 and deploy all affected targets to the exact2b797fb5/all-six-target approval question on October19,2026.",
+          "at": "2026-10-19T06:28:53.402440+00:00"
+        }
+      },
+      "note": "Approved candidate merged and all six targets deployed by39209913406. Direct tree equality, public exact-release smoke, active provider versions at100% and admin release/schema/eight Access boundary probes pass. D1false/schema0044/no migration. Existing state/Brands freshness gaps remain separate. Recovery/media excluded.",
+      "updatedAt": "2026-10-19T06:32:08.800212+00:00",
+      "release": {
+        "revision": "795920090a594dbf347e2c7de35967e6d1ee76bb",
+        "reviewedRevision": "2b797fb5d4a10a4aa63788ac63ed140b31cd8a26",
+        "evidence": "Strict protection reread immediately before protected merge. Exact-head CI39196056419/Security/CodeQL passed; direct git tree comparison proves approved and merge trees identical.",
+        "at": "2026-10-19T06:26:22Z"
+      },
+      "deployment": {
+        "revision": "795920090a594dbf347e2c7de35967e6d1ee76bb",
+        "target": "www, admin, ingest, newsletter, state, weekly_email",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39209913406 succeeded all six targets; none skipped. Native provider readback confirms each new version active100%. Public exact-release smoke and admin provider/schema0044/eight owner boundary checks pass. No migration.",
+        "at": "2026-10-19T06:32:08.800212+00:00"
+      }
     },
     {
       "id": "browser-recovery-key-file-oct19",
       "title": "Local key-file unlock and encrypted browser recovery",
       "revision": null,
-      "sourceRevision": "efae677d1f86702b2f46f43f28ca449f5bb0a68a",
+      "sourceRevision": "c877a1129e5c29b79aa6dc53ffffea46852e8624",
       "lane": "code",
       "state": "implementing",
       "approvals": {},
-      "note": "PR539 ready for hosted full checks, stacked on538; isolated codex/browser-recovery-unlock in /private/tmp/anipotts-browser-recovery-unlock. Accepted design is manual local key-file custody/re-unlock, not exact release consent. Full validate and all36 native cases pass at1940a484; metadata-only public-format renameefae677d passes actual static gate9 files, strict TypeScript and38 affected tests. Affected native cases refreshed separately. Admin-only/no migration. Await538 merge, main/CI refresh, canonical integration and exact Ani review. No production changes.",
-      "updatedAt": "2026-10-19T04:35:30Z"
+      "note": "PR539 draft on main.6a8572cc bounded/coalesced writes pass127 focused tests;08149d4d adds real-browser held-lock regression; c877a112 cap-specific guidance/disabled exhausted exports passes77 focused tests. Full source and native browser refresh underway; canonical preview and exact Ani review still gate admin-only/no-migration release.",
+      "updatedAt": "2026-10-19T06:32:08.800212+00:00"
     }
   ]
 }
