@@ -90,6 +90,6 @@ export type RecoveryCaptureV3Opened = {
 };
 
 export function equalRecoverySchemasV3(
-  actual: readonly import("./editorial-recovery-capture.mjs").SqlRow[],
-  expected: readonly import("./editorial-recovery-capture.mjs").SqlRow[],
+  actual: readonly Readonly<Record<string, unknown>>[],
+  expected: readonly Readonly<Record<string, unknown>>[],
 ): boolean;
