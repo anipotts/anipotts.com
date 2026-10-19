@@ -128,6 +128,52 @@ artifact and isolated target while source editing/publication resumes. A future
 source alarm remains scheduled and can run after verified completion; the target
 alarm remains unarmed.
 
+## Integrated current-main qualification
+
+The isolated capture branch normally merged approved main
+`795920090a594dbf347e2c7de35967e6d1ee76bb`, retaining its existing capture and
+media transport history. Source `33992467607c8b55074f735dbfcb7f808bef71fc` then
+passed the complete `pnpm validate` command on 2026-10-19, started at 06:48:17 UTC
+and completed by 06:52:04 UTC, using Node 24.19.0 and pnpm 10.5.2. Dependencies
+were refreshed with `pnpm install --frozen-lockfile` in this worktree's physically
+isolated `node_modules`; the lockfile stayed unchanged.
+
+The full command used the repository's heavy-slot wrapper and covered CI
+invariants, formatting, workspace builds, lint, type checks and workspace tests.
+Public tests passed all 196 cases and content tests passed all 206. Admin
+coverage passed 2,361 component/library tests, 79 Astro tests and 101 native
+editorial tests, including all three new media transport cases. Its existing
+`test:recovery` command passed 51 Node cases (18 offline/capture plus 33 media
+transport) and all 21 native DO SQLite/D1/R2 recovery cases. No duplicate native
+run was needed. Built CSP verification passed three cases; its opt-in browser
+case remained skipped because `RUN_CSP_BROWSER` was not enabled. The Turbo test
+stage completed all 14 tasks successfully, using valid cache hits where reported.
+
+The first full attempt at merge source
+`647c55e55d62c9c1cdbef8abc0d3062afe528427` failed before app builds: the admin
+build-input scope invariant lacked the two referenced offline/capture helper
+scripts. The correction adds only those exact inputs and coverage assertions.
+The existing release corpus replayed 5,124 entries in 409 classes with zero
+differences. The first failure is retained in
+`/private/tmp/anipotts-capture-foundation-validate.log`; the passing rerun is
+`/private/tmp/anipotts-capture-foundation-validate-r2.log`. Dependency refresh is
+recorded in `/private/tmp/anipotts-capture-foundation-install.log`.
+
+The passing run is not warning-free: workerd logged a `revision_conflict`
+exception during the deliberate stale-revision restore test, whose HTTP 409
+assertion passed. Vitest reported every suite passing. Local fixture runtime
+contract warnings and existing DOM environment warnings also remain in the log.
+This checkpoint does not claim browser/device acceptance or a measured aggregate
+worker-memory ceiling.
+
+No provider, production capture, operational cohort activation, remote migration,
+key custody, auth, DNS or deployment change was made. The additive source
+migration `apps/admin/migrations/content-publication/0003_recovery_fence.sql`
+remains unapplied remotely and requires its separate exact release/rollout gate.
+The disabled operational eligibility and supported-size v2 limitations below
+remain explicit. This is a checked agent-branch checkpoint awaiting integration
+owner review, not a production backup or release.
+
 ## Remaining operational gaps
 
 The normal cohort eligibility adapter always rejects operational capture. Only
