@@ -371,7 +371,10 @@ export function EditorialApp({
         )}
         recordPage={recordPage || (Boolean(review) && !hideHeader)}
       >
-        <AdminUIProvider enabled={library === "writing"} mode={mode}>
+        <AdminUIProvider
+          enabled={library === "writing" || library === "work"}
+          mode={mode}
+        >
           <VStack
             gap={editorRecord ? 4 : 6}
             className={`editorial-content${groups ? " editorial-library-page" : ""}${recordPage ? " writing-content" : ""}`}

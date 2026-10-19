@@ -19,6 +19,7 @@ import {
   type FixtureState,
   type Scenario,
 } from "./dev-openai-fixture";
+import { DevProjectWorkspace } from "./dev-project-workspace";
 import "./dev-openai-catalog.css";
 
 function Select({
@@ -397,6 +398,7 @@ export function DevOpenAICatalog() {
             </form>
           </section>
         </div>
+        <DevProjectWorkspace />
         <section aria-labelledby="fixture-chat">
           <h2 id="fixture-chat">Conversation card</h2>
           <SyntheticChat state={state} mode={mode} />

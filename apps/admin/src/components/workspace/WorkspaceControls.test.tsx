@@ -200,3 +200,30 @@ it.each([false, true])(
     );
   },
 );
+
+it.each([false, true])(
+  "preserves a button's short visible child and full accessible label without duplicating text (workspace pilot=%s)",
+  (enabled) => {
+    act(() =>
+      root.render(
+        <AdminUIProvider enabled={enabled}>
+          <controls.Button label="Remove story 1 paragraph 2">
+            Remove paragraph
+          </controls.Button>
+          <controls.Button
+            label="Open full project"
+            href="/content/projects/synthetic"
+          >
+            Open project
+          </controls.Button>
+        </AdminUIProvider>,
+      ),
+    );
+    const button = host.querySelector(
+      'button[aria-label="Remove story 1 paragraph 2"]',
+    );
+    expect(button?.textContent).toBe("Remove paragraph");
+    const link = host.querySelector('a[aria-label="Open full project"]');
+    expect(link?.textContent).toBe("Open project");
+  },
+);

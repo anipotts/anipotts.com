@@ -1,4 +1,4 @@
-/** Shared workspace controls. Legacy routes retain Astryx; opted-in Writing
+/** Shared workspace controls. Legacy routes retain Astryx; opted-in Content
  * renders actual Apps SDK UI controls with the same callbacks. */
 import React, { useId, type ComponentProps } from "react";
 import { Button as LegacyButton } from "@astryxdesign/core/Button";
@@ -81,7 +81,11 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
     "aria-expanded": props["aria-expanded"],
     "aria-haspopup": props["aria-haspopup"],
     "aria-pressed": props["aria-pressed"],
-    "aria-label": props.isIconOnly ? label : props["aria-label"],
+    "aria-label":
+      props["aria-label"] ??
+      (props.isIconOnly || (props.children != null && props.children !== label)
+        ? label
+        : undefined),
     title:
       !hasExternalTooltip(props) &&
       !props.isIconOnly &&
@@ -100,7 +104,8 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
       rel={props.rel}
     >
       {icon}
-      {label}
+      {!props.isIconOnly && (props.children ?? label)}
+      {props.endContent}
     </ButtonLink>
   ) : (
     <SDKButton
@@ -127,8 +132,7 @@ export function Button(props: ComponentProps<typeof LegacyButton>) {
       }}
     >
       {icon}
-      {!props.isIconOnly && label}
-      {props.children}
+      {!props.isIconOnly && (props.children ?? label)}
       {props.endContent}
     </SDKButton>
   );
@@ -232,6 +236,10 @@ export function ToggleButton(props: ComponentProps<typeof LegacyToggle>) {
   );
   return controlTooltip(control, props);
 }
+
+/** SDK UI has no numeric field. Retain Core's localized draft/commit, IME,
+ * clamping and spinbutton semantics rather than rebuilding a partial parser. */
+export { NumberInput } from "@astryxdesign/core/NumberInput";
 
 export function TextInput(props: ComponentProps<typeof LegacyInput>) {
   const enabled = useOpenAIUI();
@@ -479,6 +487,8 @@ export function Selector(props: ComponentProps<typeof LegacySelector>) {
             size="lg"
             type="button"
             aria-labelledby={id}
+            aria-describedby={props.status?.message ? `${id}-help` : undefined}
+            aria-invalid={props.status?.type === "error" || undefined}
             disabled={props.isDisabled}
           >
             {selected?.label ?? props.placeholder ?? "Choose"}
@@ -502,7 +512,9 @@ export function Selector(props: ComponentProps<typeof LegacySelector>) {
         </AdminMenuContent>
       </Menu>
       {props.status?.message && (
-        <small className="writing-control-help">{props.status.message}</small>
+        <small id={`${id}-help`} className="writing-control-help">
+          {props.status.message}
+        </small>
       )}
     </div>
   );
