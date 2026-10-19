@@ -23,7 +23,7 @@
     "test:editorial": "vitest run --config vitest.editorial.config.ts",
     "test:csp": "pnpm build && vitest run --config vitest.csp.config.ts",
     "test:theme-render": "node ../../scripts/admin/theme-contrast.mjs",
-    "test:recovery": "node --test ../../scripts/admin/editorial-recovery.test.mjs ../../scripts/admin/editorial-recovery-capture.test.mjs ../../scripts/admin/recovery-media-container.test.mjs && vitest run --config vitest.recovery.config.ts"
+    "test:recovery": "node --test ../../scripts/admin/editorial-recovery.test.mjs ../../scripts/admin/editorial-recovery-capture.test.mjs ../../scripts/admin/recovery-media-container.test.mjs ../../scripts/admin/recovery-media-encryption.test.mjs && vitest run --config vitest.recovery.config.ts"
   },
   "dependencies": {
     "@anipotts/brand": "workspace:*",

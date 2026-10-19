@@ -272,6 +272,68 @@ encrypted custody or operational restore. No production adapter, route, binding,
 RPC or eligibility change was made. The existing v2 size gap and operational
 eligibility refusal remain in place.
 
+## Supplied encrypted media codec, source qualification
+
+`scripts/admin/recovery-media-encryption.mjs` adds a separate supplied-data codec
+around the plaintext media transport. It has no production imports, capture or
+restore adapter, eligibility route, provider access, custody integration or key
+store. Existing offline v1 and capture v2 envelopes are unchanged. This does not
+close the operational v2 size gap or enable a usable backup.
+
+The distinct `anipotts.editorial-recovery-media.aes256gcm` version-one format is
+an iterable of bounded header/record events. Binary ciphertext is never a whole
+object or a base64 envelope. The canonical header is at most 8 KiB and binds the
+capture UUID, application revision, content schema and both generation fences.
+Each operation copies the caller's 32-byte key and context before its first
+await, creates a fresh random 32-byte data key, and wraps it once with AES-256-GCM
+and a fresh random 96-bit IV under the supplied key. The wrapped key is bound to
+the header identity. Every media, manifest and final commit record uses the same
+ephemeral data key with a distinct 96-bit counter IV starting at one. There is no
+automatic encryption retry, resumed counter or data-key reuse between operations.
+Record AAD binds the exact header hash, role, sequence, object/index and length;
+tags are 128 bits. Native `node:crypto` provides AES-GCM and incremental SHA-256,
+with no new dependency.
+
+Media retains the existing 64 KiB canonical frames, 10 MiB object limit, 64 MiB
+aggregate and 5,000-entry limit, preserving separate private/public identities,
+private order and exact R2 metadata. Manifest metadata and evidence retain their
+separate plaintext transport bounds. The manifest itself is encrypted in 64 KiB
+chunks. A final encrypted commit binds exact media/frame/manifest/record counts,
+the manifest hash and a length-delimited transcript hash of the header and every
+prior encrypted record. Exact EOF is required after the commit. The supplied
+sink keeps ciphertext staged until `complete` acknowledges the commit.
+
+Opening requires a factory that reopens the same source twice. Pass one fully
+authenticates the bounded manifest and transcript, without retaining media.
+Pass two rechecks the exact header and authenticated transcript, validates media
+hashes and canonical frame/order against that manifest, and only then hands a
+final manifest to the plaintext staging sink after the second commit and exact
+EOF. Missing, duplicated, reordered, changed, trailing or damaged records leave
+staging incomplete. No untrusted manifest starts a plaintext restore. This is a
+codec contract, not publication or an operational restore adapter.
+
+Both directions await each supplied read/write, allow at most one outstanding
+frame and use an AbortSignal plus an absolute deadline capped at 20 seconds.
+Cooperative event-loop yields prevent ready promises from starving revocation.
+Owned key buffers are wiped on completion, failure, abort and deadline; pending
+caller work cannot resume codec finalization afterward. This is not a claim of
+native crypto-handle or JavaScript string zeroization. Supplied sinks must
+consume/copy each frame before acknowledgment, keep it inaccessible in staging,
+and check the operation signal immediately before final visibility. The codec
+cannot undo an arbitrary caller's late side effects or guarantee durability.
+Abort attempts cleanup without waiting indefinitely for it.
+
+Synthetic Node coverage includes a file-backed encrypted round trip of 10 MiB
+in each plane, reading one ciphertext frame at a time instead of retaining a
+20 MiB binary fixture. It also covers wrong keys/context, header/tag/AAD damage,
+order/duplication/missing/trailing records, changed second pass, held sink
+backpressure, revocation, deadlines and late completion. A separate native
+workerd test file is prepared for bounded AES-GCM, two-pass, tag failure and
+revocation qualification. Native execution and exact revision evidence remain
+pending the integration owner's shared heavy slot. These checks qualify the
+supplied codec only; they do not prove a 128 MiB integrated application memory
+ceiling, provider behavior, custody, collector coverage or live recovery.
+
 ## Proposed browser key and unlock design
 
 Ani accepted local key-file custody and manual re-import after reload/expiry in
