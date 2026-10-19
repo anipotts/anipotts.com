@@ -2,6 +2,32 @@
 
 ## October 19 project cleanup and consolidated continuation
 
+### Cleanup verification
+
+Git registration now contains5worktrees instead of35: the untouched primary
+checkout, canonical review, formatter, the single consolidated UI candidate,
+and the preserved dirty table-layout checkout.31retired checkout paths are
+removed, with35verified preservation-ref mappings and10compressed local-state
+archives.53generated cache/output paths were removed from the inactive primary
+and table-layout copies; both pre-existing source diffs and status bytes are
+unchanged. No branch or user-authored record was permanently deleted.
+The canonical preview is clean on released main39204ca89, published mirrorv17 /
+20records, blockers empty, www4580 and managed Admin4311 listening. Test ports
+8873/8917/8918 are closed. Missing-worktree prune dry run is empty.
+
+20completed PR attachments were unlinked. Four redundant bot PRs are closed.
+A new genuine browser-runner update #552 appeared during cleanup and is retained
+for qualification, so GitHub now has5open PRs:540/541/550/551/552. No additional
+checkout was created for it. Core and Projects source are contained in #551.
+
+Native app archival initially returned queued; readback retained seven stale
+worktree cards. A reconciliation attempt returned the native ownership error
+"This worktree is owned by another task." Do not bypass that control. The Git
+and filesystem cleanup is verified; those app cards need archival from their
+owning chats. UI automation is unavailable in this symlinked workspace, and
+settings were not changed as a workaround. The local summary and preservation
+manifests record this remaining app-only limitation.
+
 Ani requested cleanup of project worktrees, PRs and local files in owner chat
 `01a14ffb-519c-73b1-a63a-380f9d7274d0`. Integration remains with this chat on
 ap-pro. The original dirty checkout and the dirty `table-loading-layout`
