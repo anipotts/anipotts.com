@@ -276,7 +276,12 @@ function NewWritingForm({
           return;
         setRecoveryProblem(problem);
         setRecoveryFailed(Boolean(problem));
-        if (!problem) {
+        if (problem === "changed") setRecoveryRead(channel.current());
+        if (problem) {
+          const value = latestRecovery.current;
+          if (editGeneration.current > 0 || value?.title || value?.slug)
+            recoveryUnsafe.current = true;
+        } else {
           recoveryUnsafe.current = false;
           setLeaveError("");
         }
@@ -324,6 +329,7 @@ function NewWritingForm({
       }
       setRecoveryProblem(problem);
       setRecoveryFailed(Boolean(problem));
+      if (problem === "changed") setRecoveryRead(channel.current());
       if (problem) {
         recoveryUnsafe.current = true;
         setLeaveError("Resolve browser recovery before leaving this title.");
@@ -387,13 +393,7 @@ function NewWritingForm({
       void leaveDocumentRef.current(anchor.href);
     };
     const preventLoss = (event: BeforeUnloadEvent) => {
-      const value = latestRecovery.current;
-      if (
-        active.current &&
-        value &&
-        (value.title || value.slug) &&
-        (pending.current || recoveryUnsafe.current)
-      ) {
+      if (active.current && (pending.current || recoveryUnsafe.current)) {
         event.preventDefault();
         event.returnValue = "";
       }

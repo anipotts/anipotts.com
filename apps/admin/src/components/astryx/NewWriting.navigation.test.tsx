@@ -68,7 +68,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-async function mount(kind: "writing" | "work" = "writing") {
+async function mount(kind: "writing" | "work" = "writing", settle = true) {
   await act(async () => {
     root.render(
       <Provider enabled mode="light">
@@ -83,9 +83,10 @@ async function mount(kind: "writing" | "work" = "writing") {
       </Provider>,
     );
   });
-  await act(async () => {
-    await settleRecoveryFixture();
-  });
+  if (settle)
+    await act(async () => {
+      await settleRecoveryFixture();
+    });
 }
 async function title(value: string) {
   await act(async () => {
@@ -322,3 +323,99 @@ it.each(["expired", "logout", "unmount"] as const)(
     expect(fetch).not.toHaveBeenCalled();
   },
 );
+
+it("restored A stays unsafe when another tab replaces its canonical ciphertext with B", async () => {
+  const channel = recovery.encryptedWritingRecovery(
+    localStorage,
+    recovery.newWritingRecoveryKey("owner"),
+  );
+  await channel.read();
+  await channel.writeDurable({
+    title: "Restored A",
+    slug: "restored-a",
+    customSlug: false,
+    request: null,
+  });
+  const rawA = localStorage.getItem(channel.key)!;
+  await channel.writeDurable({
+    title: "Other tab B",
+    slug: "other-tab-b",
+    customSlug: false,
+    request: null,
+  });
+  const rawB = localStorage.getItem(channel.key)!;
+  localStorage.setItem(channel.key, rawA);
+  channel.close();
+  const held = holdCrypto();
+  await mount("writing", false);
+  await held.entered;
+  expect(host.querySelector("textarea")!.value).toBe("Restored A");
+  localStorage.setItem(channel.key, rawB);
+  await act(async () => {
+    held.release();
+    await settleRecoveryFixture();
+  });
+  expect(unload()).toBe(true);
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  await act(async () => {
+    navigation.navigateAdmin("/content/writing");
+    await settleRecoveryFixture();
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(host.querySelector("textarea")!.value).toBe("Restored A");
+  expect(localStorage.getItem(channel.key)).toBe(rawB);
+  // Refusal must expose the channel's existing explicit choice UI, rather than
+  // strand the author behind a warning with no available comparison.
+  const choose = Array.from(host.querySelectorAll("button")).find(
+    (button) => button.textContent === "Recover this tab",
+  );
+  expect(choose).toBeTruthy();
+  await act(async () => {
+    choose!.click();
+    await settleRecoveryFixture();
+  });
+  expect(unload()).toBe(false);
+  expect(
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(`${channel.key}:archive:`))
+      .some((key) => localStorage.getItem(key) === rawB),
+  ).toBe(true);
+});
+it("clearing a durable title warns until the empty-state edit is encrypted", async () => {
+  await mount();
+  await title("Durable title before clear");
+  await act(async () => {
+    await settleRecoveryFixture();
+  });
+  expect(unload()).toBe(false);
+  const held = holdCrypto();
+  await title("");
+  await held.entered;
+  expect(host.querySelector("textarea")!.value).toBe("");
+  expect(unload()).toBe(true);
+  await act(async () => {
+    held.release();
+    await settleRecoveryFixture();
+  });
+  expect(unload()).toBe(false);
+  expect(
+    await readRecoveryFixture(
+      recovery.newWritingRecoveryKey("owner"),
+      "new-writing",
+    ),
+  ).toMatchObject({ title: "", slug: "" });
+});
+it("a pristine blank form remains leaveable when recovery storage is unavailable", async () => {
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("synthetic storage refusal");
+  });
+  await mount();
+  expect(unload()).toBe(false);
+  const commit = vi
+    .spyOn(navigation, "commitAdminNavigation")
+    .mockImplementation(() => {});
+  await act(async () => navigation.navigateAdmin("/content/writing"));
+  expect(commit).toHaveBeenCalledOnce();
+});
