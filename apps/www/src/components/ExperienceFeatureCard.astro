@@ -37,43 +37,39 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
 >
   <AmbientFlow kind="work" seed={slug} />
   <span class="experience-feature__visual landscape-frame">
-    {
-      preview && (
-        <span class="experience-feature__window">
-          {preview.kind === "video" ? (
-            <video
-              src={preview.src}
-              muted
-              playsinline
-              preload="metadata"
-              aria-label={preview.alt}
-            />
-          ) : shot ? (
-            <picture>
-              <source media={phoneMedia} srcset={shot.src} />
-              <img
-                src={shot.src}
-                srcset={shot.srcset}
-                sizes={shotSizes}
-                width={shot.width}
-                height={shot.height}
-                style={`aspect-ratio: ${shot.aspectRatio}`}
-                alt={preview.alt}
-                loading={eager ? "eager" : "lazy"}
-                decoding="async"
-              />
-            </picture>
-          ) : (
-            <img
-              src={preview.src}
-              alt={preview.alt}
-              loading={eager ? "eager" : "lazy"}
-              decoding="async"
-            />
-          )}
-        </span>
-      )
-    }
+    {preview && <span class="experience-feature__window">
+      {preview.kind === "video" ? (
+        <video
+          src={preview.src}
+          muted
+          playsinline
+          preload="metadata"
+          aria-label={preview.alt}
+        />
+      ) : shot ? (
+        <picture>
+          <source media={phoneMedia} srcset={shot.src} />
+          <img
+            src={shot.src}
+            srcset={shot.srcset}
+            sizes={shotSizes}
+            width={shot.width}
+            height={shot.height}
+            style={`aspect-ratio: ${shot.aspectRatio}`}
+            alt={preview.alt}
+            loading={eager ? "eager" : "lazy"}
+            decoding="async"
+          />
+        </picture>
+      ) : (
+        <img
+          src={preview.src}
+          alt={preview.alt}
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+        />
+      )}
+    </span>}
   </span>
 
   <span class="experience-feature__body">
@@ -92,8 +88,7 @@ const shotSizes = "(max-width: 640px) 100vw, 27rem";
         text={d.card_copy}
         compact={d.card_copy_compact}
         links={false}
-      /></span
-    >
+    /></span>
   </span>
 </a>
 

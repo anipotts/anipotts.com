@@ -23,13 +23,9 @@ const { title, summary, published_at } = item.data;
   <span class="writing-card__header">
     <span class="card-title-group">
       <span class="title">{title}</span>
-      {
-        published_at && (
-          <time class="date" datetime={published_at.toISOString()}>
-            {formatDate(published_at)}
-          </time>
-        )
-      }
+      {published_at && <time class="date" datetime={published_at.toISOString()}>
+        {formatDate(published_at)}
+      </time>}
     </span>
     <CardAction label="read" showMark={false} />
   </span>
