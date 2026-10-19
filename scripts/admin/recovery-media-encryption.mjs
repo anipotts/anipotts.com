@@ -953,7 +953,7 @@ export function createRecoveryFrameCodec(profile = "media-v1") {
       if (capture) {
         // Build/hash the final capture result while cancellation, deadline and
         // key ownership still belong to this operation.
-        const output = finalize(verified.receipt);
+        const output = await operation.call(() => finalize(verified.receipt));
         operation.check();
         return output;
       }

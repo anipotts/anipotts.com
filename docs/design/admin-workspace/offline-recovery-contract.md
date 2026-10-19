@@ -567,8 +567,8 @@ successful finalization; the codec cannot undo arbitrary uncooperative sink
 side effects. The caller remains responsible for durable encrypted artifact
 custody. This does not establish a live backup or a production restore path.
 
-Focused Node qualification currently passes 101 cases, including the existing
-84 and 17 new v3 cases. The new large fixture transports 10 MiB in each media
+Focused Node qualification currently passes 102 cases, including the existing
+84 and 18 new v3 cases. The new large fixture transports 10 MiB in each media
 plane alongside more than 4,000,000 bytes of control, spools encrypted events to
 task-owned temporary files, verifies exact two-pass replay and observes one
 outstanding awaited frame. It also covers wrong keys/context, header/tag damage,
@@ -590,3 +590,7 @@ rejection. The legacy media-v1 profile retains its existing behavior.
 Final result/receipt hashing also runs inside the active codec operation, before
 its final deadline check and owned-key cleanup. A held final-result regression
 proves rejection and staged-sink signal revocation at this boundary.
+
+The internal capture finalizer is awaited through the same operation guard; a
+thenable cannot escape deadline/key cleanup by async-return assimilation. A held
+async-finalizer case proves rejection, signal revocation and no late success.

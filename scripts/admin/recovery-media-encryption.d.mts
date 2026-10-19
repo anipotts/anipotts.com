@@ -112,7 +112,9 @@ export function createRecoveryFrameCodec(profile: "capture-v3"): {
     validateControl: (serialized: string) => RecoveryMediaPlan,
     finalize: (
       receipt: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Receipt,
-    ) => import("./recovery-capture-v3.mjs").RecoveryCaptureV3Opened,
+    ) =>
+      | import("./recovery-capture-v3.mjs").RecoveryCaptureV3Opened
+      | Promise<import("./recovery-capture-v3.mjs").RecoveryCaptureV3Opened>,
   ): Promise<import("./recovery-capture-v3.mjs").RecoveryCaptureV3Opened>;
 };
 

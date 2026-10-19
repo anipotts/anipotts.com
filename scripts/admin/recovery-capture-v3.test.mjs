@@ -467,3 +467,48 @@ test("v3 final result work remains inside deadline and revokes staged sink admis
   assert(finalized);
   assert(signal.aborted);
 });
+
+test("v3 awaits async final result under the operation deadline and ignores late acknowledgment", async () => {
+  const { createRecoveryFrameCodec } =
+    await import("./recovery-media-encryption.mjs");
+  const { events, key } = await artifact();
+  let signal,
+    finalized = false,
+    resolve,
+    success = false;
+  const held = new Promise((done) => (resolve = done));
+  const pending = createRecoveryFrameCodec("capture-v3").open(
+    () => events,
+    key,
+    context,
+    {
+      begin() {},
+      writeFrame() {},
+      writeManifest(_text, value) {
+        signal = value;
+      },
+      abort() {},
+    },
+    { timeoutMs: 50 },
+    (serialized) => ({
+      objects: JSON.parse(serialized).objects,
+      evidence: null,
+    }),
+    () => {
+      finalized = true;
+      return held;
+    },
+  );
+  void pending.then(
+    () => {
+      success = true;
+    },
+    () => {},
+  );
+  await assert.rejects(pending, /deadline/u);
+  assert(finalized);
+  assert(signal.aborted);
+  resolve({});
+  await new Promise((done) => setTimeout(done, 0));
+  assert(!success);
+});
