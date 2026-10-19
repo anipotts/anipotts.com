@@ -133,11 +133,16 @@ must not replace existing upload admission. Provenance records exact byte hashes
 application plan/quantization versions and provider identity; its encoder version
 is explicitly unknown. It is not a persisted relationship or recovery record.
 
-Focused Node unit tests cover framing/CRC/hash boundaries, EOF and late errors,
-limits, geometry, schema rejection, cancellation and deadlines. The separate
-`test/editorial/media-processing-stream.test.ts` is source for owner-scheduled
-native workerd stream/crypto qualification, not evidence that it has run.
-Synthetic outputs do not qualify Images. Real provider decode, all EXIF
+Source checkpoint `91ae3f95f0571580696c2e1d0d06b2e0099307cf` passed 27 focused
+Node unit tests covering framing/CRC/hash boundaries, EOF and late errors,
+limits, geometry, schema rejection, cancellation and deadlines. Strict source/test
+typing and formatting also passed. The integration owner then ran
+`test/editorial/media-processing-stream.test.ts` through the actual
+`cloudflareTest`/workerd configuration with `remoteBindings: false`: all 3 tests
+passed. That narrow native proof covers incremental hashing, PNG CRC/framing,
+late stream failure and cancellation of a pending read. The local receipt is
+`/private/tmp/anipotts-media-processing-native-qualification.log`; it is not a
+portable or production receipt. Synthetic outputs do not qualify Images. Real provider decode, all EXIF
 orientations, trim/resize ordering, actual 8-bit output, malformed-input behavior,
 charged CPU, peak memory and cancellation remain held. A timeout cancels owned
 streams and discards late output, but does not prove immediate termination of
