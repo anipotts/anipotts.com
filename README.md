@@ -30,11 +30,12 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Qualify the refreshed main revisions of draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Earlier isolated foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
-- [ ] Integrate and review separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542): unused Drizzle CLI removal passes full validation and removes the moderate advisory; one low upstream KaTeX advisory remains. It selects no runtime targets and is excluded from this candidate.
+- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#539 is approved, merged as `cf7b757b` and deployed to admin only in [39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483). Provider version `ab08369b` and eight protected-route 302 responses verify the Access boundary; no migration. Inactive #540/#541 remain separate.
+#542 is merged as `aa860b4b`; release 39275594601 passed with all six runtime targets skipped and no migration.
+
+#539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 
 #538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
 

@@ -359,13 +359,61 @@
     {
       "id": "browser-recovery-key-file-oct19",
       "title": "Local key-file unlock and encrypted browser recovery",
-      "revision": null,
+      "revision": "f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69",
       "sourceRevision": "3e22ecb13ad0f9d659d740f5884e6b0792276437",
       "lane": "code",
-      "state": "locally-integrated",
-      "approvals": {},
-      "note": "78a6b01f full2460core/native42/CI/security/CodeQLpass, thencompletedreviewfoundnewestarchivepruning andnullWebLocksmapping. Integrated21c07993 preservescurrentarchive/max3 and distinguishesunavailablefromsignedout;45focused+negativeoldsource+strictpass. Combined/browser/hosted/current-headcode-securityreview/canonicalpending; admin-only/schema0044/no migration; noapproval,613/b29requestswithdrawn,540/541/542excluded.",
-      "updatedAt": "2026-10-19T08:43:43.394531+00:00"
+      "state": "deployed",
+      "approvals": {
+        "code": {
+          "revision": "f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered 'approve #539 and deploy admin' to the exact f8e90810 approval question on October 19, 2026. Earlier 613/b29 requests are superseded.",
+          "at": "2026-10-19T14:58:21.111982+00:00"
+        },
+        "production": {
+          "revision": "f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered 'approve #539 and deploy admin' to the exact f8e90810 approval question on October 19, 2026. Earlier 613/b29 requests are superseded.",
+          "at": "2026-10-19T14:58:21.111982+00:00"
+        }
+      },
+      "note": "Approved f8e90810 merged and Admin deployed by 39272399483. Tree equality, exact-head required checks, completed automated reviews, active provider release/schema0044 and eight Access boundary probes pass. All other five targets skipped; no migration. Physical-device and live owner-write acceptance remain separate. Inactive 540/541 and cleanup 542 excluded.",
+      "updatedAt": "2026-10-19T14:58:21.111982+00:00",
+      "release": {
+        "revision": "cf7b757be2c0bfc72d9886a27599e615b7ec3b66",
+        "reviewedRevision": "f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69",
+        "evidence": "Strict live protection and active no-bypass ruleset reread immediately before merge; all exact-head checks passed, ten threads resolved, direct Git tree equality verified.",
+        "at": "2026-10-19T14:49:12Z"
+      },
+      "deployment": {
+        "revision": "cf7b757be2c0bfc72d9886a27599e615b7ec3b66",
+        "target": "admin",
+        "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39272399483 succeeded. Admin version ab08369b-bd13-4eb4-aeb0-f544384fb7b9 verified; eight private routes redirect to Access. www, ingest, newsletter, state and weekly_email skipped. Schema0044, no migration.",
+        "at": "2026-10-19T14:54:04Z"
+      }
+    },
+    {
+      "id": "pr-542",
+      "title": "Remove unused Drizzle CLI dependency",
+      "revision": "e4b4576ffea67b544a113138b35440efcccfa7a4",
+      "lane": "code",
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "e4b4576ffea67b544a113138b35440efcccfa7a4",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered approve #542 for merge to the exact e4b4576f question on October 19, 2026.",
+          "at": "2026-10-19T15:13:26.816388+00:00"
+        }
+      },
+      "note": "Source integration complete. Release39275594601 succeeded with all six runtime targets and Production skipped; no migration. No runtime deploy was needed. One low upstream KaTeX advisory remains.",
+      "updatedAt": "2026-10-19T15:13:26.816388+00:00",
+      "release": {
+        "revision": "aa860b4b3aeee9b8c2a0a1beec1f075845fd91c3",
+        "reviewedRevision": "e4b4576ffea67b544a113138b35440efcccfa7a4",
+        "evidence": "Strict protection and active no-bypass ruleset reread before merge; exact required checks and CodeQL pass, no unresolved threads, merge tree equals approved tree.",
+        "at": "2026-10-19T15:10:25Z"
+      }
     }
   ]
 }

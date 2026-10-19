@@ -35,7 +35,7 @@ editing a recorded file fails `verifyManifest` (`scripts/ci/migration-policy.mjs
 
 - nothing imports it at runtime. only `drizzle.config.ts:4` and `knip.jsonc:55` name it, and `@anipotts/lib` has no exports.
 - it does not model `admin_proof_events` (`0012_admin_proof_events.sql`), or the `thoughts_fts` virtual table and its 3 triggers (`0003_reconcile.sql:21-41`).
-- `drizzle.config.ts` and `drizzle/meta/_journal.json` stay. the journal lists only 0001 and 0002, and no script runs drizzle-kit. migrations are hand-written sql.
+- `drizzle.config.ts` stays as a plain historical configuration without a CLI import. the unused drizzle-kit development dependency is removed; no script runs it. `drizzle/meta/_journal.json` stays and lists only 0001 and 0002. migrations are hand-written sql, and the manifest remains their deploy authority.
 - the manifest's 64 tables is the bootstrap's sqlite_master count, so it does not compare with the model.
 
 admin binds the database (`apps/admin/wrangler.toml:45-49`, the only config with `migrations_dir`) but reads nothing from it. www (`apps/www/wrangler.toml:40-43`), ingest, newsletter and weekly-email bind it too.
