@@ -277,6 +277,7 @@ test(
       .getByRole("textbox", { name: "Title", exact: true })
       .fill(baseline);
     await settleLocalRecovery(browser);
+    await expect.poll(() => storedTitleMatches(browser, baseline)).toBe(true);
     const offDialog = await browser.onDialog("accept");
     try {
       await openPeer(browser);
@@ -419,7 +420,7 @@ test(
             "syntheticRecoveryPriorReceipt",
             Reflect.get(peer, "syntheticRecoveryLifecycle"),
           );
-          peer.location.assign("/content");
+          peer.location.assign("/content/writing");
           return true;
         }),
       ).toBe(true);
@@ -428,7 +429,7 @@ test(
           browser.evaluate(() => {
             const peer = Reflect.get(window, "syntheticRecoveryPeer") as Window;
             return (
-              peer.location.pathname === "/content" &&
+              peer.location.pathname === "/content/writing" &&
               peer.document.readyState === "complete"
             );
           }),
