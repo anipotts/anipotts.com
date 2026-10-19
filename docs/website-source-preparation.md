@@ -1,5 +1,25 @@
 # Website source preparation
 
+## October 19 bounded storage-fault candidate
+
+Source `0f4be166df869dbf615dd7002b89d395a4d561f5` combines the explicit-choice archive
+cleanup and the subsequent capture-failure repair. The prior `b29fb42e` approval
+request remains withdrawn. All40 focused native-crypto/storage cases pass.
+After appending a capture, validity/read/prune failure best-effort removes only
+this attempt's exact unchanged new entry. Changed older or new bytes are
+preserved; an older-entry mismatch cannot report success with an unreadable fourth
+capture. Old copies are never removed before a durable new insert. A one-shot
+storage fault leaves the original three captures readable after unlock and allows
+retry. If storage continues refusing cleanup, failure is explicit and all opaque
+bytes remain exportable; no successful seal or readability guarantee is claimed.
+
+Full validation, clean Chromium/WebKit qualification, current-head hosted checks
+and review are the remaining gates. The owner will record their exact frozen-head
+receipts in #539 without another documentation-only head change. This remains
+admin only, schema0044, no migration. Inactive #540/#541 and tool-only #542 are
+excluded. The canonical preview is updated only after qualification; no merge or
+production approval is inferred.
+
 ## October 19 quota repair and refreshed candidate
 
 The `b29fb42e` approval request is withdrawn. Its full hosted CI39220395722,

@@ -485,3 +485,17 @@ mapped write error. The canonical source remains available and a later retry can
 succeed when capacity permits. All31 focused adapter cases pass, including four
 new quota/cleanup cases. Earlier full/native receipts remain revision-specific;
 combined qualification and exact review of this repair precede admin-only release.
+
+## October 19 failed capture pruning
+
+New capture insertion precedes any pruning of authenticated, unchanged older
+entries. All post-insert validity/read/prune failures best-effort roll back only
+the attempt's exact unchanged new bytes, preserving the original mapped error.
+Changed or missing older bytes return changed only after successful rollback;
+failed rollback returns unavailable. A changed new entry cannot cost an older
+copy. Forty focused adapter cases include transient faults, healthy re-unlock
+readability/retry, changed bytes and cleanup failures. Persistent storage refusal
+can leave four preserved opaque entries and fail-closed reads; exact opaque export
+remains available. This limit does not authorize dropping unknown bytes or
+claiming successful recovery under failed storage. Combined full/browser/hosted
+qualification and exact review still precede admin release.
