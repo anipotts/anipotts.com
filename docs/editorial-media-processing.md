@@ -201,9 +201,21 @@ until explicit format support preserves their records and references. No backup,
 custody, public publication or provider qualification is implied. The existing
 10 MiB whole-publication budget is unchanged.
 
-The 42 focused Node tests pass, including 10 primitive/admission tests; strict
-primitive/test typing also passes using the existing generated synthetic binding
-declarations. Native test source covers actual SQLite rollback at five write
-points, concurrent/replayed requests, lost acknowledgement, shared/self edges,
-caller mutation and corruption. Its execution is pending the owner's focused
-runtime slot; Node's memory transaction fixture is not native atomicity proof.
+Initial source checkpoint `8058a86dfd76c62d712f7f2ffcf8c64cebb263d6` passed 42
+focused Node tests, including 10 primitive/admission tests, and 30 actual local
+workerd tests across atomic persistence, existing media-store behavior and the
+three stream cases. The local receipt is
+`/private/tmp/anipotts-media-atomic-native-qualification.log`.
+
+Owner review then removed redundant SHA-256 work from the retryable storage
+callback. Hashing remains before the transaction; metadata, chunk count/keys,
+chunk lengths and every stored byte are still checked inside it. At exact
+refined source `68f40f336238c9d30aa5dbea6291b8665086453f`, all 10 focused atomic
+Node tests and all 27 selected actual workerd tests for atomic persistence plus
+existing media-store behavior passed. The local receipt is
+`/private/tmp/anipotts-media-atomic-refined-native.log`. Strict primitive/native-test
+typing passes using the existing generated synthetic binding declarations.
+The actual SQLite cases cover rollback at five write points, concurrent/replayed
+requests, lost acknowledgement, shared/self edges, caller mutation and corruption.
+These are source/transaction proofs, not Images qualification or operational
+recovery coverage. No provider, production data or publication operation ran.
