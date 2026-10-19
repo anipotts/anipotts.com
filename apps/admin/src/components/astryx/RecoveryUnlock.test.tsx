@@ -9,6 +9,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
 let host: HTMLDivElement;
 let RecoveryUnlock: typeof import("./RecoveryUnlock").RecoveryUnlock;
+let AdminUIProvider: typeof import("../workspace/Workspace").AdminUIProvider;
 let downloaded: Blob | undefined;
 beforeEach(async () => {
   vi.resetModules();
@@ -39,6 +40,7 @@ beforeEach(async () => {
   vi.stubGlobal("URL", DownloadURL);
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   ({ RecoveryUnlock } = await import("./RecoveryUnlock"));
+  ({ AdminUIProvider } = await import("../workspace/Workspace"));
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -49,12 +51,17 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-async function mount(scope: string | undefined = "synthetic-owner") {
+async function mount(
+  scope: string | undefined = "synthetic-owner",
+  enabled = false,
+) {
   await act(async () =>
     root.render(
-      <RecoveryUnlock scope={scope}>
-        <textarea aria-label="Synthetic authoring" />
-      </RecoveryUnlock>,
+      <AdminUIProvider enabled={enabled} mode="light">
+        <RecoveryUnlock scope={scope}>
+          <textarea aria-label="Synthetic authoring" />
+        </RecoveryUnlock>
+      </AdminUIProvider>,
     ),
   );
 }
@@ -88,23 +95,42 @@ async function choose(raw: string) {
     expect(!input.isConnected || !input.disabled).toBe(true);
   });
 }
-it("keeps authoring unmounted until saved-file re-import and the native custody challenge complete", async () => {
-  await mount();
-  expect(host.querySelector("textarea")).toBeNull();
-  const raw = await create();
-  expect(host.querySelector("textarea")).toBeNull();
-  expect(host.textContent).toContain("Choose the key file you just saved");
-  await choose(raw);
-  await act(async () => {
-    await vi.waitFor(() =>
-      expect(Boolean(host.querySelector("textarea"))).toBe(true),
+it.each([false, true])(
+  "keeps authoring gated through native saved-file re-import (workspace pilot=%s)",
+  async (enabled) => {
+    await mount("synthetic-owner", enabled);
+    expect(Boolean(host.querySelector('[data-admin-ui="openai"]'))).toBe(
+      enabled,
     );
-  });
-  expect(host.querySelector("textarea")?.getAttribute("aria-label")).toBe(
-    "Synthetic authoring",
-  );
-  expect(Object.keys(localStorage)).toEqual([]);
-});
+    const picker = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(picker.labels?.[0]?.textContent).toContain("Recovery key file");
+    expect(picker.accept).toBe("application/json,.json");
+    expect(picker.disabled).toBe(false);
+    expect(host.querySelector("h1")?.textContent).toBe(
+      "Unlock browser recovery",
+    );
+    expect(Boolean(host.querySelector('button[data-size="lg"]'))).toBe(enabled);
+    expect(host.querySelector("textarea")).toBeNull();
+    const raw = await create();
+    expect(host.querySelector("textarea")).toBeNull();
+    expect(host.textContent).toContain("Choose the key file you just saved");
+    expect(
+      Boolean(
+        host.querySelector('[data-actions-placement][data-color="info"]'),
+      ),
+    ).toBe(enabled);
+    await choose(raw);
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(Boolean(host.querySelector("textarea"))).toBe(true),
+      );
+    });
+    expect(host.querySelector("textarea")?.getAttribute("aria-label")).toBe(
+      "Synthetic authoring",
+    );
+    expect(Object.keys(localStorage)).toEqual([]);
+  },
+);
 it("refuses a different setup file and never removes stranded ciphertext when a new key is explicitly chosen", async () => {
   const prior =
     'editorial-recovery:v3:["synthetic-owner","writing","older","' +
@@ -171,9 +197,14 @@ it("keeps setup controls disabled in server markup until hydration installs hand
   ).toBe(false);
   expect(host.querySelector("textarea")).toBeNull();
 });
-it.each(["canonical", "capture"] as const)(
-  "hydrates deterministic server markup before showing existing %s recovery copies",
-  async (variant) => {
+it.each([
+  ["canonical", false],
+  ["capture", false],
+  ["canonical", true],
+  ["capture", true],
+] as const)(
+  "hydrates deterministic server markup before showing existing %s recovery copies (workspace pilot=%s)",
+  async (variant, enabled) => {
     act(() => root.unmount());
     const key =
       'editorial-recovery:v3:["synthetic-owner","writing","older","' +
@@ -184,9 +215,11 @@ it.each(["canonical", "capture"] as const)(
       variant === "capture" ? `${key}:capture:${crypto.randomUUID()}` : key;
     localStorage.setItem(storedKey, raw);
     const page = (
-      <RecoveryUnlock scope="synthetic-owner">
-        <textarea aria-label="Synthetic authoring" />
-      </RecoveryUnlock>
+      <AdminUIProvider enabled={enabled} mode="light">
+        <RecoveryUnlock scope="synthetic-owner">
+          <textarea aria-label="Synthetic authoring" />
+        </RecoveryUnlock>
+      </AdminUIProvider>
     );
     const browserWindow = window;
     try {

@@ -5,9 +5,13 @@ import React, {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { VStack } from "@astryxdesign/core/VStack";
-import { Heading } from "@astryxdesign/core/Heading";
-import { Button, Banner } from "./WritingControls";
+import {
+  WorkspaceStack,
+  WorkspaceHeading,
+  WorkspaceButton,
+  WorkspaceBanner,
+  WorkspaceFileInput,
+} from "../workspace/Workspace";
 import { recoverySession } from "../../lib/browser-recovery-session";
 import {
   createBrowserRecoveryKeyFile,
@@ -171,14 +175,14 @@ export function RecoveryUnlock({
     return (
       <>
         {stored.legacy && (
-          <Banner
+          <WorkspaceBanner
             status="warning"
             title="Older browser copies remain plaintext"
             description="New recovery writes and recovery downloads are encrypted. Older copies are preserved for comparison and included in encrypted downloads."
           />
         )}
         {[...stored.keys].some((id) => id !== state.keyId) && (
-          <Banner
+          <WorkspaceBanner
             status="warning"
             title="Some copies may need an older key"
             description="Other key identities are preserved. Keep the earlier key files to recover those copies."
@@ -190,44 +194,41 @@ export function RecoveryUnlock({
   if (state.status === "closing")
     return <p role="status">Locking browser recovery…</p>;
   return (
-    <VStack gap={4}>
-      <Heading level={1}>Unlock browser recovery</Heading>
+    <WorkspaceStack gap={4}>
+      <WorkspaceHeading level={1}>Unlock browser recovery</WorkspaceHeading>
       <p>
         Choose your recovery key file to edit. The key stays in this document’s
         memory. Reloading or session expiry requires the file again.
       </p>
       {expected && (
-        <Banner
+        <WorkspaceBanner
           status="info"
           title="Choose the key file you just saved"
           description="Re-import verifies the saved file before authoring opens. Keep it separately from recovery downloads."
         />
       )}
       {state.lost && (
-        <Banner
+        <WorkspaceBanner
           status="warning"
           title="Earlier encrypted copies are preserved"
           description="They still require their original key. Creating a new key starts a separate recovery identity and cannot recover older unsaved input."
         />
       )}
       {!scope && (
-        <Banner
+        <WorkspaceBanner
           status="warning"
           title="Owner scope is unavailable"
           description="Reload after signing in to continue."
         />
       )}
-      <label>
-        Recovery key file
-        <input
-          ref={input}
-          type="file"
-          accept="application/json,.json"
-          disabled={!hydrated || busy || !scope}
-          onChange={(event) => void open(event.currentTarget.files?.[0])}
-        />
-      </label>
-      <Button
+      <WorkspaceFileInput
+        label="Recovery key file"
+        ref={input}
+        accept="application/json,.json"
+        disabled={!hydrated || busy || !scope}
+        onChange={(event) => void open(event.currentTarget.files?.[0])}
+      />
+      <WorkspaceButton
         label={
           expected
             ? "Prepare another recovery key"
@@ -237,7 +238,7 @@ export function RecoveryUnlock({
         isDisabled={!hydrated || busy || !scope}
       />
       {!expected && (
-        <Button
+        <WorkspaceButton
           label="I no longer have the key"
           variant="secondary"
           clickAction={() => session?.lock(true)}
@@ -245,7 +246,7 @@ export function RecoveryUnlock({
         />
       )}
       {stored.keys.size > 0 && (
-        <Button
+        <WorkspaceButton
           label="Download opaque recovery copies"
           variant="secondary"
           isDisabled={!hydrated || busy}
@@ -298,6 +299,6 @@ export function RecoveryUnlock({
         out clears browser recovery.
       </p>
       {error && <p role="alert">{error}</p>}
-    </VStack>
+    </WorkspaceStack>
   );
 }
