@@ -1,5 +1,31 @@
 # Website source preparation
 
+## October 19 refreshed recovery foundation on released main
+
+#539 is merged as `cf7b757b` and its Admin-only release
+[39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+succeeded after Ani's exact `f8e90810` approval. All five other targets were
+skipped; no migration ran, schema remains `0044`. Admin provider version
+`ab08369b-bd13-4eb4-aeb0-f544384fb7b9` and eight Access redirects pass.
+The existing integration queue records both approval scopes and release proof.
+
+The inactive recovery candidate normally merged that main at
+`ea91d5212f407f1f771476226db8c8720adc5881`; foundation runtime bytes were
+preserved. Fresh offline frozen installation and full `pnpm validate` pass all
+fourteen tasks: Admin 2,465 core / 79 Astro / 105 editorial workerd / 103 recovery
+Node / all 24 native recovery cases, plus three CSP checks and one existing skip.
+Unchanged tasks use normal Turbo cache. Static review passes 33 sensitive paths;
+the production bundle excludes local-owner markers across 344 files and source
+drift is clean. Logs: `/private/tmp/anipotts-v3-main539-{install,validation}.log`.
+
+Keep #541 draft. No operational cohort, artifact provider, key custody, external
+copy, migration or restore-drill activation is authorized or established.
+#542 is independently ready for review at `e4b4576f` with current-main full
+validation, passing hosted checks and no runtime deploy targets; approval remains
+pending. The canonical preview is restored on released main with current
+published v17 / 20 records. Its recovery and ownership observations are recorded
+in [the local preview guide](local-integration-preview.md).
+
 ## October 19 main refresh after approved #539 release
 
 Integration owner remains chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`, Codex on ap-pro.

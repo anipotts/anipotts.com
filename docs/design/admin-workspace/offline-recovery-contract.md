@@ -694,3 +694,18 @@ These results supersede the earlier pending-native/full-check statements above.
 The operational limitations remain: cohort admission always rejects, the
 production artifact adapter is unwired, and inventory, custody, external copy,
 migration/activation authority and an operational restore drill remain open.
+
+### Refreshed released-main qualification
+
+Normal merge `ea91d5212f407f1f771476226db8c8720adc5881` incorporates released
+main `cf7b757be2c0bfc72d9886a27599e615b7ec3b66` without changing the recovery
+foundation runtime. Full `pnpm validate` passes after a fresh offline frozen
+install: fourteen tasks, including fresh Admin 2,465 core / 79 Astro / 105
+editorial workerd / 103 recovery Node / all 24 native recovery cases, and three
+CSP checks with one existing skip. Other unchanged tasks reuse normal Turbo
+cache. Logs: `/private/tmp/anipotts-v3-main539-{install,validation}.log`.
+The 344-file production local-owner scan, 33-sensitive-path static review and
+tracked-source drift check pass. Proposed targets remain www/Admin only, with
+all four workers skipped and migration 0003 unapplied. Later changes record
+qualification only. These checks refresh source integration, not operational
+recovery authority or coverage.
