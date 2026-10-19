@@ -105,3 +105,40 @@ Activation needs exact approval for the Admin binding/provider setup and any
 required additive provenance migration after that evidence is ready. Retain the
 previous verified Admin deployment and original media for rollback. No existing
 media should be rewritten, deleted or newly published by activation.
+
+## Storage-free Images foundation, October 18
+
+The source foundation on `codex/media-processing-foundation`, based on
+`18329ff14`, is separate from the historical WASM/API prototype above. It adds
+only an injected Images adapter, stream inspection, pure crop planning and
+in-memory provenance. No production caller, binding, route, storage write,
+migration or feature activation exists. The default uploader and browser crop
+remain unchanged; original admission remains 10 MiB/16 MP, saved images remain
+at most 10 MiB, and the existing whole-publication media budget remains 10 MiB.
+
+`inspectOriginal` consumes a complete full-size provider PNG with incremental
+native SHA-256 and PNG framing/CRC checks, then discards the bytes. Its transient
+output bound is RGBA16-sized admitted dimensions plus bounded overhead, independent
+of saved-media limits. `prepareCrop` reuses the existing approximately 2 MP/2560-edge
+browser output policy and returns only a completed, at-most-10-MiB, actual 8-bit
+RGB/RGBA PNG candidate. Fractional browser selection is explicitly quantized to
+integer provider trim coordinates; exact Canvas sampling equivalence is not
+claimed. Original bytes are unchanged. No partial successful candidate or
+provenance is returned on overflow, late stream failure, cancellation or timeout.
+
+Evidence is labelled `provider-transcode-completed`, not strict source validity.
+The inspector does not inflate IDAT or validate decoded pixels. A provider may
+repair malformed JPEGs, and `.info()` alone is not decode completion. This adapter
+must not replace existing upload admission. Provenance records exact byte hashes,
+application plan/quantization versions and provider identity; its encoder version
+is explicitly unknown. It is not a persisted relationship or recovery record.
+
+Focused Node unit tests cover framing/CRC/hash boundaries, EOF and late errors,
+limits, geometry, schema rejection, cancellation and deadlines. The separate
+`test/editorial/media-processing-stream.test.ts` is source for owner-scheduled
+native workerd stream/crypto qualification, not evidence that it has run.
+Synthetic outputs do not qualify Images. Real provider decode, all EXIF
+orientations, trim/resize ordering, actual 8-bit output, malformed-input behavior,
+charged CPU, peak memory and cancellation remain held. A timeout cancels owned
+streams and discards late output, but does not prove immediate termination of
+provider work. No account setup, remote probe or paid usage was performed.
