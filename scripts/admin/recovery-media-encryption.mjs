@@ -104,9 +104,15 @@ function copyBytes(value, maximum, exact) {
   const length = nativeLength.call(value);
   if (length > maximum || (exact !== undefined && length !== exact))
     fail("binary");
-  // Buffer.from(typedArray) trusts an overridden .length. Normalize through
-  // the intrinsic typed-array constructor before the bounded Buffer copy.
-  return Buffer.from(new Uint8Array(value));
+  // Buffer.from(typedArray) trusts an overridden .length. The intrinsic copy
+  // has trusted own storage; expose a view so Operation wiping also clears the
+  // sole normalized allocation, without an untracked intermediate key copy.
+  const normalized = new Uint8Array(value);
+  return Buffer.from(
+    normalized.buffer,
+    normalized.byteOffset,
+    normalized.byteLength,
+  );
 }
 function hex(value, length) {
   if (
