@@ -30,9 +30,14 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
-- [ ] Review [#542](https://github.com/anipotts/anipotts.com/pull/542) after exact-head hosted checks: unused Drizzle CLI removal passes full validation on released main and removes the moderate advisory. One low upstream KaTeX advisory remains; no runtime targets are selected.
+- [ ] Refresh and review [#550](https://github.com/anipotts/anipotts.com/pull/550), the qualified Astro formatter migration, against released main `39204ca89`.
+- [ ] Repair and qualify draft [#551](https://github.com/anipotts/anipotts.com/pull/551), the combined Core/Neutral and Projects authoring candidate. The independent Projects worktree is consolidated into this branch; browser acceptance remains incomplete.
+- [ ] Complete held provider and operational gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery. Their checkouts are archived, their exact branches/PRs and local evidence remain recoverable.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#549 is merged as `39204ca89`; [release39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295) deployed Admin and all four retained workers. www was skipped, schema0044, no migration. Provider versions and eight Admin Access probes pass. Ingest/state service-health gaps and the intentionally retired weekly route remain separate.
+
+#542 is merged as `aa860b4b`; its successful release skipped all runtime targets.
 
 #539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 

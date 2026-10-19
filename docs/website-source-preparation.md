@@ -1,5 +1,79 @@
 # Website source preparation
 
+## October 19 project cleanup and consolidated continuation
+
+Ani requested cleanup of project worktrees, PRs and local files in owner chat
+`01a14ffb-519c-73b1-a63a-380f9d7274d0`. Integration remains with this chat on
+ap-pro. The original dirty checkout and the dirty `table-loading-layout`
+worktree are preserved. Each retired clean checkout has a verified additive
+`refs/archive/site-cleanup-20261019/<full-head>` ref. Ignored local state,
+custom files and review evidence were archived before ordinary, non-forced
+worktree removal. Dependency/build caches are disposable; credentials and
+private drafts are not cleanup targets. The recovery inventory, removal receipts,
+compressed local state and current verification logs are local-only under
+`/Users/anipotts/Projects/anipotts-com/.local/project-cleanup/2026-10-19`.
+
+The remaining source queue is #550, #551 and held foundations #540/#541.
+Redundant bot PRs #546/#548 are closed in favor of released #549; #547 is
+consolidated into #550 and #545 into draft #551. Their branches remain intact.
+Completed PR attachments are unlinked from the owner chat; GitHub history is
+preserved. The canonical review checkout remains
+`/Users/anipotts/.codex/worktrees/combined-public-review/anipotts-com`, based on
+released main `39204ca89`, with its existing www/Admin preview lane. A Git
+worktree lock protects that active checkout from stale-registration pruning.
+
+### Approved runtime release
+
+Ani approved exact #549 head `dbcd69a15d6c1f8ead6bc876c6fc1737f5bf40fd` for
+merge and five-target deploy. Fresh strict branch protection, the no-bypass
+ruleset, exact required checks and resolved conversations were verified before
+ordinary merge `39204ca8960d18de2064cc5a47c00dced4f99592`; both trees equal
+`fcc5291e7f760b96c151d0d72794a9f863fa7679`.
+[Deploy39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295)
+succeeded for Admin, ingest, newsletter, state and weekly email; www was skipped.
+Schema0044 and no migration were independently confirmed in release classification.
+Cloudflare readback serves these exact versions at100%:
+Admin `b6d64eb2-ada2-4ad2-b6f0-f0160e98eede`,
+ingest `e92e810e-2e81-4ac2-ba89-139fee8d629a`,
+newsletter `1586a720-03a4-4e09-98b4-0a20503d93ae`,
+state `e0010b0a-4b05-44a6-926d-504d4fba6289`,
+weekly email `5d08aeac-ae1e-40b4-b51d-a0136e4b04db`.
+Eight protected Admin routes return302 to the exact Access team. www remains
+healthy/D1-connected at its prior `79592009` release. Ingest health returns200
+with `ok:false`, state503 and the retired weekly route410; provider deployment
+success does not resolve those separate service/producer acceptance gates.
+Receipts: `receipts/anipotts-549-{deploy-39298284295.log,live-route-proof.json}`
+in the local evidence directory above.
+
+### Unfinished UI candidate, preserved without approval
+
+The Projects branch `94345e486cfe4aa2b2b9c431a3d7399e058f07cd` contains the
+Core correction `d61c883ef` and was fast-forwarded into the single #551 source
+branch. No runtime source changed in this consolidation. Original Projects
+source `797a0b3f` and acceptance `6586e67e` have clear independent reviews,
+focused DOM/typing/fixture checks; the combined tree has not passed full/native
+acceptance. No merge or deploy approval applies to #550 or #551.
+
+Core `d61c883ef` passes full14-task validation, but its native browser run has
+41passed/5failed. Diagnoses and exact traces are preserved in `receipts`:
+CSRF one-shot evaluation needs hydrated-document readiness; initial peer unlock
+needs the existing20s readiness budget before pagehide is exercised; brand
+asset import500s produced a Vite overlay with unresolved transport cause;
+a WebKit page closed during unlock without retained crash/close evidence;
+More actions Escape loses trigger focus on WebKit. The smallest proposed focus
+repair is an explicit trigger `finalFocusRef`; it is not implemented here.
+Keep the meaningful focus assertion. New Projects crop controls use SDK roles;
+its existing media-test helper still needs the corresponding exact-boundary
+selector update. Native Projects journeys remain unrun.
+
+The supplemental WebKit touch driver stopped all12scenarios at its
+`maxTouchPoints>0` precondition although coarse media was reported. This is an
+unqualified emulation prerequisite, not12demonstrated product failures. Preserve
+that evidence and qualify native touch events/capabilities before changing the
+assertion. All owned contexts/browser/process groups/ports were confirmed closed.
+Normal main integration, refreshed exact-head checks and Ani's review remain
+required before either candidate can merge.
+
 ## October 19 browser recovery release and dependency refresh
 
 Ani approved #539 at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69` for merge
