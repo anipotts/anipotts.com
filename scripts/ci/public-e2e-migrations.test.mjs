@@ -11,7 +11,7 @@ import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -280,11 +280,82 @@ test("runner owns the wrapper, Worker and descendants; shutdown waits for child 
   );
 });
 
+// Executable fixture programs stay static. Paths and behavior switches live in
+// a separate JSON file and never become JavaScript source text.
+const setupGrandchildProgram = String.raw`
+import { readFileSync, writeFileSync } from "node:fs";
+const fixture = JSON.parse(readFileSync(new URL("./fixture.json", import.meta.url), "utf8"));
+if (fixture.ignoreTermination)
+  process.on("SIGTERM", () => writeFileSync(fixture.grandchildIgnored, "ignored"));
+process.send("ready");
+setInterval(() => {}, 1000);
+`;
+const setupCliProgram = String.raw`
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+const fixture = JSON.parse(readFileSync(new URL("./fixture.json", import.meta.url), "utf8"));
+const args = process.argv.slice(2);
+const phase = args[0] === "d1" ? "migration" : args[0] === "dev" ? "serve" : args.includes("--upload-media") ? "upload" : "apply";
+const state = args[args.indexOf("--persist-to") + 1];
+const temporary = dirname(state);
+mkdirSync(state, { recursive: true });
+writeFileSync(join(state, "synthetic-state"), "temporary synthetic D1/R2 state");
+appendFileSync(fixture.events, JSON.stringify({ phase, args, temporary }) + "\n");
+if (phase === fixture.hold) {
+  const child = spawn(process.execPath, [fileURLToPath(new URL("./grandchild.mjs", import.meta.url))], {
+    stdio: ["ignore", "ignore", "ignore", "ipc"],
+  });
+  let stopping = false;
+  function stop() {
+    if (fixture.ignoreTermination) {
+      writeFileSync(fixture.seedIgnored, "ignored");
+      return;
+    }
+    if (stopping) return;
+    stopping = true;
+    child.once("close", () => {
+      writeFileSync(fixture.closed, String(existsSync(temporary)));
+      setTimeout(() => process.exit(0), 75);
+    });
+    child.kill("SIGTERM");
+  }
+  process.on("SIGTERM", stop);
+  process.on("SIGINT", stop);
+  await once(child, "message");
+  writeFileSync(fixture.held, JSON.stringify({ pids: [process.pid, child.pid], temporary }));
+} else if (phase === fixture.fail) {
+  process.exitCode = 17;
+}
+`;
+const setupSeedProgram = 'import "../../cli.mjs";\n';
+const setupWrapperProgram = String.raw`
+import { readFileSync, writeFileSync } from "node:fs";
+const fixture = JSON.parse(readFileSync(new URL("./fixture.json", import.meta.url), "utf8"));
+const { runPublicE2EServer } = await import(fixture.implementation);
+try {
+  const code = await runPublicE2EServer({ port: 18123, root: fixture.directory, cli: fixture.cli });
+  writeFileSync(fixture.finished, JSON.stringify({ code }));
+} catch (error) {
+  writeFileSync(fixture.finished, JSON.stringify({ error: error.message }));
+  process.exitCode = 1;
+}
+`;
+
 function setupFixture(
   t,
-  { hold, fail, launch = true, ignoreTermination = false } = {},
+  {
+    hold,
+    fail,
+    launch = true,
+    ignoreTermination = false,
+    pathLabel = "setup",
+  } = {},
 ) {
-  const directory = fixtureDirectory(t);
+  const directory = join(fixtureDirectory(t), pathLabel);
+  mkdirSync(directory, { recursive: true });
   const events = join(directory, "events.jsonl");
   const held = join(directory, "held.json");
   const finished = join(directory, "finished.json");
@@ -302,71 +373,31 @@ function setupFixture(
   );
   const seedDir = join(directory, "scripts/content");
   mkdirSync(seedDir, { recursive: true });
-  const grandchild = join(directory, "grandchild.mjs");
-  writeFileSync(
-    grandchild,
-    `
-    import { writeFileSync } from 'node:fs';
-    if (${ignoreTermination}) process.on('SIGTERM', () => writeFileSync(${JSON.stringify(grandchildIgnored)}, 'ignored'));
-    process.send('ready'); setInterval(() => {}, 1000);
-    `,
-  );
   const cli = join(directory, "cli.mjs");
+  const wrapper = join(directory, "wrapper.mjs");
   writeFileSync(
-    cli,
-    `
-    import { spawn } from 'node:child_process';
-    import { once } from 'node:events';
-    import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-    import { dirname, join } from 'node:path';
-    const args = process.argv.slice(2);
-    const phase = args[0] === 'd1' ? 'migration' : args[0] === 'dev' ? 'serve' : args.includes('--upload-media') ? 'upload' : 'apply';
-    const state = args[args.indexOf('--persist-to') + 1];
-    const temporary = dirname(state);
-    mkdirSync(state, { recursive: true });
-    writeFileSync(join(state, 'synthetic-state'), 'temporary synthetic D1/R2 state');
-    appendFileSync(${JSON.stringify(events)}, JSON.stringify({ phase, args, temporary }) + ${JSON.stringify("\n")});
-    if (phase === ${JSON.stringify(hold)}) {
-      const child = spawn(process.execPath, [${JSON.stringify(grandchild)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-      let stopping = false;
-      function stop() {
-        if (${ignoreTermination}) { writeFileSync(${JSON.stringify(seedIgnored)}, 'ignored'); return; }
-        if (stopping) return; stopping = true;
-        child.once('close', () => {
-          writeFileSync(${JSON.stringify(closed)}, String(existsSync(temporary)));
-          setTimeout(() => process.exit(0), 75);
-        });
-        child.kill('SIGTERM');
-      }
-      process.on('SIGTERM', stop); process.on('SIGINT', stop);
-      await once(child, 'message');
-      writeFileSync(${JSON.stringify(held)}, JSON.stringify({ pids: [process.pid, child.pid], temporary }));
-    } else if (phase === ${JSON.stringify(fail)}) { process.exitCode = 17; }
-  `,
+    join(directory, "fixture.json"),
+    JSON.stringify({
+      hold,
+      fail,
+      ignoreTermination,
+      directory,
+      cli,
+      events,
+      held,
+      finished,
+      closed,
+      seedIgnored,
+      grandchildIgnored,
+      implementation: new URL("./public-e2e-server.mjs", import.meta.url).href,
+    }),
   );
+  writeFileSync(join(directory, "grandchild.mjs"), setupGrandchildProgram);
+  writeFileSync(cli, setupCliProgram);
   // Both normal seed invocations use the production argument construction and
   // execute the synthetic CLI, without adding test flags to the real harness.
-  writeFileSync(
-    join(seedDir, "seed-content-d1.mjs"),
-    `import ${JSON.stringify(pathToFileURL(cli).href)};\n`,
-  );
-  const wrapper = join(directory, "wrapper.mjs");
-  const implementation = new URL("./public-e2e-server.mjs", import.meta.url)
-    .href;
-  writeFileSync(
-    wrapper,
-    `
-    import { runPublicE2EServer } from ${JSON.stringify(implementation)};
-    import { writeFileSync } from 'node:fs';
-    try {
-      const code = await runPublicE2EServer({ port: 18123, root: ${JSON.stringify(directory)}, cli: ${JSON.stringify(cli)} });
-      writeFileSync(${JSON.stringify(finished)}, JSON.stringify({ code }));
-    } catch (error) {
-      writeFileSync(${JSON.stringify(finished)}, JSON.stringify({ error: error.message }));
-      process.exitCode = 1;
-    }
-  `,
-  );
+  writeFileSync(join(seedDir, "seed-content-d1.mjs"), setupSeedProgram);
+  writeFileSync(wrapper, setupWrapperProgram);
   const child = launch
     ? spawn(process.execPath, [wrapper], { stdio: "ignore" })
     : undefined;
@@ -584,5 +615,43 @@ test("actual runner stop force-closes a SIGTERM-ignoring setup group before its 
       rmSync(record.temporary, { recursive: true, force: true });
     }
     await startup;
+  }
+});
+
+test("setup fixture paths and code-looking switches remain JSON data", async (t) => {
+  const codeLooking =
+    "upload'; throw new Error('configuration became code'); '";
+  const fixture = setupFixture(t, {
+    pathLabel: "quoted ' \" path with spaces\nsecond line",
+    hold: codeLooking,
+    fail: codeLooking,
+    ignoreTermination: true,
+  });
+  assert.deepEqual(await closedFixture(fixture), [0, null]);
+  assert.deepEqual(JSON.parse(readFileSync(fixture.finished, "utf8")), {
+    code: 0,
+  });
+  const events = readFileSync(fixture.events, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual(
+    events.map((event) => event.phase),
+    ["migration", "upload", "apply", "serve"],
+  );
+  assert.equal(
+    events[1].args[events[1].args.indexOf("--persist-to") + 1],
+    join(events[0].temporary, "state"),
+  );
+  assert.equal(existsSync(events[0].temporary), false);
+  for (const name of [
+    "grandchild.mjs",
+    "cli.mjs",
+    "wrapper.mjs",
+    "scripts/content/seed-content-d1.mjs",
+  ]) {
+    const program = readFileSync(join(fixture.directory, name), "utf8");
+    assert.equal(program.includes(codeLooking), false);
+    assert.equal(program.includes(fixture.directory), false);
   }
 });
