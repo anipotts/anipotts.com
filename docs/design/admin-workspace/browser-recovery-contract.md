@@ -108,3 +108,77 @@ legacy and current divergence, old writes after acknowledgment, concurrent new
 writers, unsupported byte preservation/export, quota/lock denial, and closed
 channels after logout, and old-tab logout while the new tab is closed. Real browser permission denial and owner visual acceptance
 remain release checks; the DOM tests do not claim to emulate provider recovery.
+
+## Opt-in v3 encryption foundation
+
+Ani accepted the local recovery key-file/manual-unlock tradeoff on 2026-10-18.
+`apps/admin/src/lib/browser-recovery-encryption.ts` implements the bounded engine
+for that design. This checkpoint does not import it into an editor, activate v3
+writes, create a user key file, migrate storage, change logout behavior or alter
+Access. Existing v1/v2 values and downloads remain plaintext as described above.
+
+The adapter seam is:
+
+- `createBrowserRecoveryKeyFile()` returns sensitive version-one key-file text
+  using a random 256-bit key. It writes no file or browser storage. Setup must
+  require deliberate download, re-import and a successful synthetic round trip
+  before claiming that the owner has kept the key.
+- One `BrowserRecoveryVault` belongs to a document. `unlock(keyFile)` validates
+  the key's SHA-256 identifier and imports a non-extractable native Web Crypto
+  handle. Its public `state` reveals only lock reason or key ID. `lock()` drops
+  handles and invalidates pending results; `lock("key-lost")` preserves a distinct
+  lost-key outcome. No automatic key replacement or persistent unlock exists.
+- `encrypt(exactString, context)` and `decrypt(envelope, context)` preserve exact
+  strings, including corrupt predecessor JSON, CRLF and lone UTF-16 surrogates.
+  They perform no acknowledgment, save, publication, export, storage or deletion.
+  The future adapter must serialize the entire validated current recovery payload
+  plus opaque predecessor strings before protection. After decryption it must
+  run the existing payload validators before offering an explicit recovery choice.
+- `inspectBrowserRecoveryEnvelope()` returns bounded, frozen header metadata
+  without requiring a key. Inspection does not authenticate that metadata; only
+  successful decryption authenticates it. Unsupported, corrupt and legacy strings
+  stay opaque in the adapter and must remain exportable without rewriting.
+
+Version-three envelopes authenticate a fixed-order canonical header containing
+format/version, algorithm, key ID, exact origin, server-issued owner scope,
+record kind/ID and logout generation. Header identifiers remain visible; authored
+payload strings are encrypted. AES-256-GCM uses fresh random 96-bit nonces and
+128-bit tags. A document refuses a repeated nonce for the same key even after
+re-import. At 65,536 reserved nonces across its vault lifetime it refuses further
+encryption with `key-usage-limit`; no nonce set is silently reset. Cross-document
+uniqueness relies on the browser's cryptographic randomness, with no persisted
+counter or user-supplied nonce. Randomness and GCM follow the
+[Web Crypto recommendation](https://www.w3.org/TR/2017/REC-WebCryptoAPI-20170126/).
+
+The key file and envelopes use compact JSON emitted by this codec. Parsing rejects
+duplicate fields, reformatted/noncanonical JSON, unknown versions/fields,
+noncanonical base64url and invalid lengths. The key file is bounded to 1 KiB;
+JSON-encoded plaintext is bounded to 2 MiB plus 64 KiB, with corresponding
+ciphertext/envelope ceilings. JSON escaping counts toward that budget, so an
+oversized legacy string remains opaque rather than being truncated to fit.
+Wrong key IDs, wrong/damaged authenticated ciphertext, missing/lost keys,
+context mismatch, unavailable cryptography and stale async results are explicit
+errors with no plaintext fallback. Temporary mutable key/input/decrypted byte
+buffers are cleared where owned; JavaScript strings and native internals cannot
+be guaranteed to be erased. This does not protect an already unlocked document
+against same-origin script compromise.
+
+The future form/storage adapter still owns authenticated document admission,
+session-event handling, local capture before key disposal, lifecycle/record Web
+Locks, compare-and-swap and persisted logout checks before and after every await.
+The engine's context argument does not establish server identity or authorize a
+write. Keep existing generations and acknowledgment tombstones; encrypted copies
+cannot justify deleting plaintext predecessors without explicit proven migration.
+Downloads must protect current input before including it in a ciphertext bundle.
+Explicit logout must extend existing cleanup to the new namespace without changing
+its purge meaning. Re-authentication followed by owner key import is required
+after reload/expiry; no key, decrypted source or unlock credential is broadcast
+between tabs or stored alongside ciphertext.
+
+Focused tests exercise actual Node Web Crypto rather than mocked ciphers. They
+cover native non-extractability, exact-byte/string recovery, header/IV/tag and
+wrong-key failures, key-file and size validation, repeated nonces, stale concurrent
+unlock/encryption/decryption, and opaque input preservation. These checks do not
+establish browser key-download custody, storage races, expiry flushing, BFCache,
+two-tab logout, encrypted downloads or recovery UI acceptance. Those require the
+next integration and real-browser gate before activation.
