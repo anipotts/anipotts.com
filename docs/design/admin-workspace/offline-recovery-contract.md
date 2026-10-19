@@ -3,13 +3,15 @@
 `scripts/admin/editorial-recovery.mjs` is a pure supplied-snapshot formatter,
 reference validator and isolated memory restore adapter. It has no filesystem,
 provider, network, route, job, alarm, publication or production restore capability.
-The fixture tests run through the normal `test:editorial-cli` check. This does not
-activate an operational backup or change the current production stores.
+The original supplied-snapshot v1 proof is described first. The local binding
+v2 prototype and its later evidence are recorded below. Current verification is
+`pnpm --filter @anipotts/admin test:recovery`. Neither proof activates an
+operational backup or changes production stores.
 
-## Covered supplied state
+## Supplied-snapshot v1 coverage
 
-The version-one adapter requires all eight current editorial Durable Object SQL
-tables and all three current content publication D1 tables, with their exact
+The version-one adapter requires the eight editorial application SQL tables
+and three content publication D1 tables in its declared schema, with their exact
 named columns. Its version-one record path format is pinned to
 `content/public/pages`, `content/public/projects` and `content/public/writing`;
 like the declared SQL columns, this pin is self-contained and tested against the
@@ -40,7 +42,7 @@ The compatibility pin was checked against media source commit
 Unknown KV keys, relation versions/codecs, SQL tables/columns and content schemas
 fail closed rather than being omitted.
 
-## Integrity and isolated restore
+## Supplied-snapshot v1 integrity and restore
 
 A canonical plaintext intermediate binds the entire supplied snapshot with a
 SHA-256 checksum. Export and validation impose byte, entry, source and media
@@ -58,15 +60,15 @@ establish no key custody, destination or operational capture pipeline. Plaintext
 intermediates and decrypted output belong only in a controlled caller context;
 the fixture does not make the existing browser recovery plaintext encrypted.
 
-The sole restore target is empty isolated memory. Validation completes before
-installation; a nonempty target or custom/provider target rejects. Returned
+The original v1 formatter restores only into empty isolated memory. Validation
+completes before installation; a nonempty target or custom/provider target rejects. Returned
 copies cannot mutate its retained state. Pending intent, lease and alarm bytes
 remain evidence and are never scheduled, retried, executed or published.
 Canonical SQLite fixture restoration separately reopens the real current SQL
 schemas, reinstates their constraints/triggers and proves all covered rows and
 references with more than 100 versions. It performs no real provider import.
 
-## Historical and operational limits
+## Supplied-snapshot v1 historical limits
 
 A supported legacy successful receipt may retain the exact result of an already
 pruned historical revision. Restore preserves that result and reports the
@@ -80,13 +82,73 @@ Unpublish intent source may come from the public snapshot rather than its
 private expected revision; the validator checks the correct record/revision and
 publication receipt relationships.
 
-There is no live consistent capture adapter, D1/R2 exporter/importer, migration
-ledger/configuration export, operational authentication/custody design, external
-copy, restore deployment or scheduling implementation here. The supplied table
-projection cannot attest that a provider omitted no rows or objects. The current
-publisher has no redirect store; unknown route/configuration state is unsupported
-rather than manufactured or silently dropped. Missing external D1 databases or
-buckets are not covered by this adapter. The encrypted operational backup,
-one-hour loss target and one-working-day recovery drill from Quiet Precision
-remain unproven until separately authorized, protected integrations and an actual
-isolated operational drill exist. No live private export was used for this proof.
+At the original supplied-v1 checkpoint, no binding capture/import adapter or
+migration-ledger export existed. The supplied table projection alone cannot
+attest that a provider omitted no rows or objects. The local v2 prototype below
+adds bounded synthetic binding coverage; it does not establish operational
+capture or restore. The current publisher has no redirect store; unknown
+route/configuration state remains unsupported. Missing external databases or
+buckets are not covered. No live private export was used for either proof.
+
+## Local binding v2 checkpoint
+
+Integration-owner qualification of source
+`2793c4604aab4040890e981df9753bc2921dd3ca`, using Node 24.19.0 and
+`pnpm --filter @anipotts/admin test:recovery`, passed all 18 Node tests and all
+21 workerd tests with no unhandled failures. The local receipt is
+`/private/tmp/anipotts-recovery-metadata-qualification.log`. This is exact-source
+synthetic evidence, not CI, deployment or authenticated live-store evidence.
+The prototype remains separate from the current release.
+
+`recovery-storage.ts`, `recovery-target.ts` and
+`scripts/admin/editorial-recovery-capture.mjs` exercise real local DO SQLite,
+D1 and R2 bindings. The separate v2 envelope includes the eight application
+SQL tables, private KV media/chunks, three publication tables, migration ledger,
+R2 bytes and HTTP/custom metadata, schema evidence, original alarm timestamp,
+source fence identities and prior completion receipts. The current qualification
+receipt is recorded after the sealed frontier. Offline-v1 remains compatible
+and rejects the new control/journal tables rather than silently dropping them.
+
+DO writer admission records survive reconstruction. D1 triggers reject late
+publication writes atomically; cooperating R2 writers retain D1 admission until
+confirmed completion. Preflight rejects unsupported/unmigrated D1 before closing
+DO admission. Unknown application state and schema drift fail closed. Restore
+accepts current DDL and the exact known pre-`clientHash` table followed by the
+existing `ADD COLUMN` upgrade from `14d124914^`; named-column restoration handles
+that layout without accepting arbitrary schema equivalence.
+
+Restore requires dedicated empty local stores and remains suspended. Complete
+validation precedes staged installation; partial failures stay inaccessible.
+Imported intents, leases and alarms never run or reconcile. Explicit completion
+of a validated, durably qualified capture checks its hash, capture ID,
+generations and pending writers, then reopens D1 followed by the DO. This is not
+a cross-store atomic transaction: an ambiguous D1 response or interrupted release
+keeps the DO fenced, with no TTL or automatic retry unlock. Tests preserve the
+artifact and isolated target while source editing/publication resumes. A future
+source alarm remains scheduled and can run after verified completion; the target
+alarm remains unarmed.
+
+## Remaining operational gaps
+
+The normal cohort eligibility adapter always rejects operational capture. Only
+the isolated Vitest configuration substitutes an adapter for its exact local
+bindings and known current writers. Migration presence does not prove old R2
+writes enrolled or drained. Operational writer enrollment, rollout evidence,
+provider setup and activation remain unfinished. There is no production capture
+route, opt-in flag, credential or configuration activation; the additive D1
+migration has not been applied remotely by this work.
+
+The collector has a 4 MiB aggregate collection budget, including encoded
+rows/KV/media, an 8 MiB envelope limit, 256 KiB evidence limit and 5,000-entry
+bound. Encoding consumes that budget too. Accepted application uploads can be
+10 MiB, so this prototype does not cover the full supported media size range.
+Due/near alarms are refused; provider alarm retry exhaustion and recovery from it
+are not qualified by the future-wake test.
+
+The v2 checksum supplies integrity, not authenticity, encryption or custody.
+The v1 caller-key encryption helpers do not establish an encrypted v2 capture
+pipeline. Backup key creation/custody, protected external copies, scheduling,
+operational restore provisioning and a live isolated drill remain undone.
+Quiet Precision's encrypted backup, one-hour loss target and one-working-day
+recovery target remain unproven until those separately authorized integrations
+and operational evidence exist.
