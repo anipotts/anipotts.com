@@ -42,6 +42,22 @@ const fail = (code) => {
   throw new EncryptedRecoveryMediaError(code);
 };
 
+/** Charge bounded synchronous preflight to the same absolute codec budget.
+ * CPU cannot be preempted, but exhaustion rejects before any caller write. */
+export function remainingRecoveryCodecOptions(options, started) {
+  const timeout =
+    options.timeoutMs ?? ENCRYPTED_RECOVERY_MEDIA_LIMITS.timeoutMs;
+  if (
+    !Number.isSafeInteger(timeout) ||
+    timeout < 1 ||
+    timeout > ENCRYPTED_RECOVERY_MEDIA_LIMITS.timeoutMs
+  )
+    fail("deadline");
+  const remaining = Math.floor(timeout - (performance.now() - started));
+  if (remaining < 1) fail("deadline");
+  return { timeoutMs: remaining, signal: options.signal };
+}
+
 /** Internal shared framing engine. The media-v1 profile remains byte-compatible;
  * capture-v3 has a distinct authenticated format and bounded control role. */
 export function createRecoveryFrameCodec(profile = "media-v1") {
@@ -406,6 +422,7 @@ export function createRecoveryFrameCodec(profile = "media-v1") {
     options = {},
     control,
   ) {
+    const preflightStarted = performance.now();
     const identity = contextCopy(context);
     if (capture) {
       const copied = snapshotRecoveryMediaPlan(plan);
@@ -419,7 +436,11 @@ export function createRecoveryFrameCodec(profile = "media-v1") {
     )
       fail("control");
     contract(sink, ["write", "complete", "abort"]);
-    const operation = new Operation(options);
+    const operation = new Operation(
+      capture
+        ? remainingRecoveryCodecOptions(options, preflightStarted)
+        : options,
+    );
     let receipt;
     try {
       operation.check();
@@ -861,11 +882,21 @@ export function createRecoveryFrameCodec(profile = "media-v1") {
     sink,
     options = {},
     validateControl,
+    finalize,
   ) {
+    const preflightStarted = performance.now();
     const identity = contextCopy(expectedContext);
-    if (capture && typeof validateControl !== "function") fail("control");
+    if (
+      capture &&
+      (typeof validateControl !== "function" || typeof finalize !== "function")
+    )
+      fail("control");
     contract(sink, ["writeFrame", "writeManifest", "abort"]);
-    const operation = new Operation(options);
+    const operation = new Operation(
+      capture
+        ? remainingRecoveryCodecOptions(options, preflightStarted)
+        : options,
+    );
     try {
       operation.check();
       const master = operation.own(copyBytes(key, 32, 32));
@@ -919,7 +950,14 @@ export function createRecoveryFrameCodec(profile = "media-v1") {
           },
         }),
       );
-      return capture ? { ...verified, media: result } : result;
+      if (capture) {
+        // Build/hash the final capture result while cancellation, deadline and
+        // key ownership still belong to this operation.
+        const output = finalize(verified.receipt);
+        operation.check();
+        return output;
+      }
+      return result;
     } catch (error) {
       abort(sink, operation);
       throw normalized(error);

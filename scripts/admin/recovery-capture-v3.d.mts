@@ -81,9 +81,10 @@ export function openRecoveryCaptureV3(
   context: RecoveryCaptureV3Context,
   sink: RecoveryCaptureV3RestoreSink,
   options?: RecoveryMediaCodecOptions,
-): Promise<{
+): Promise<RecoveryCaptureV3Opened>;
+export type RecoveryCaptureV3Opened = {
   document: RecoveryCaptureV3Document;
   report: Record<string, unknown>;
   receipt: RecoveryCaptureV3Receipt;
   sha256: string;
-}>;
+};

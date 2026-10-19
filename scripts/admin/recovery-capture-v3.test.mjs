@@ -365,3 +365,105 @@ for (const variant of ["sparse-array", "hidden-field"])
     );
     assert.equal(writes, 0);
   });
+
+function slowValue(value) {
+  const until = performance.now() + 8;
+  while (performance.now() < until) {
+    /* deterministic synchronous preflight */
+  }
+  return value;
+}
+test("v3 charges synchronous control validation before any artifact write", async () => {
+  const document = fixture();
+  Object.defineProperty(document.snapshot, "applicationRevision", {
+    enumerable: true,
+    get: () => slowValue(context.applicationRevision),
+  });
+  let writes = 0;
+  await assert.rejects(
+    sealRecoveryCaptureV3(
+      document,
+      media,
+      randomBytes(32),
+      context,
+      {
+        write() {
+          writes++;
+        },
+        complete() {},
+        abort() {},
+      },
+      { timeoutMs: 2 },
+    ),
+    /deadline/u,
+  );
+  assert.equal(writes, 0);
+});
+test("v3 shared capture profile charges its own synchronous plan snapshot", async () => {
+  const { createRecoveryFrameCodec } =
+    await import("./recovery-media-encryption.mjs");
+  const plan = {
+    get objects() {
+      return slowValue([]);
+    },
+    evidence: null,
+  };
+  let writes = 0;
+  await assert.rejects(
+    createRecoveryFrameCodec("capture-v3").seal(
+      plan,
+      media,
+      randomBytes(32),
+      context,
+      {
+        write() {
+          writes++;
+        },
+        complete() {},
+        abort() {},
+      },
+      { timeoutMs: 2 },
+      "{}",
+    ),
+    /deadline/u,
+  );
+  assert.equal(writes, 0);
+});
+test("v3 final result work remains inside deadline and revokes staged sink admission", async () => {
+  const { createRecoveryFrameCodec } =
+    await import("./recovery-media-encryption.mjs");
+  const { events, key } = await artifact();
+  let signal,
+    finalized = false;
+  await assert.rejects(
+    createRecoveryFrameCodec("capture-v3").open(
+      () => events,
+      key,
+      context,
+      {
+        begin() {},
+        writeFrame() {},
+        writeManifest(_text, value) {
+          signal = value;
+        },
+        abort() {},
+      },
+      { timeoutMs: 40 },
+      (serialized) => ({
+        objects: JSON.parse(serialized).objects,
+        evidence: null,
+      }),
+      () => {
+        finalized = true;
+        const until = performance.now() + 50;
+        while (performance.now() < until) {
+          /* bounded final-result stall */
+        }
+        return {};
+      },
+    ),
+    /deadline/u,
+  );
+  assert(finalized);
+  assert(signal.aborted);
+});

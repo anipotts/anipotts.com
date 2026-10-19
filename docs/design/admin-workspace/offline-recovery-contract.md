@@ -567,8 +567,8 @@ successful finalization; the codec cannot undo arbitrary uncooperative sink
 side effects. The caller remains responsible for durable encrypted artifact
 custody. This does not establish a live backup or a production restore path.
 
-Focused Node qualification currently passes 98 cases, including the existing
-84 and 14 new v3 cases. The new large fixture transports 10 MiB in each media
+Focused Node qualification currently passes 101 cases, including the existing
+84 and 17 new v3 cases. The new large fixture transports 10 MiB in each media
 plane alongside more than 4,000,000 bytes of control, spools encrypted events to
 task-owned temporary files, verifies exact two-pass replay and observes one
 outstanding awaited frame. It also covers wrong keys/context, header/tag damage,
@@ -580,3 +580,13 @@ recovery test configuration but have not yet run at this checkpoint. No numeric
 128 MiB peak-memory or provider integration claim follows from bounded frame
 references or Node file-spool evidence. Full/native qualification remains an
 integration-owner gate on the exact frozen source.
+
+The v3 timeout includes synchronous wrapper control/context validation and the
+shared engine's capture-plan snapshot. CPU work cannot be preempted, but an
+exhausted preflight rejects before an artifact write. Deterministic native
+Node regressions hold valid metadata access beyond a tiny budget and prove this
+rejection. The legacy media-v1 profile retains its existing behavior.
+
+Final result/receipt hashing also runs inside the active codec operation, before
+its final deadline check and owned-key cleanup. A held final-result regression
+proves rejection and staged-sink signal revocation at this boundary.

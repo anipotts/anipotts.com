@@ -6,7 +6,10 @@ import {
   canonicalRecoveryMetadata,
   snapshotRecoveryMediaPlan,
 } from "./recovery-media-container.mjs";
-import { createRecoveryFrameCodec } from "./recovery-media-encryption.mjs";
+import {
+  createRecoveryFrameCodec,
+  remainingRecoveryCodecOptions,
+} from "./recovery-media-encryption.mjs";
 
 /** Inactive supplied-data format. No provider, custody, operational eligibility,
  * production route or migration authority is conferred by this codec. */
@@ -96,6 +99,7 @@ export async function sealRecoveryCaptureV3(
   sink,
   options = {},
 ) {
+  const started = performance.now();
   context = JSON.parse(canonical(context));
   const copied = documentCopy(document, context);
   return codec.seal(
@@ -104,7 +108,7 @@ export async function sealRecoveryCaptureV3(
     key,
     context,
     sink,
-    options,
+    remainingRecoveryCodecOptions(options, started),
     copied.serialized,
   );
 }
@@ -118,9 +122,10 @@ export async function openRecoveryCaptureV3(
   sink,
   options = {},
 ) {
+  const started = performance.now();
   context = JSON.parse(canonical(context));
   let copied;
-  const result = await codec.open(
+  return codec.open(
     sourceFactory,
     key,
     context,
@@ -134,17 +139,17 @@ export async function openRecoveryCaptureV3(
       writeManifest: (_serialized, signal) => sink.complete(signal),
       abort: () => sink.abort(),
     },
-    options,
+    remainingRecoveryCodecOptions(options, started),
     (serialized) => {
       const value = documentCopy(JSON.parse(serialized), context);
       if (value.serialized !== serialized) fail();
       return value.plan;
     },
+    (receipt) => ({
+      document: copied.document,
+      report: copied.report,
+      receipt,
+      sha256: hash(canonical(receipt)),
+    }),
   );
-  return {
-    document: copied.document,
-    report: copied.report,
-    receipt: result.receipt,
-    sha256: hash(canonical(result.receipt)),
-  };
 }

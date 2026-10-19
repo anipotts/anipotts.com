@@ -110,7 +110,13 @@ export function createRecoveryFrameCodec(profile: "capture-v3"): {
     },
     options: RecoveryMediaCodecOptions,
     validateControl: (serialized: string) => RecoveryMediaPlan,
-  ): Promise<{
-    receipt: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Receipt;
-  }>;
+    finalize: (
+      receipt: import("./recovery-capture-v3.mjs").RecoveryCaptureV3Receipt,
+    ) => import("./recovery-capture-v3.mjs").RecoveryCaptureV3Opened,
+  ): Promise<import("./recovery-capture-v3.mjs").RecoveryCaptureV3Opened>;
 };
+
+export function remainingRecoveryCodecOptions(
+  options: RecoveryMediaCodecOptions,
+  started: number,
+): RecoveryMediaCodecOptions;
