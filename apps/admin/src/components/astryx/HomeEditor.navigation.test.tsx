@@ -927,7 +927,9 @@ it("offers divergent old-tab recovery explicitly and does not save the selection
   );
   vi.stubGlobal("fetch", fetcher);
   await mount();
-  expect(host.textContent).toContain("Another tab changed browser recovery");
+  expect(host.textContent).toContain(
+    "Browser recovery contains competing copies",
+  );
   await click("Recover older tab copy");
   await act(async () => {
     await settleRecoveryFixture();
