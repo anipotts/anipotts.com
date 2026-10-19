@@ -13,8 +13,9 @@ pnpm dev:admin
 pnpm dev:status
 ```
 
-Public preview: http://anipotts.localhost:1355/. Admin preview: http://admin.anipotts.localhost:1355/.
-The managed admin review preview on http://localhost:4311/ is separate; preserve it while review is active.
+Use `pnpm dev:status` for this checkout’s URLs. The canonical review checkout and
+public URL are recorded in [the integration lane](docs/local-integration-preview.md).
+Preserve its managed admin review preview on http://localhost:4311/ while review is active.
 See [local development](docs/local-development.md).
 
 ## Content
@@ -29,10 +30,11 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Finish the later quota-failure repair and refreshed exact-head review for [#539](https://github.com/anipotts/anipotts.com/pull/539). Its earlier browser/CI checks pass; the prior approval request is withdrawn. Admin-only release, no migration.
 - [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; provider activation and operational coverage, custody and restore remain open.
-- [ ] Integrate and review draft [#542](https://github.com/anipotts/anipotts.com/pull/542): unused Drizzle CLI removal passes full validation and removes the moderate advisory. One low upstream KaTeX advisory remains.
+- [ ] Integrate and review separate draft [#542](https://github.com/anipotts/anipotts.com/pull/542): unused Drizzle CLI removal passes full validation and removes the moderate advisory; one low upstream KaTeX advisory remains. It selects no runtime targets; refreshed checks follow its normal merge of approved main.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#539 is approved and merged as `cf7b757b`; its admin-only deployment is in progress. No migration is selected.
 
 #538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
 

@@ -1,3 +1,5 @@
+import type { EncryptedBrowserRecovery } from "../../lib/encrypted-browser-recovery";
+import { recoverySession } from "../../lib/browser-recovery-session";
 import { projectRecordIdentity } from "../../lib/project-media";
 import { AuthReentry } from "./AuthReentry";
 import { editorialReturnPath } from "../../lib/editorial-return-path";
@@ -34,7 +36,7 @@ import {
 } from "../../lib/reviewed-draft";
 import { DocumentTitle } from "./DocumentTitle";
 import {
-  draftRecovery,
+  encryptedDraftRecovery,
   recoveryKey,
   recoveryLogoutKey,
 } from "../../lib/draft-recovery";
@@ -91,12 +93,11 @@ import {
   downloadBrowserRecovery,
 } from "./BrowserRecoveryNotice";
 import {
-  exportBrowserRecoveryCopy,
-  type BrowserRecovery,
   type RecoveryProblem,
   type RecoveryRead,
 } from "../../lib/browser-recovery";
 import type { RecoverySnapshot } from "../../lib/home-autosave";
+import { RecoveryEncryptionError } from "../../lib/browser-recovery-encryption";
 import { RichTextField } from "./RichTextField";
 import { editableHomeSummary } from "../../lib/rich-text";
 import { editorialFields } from "../../lib/editorial-fields";
@@ -397,6 +398,7 @@ function HomeEditorImpl({
   const [leaveRefused, setLeaveRefused] = useState(false);
   const leavePending = useRef(false);
   const [previewRevision, setPreviewRevision] = useState<number | null>(null);
+  const recoveryWriteSequence = useRef(0);
   const editor = useRef<HomeAutosave | null>(null);
   const saveScheduler = useRef<SaveScheduler | null>(null);
   const titleFlush = useRef<(() => void) | null>(null);
@@ -520,9 +522,8 @@ function HomeEditorImpl({
     return editor.current!.ensureDraft();
   };
   const recoveryStorageKey = useRef<string | null>(null);
-  const recoveryChannel = useRef<BrowserRecovery<RecoverySnapshot> | null>(
-    null,
-  );
+  const recoveryChannel =
+    useRef<EncryptedBrowserRecovery<RecoverySnapshot> | null>(null);
   const [recoveryProblem, setRecoveryProblem] =
     useState<RecoveryProblem | null>(null);
   const [recoveryRead, setRecoveryRead] = useState<
@@ -753,13 +754,19 @@ function HomeEditorImpl({
               const key = recoveryStorageKey.current;
               if (!key || !editor.current) return;
               const channel = recoveryChannel.current;
+              const sequence = ++recoveryWriteSequence.current;
               if (channel)
                 void channel
                   .write(
                     next.status === "saved" ? null : editor.current.recovery(),
                   )
                   .then((problem) => {
-                    if (cancelled || recoveryChannel.current !== channel)
+                    if (
+                      cancelled ||
+                      recoveryChannel.current !== channel ||
+                      sequence !== recoveryWriteSequence.current ||
+                      problem === "superseded"
+                    )
                       return;
                     setRecoveryProblem(problem);
                     // Another tab won the write. Surface its copy alongside
@@ -779,9 +786,19 @@ function HomeEditorImpl({
         try {
           const key = recoveryStorageKey.current;
           recoveryChannel.current?.close();
-          const channel = key ? draftRecovery(localStorage, key) : null;
+          const channel = key
+            ? encryptedDraftRecovery(localStorage, key)
+            : null;
           recoveryChannel.current = channel;
-          const result = channel?.read() ?? { status: "unavailable" as const };
+          const result = channel
+            ? await channel.read()
+            : { status: "unavailable" as const };
+          if (
+            cancelled ||
+            sessionLocked.current ||
+            recoveryChannel.current !== channel
+          )
+            return;
           setRecoveryRead(result);
           setRecoveryProblem(
             result.status === "ready" || result.status === "missing"
@@ -929,6 +946,19 @@ function HomeEditorImpl({
       /* Keep the last valid title while source is being edited. */
     }
   }, [state?.source, titled, untitled, onTitleChange]);
+  useEffect(
+    () =>
+      recoverySession().capture(() => {
+        saveScheduler.current?.dispose();
+        flushLocal();
+        const controller = editor.current;
+        const channel = recoveryChannel.current;
+        return controller && channel
+          ? channel.sealFinal(controller.recovery())
+          : Promise.resolve();
+      }),
+    [],
+  );
   useEffect(() => {
     const logout = (event: StorageEvent) => {
       // A cross-tab logout must tear down exactly what a same-tab logout does,
@@ -1248,11 +1278,38 @@ function HomeEditorImpl({
   } catch {
     /* Source remains editable and recoverable while malformed. */
   }
-  const download = (source?: string, name = `${record.id}-draft.md`) => {
+  const downloadRecovery = async () => {
+    try {
+      if (
+        protectedSessionIsLocked() ||
+        sessionLocked.current ||
+        !editor.current
+      )
+        return;
+      flushLocal();
+      const controller = editor.current;
+      const channel = recoveryChannel.current;
+      if (!channel) throw new Error("Recovery channel unavailable");
+      const contents = await channel.export(controller.recovery());
+      if (protectedSessionIsLocked() || sessionLocked.current) return;
+      downloadBrowserRecovery(contents, `${record.id}-draft.encrypted.json`);
+    } catch (cause) {
+      setRecoveryProblem(
+        cause instanceof RecoveryEncryptionError &&
+          cause.problem === "key-usage-limit"
+          ? "key-usage-limit"
+          : "unavailable",
+      );
+    }
+  };
+  const downloadSource = (source?: string, name = `${record.id}-draft.md`) => {
+    if (protectedSessionIsLocked() || sessionLocked.current || !editor.current)
+      return;
     if (source === undefined) {
       flushLocal();
-      source = editor.current!.state.source;
+      source = editor.current.state.source;
     }
+    if (protectedSessionIsLocked() || sessionLocked.current) return;
     const url = URL.createObjectURL(
       new Blob([source], { type: "text/markdown;charset=utf-8" }),
     );
@@ -1260,7 +1317,7 @@ function HomeEditorImpl({
     link.href = url;
     link.download = name;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const needsSaveComparison = saveNeedsComparison(state.saveFailureCode);
   const refusedSave = saveRefused(state.saveFailureCode);
@@ -1986,7 +2043,10 @@ function HomeEditorImpl({
                   },
                 ]
               : []),
-            { label: "Download draft", onClick: () => download() },
+            {
+              label: "Download Markdown source (plaintext)",
+              onClick: () => downloadSource(),
+            },
             {
               label: "Import draft…",
               isDisabled: uploadPending || importing || discarded,
@@ -2105,9 +2165,10 @@ function HomeEditorImpl({
           {recoveryProblem && (
             <BrowserRecoveryNotice
               problem={recoveryProblem}
+              hasPlaintextSourceDownload
               onDownload={
                 editor.current
-                  ? () => {
+                  ? async () => {
                       try {
                         if (
                           protectedSessionIsLocked() ||
@@ -2121,19 +2182,21 @@ function HomeEditorImpl({
                         const controller = editor.current;
                         if (!controller || sessionLocked.current) return;
                         const channel = recoveryChannel.current;
-                        const contents = exportBrowserRecoveryCopy(
-                          {
-                            key: recoveryStorageKey.current,
-                            kind: "draft",
-                            payload: controller.recovery(),
-                          },
-                          channel ? () => channel.export() : undefined,
+                        if (!channel)
+                          throw new Error("Recovery channel unavailable");
+                        const contents = await channel.export(
+                          controller.recovery(),
                         );
                         if (protectedSessionIsLocked() || sessionLocked.current)
                           return;
                         downloadBrowserRecovery(contents);
-                      } catch {
-                        setRecoveryProblem("unavailable");
+                      } catch (cause) {
+                        setRecoveryProblem(
+                          cause instanceof RecoveryEncryptionError &&
+                            cause.problem === "key-usage-limit"
+                            ? "key-usage-limit"
+                            : "unavailable",
+                        );
                       }
                     }
                   : undefined
@@ -2206,9 +2269,10 @@ function HomeEditorImpl({
                       clickAction={compareSavedDraft}
                     />
                     <Button
-                      label="Download draft"
+                      label="Download encrypted draft"
                       size="sm"
-                      onClick={() => download()}
+                      isDisabled={recoveryProblem === "key-usage-limit"}
+                      onClick={() => downloadRecovery()}
                     />
                   </HStack>
                 }
@@ -2221,8 +2285,12 @@ function HomeEditorImpl({
             <RecoveryBanner
               title={refusal.title}
               description={refusal.description}
-              actionLabel="Download draft"
-              onRetry={() => download()}
+              actionLabel="Download encrypted draft"
+              onRetry={
+                recoveryProblem === "key-usage-limit"
+                  ? undefined
+                  : () => downloadRecovery()
+              }
             />
           ) : state.saveFailed ? (
             <RecoveryBanner
@@ -2239,8 +2307,12 @@ function HomeEditorImpl({
           ) : error ? (
             <RecoveryBanner
               title={error}
-              actionLabel="Download draft"
-              onRetry={() => download()}
+              actionLabel="Download encrypted draft"
+              onRetry={
+                recoveryProblem === "key-usage-limit"
+                  ? undefined
+                  : () => downloadRecovery()
+              }
             />
           ) : null}
           {error && tab !== "publish" && (
@@ -2935,8 +3007,8 @@ function HomeEditorImpl({
                               }}
                             />
                             <IconButton
-                              label={`Download revision ${revision.revision}`}
-                              tooltip={`Download revision ${revision.revision}`}
+                              label={`Download revision ${revision.revision} as Markdown (plaintext)`}
+                              tooltip={`Download revision ${revision.revision} as Markdown (plaintext)`}
                               variant="ghost"
                               size="sm"
                               icon={
@@ -2946,7 +3018,7 @@ function HomeEditorImpl({
                                 />
                               }
                               onClick={() =>
-                                download(
+                                downloadSource(
                                   revision.source,
                                   `${record.id}-revision-${revision.revision}.md`,
                                 )

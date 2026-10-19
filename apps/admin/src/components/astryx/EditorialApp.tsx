@@ -1,3 +1,4 @@
+import { RecoveryUnlock } from "./RecoveryUnlock";
 import { AdminUIProvider } from "../workspace/AdminUI";
 import { AuthReentry } from "./AuthReentry";
 import {
@@ -405,19 +406,21 @@ export function EditorialApp({
               />
             )}
             {(newWriting || newProject) && !created && (
-              <NewWriting
-                recoveryScope={recoveryScope}
-                recordKind={newProject ? "work" : "writing"}
-                back={back}
-                onCreated={(record) => {
-                  window.history.replaceState(
-                    window.history.state,
-                    "",
-                    `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
-                  );
-                  setCreated(record);
-                }}
-              />
+              <RecoveryUnlock scope={recoveryScope}>
+                <NewWriting
+                  recoveryScope={recoveryScope}
+                  recordKind={newProject ? "work" : "writing"}
+                  back={back}
+                  onCreated={(record) => {
+                    window.history.replaceState(
+                      window.history.state,
+                      "",
+                      `/content/${record.kind === "work" ? "projects" : "writing"}/${record.id}`,
+                    );
+                    setCreated(record);
+                  }}
+                />
+              </RecoveryUnlock>
             )}
             {groups && (
               <ContentLibrary
@@ -431,41 +434,43 @@ export function EditorialApp({
               />
             )}
             {(editHome || openRecord) && (
-              <EditorLoadingBoundary
-                key={`${openRecord?.kind ?? "page"}:${openRecord?.id ?? "home"}`}
-              >
-                <React.Suspense
-                  fallback={
-                    <VStack gap={3} className="editor-workspace">
-                      <EditorActionBar back={back} title={title} />
-                      <AdminSkeleton
-                        announce={false}
-                        fields={editorialFields(
-                          openRecord ?? { kind: "page", id: "home" },
-                        )}
-                      />
-                    </VStack>
-                  }
+              <RecoveryUnlock scope={recoveryScope}>
+                <EditorLoadingBoundary
+                  key={`${openRecord?.kind ?? "page"}:${openRecord?.id ?? "home"}`}
                 >
-                  <HomeEditor
-                    pageTitle={
-                      openRecord?.kind === "writing" ||
-                      openRecord?.kind === "work"
-                        ? undefined
-                        : title
+                  <React.Suspense
+                    fallback={
+                      <VStack gap={3} className="editor-workspace">
+                        <EditorActionBar back={back} title={title} />
+                        <AdminSkeleton
+                          announce={false}
+                          fields={editorialFields(
+                            openRecord ?? { kind: "page", id: "home" },
+                          )}
+                        />
+                      </VStack>
                     }
-                    back={back}
-                    publicUrl={(path) =>
-                      themedUrl(new URL(path, comparisonSiteUrl).href, mode)
-                    }
-                    homepageWritingOptions={homepageWritingOptions}
-                    localPreview={localPreview}
-                    key={openRecord?.id ?? "home"}
-                    record={openRecord ?? { kind: "page", id: "home" }}
-                    autoFocus={Boolean(created)}
-                  />
-                </React.Suspense>
-              </EditorLoadingBoundary>
+                  >
+                    <HomeEditor
+                      pageTitle={
+                        openRecord?.kind === "writing" ||
+                        openRecord?.kind === "work"
+                          ? undefined
+                          : title
+                      }
+                      back={back}
+                      publicUrl={(path) =>
+                        themedUrl(new URL(path, comparisonSiteUrl).href, mode)
+                      }
+                      homepageWritingOptions={homepageWritingOptions}
+                      localPreview={localPreview}
+                      key={openRecord?.id ?? "home"}
+                      record={openRecord ?? { kind: "page", id: "home" }}
+                      autoFocus={Boolean(created)}
+                    />
+                  </React.Suspense>
+                </EditorLoadingBoundary>
+              </RecoveryUnlock>
             )}
             {review && !editHome && !editorRecord && (
               <>
