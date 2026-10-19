@@ -29,9 +29,9 @@ See [local development](docs/local-development.md).
 
 ## Current review
 
-- [ ] Review [#530](https://github.com/anipotts/anipotts.com/pull/530): keyboard access, native scrolling and article source links.
+- [ ] Review [#532](https://github.com/anipotts/anipotts.com/pull/532): browser tools upgraded and checked on released #530/#531.
 - [ ] Investigate state commit-publisher receipts and silent ingest capture through their owning sources.
-- [ ] Merge only after Ani reviews the checked revision; production publication remains separate.
+- [ ] Merge #532 only after Ani reviews its exact checked revision. #530/#531 are merged and deployed; publication changes remain separate.
 
 The [source preparation checkpoint](docs/website-source-preparation.md) records
 PR containment, verification and remaining work. Earlier receipts stay in that
