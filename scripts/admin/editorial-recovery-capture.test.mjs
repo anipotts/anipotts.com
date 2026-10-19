@@ -13,6 +13,7 @@ import {
   sealRecoveryCapture,
   openRecoveryCapture,
 } from "./editorial-recovery-capture.mjs";
+import { isRecoveryProviderSchema } from "../../apps/admin/src/editorial/recovery-provider-schema.ts";
 const read = (path) =>
   readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const captureId = "00000000-0000-4000-8000-000000000001";
@@ -274,5 +275,64 @@ test("capture DDL fingerprints match the actual code-owned SQL, including guards
   } finally {
     editorial.close();
     content.close();
+  }
+});
+
+test("only exact native KV/alarm metadata schemas are recognized; application lookalikes remain unknown", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(
+      "CREATE TABLE _cf_KV (key TEXT PRIMARY KEY,value BLOB) WITHOUT ROWID; CREATE TABLE _cf_METADATA (key INTEGER PRIMARY KEY,value BLOB); CREATE TABLE _cf_authored_state (value TEXT);",
+    );
+    const rows = db
+      .prepare(
+        "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
+      )
+      .all();
+    for (const store of ["editorial", "content"]) {
+      assert.equal(
+        isRecoveryProviderSchema(
+          rows.find((row) => row.name === "_cf_KV"),
+          store,
+        ),
+        true,
+      );
+      assert.equal(
+        isRecoveryProviderSchema(
+          rows.find((row) => row.name === "_cf_METADATA"),
+          store,
+        ),
+        true,
+      );
+      assert.equal(
+        isRecoveryProviderSchema(
+          rows.find((row) => row.name === "_cf_authored_state"),
+          store,
+        ),
+        false,
+      );
+    }
+    const altered = {
+      ...rows.find((row) => row.name === "_cf_METADATA"),
+      sql: "CREATE TABLE _cf_METADATA(key INTEGER PRIMARY KEY,value BLOB,private_source TEXT)",
+    };
+    assert.throws(
+      () => isRecoveryProviderSchema(altered, "editorial"),
+      /capture_provider_schema_drift/,
+    );
+    assert.equal(
+      isRecoveryProviderSchema(
+        {
+          type: "table",
+          name: "_cf_EXTERNALS",
+          tbl_name: "_cf_EXTERNALS",
+          sql: "CREATE TABLE _cf_EXTERNALS(value BLOB)",
+        },
+        "editorial",
+      ),
+      false,
+    );
+  } finally {
+    db.close();
   }
 });

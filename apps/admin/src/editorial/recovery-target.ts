@@ -12,6 +12,7 @@ import {
 import { EditorialDraftStore } from "./draft-store";
 import { DirectPublisher } from "./direct-publisher";
 import { collectRecoveryStores } from "./recovery-storage";
+import { isRecoveryProviderSchema } from "./recovery-provider-schema";
 
 /** Not exported by the production Worker and never bound by production config.
  * A dedicated restore namespace stays suspended for its entire lifetime. */
@@ -189,20 +190,19 @@ export class SuspendedRecoveryTarget extends EditorialDraftStore {
         throw new Error("recovery_target_not_empty");
     }
     // Install only into code-owned schemas, never execute SQL from an export.
-    const canonical = (rows: SqlRow[]) =>
+    const canonical = (rows: SqlRow[], store: "editorial" | "content") =>
       JSON.stringify(
         rows.filter(
           (row) =>
-            !["editorial_recovery_restore", "_cf_KV"].includes(
-              String(row.name),
-            ),
+            row.name !== "editorial_recovery_restore" &&
+            !isRecoveryProviderSchema(row, store),
         ),
       );
     if (
-      canonical(before.schemas.editorial) !==
-        canonical(opened.evidence.schemas.editorial) ||
-      canonical(before.schemas.content) !==
-        canonical(opened.evidence.schemas.content)
+      canonical(before.schemas.editorial, "editorial") !==
+        canonical(opened.evidence.schemas.editorial, "editorial") ||
+      canonical(before.schemas.content, "content") !==
+        canonical(opened.evidence.schemas.content, "content")
     )
       throw new Error("recovery_target_schema");
     this.ctx.storage.transactionSync(() => {

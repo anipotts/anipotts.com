@@ -1,5 +1,4 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-/// <reference types="@cloudflare/workers-types" />
 import { createHash } from "node:crypto";
 import { env } from "cloudflare:workers";
 import {
@@ -17,6 +16,33 @@ import {
 } from "@anipotts/content/editorial/recovery-fence";
 import { openRecoveryCapture } from "../../../../scripts/admin/editorial-recovery-capture.mjs";
 import { exportOfflineRecovery } from "../../../../scripts/admin/editorial-recovery.mjs";
+
+import type {
+  CaptureFixture,
+  SuspendedRecoveryTarget,
+} from "../recovery-worker";
+// Expected protocol failures are caught inside the real DO context and asserted
+// as values. Positive paths still use RPC. This avoids detached server-side RPC
+// rejections in the test transport; no global error handler or ignore flag.
+async function failure<T extends CaptureFixture | SuspendedRecoveryTarget>(
+  stub: DurableObjectStub<T>,
+  work: (instance: T) => Promise<unknown>,
+  code: string,
+) {
+  const result = await runInDurableObject(stub, async (instance) => {
+    try {
+      await work(instance);
+      return { ok: true, error: "" };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+  expect(result.ok).toBe(false);
+  expect(result.error).toContain(code);
+}
 
 declare const __EDITORIAL_RECOVERY_MIGRATIONS__: import("cloudflare:test").D1Migration[];
 const source =
@@ -145,7 +171,9 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       alarmAt: null,
     });
     expect(await runDurableObjectAlarm(restored)).toBe(false);
-    await expect(restored.save(save(3))).rejects.toThrow(
+    await failure(
+      restored,
+      (instance) => instance.save(save(3)),
       "recovery_write_fenced",
     );
     await expect(
@@ -161,10 +189,16 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       phase: "complete",
       alarmAt: null,
     });
-    await expect(restored.save(save(3))).rejects.toThrow(
+    await failure(
+      restored,
+      (instance) => instance.save(save(3)),
       "recovery_write_fenced",
     );
-    await expect(store.save(save(3))).rejects.toThrow("recovery_write_fenced");
+    await failure(
+      store,
+      (instance) => instance.save(save(3)),
+      "recovery_write_fenced",
+    );
   });
 
   it("drains an actual admitted invocation and rejects new writers", async () => {
@@ -184,12 +218,21 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         ),
       )
       .toBe(1);
-    const capture = store.capture(1000);
+    const capture = store.capture(1000).then(
+      (value) => ({ ok: true as const, value }),
+      (error) => ({ ok: false as const, error }),
+    );
     expect(await held).toBe("completed");
+    const captured = await capture;
+    if (!captured.ok) throw captured.error;
     expect(
-      openRecoveryCapture(await capture).evidence.control.editorialWriters,
+      openRecoveryCapture(captured.value).evidence.control.editorialWriters,
     ).toEqual([]);
-    await expect(store.holdWriter(1)).rejects.toThrow("recovery_write_fenced");
+    await failure(
+      store,
+      (instance) => instance.holdWriter(1),
+      "recovery_write_fenced",
+    );
   });
 
   it("does not manufacture completion for a durable orphan after eviction", async () => {
@@ -202,7 +245,9 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         .toArray(),
     );
     await evictDurableObject(store);
-    await expect(store.capture(30)).rejects.toThrow(
+    await failure(
+      store,
+      (instance) => instance.capture(30),
       "recovery_writers_unresolved",
     );
     const state = await runInDurableObject(store, (_instance, state) =>
@@ -211,7 +256,11 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         .one(),
     );
     expect(state.phase).toBe("blocked");
-    await expect(store.save(save())).rejects.toThrow("recovery_write_fenced");
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
   });
 
   it("fences late D1 requests atomically and refuses unresolved external/R2 writes", async () => {
@@ -236,7 +285,11 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         ).first()
       )?.version,
     ).toBe(0);
-    await expect(fresh().capture()).rejects.toThrow("recovery_fence_conflict");
+    await failure(
+      fresh(),
+      (instance) => instance.capture(),
+      "recovery_fence_conflict",
+    );
   });
 
   it("retains ambiguous R2 writer admission instead of expiring it", async () => {
@@ -252,7 +305,9 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         },
       ),
     ).rejects.toThrow("synthetic_lost_response");
-    await expect(fresh().capture()).rejects.toThrow(
+    await failure(
+      fresh(),
+      (instance) => instance.capture(),
       "recovery_external_writers_unresolved",
     );
     expect(
@@ -273,14 +328,22 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     await runInDurableObject(near, (_instance, state) =>
       state.storage.setAlarm(Date.now() + 5000),
     );
-    await expect(near.capture()).rejects.toThrow("capture_alarm_window");
+    await failure(
+      near,
+      (instance) => instance.capture(),
+      "capture_alarm_window",
+    );
     const unknown = fresh();
     await runInDurableObject(unknown, (_instance, state) =>
       state.storage.sql
         .exec("CREATE TABLE future_private_store (value TEXT)")
         .toArray(),
     );
-    await expect(unknown.capture()).rejects.toThrow("capture_unknown_store");
+    await failure(
+      unknown,
+      (instance) => instance.capture(),
+      "capture_unknown_store",
+    );
   });
 
   it("fails closed on actual column drift, before returning an envelope", async () => {
@@ -290,15 +353,23 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         .exec("ALTER TABLE drafts ADD COLUMN future_authored_state TEXT")
         .toArray(),
     );
-    await expect(store.capture()).rejects.toThrow("capture_schema_drift");
-    await expect(store.save(save())).rejects.toThrow("recovery_write_fenced");
+    await failure(
+      store,
+      (instance) => instance.capture(),
+      "capture_schema_drift",
+    );
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
   });
   it("does not silently omit unsupported KV", async () => {
     const store = fresh();
     await runInDurableObject(store, (_instance, state) =>
       state.storage.put("future-authored-state", { fixture: "synthetic" }),
     );
-    await expect(store.capture()).rejects.toThrow("kv_key");
+    await failure(store, (instance) => instance.capture(), "kv_key");
   });
   it("rejects a capture that exceeds the bounded row inventory", async () => {
     const store = fresh();
@@ -309,11 +380,17 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
         )
         .toArray(),
     );
-    await expect(store.capture()).rejects.toThrow("capture_entry_limit");
+    await failure(
+      store,
+      (instance) => instance.capture(),
+      "capture_entry_limit",
+    );
   });
   it("blocks a stalled capture and rejects late success after its deadline", async () => {
     const store = fresh();
-    await expect(store.captureWithDelayedInventory(100, 250)).rejects.toThrow(
+    await failure(
+      store,
+      (instance) => instance.captureWithDelayedInventory(100, 250),
       "capture_timeout",
     );
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -332,7 +409,11 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       exposedSaveHelper: false,
       exposedReadHelper: false,
     });
-    await expect(store.save(save())).rejects.toThrow("recovery_write_fenced");
+    await failure(
+      store,
+      (instance) => instance.save(save()),
+      "recovery_write_fenced",
+    );
   });
 
   it("rejects integrity errors and nonempty targets before writes; concurrent installs admit one caller", async () => {
@@ -340,23 +421,30 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     const changed = JSON.parse(captured);
     changed.sha256 = "0".repeat(64);
     const invalid = target();
-    await expect(
-      invalid.installRecovery(JSON.stringify(changed)),
-    ).rejects.toThrow("capture_checksum");
+    await failure(
+      invalid,
+      (instance) => instance.installRecovery(JSON.stringify(changed)),
+      "capture_checksum",
+    );
     expect(await invalid.recoveryStatus()).toMatchObject({ phase: "empty" });
     const nonempty = target();
     await runInDurableObject(nonempty, (_instance, state) =>
       state.storage.put("unknown-private", "synthetic"),
     );
-    await expect(nonempty.installRecovery(captured)).rejects.toThrow(
+    await failure(
+      nonempty,
+      (instance) => instance.installRecovery(captured),
       "recovery_target_not_empty",
     );
     expect(await nonempty.recoveryStatus()).toMatchObject({ phase: "empty" });
     const installed = target();
-    const results = await Promise.allSettled([
-      installed.installRecovery(captured),
-      installed.installRecovery(captured),
-    ]);
+    const results = await runInDurableObject(installed, async (instance) => {
+      const results = await Promise.allSettled([
+        instance.installRecovery(captured),
+        instance.installRecovery(captured),
+      ]);
+      return results.map((result) => ({ status: result.status }));
+    });
     expect(
       results.filter((result) => result.status === "fulfilled"),
     ).toHaveLength(1);
@@ -370,7 +458,9 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     const interrupted = env.RECOVERY_INTERRUPTED_TARGET.getByName(
       crypto.randomUUID(),
     );
-    await expect(interrupted.installRecovery(captured)).rejects.toThrow(
+    await failure(
+      interrupted,
+      (instance) => instance.installRecovery(captured),
       "synthetic_transport_interruption",
     );
     expect(
@@ -382,10 +472,14 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       phase: "failed",
       alarmAt: null,
     });
-    await expect(interrupted.get(record)).rejects.toThrow(
+    await failure(
+      interrupted,
+      (instance) => instance.get(record),
       "recovery_target_unavailable",
     );
-    await expect(interrupted.save(save())).rejects.toThrow(
+    await failure(
+      interrupted,
+      (instance) => instance.save(save()),
       "recovery_write_fenced",
     );
     await evictDurableObject(interrupted);
@@ -393,7 +487,9 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       phase: "failed",
       alarmAt: null,
     });
-    await expect(interrupted.installRecovery(captured)).rejects.toThrow(
+    await failure(
+      interrupted,
+      (instance) => instance.installRecovery(captured),
       "recovery_target_not_empty",
     );
     expect(

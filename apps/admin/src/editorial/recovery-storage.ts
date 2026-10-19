@@ -18,6 +18,7 @@ import {
 } from "../../../../scripts/admin/editorial-recovery-capture.mjs";
 import { RecoveryCoordinator } from "./recovery-coordinator";
 import RECOVERY_SCHEMA_FINGERPRINTS from "./recovery-schema.json";
+import { isRecoveryProviderSchema } from "./recovery-provider-schema";
 
 const maxEntries = 5000;
 const controlTables = [
@@ -47,7 +48,7 @@ function checkTables(schema: SqlRow[], store: "editorial" | "content") {
     ...Object.keys(RECOVERY_TABLES[store]),
     ...controlTables,
     ...(store === "editorial"
-      ? ["_cf_KV", "editorial_recovery_restore"]
+      ? ["editorial_recovery_restore"]
       : ["d1_migrations"]),
   ]);
   const expected: Readonly<Record<string, string>> =
@@ -56,6 +57,7 @@ function checkTables(schema: SqlRow[], store: "editorial" | "content") {
     if (!schema.some((row) => row.name === name))
       throw new Error("capture_schema_drift");
   for (const row of schema) {
+    if (isRecoveryProviderSchema(row, store)) continue;
     const fingerprint = expected[String(row.name)];
     if (fingerprint) {
       const actual = createHash("sha256")
@@ -68,7 +70,7 @@ function checkTables(schema: SqlRow[], store: "editorial" | "content") {
       !String(row.name).startsWith("sqlite_") &&
       !allowed.has(String(row.name))
     )
-      throw new Error("capture_unknown_store");
+      throw new Error(`capture_unknown_store:${store}:${String(row.name)}`);
   }
   for (const table of Object.keys(RECOVERY_TABLES[store]))
     if (!schema.some((row) => row.name === table && row.type === "table"))
