@@ -215,6 +215,7 @@ export function EditorActionBar({
     };
   }, [hasActions]);
   const [sheet, setSheet] = useState(false);
+  const sheetTrigger = useRef<HTMLElement | null>(null);
   return (
     <HStack
       className="editor-bar"
@@ -296,7 +297,10 @@ export function EditorActionBar({
                 icon={<DotsThreeIcon weight="regular" aria-hidden="true" />}
                 aria-haspopup="dialog"
                 aria-expanded={sheet}
-                onClick={() => setSheet(true)}
+                onClick={(event) => {
+                  sheetTrigger.current = event.currentTarget;
+                  setSheet(true);
+                }}
               />
             ) : (
               <EditorMoreMenu sections={sections} />
@@ -309,6 +313,7 @@ export function EditorActionBar({
           label="More actions"
           isOpen={sheet}
           onOpenChange={setSheet}
+          finalFocusRef={sheetTrigger}
           height="hug"
           className="editor-action-sheet"
         >
