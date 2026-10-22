@@ -34,6 +34,7 @@ import {
   themedUrl,
   type ThemePreference,
 } from "../../lib/admin-theme";
+import { LayerProvider } from "@astryxdesign/core/Layer";
 import { Theme } from "@astryxdesign/core/theme";
 import { editorialTheme } from "../../themes/editorial.js";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
@@ -68,6 +69,20 @@ const LIBRARY_NAMES = {
 
 // The library owns the theme. Only the icons used by this interface differ.
 const theme = { ...editorialTheme, icons: adminThemeIcons };
+
+function EditorialTheme({
+  mode,
+  children,
+}: {
+  mode: ThemePreference;
+  children: ReactNode;
+}) {
+  return (
+    <Theme theme={theme} mode={mode}>
+      <LayerProvider>{children}</LayerProvider>
+    </Theme>
+  );
+}
 
 export type CatalogRecord = {
   title: string;
@@ -344,17 +359,17 @@ export function EditorialApp({
   }
   if (locked)
     return (
-      <Theme theme={theme} mode={mode}>
+      <EditorialTheme mode={mode}>
         <VStack gap={3}>
           <Heading level={1}>Session ended</Heading>
           <AuthReentry
             href={editorialReturnPath(location.pathname + location.search)}
           />
         </VStack>
-      </Theme>
+      </EditorialTheme>
     );
   return (
-    <Theme theme={theme} mode={mode}>
+    <EditorialTheme mode={mode}>
       <EditorialWorkspaceShell
         siteUrl={siteUrl}
         area={area}
@@ -579,7 +594,7 @@ export function EditorialApp({
           </VStack>
         </AdminUIProvider>
       </EditorialWorkspaceShell>
-    </Theme>
+    </EditorialTheme>
   );
 }
 

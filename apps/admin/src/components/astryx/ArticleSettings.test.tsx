@@ -90,7 +90,7 @@ async function choose(label: string) {
     );
   });
   const option = [
-    ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ...document.querySelectorAll<HTMLElement>('[role="option"]'),
   ].find((node) => node.textContent === label)!;
   expect(
     option,

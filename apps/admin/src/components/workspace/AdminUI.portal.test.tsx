@@ -53,7 +53,7 @@ function sheet(width = 390) {
 }
 async function open() {
   const trigger = host.querySelector<HTMLButtonElement>(
-    'button[aria-haspopup="menu"]',
+    'button[role="combobox"]',
   )!;
   await act(async () => {
     trigger.focus();
@@ -61,7 +61,7 @@ async function open() {
       new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
     );
   });
-  const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+  const menu = document.querySelector<HTMLElement>('[role="listbox"]')!;
   expect(menu).not.toBeNull();
   return { trigger, menu };
 }
@@ -119,7 +119,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SDK menus in native modal owners", () => {
+describe("Core selectors in native modal owners", () => {
   it.each([390, 900])(
     "keeps keyboard focus and selection inside Properties at %ipx",
     async (width) => {
@@ -130,13 +130,13 @@ describe("SDK menus in native modal owners", () => {
       expect(menu.closest('[data-theme="dark"]')).not.toBeNull();
       expect(menu.contains(document.activeElement)).toBe(true);
       const demo = [
-        ...menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+        ...menu.querySelectorAll<HTMLElement>('[role="option"]'),
       ].find((item) => item.textContent === "Demo")!;
       await act(async () => demo.click());
       await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
       expect(change).toHaveBeenCalledWith("demo");
       expect(trigger.textContent).toBe("Demo");
-      expect(document.querySelector('[role="menu"]')).toBeNull();
+      expect(document.querySelector('[role="listbox"]')).toBeNull();
       expect(close).not.toHaveBeenCalled();
       expect(document.activeElement).toBe(trigger);
       expect(unrelated.parentElement).toBe(document.body);
@@ -159,7 +159,7 @@ describe("SDK menus in native modal owners", () => {
         ),
       );
       await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
-      expect(document.querySelector('[role="menu"]')).toBeNull();
+      expect(document.querySelector('[role="listbox"]')).toBeNull();
       expect(close).not.toHaveBeenCalled();
       expect(host.querySelector("dialog")?.open).toBe(true);
       expect(document.activeElement).toBe(trigger);
@@ -171,7 +171,7 @@ describe("SDK menus in native modal owners", () => {
     async (width) => {
       sheet(width);
       await open();
-      // Radix installs its outside pointer listener after the opening event.
+      // Allow the opened layer to install its outside-pointer dismissal.
       await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
       await act(async () =>
         host
@@ -180,7 +180,7 @@ describe("SDK menus in native modal owners", () => {
             new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
           ),
       );
-      expect(document.querySelector('[role="menu"]')).toBeNull();
+      expect(document.querySelector('[role="listbox"]')).toBeNull();
       expect(close).not.toHaveBeenCalled();
     },
   );
@@ -201,9 +201,9 @@ describe("SDK menus in native modal owners", () => {
     expect(menu.closest("dialog")?.getAttribute("aria-label")).toBe("Inner");
     // Removing the whole owner models an auth lock, not just a menu selection.
     expect(() => act(() => root.render(null))).not.toThrow();
-    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
     expect(unrelated.isConnected).toBe(true);
-    expect(document.body.querySelector('[data-admin-ui="openai"]')).toBeNull();
+    expect(document.body.querySelector('[data-admin-ui="core"]')).toBeNull();
   });
 
   it("leaves nonmodal body portals outside unrelated dialogs", async () => {

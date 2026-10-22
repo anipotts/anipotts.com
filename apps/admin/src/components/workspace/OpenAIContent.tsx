@@ -1,10 +1,23 @@
-import { Markdown } from "@openai/apps-sdk-ui/components/Markdown";
-import { Badge } from "@openai/apps-sdk-ui/components/Badge";
+import { Markdown } from "@astryxdesign/core/Markdown";
+import { CodeBlock } from "@astryxdesign/core/CodeBlock";
+import { Badge } from "@astryxdesign/core/Badge";
 
-/** Raw HTML is deliberately not rendered. SDK URL transform rejects unsafe URLs. */
+/** Core renders Markdown nodes as React elements and sanitizes destinations.
+ * Math stays inert text; executable HTML and KaTeX are not enabled. */
+function CopyableCode({ code, language }: { code: string; language?: string }) {
+  return (
+    <CodeBlock
+      code={code}
+      language={language}
+      hasCopyButton
+      container="section"
+    />
+  );
+}
+const markdownComponents = { code: CopyableCode };
 export function WorkspaceMarkdown({ children }: { children: string }) {
   return (
-    <Markdown skipHtml copyableCodeBlocks>
+    <Markdown autolink="gfm" components={markdownComponents}>
       {children}
     </Markdown>
   );
@@ -40,19 +53,17 @@ export function PersistenceStatus({
     }[state];
   const color =
     state === "failed"
-      ? "danger"
+      ? "error"
       : state === "conflict" || state === "stale"
         ? "warning"
         : state === "saved"
           ? "success"
-          : "secondary";
+          : "neutral";
   return (
     <span
       role={state === "failed" || state === "conflict" ? "alert" : "status"}
     >
-      <Badge color={color} size="md">
-        {label}
-      </Badge>
+      <Badge variant={color} label={label} />
     </span>
   );
 }

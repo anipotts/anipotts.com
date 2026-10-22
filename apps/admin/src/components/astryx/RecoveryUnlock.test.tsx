@@ -99,9 +99,7 @@ it.each([false, true])(
   "keeps authoring gated through native saved-file re-import (workspace pilot=%s)",
   async (enabled) => {
     await mount("synthetic-owner", enabled);
-    expect(Boolean(host.querySelector('[data-admin-ui="openai"]'))).toBe(
-      enabled,
-    );
+    expect(Boolean(host.querySelector('[data-admin-ui="core"]'))).toBe(enabled);
     const picker = host.querySelector<HTMLInputElement>('input[type="file"]')!;
     expect(picker.labels?.[0]?.textContent).toContain("Recovery key file");
     expect(picker.accept).toBe("application/json,.json");

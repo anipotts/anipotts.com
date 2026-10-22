@@ -437,13 +437,13 @@ it("keeps Writing's SDK boundary inside main, away from the shared navigation", 
   );
   const host = document.createElement("div");
   host.innerHTML = html;
-  const boundary = host.querySelector('[data-admin-ui="openai"]');
+  const boundary = host.querySelector('[data-admin-ui="core"]');
   const main = host.querySelector("#astryx-app-shell-main");
   const nav = host.querySelector("nav");
   expect(boundary).not.toBeNull();
   expect(main?.contains(boundary)).toBe(true);
   expect(boundary?.contains(nav)).toBe(false);
-  expect(nav?.closest('[data-admin-ui="openai"]')).toBeNull();
+  expect(nav?.closest('[data-admin-ui="core"]')).toBeNull();
 });
 
 it.each([
@@ -469,7 +469,7 @@ it.each([
         area={props.area ?? "content"}
       />,
     );
-    const boundary = host.querySelector('[data-admin-ui="openai"]');
+    const boundary = host.querySelector('[data-admin-ui="core"]');
     expect(Boolean(boundary)).toBe(enabled);
     if (enabled) {
       expect(

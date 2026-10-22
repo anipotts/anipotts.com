@@ -147,8 +147,10 @@ async function readSyntheticDraft(browser: Browser, path: string) {
 }
 
 async function chooseType({ screen }: Fixtures, label: string) {
-  await screen.getByRole("button", { name: "Link type", exact: true }).click();
-  await screen.getByRole("menuitemradio", { name: label, exact: true }).click();
+  await screen
+    .getByRole("combobox", { name: "Link type", exact: true })
+    .click();
+  await screen.getByRole("option", { name: label, exact: true }).click();
 }
 
 test(
@@ -575,7 +577,7 @@ async function migrationTypography(browser: Browser, labels: string[]) {
           label,
           fontSize: Number.parseFloat(style.fontSize),
           fontFamily: style.fontFamily,
-          sdk: Boolean(field.closest('[data-admin-ui="openai"]')),
+          contentBoundary: Boolean(field.closest('[data-admin-ui="core"]')),
         };
       }),
     };
@@ -585,11 +587,11 @@ async function migrationTypography(browser: Browser, labels: string[]) {
 async function assertMigrationTypography(
   browser: Browser,
   labels: string[],
-  sdk: boolean,
+  contentBoundary: boolean,
 ) {
   const evidence = await migrationTypography(browser, labels);
   for (const field of evidence.fields) {
-    expect(field.sdk).toBe(sdk);
+    expect(field.contentBoundary).toBe(contentBoundary);
     expect(field.fontFamily).toContain("Instrument Sans");
     expect(field.fontSize).toBeGreaterThan(0);
     if (evidence.coarse) expect(field.fontSize).toBeGreaterThanOrEqual(16);
@@ -762,13 +764,13 @@ test(
     );
     await assertOwnedSheetInset(browser);
     expect(await panelRelationships(browser)).toEqual([]);
-    const selector = screen.getByRole("button", {
+    const selector = screen.getByRole("combobox", {
       name: "Link type",
       exact: true,
     });
     await selector.click();
     await expect(
-      screen.getByRole("menuitemradio", { name: "Demo", exact: true }),
+      screen.getByRole("option", { name: "Demo", exact: true }),
     ).toBeVisible();
     expect(await panelRelationships(browser)).toEqual([]);
     await browser.keyboard.press("Escape");
@@ -1039,8 +1041,8 @@ async function projectChoice(
   label: string,
   value: string,
 ) {
-  await screen.getByRole("button", { name: label, exact: true }).click();
-  await screen.getByRole("menuitemradio", { name: value, exact: true }).click();
+  await screen.getByRole("combobox", { name: label, exact: true }).click();
+  await screen.getByRole("option", { name: value, exact: true }).click();
 }
 
 async function projectAppearance(
@@ -1066,8 +1068,8 @@ async function projectAppearance(
     .poll(() =>
       browser.evaluate(
         () =>
-          document.querySelector<HTMLElement>('[data-admin-ui="openai"]')
-            ?.dataset.theme ?? null,
+          document.querySelector<HTMLElement>('[data-admin-ui="core"]')?.dataset
+            .theme ?? null,
       ),
     )
     .toBe(mode);

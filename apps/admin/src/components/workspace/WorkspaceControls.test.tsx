@@ -227,3 +227,43 @@ it.each([false, true])(
     expect(link?.textContent).toBe("Open project");
   },
 );
+
+it("guards an async action until its real completion and preserves disabled state", async () => {
+  let finish!: () => void;
+  const action = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  act(() =>
+    root.render(
+      <AdminUIProvider enabled>
+        <controls.Button label="Save synthetic" clickAction={action} />
+      </AdminUIProvider>,
+    ),
+  );
+  const button = host.querySelector<HTMLButtonElement>("button")!;
+  await act(async () => {
+    button.click();
+    button.click();
+  });
+  expect(action).toHaveBeenCalledOnce();
+  expect(button.disabled).toBe(true);
+  expect(button.getAttribute("aria-busy")).toBe("true");
+  await act(async () => finish());
+  expect(button.disabled).toBe(false);
+  act(() =>
+    root.render(
+      <AdminUIProvider enabled>
+        <controls.Button
+          label="Save synthetic"
+          isDisabled
+          clickAction={action}
+        />
+      </AdminUIProvider>,
+    ),
+  );
+  act(() => button.click());
+  expect(action).toHaveBeenCalledOnce();
+});

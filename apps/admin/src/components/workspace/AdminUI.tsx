@@ -2,24 +2,22 @@ import {
   createContext,
   useContext,
   useEffect,
+  useState,
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
   type RefObject,
+  type ReactNode,
 } from "react";
-import { AppsSDKUIProvider } from "@openai/apps-sdk-ui/components/AppsSDKUIProvider";
-import { Menu } from "@openai/apps-sdk-ui/components/Menu";
+import { LayerProvider, useLayerContext } from "@astryxdesign/core/Layer";
 import type { AdminColorMode } from "../../lib/openai-theme";
-import "../../styles/openai.css";
 import "./openai-workspace.css";
 
 const AdminUIContext = createContext<{
   enabled: boolean;
   mode: AdminColorMode;
 }>({ enabled: false, mode: "light" });
+/** Compatibility API for existing workspace consumers. Controls all use Core. */
 export function useOpenAIUI() {
   return useContext(AdminUIContext).enabled;
 }
@@ -37,6 +35,7 @@ export function AdminUIProvider({
   children: ReactNode;
 }) {
   const [system, setSystem] = useState<AdminColorMode>("light");
+  const layers = useLayerContext();
   useEffect(() => {
     if (mode !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -46,23 +45,22 @@ export function AdminUIProvider({
     return () => media.removeEventListener("change", sync);
   }, [mode]);
   const resolved = mode === "system" ? system : mode;
-  return (
+  const content = (
     <AdminUIContext.Provider value={{ enabled, mode: resolved }}>
       {enabled ? (
-        <AppsSDKUIProvider linkComponent="a">
-          <div
-            data-admin-ui="openai"
-            data-theme={resolved}
-            className="admin-openai-boundary"
-          >
-            {children}
-          </div>
-        </AppsSDKUIProvider>
+        <div
+          data-admin-ui="core"
+          data-theme={resolved}
+          className="admin-core-boundary"
+        >
+          {children}
+        </div>
       ) : (
         children
       )}
     </AdminUIContext.Provider>
   );
+  return layers ? content : <LayerProvider>{content}</LayerProvider>;
 }
 
 type PortalOwner = {
@@ -71,7 +69,7 @@ type PortalOwner = {
 };
 const AdminPortalOwner = createContext<PortalOwner | null>(null);
 
-/** SDK 0.2.2 Menu does not expose a portal container. Mark only the owned
+/** Compatibility for caller-owned portals. Mark only the owned
  * portal ancestors before paint so its surface inherits the scoped tokens.
  * Never mark body or a legacy sibling; clean up when this content unmounts. */
 export function AdminPortalScope({
@@ -79,7 +77,7 @@ export function AdminPortalScope({
   portalContent = false,
 }: {
   children: ReactNode;
-  /** Only SDK menu content owns a body portal that may need relocation. */
+  /** Only caller-owned content owns a body portal that may need relocation. */
   portalContent?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -122,8 +120,8 @@ export function AdminPortalScope({
     const content =
       ref.current.closest<HTMLElement>('[role="menu"]') ?? ref.current;
     const reserveEscape = (event: KeyboardEvent) => {
-      // The SDK closes its top menu from a body listener. Prevent native dialog
-      // cancellation first, without stopping that listener from receiving Escape.
+      // Prevent native dialog
+      // cancellation first, without stopping the owning layer from receiving Escape.
       if (event.key === "Escape" && !event.isComposing) event.preventDefault();
     };
     content.addEventListener("keydown", reserveEscape);
@@ -142,13 +140,13 @@ export function AdminPortalScope({
       node !== document.body &&
       node !== document.documentElement
     ) {
-      if (node.dataset.adminUi === "openai") break;
+      if (node.dataset.adminUi === "core") break;
       marked.push({
         node,
         ui: node.getAttribute("data-admin-ui"),
         theme: node.getAttribute("data-theme"),
       });
-      node.setAttribute("data-admin-ui", "openai");
+      node.setAttribute("data-admin-ui", "core");
       node.setAttribute("data-theme", mode);
       node = node.parentElement;
     }
@@ -166,15 +164,5 @@ export function AdminPortalScope({
     </AdminPortalOwner.Provider>
   ) : (
     children
-  );
-}
-export function AdminMenuContent({
-  children,
-  ...props
-}: ComponentProps<typeof Menu.Content>) {
-  return (
-    <Menu.Content {...props}>
-      <AdminPortalScope portalContent>{children}</AdminPortalScope>
-    </Menu.Content>
   );
 }

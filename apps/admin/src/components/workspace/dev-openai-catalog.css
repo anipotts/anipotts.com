@@ -89,14 +89,11 @@
   line-height: var(--font-text-sm-line-height);
 }
 @media (min-width: 641px) {
-  [data-admin-ui="openai"]
-    .dev-openai-catalog
-    .openai-record-table
-    :is(th, td) {
+  [data-admin-ui="core"] .dev-openai-catalog .openai-record-table :is(th, td) {
     padding: var(--spacing) calc(var(--spacing) * 2);
     vertical-align: middle;
   }
-  [data-admin-ui="openai"]
+  [data-admin-ui="core"]
     .dev-openai-catalog
     :is(.openai-table-footer, .openai-pagination) {
     padding: var(--spacing) calc(var(--spacing) * 2);
@@ -106,7 +103,7 @@
   .dev-openai-record small {
     display: block;
   }
-  [data-admin-ui="openai"]
+  [data-admin-ui="core"]
     .dev-openai-catalog
     .openai-record-table
     td:is([data-column="revision"], [data-column="status"]) {

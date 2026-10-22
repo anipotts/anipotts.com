@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AdminUIProvider, AdminPortalScope } from "./AdminUI";
 import { DataTable } from "./Workspace";
 import { PersistenceStatus, WorkspaceMarkdown } from "./OpenAIContent";
+import { useLayerContext } from "@astryxdesign/core/Layer";
 import { chatkitTheme } from "../../lib/openai-theme";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -30,7 +31,7 @@ const base = {
   noun: ["article", "articles"] as [string, string],
 };
 
-describe("OpenAI workspace opt-in", () => {
+describe("Core workspace boundary", () => {
   it("shares one admin-owned table without leaking the SDK boundary", () => {
     const legacy = renderToStaticMarkup(<DataTable {...base} />);
     expect(legacy).toContain("admin-data-table");
@@ -41,7 +42,7 @@ describe("OpenAI workspace opt-in", () => {
         <DataTable {...base} />
       </AdminUIProvider>,
     );
-    expect(migrated).toContain('data-admin-ui="openai" data-theme="dark"');
+    expect(migrated).toContain('data-admin-ui="core" data-theme="dark"');
     expect(migrated).toContain("openai-record-table");
     // Legacy table rules hide every non-first cell on phones. A selection
     // column would make the record title disappear if that class leaked in.
@@ -117,7 +118,7 @@ describe("OpenAI workspace opt-in", () => {
         </AdminUIProvider>,
       ),
     );
-    expect(portal.dataset.adminUi).toBe("openai");
+    expect(portal.dataset.adminUi).toBe("core");
     expect(portal.dataset.theme).toBe("dark");
     expect(document.body.dataset.adminUi).toBeUndefined();
     expect(legacy.dataset.adminUi).toBeUndefined();
@@ -143,4 +144,58 @@ describe("OpenAI workspace opt-in", () => {
     expect(chatkitTheme("dark").colorScheme).toBe("dark");
     expect(chatkitTheme("dark").radius).toBe("soft");
   });
+});
+
+it("supplies Core layer context to descendants without fallback toast ownership", () => {
+  let provided = false;
+  function Probe() {
+    provided = useLayerContext()?.isProvider === true;
+    return null;
+  }
+  renderToStaticMarkup(
+    <AdminUIProvider enabled>
+      <Probe />
+    </AdminUIProvider>,
+  );
+  expect(provided).toBe(true);
+});
+
+it("copies fenced Markdown code without interpreting HTML or math", async () => {
+  const writeText = vi.fn(async (_value: string) => {});
+  const originalClipboard = Object.getOwnPropertyDescriptor(
+    navigator,
+    "clipboard",
+  );
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(
+        <AdminUIProvider enabled>
+          <WorkspaceMarkdown>
+            {"```js\nconst answer = 42;\n```\n\n$untrusted$"}
+          </WorkspaceMarkdown>
+        </AdminUIProvider>,
+      ),
+    );
+    const copy = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Copy code"]',
+    );
+    expect(copy).not.toBeNull();
+    await act(async () => copy!.click());
+    expect(writeText).toHaveBeenCalledWith("const answer = 42;");
+    expect(host.querySelector(".katex")).toBeNull();
+    expect(host.textContent).toContain("$untrusted$");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    if (originalClipboard)
+      Object.defineProperty(navigator, "clipboard", originalClipboard);
+    else Reflect.deleteProperty(navigator, "clipboard");
+  }
 });

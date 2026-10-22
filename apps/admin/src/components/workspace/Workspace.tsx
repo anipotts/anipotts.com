@@ -131,20 +131,8 @@ import {
   shortValue,
 } from "./format";
 import "./workspace.css";
-import { useOpenAIUI, AdminMenuContent } from "./AdminUI";
-import { Menu as OpenAIMenu } from "@openai/apps-sdk-ui/components/Menu";
-import { Button as OpenAIButton } from "@openai/apps-sdk-ui/components/Button";
 import { OpenAIDataTable } from "./OpenAIDataTable";
-import { Badge as OpenAIBadge } from "@openai/apps-sdk-ui/components/Badge";
-import { Input as OpenAIInput } from "@openai/apps-sdk-ui/components/Input";
-import { Alert as OpenAIAlert } from "@openai/apps-sdk-ui/components/Alert";
-import { EmptyMessage as OpenAIEmptyMessage } from "@openai/apps-sdk-ui/components/EmptyMessage";
-export {
-  AdminUIProvider,
-  useOpenAIUI,
-  AdminMenuContent,
-  AdminPortalScope,
-} from "./AdminUI";
+export { AdminUIProvider, useOpenAIUI, AdminPortalScope } from "./AdminUI";
 export { WorkspaceMarkdown, PersistenceStatus } from "./OpenAIContent";
 
 /** Notice and chip copy never ends on a period. */
@@ -454,7 +442,6 @@ function LiveSearch({
   isBusy,
   isDisabled,
 }: SearchProps) {
-  const openai = useOpenAIUI();
   const [draft, setDraft] = useState(value);
   const sent = useRef(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -481,41 +468,6 @@ function LiveSearch({
     setDraft(value);
   }, [value]);
   useEffect(() => cancel, []);
-  if (openai)
-    return (
-      <div className="openai-search">
-        <OpenAIInput
-          pill={false}
-          type="search"
-          aria-label={label}
-          placeholder={label}
-          value={draft}
-          size="lg"
-          disabled={isDisabled}
-          aria-busy={isBusy}
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          onChange={(event) => {
-            const next = event.target.value;
-            setDraft(next);
-            cancel();
-            if (!next) {
-              sent.current = "";
-              if (onClear) onClear();
-              else onChange("");
-            } else
-              timer.current = setTimeout(() => send(next), SEARCH_DEBOUNCE_MS);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              send(draft, true);
-            }
-          }}
-        />
-      </div>
-    );
   return (
     <TextInput
       controlClassName="workspace-search"
@@ -528,9 +480,9 @@ function LiveSearch({
       isLoading={isBusy}
       isDisabled={isDisabled}
       ref={searchHints}
-      onChange={(next: string, event: unknown) => {
+      onChange={(next: string) => {
         setDraft(next);
-        if (next === "" && event === null) {
+        if (next === "") {
           cancel();
           sent.current = "";
           if (onClear) onClear();
@@ -563,30 +515,7 @@ export function FilterMenu({
   isActive?: boolean;
   children: ReactNode;
 }) {
-  const openai = useOpenAIUI();
   const name = `${label}: ${value}`;
-  if (openai)
-    return (
-      <div className="workspace-filter-menu" data-active={isActive}>
-        <OpenAIMenu>
-          <OpenAIMenu.Trigger>
-            <OpenAIButton
-              pill={false}
-              color="secondary"
-              variant="ghost"
-              size="lg"
-              uniform
-              aria-label={name}
-              title={name}
-              selected={isActive}
-            >
-              <Glyph weight="regular" aria-hidden="true" />
-            </OpenAIButton>
-          </OpenAIMenu.Trigger>
-          <AdminMenuContent align="end">{children}</AdminMenuContent>
-        </OpenAIMenu>
-      </div>
-    );
   return (
     <div className="workspace-filter-menu" data-active={isActive}>
       <DropdownMenu
@@ -1175,7 +1104,6 @@ export function badgeFor(domain: BadgeDomain, state: string): Badge {
  * The mark carries the tone (`data-tone`), since the chip takes no data
  * attributes of its own. */
 function Chip({ badge, icon }: { badge: Badge; icon?: ReactNode }) {
-  const openai = useOpenAIUI();
   const tones = {
     neutral: "secondary",
     positive: "success",
@@ -1184,16 +1112,6 @@ function Chip({ badge, icon }: { badge: Badge; icon?: ReactNode }) {
     calm: "info",
     rest: "info",
   } as const;
-  if (openai)
-    return (
-      <OpenAIBadge
-        color={tones[badge.tone as keyof typeof tones] ?? "secondary"}
-        size="md"
-      >
-        {icon}
-        {badge.label}
-      </OpenAIBadge>
-    );
   const { color, dot } = TONES[badge.tone];
   const Glyph = badge.icon;
   return (
@@ -1594,30 +1512,8 @@ export function StateNotice({
   headingLevel?: 2 | 3;
 }) {
   const sectionLevel = useContext(SectionLevel);
-  const openai = useOpenAIUI();
   const level = headingLevel ?? sectionLevel;
   const Title = `h${level}` as "h2" | "h3";
-  if (openai)
-    return (
-      <div role={kind === "error" ? "alert" : undefined}>
-        <OpenAIEmptyMessage fill="static">
-          <OpenAIEmptyMessage.Icon
-            color={kind === "error" ? "danger" : "secondary"}
-          >
-            <Glyph weight="regular" size={24} aria-hidden="true" />
-          </OpenAIEmptyMessage.Icon>
-          <OpenAIEmptyMessage.Title>
-            <Title>{unpunctuated(title)}</Title>
-          </OpenAIEmptyMessage.Title>
-          {description && <p>{description}</p>}
-          {action && (
-            <OpenAIEmptyMessage.ActionRow>
-              {action}
-            </OpenAIEmptyMessage.ActionRow>
-          )}
-        </OpenAIEmptyMessage>
-      </div>
-    );
   return (
     <div
       className="workspace-notice"
@@ -1654,18 +1550,6 @@ export function InlineNotice({
   action?: ReactNode;
   icon?: Icon;
 }) {
-  const openai = useOpenAIUI();
-  if (openai)
-    return (
-      <div role={tone === "error" ? "alert" : "status"}>
-        <OpenAIAlert
-          color={tone === "error" ? "danger" : tone}
-          title={unpunctuated(title)}
-          actions={action}
-          indicator={<Glyph weight="regular" />}
-        />
-      </div>
-    );
   return (
     <Banner
       role={tone === "error" ? "alert" : "status"}

@@ -217,8 +217,10 @@ async function chooseShape(
   width: number,
   height: number,
 ) {
-  await screen.getByRole("button", { name: "Crop shape", exact: true }).click();
-  await screen.getByRole("menuitemradio", { name, exact: true }).click();
+  await screen
+    .getByRole("combobox", { name: "Crop shape", exact: true })
+    .click();
+  await screen.getByRole("option", { name, exact: true }).click();
   await expectCanvasSize(browser, width, height);
 }
 

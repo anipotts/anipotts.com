@@ -54,7 +54,7 @@ it("retains legacy controls outside the pilot", () => {
   expect(host.querySelector('[role="status"]')?.textContent).toBe(
     "Saved locally",
   );
-  expect(host.querySelector('[data-admin-ui="openai"]')).toBeNull();
+  expect(host.querySelector('[data-admin-ui="core"]')).toBeNull();
 });
 it("preserves grouped editor formatting commands and pressed state", () => {
   const change = vi.fn();
@@ -140,7 +140,7 @@ it("opens metadata choices by keyboard and returns the chosen value", async () =
     );
   });
   const note = [
-    ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ...document.querySelectorAll<HTMLElement>('[role="option"]'),
   ].find((node) => node.textContent === "Note")!;
   expect(note).toBeDefined();
   await act(async () => {
@@ -449,8 +449,9 @@ it("forwards the dropdown trigger contract, alignment and scoped portal ownershi
   expect(key).toHaveBeenCalledOnce();
   expect(open).toHaveBeenCalledWith(true);
   const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
-  expect(menu.getAttribute("data-align")).toBe("end");
-  expect(menu.closest('[data-admin-ui="openai"]')).not.toBeNull();
+  expect(menu.getAttribute("aria-label")).toBe("More actions");
+  expect(button.getAttribute("aria-expanded")).toBe("true");
+  expect(menu.closest('[data-admin-ui="core"]')).not.toBeNull();
   const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
   await act(async () => item.click());
   expect(select).toHaveBeenCalledOnce();

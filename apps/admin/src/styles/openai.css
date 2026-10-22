@@ -1,4 +1,1 @@
-@import "tailwindcss" source(none);
-@import "@openai/apps-sdk-ui/css";
-@source "../components/workspace";
-@source "../../node_modules/@openai/apps-sdk-ui/dist/es";
+/* SDK stylesheet retired. Core reset, theme and component CSS own Admin controls. */

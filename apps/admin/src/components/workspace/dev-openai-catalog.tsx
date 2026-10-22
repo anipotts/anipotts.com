@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Button } from "@openai/apps-sdk-ui/components/Button";
-import { Input } from "@openai/apps-sdk-ui/components/Input";
-import { Textarea } from "@openai/apps-sdk-ui/components/Textarea";
-import { Markdown } from "@openai/apps-sdk-ui/components/Markdown";
-import { Menu } from "@openai/apps-sdk-ui/components/Menu";
+import {
+  Button,
+  TextInput as Input,
+  TextArea as Textarea,
+  Selector,
+} from "./WorkspaceControls";
+import { WorkspaceMarkdown as Markdown } from "./OpenAIContent";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
-import { AdminUIProvider, AdminMenuContent } from "./AdminUI";
+import { AdminUIProvider } from "./AdminUI";
 import { chatkitTheme } from "../../lib/openai-theme";
 import { DataTable, DefinitionList, type Column } from "./Workspace";
 import {
@@ -34,31 +36,16 @@ function Select({
   "aria-label": string;
 }) {
   return (
-    <Menu>
-      <Menu.Trigger>
-        <Button
-          pill={false}
-          type="button"
-          color="secondary"
-          variant="outline"
-          aria-label={label}
-        >
-          {options.find((o) => o.value === value)?.label ?? value}
-        </Button>
-      </Menu.Trigger>
-      <AdminMenuContent>
-        <Menu.RadioGroup
-          value={value}
-          onChange={(next) => onChange(options.find((o) => o.value === next)!)}
-        >
-          {options.map((option) => (
-            <Menu.RadioItem key={option.value} value={option.value}>
-              {option.label}
-            </Menu.RadioItem>
-          ))}
-        </Menu.RadioGroup>
-      </AdminMenuContent>
-    </Menu>
+    <Selector
+      label={label}
+      isLabelHidden
+      value={value}
+      options={options}
+      onChange={(next) => {
+        const option = options.find((o) => o.value === next);
+        if (option) onChange(option);
+      }}
+    />
   );
 }
 
@@ -261,10 +248,9 @@ export function DevOpenAICatalog() {
               }
             />
             <Button
-              pill={false}
-              color="secondary"
+              label="Reset scenario"
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => dispatch({ type: "scenario", scenario: "ready" })}
             >
               Reset scenario
@@ -280,11 +266,12 @@ export function DevOpenAICatalog() {
           <h2 id="fixture-library">Record library</h2>
           <div className="dev-openai-controls">
             <Input
-              aria-label="Search synthetic articles"
+              label="Search synthetic articles"
+              isLabelHidden
               placeholder="Search articles"
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+              onChange={(next) => {
+                setSearch(next);
                 setPage(0);
               }}
             />
@@ -354,38 +341,36 @@ export function DevOpenAICatalog() {
                 beginSave();
               }}
             >
-              <label htmlFor="fixture-title">Title</label>
               <Input
                 id="fixture-title"
-                disabled={state.scenario === "updating"}
+                label="Title"
+                isDisabled={state.scenario === "updating"}
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
+                onChange={setTitle}
+                isRequired
               />
-              <label htmlFor="fixture-body">Markdown</label>
               <Textarea
                 id="fixture-body"
-                disabled={state.scenario === "updating"}
+                label="Markdown"
+                isDisabled={state.scenario === "updating"}
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
                 rows={9}
               />
               <div className="dev-openai-controls">
                 <Button
-                  pill={false}
-                  color="secondary"
+                  label="Simulate save / retry"
                   type="button"
                   onClick={beginSave}
-                  disabled={state.scenario === "updating"}
+                  isDisabled={state.scenario === "updating"}
                 >
                   Simulate save / retry
                 </Button>
                 <Button
-                  pill={false}
-                  color="secondary"
+                  label="Acknowledge save"
                   type="button"
-                  variant="outline"
-                  disabled={state.scenario !== "updating" || !pending.current}
+                  variant="secondary"
+                  isDisabled={state.scenario !== "updating" || !pending.current}
                   onClick={() => {
                     if (pending.current)
                       dispatch({ type: "acknowledge", ...pending.current });

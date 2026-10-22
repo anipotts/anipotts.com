@@ -63,17 +63,23 @@ function click(text: string) {
   act(() => button!.click());
 }
 function choose(label: string, value: string) {
-  const trigger = host.querySelector<HTMLButtonElement>(
-    `button[aria-label="${label}"]`,
+  const trigger = [
+    ...host.querySelectorAll<HTMLButtonElement>('button[role="combobox"]'),
+  ].find((button) =>
+    button
+      .getAttribute("aria-labelledby")
+      ?.split(/\s+/)
+      .some((id) => document.getElementById(id)?.textContent?.trim() === label),
   )!;
+  expect(trigger, `selector ${label}`).toBeDefined();
   act(() =>
     trigger.dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
     ),
   );
-  const option = Array.from(
-    document.querySelectorAll('[role="menuitemradio"]'),
-  ).find((el) => el.textContent?.trim() === value);
+  const option = Array.from(document.querySelectorAll('[role="option"]')).find(
+    (el) => el.textContent?.trim() === value,
+  );
   expect(option, `menu ${label} option ${value}`).toBeDefined();
   act(() => (option as HTMLElement).click());
 }
