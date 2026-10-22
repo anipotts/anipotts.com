@@ -6,6 +6,7 @@ import { MAX_MEDIA_BYTES } from "./media-store";
 import {
   bytesStream,
   pngChunk,
+  orientationJpeg,
   pngFixture,
   pngParts,
   splitBytes,
@@ -136,6 +137,93 @@ describe("disabled Images foundation with synthetic provider outputs", () => {
       mediaImagesAdapter(fixture.binding).prepareCrop(original, intent),
     ).rejects.toMatchObject({ code: "output_too_large" });
     expect(cancelled).toBe(1);
+  });
+  it("ignores hostile own length/byteLength and iteration while copying exact native bytes", async () => {
+    const bytes = original.slice();
+    const iterator = vi.fn(() => {
+      throw new Error("caller iterator must not run");
+    });
+    Object.defineProperty(bytes, "length", {
+      get() {
+        throw new Error("caller length must not run");
+      },
+    });
+    Object.defineProperty(bytes, "byteLength", { value: 1 });
+    Object.defineProperty(bytes, Symbol.iterator, { value: iterator });
+    const fixture = syntheticImages({ info, outputs: [reply(original)] });
+    const result = await mediaImagesAdapter(fixture.binding).inspectOriginal(
+      bytes,
+    );
+    expect(result.original.id).toBe(
+      `${createHash("sha256").update(original).digest("hex")}.png`,
+    );
+    expect(result.original.size).toBe(original.length);
+    expect(iterator).not.toHaveBeenCalled();
+  });
+  it("rejects intrinsic storage over the input limit before copy or provider work despite forged small length", async () => {
+    const bytes = new Uint8Array(MAX_MEDIA_BYTES + 1);
+    Object.defineProperty(bytes, "length", { value: 4 });
+    Object.defineProperty(bytes, "byteLength", { value: 4 });
+    const iterator = vi.fn(function* () {
+      yield* original;
+    });
+    Object.defineProperty(bytes, Symbol.iterator, { value: iterator });
+    const fixture = syntheticImages({ info, outputs: [] });
+    await expect(
+      mediaImagesAdapter(fixture.binding).inspectOriginal(bytes),
+    ).rejects.toMatchObject({ code: "image_too_large" });
+    expect(iterator).not.toHaveBeenCalled();
+    expect(fixture.calls()).toEqual({ infoCalls: 0, outputCalls: 0 });
+  });
+  it("reports absolute timeout for a rejected provider microtask before the timer callback", async () => {
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const fixture = syntheticImages({ info, outputs: [] });
+    fixture.binding.info = async () => {
+      await Promise.resolve(); // Reject after wait() performs its entry check.
+      now = 1001;
+      throw new Error("private provider failure");
+    };
+    try {
+      await expect(
+        mediaImagesAdapter(fixture.binding).inspectOriginal(original, {
+          timeoutMs: 1000,
+        }),
+      ).rejects.toMatchObject({
+        code: "processing_timeout",
+        message: "processing_timeout",
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it("maps an asymmetric 90-degree display crop into the original encoded trim before resize", async () => {
+    const jpeg = orientationJpeg(6);
+    const fixture = syntheticImages({
+      info: {
+        format: "image/jpeg",
+        fileSize: jpeg.length,
+        width: 8,
+        height: 6,
+      },
+      outputs: [reply(pngFixture(6, 8)), reply(pngFixture(2, 2))],
+    });
+    const result = await mediaImagesAdapter(fixture.binding).prepareCrop(jpeg, {
+      ratio: 1,
+      zoom: 3,
+      x: 0,
+      y: 100,
+    });
+    expect(result.provenance.plan.effective).toEqual({
+      x: 0,
+      y: 6,
+      width: 2,
+      height: 2,
+    });
+    expect(fixture.transforms[1]).toEqual([
+      { trim: { left: 6, top: 4, width: 2, height: 2 } },
+      { width: 2, height: 2, fit: "squeeze" },
+    ]);
   });
   it("does not let caller mutation change the in-flight original byte identity", async () => {
     const bytes = original.slice();

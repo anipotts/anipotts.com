@@ -2,8 +2,10 @@
 
 The current source on `codex/media-processing-foundation` is an inactive Images
 adapter, bounded streaming/crop plan and atomic private-media commit primitive.
-Runtime checkpoint `38a9a2709384c63a1f69973fb7f4e5341e6daf12` has focused and
-full-workspace qualification below. No production RPC, route, Images binding or
+Current reviewed runtime `ba6b6910249bffae1c9079fd02094e1112a14c66` passes
+full14-task qualification,70 Node-environment and30 actual local workerd cases.
+The earlier runtime checkpoint `38a9a2709384c63a1f69973fb7f4e5341e6daf12` retains
+its historical qualification below. No production RPC, route, Images binding or
 provider activation connects this foundation. Existing upload admission remains
 10 MiB/16 MP, browser crop policy and the 10 MiB whole-publication media budget
 remain unchanged. Atomic commit source is implemented; live provenance storage,
@@ -12,6 +14,24 @@ provider behavior and recovery integration are unqualified.
 The older WASM processing API below records isolated research commit `a15335f5`.
 Its routes and smaller processing limits are historical, not active API or
 upload policy. Its evidence remains useful for the resource/activation hold.
+
+## Current source repair and remaining provider gate
+
+The adapter now uses intrinsic native input snapshots, checks absolute monotonic
+budgets on rejected provider awaits and inverse-maps oriented display crops into
+encoded trim axes. A bounded IFD0 metadata parser covers JPEG/PNG/WebP orientation
+values1–8; malformed, duplicated or geometrically inconsistent metadata refuses
+the crop. Original byte identity, streaming,10MiB/16MP admission and the10MiB
+whole-publication budget remain unchanged. Synthetic asymmetric pixel-label and
+provider-output fixtures prove the coordinate/source contract, including mirrors.
+Cloudflare's live implicit EXIF/trim order and actual decode, orientation and crop
+pixels remain a separate provider gate. No Images setup or operation ran.
+
+The 32k-fragment multi-MiB regression keeps its fragmentation and allocation
+assertions with native exact byte comparison. This removes generic assertion
+walking overhead without increasing either its five-second test timeout or the
+production15-second processing budget. The prior CI timeout and current source
+qualification are recorded in [source preparation](website-source-preparation.md).
 
 ## Historical WASM/API owner and mutation boundary
 

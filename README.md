@@ -32,10 +32,12 @@ See [local development](docs/local-development.md).
 
 - [ ] Create and integrate the qualified browser-policy PR through exact-head protected checks. Full validation14/14, router6/6 and public native13-pass/1-skip coverage pass; public description approval is pending.
 - [ ] Create and integrate the qualified Admin Core consolidation. Full validation14/14, native10 across documented runs and zero-advisory audit pass; the separate DEV touch-run failure remains explicit in its review draft.
-- [ ] Integrate qualified [#540](https://github.com/anipotts/anipotts.com/pull/540) media source after real required CI. Fresh validation14/14,44 Node and30 actual local workerd media cases pass. Images/provider activation remains held.
-- [ ] Normally combine qualified media with [#541](https://github.com/anipotts/anipotts.com/pull/541), then qualify recovery's ordinary editorial behavior, typing and builds. Custody, enrollment, capture and restore gates remain separate.
+- [ ] Integrate qualified [#540](https://github.com/anipotts/anipotts.com/pull/540) media source after real required CI. Review repairs pass fresh validation14/14,70 Node and30 actual local workerd media cases; the required ready-event CI still needs to pass. Images/provider activation remains held.
+- [ ] Refresh qualified recovery [#541](https://github.com/anipotts/anipotts.com/pull/541) at `1d50c94a` with the final media release, then check the affected media/recovery regressions. Custody, enrollment, capture and restore gates remain separate.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 - [ ] Resolve seven stale native worktree-card ownership errors; formatter and released authoring worktree archival remain queued. See the [cleanup checkpoint](docs/website-source-preparation.md).
+
+#554 is merged as `5615da43`; [release39728806591](https://github.com/anipotts/anipotts.com/actions/runs/39728806591) deployed the checked footer to www and Admin. All four workers were skipped, schema0044, no migration; exact public smoke and eight Admin Access probes pass.
 
 #551 is merged as `1936106c`; [release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758) deployed www and Admin. All four workers were skipped, schema0044, no migration. Exact public smoke and provider/Admin Access proof pass. #552 was consolidated and marked merged by GitHub.
 
