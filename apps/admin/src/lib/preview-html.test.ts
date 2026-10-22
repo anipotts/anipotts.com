@@ -240,3 +240,38 @@ it("keeps an escaped late-failure request nonce exact without injecting a script
   expect(JSON.parse(match![1]).request).toBe(nonce);
   expect(html).not.toContain("<script>bad()");
 });
+
+it("uses the public image origin in a contained DEV frame while embedding only its snapshot-owned image", async () => {
+  vi.stubEnv("DEV", true);
+  const read = vi.fn(async (id: string) =>
+    id === ownedID ? ownedFile() : null,
+  );
+  const foreignID = "b".repeat(64) + ".png";
+  const response = await previewResponse(
+    new Response(
+      `<html><head></head><body><img src="/images/brand/structured-ai-mark.svg" srcset="/images/brand/structured-ai-mark.svg 1x, /images/work/synthetic@2x.webp 2x"><video poster="/media/synthetic-poster.png"></video><img loading="lazy" src="/images/editorial/${ownedID}"><img src="/images/editorial/${foreignID}"></body></html>`,
+      { headers: { "Content-Type": "text/html" } },
+    ),
+    new URL("http://127.0.0.1:8917/preview/record"),
+    packageReader,
+    { source: ownedSource, readMedia: read },
+  );
+  const html = await response.text();
+  expect(html).toContain(
+    'src="https://anipotts.com/images/brand/structured-ai-mark.svg"',
+  );
+  expect(html).toContain(
+    'srcset="https://anipotts.com/images/brand/structured-ai-mark.svg 1x, https://anipotts.com/images/work/synthetic@2x.webp 2x"',
+  );
+  expect(html).toContain(
+    'poster="https://anipotts.com/media/synthetic-poster.png"',
+  );
+  expect(html).toContain(
+    `src="https://anipotts.com/images/editorial/${foreignID}"`,
+  );
+  expect(html).toContain(`data-preview-owned-src="${ownedID}"`);
+  expect(html).toContain(`data-preview-owned-media="${ownedID}"`);
+  expect(html).not.toContain('src="http://127.0.0.1:8917/images/');
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(read.mock.calls.every(([id]) => id === ownedID)).toBe(true);
+});

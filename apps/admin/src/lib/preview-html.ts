@@ -96,7 +96,10 @@ export async function previewResponse(
     const media = {
       requestUrl,
       publicSiteUrl,
-      localAssets: import.meta.env.DEV,
+      // Opaque frames cannot fetch retained images from Astro's DEV origin.
+      // The contained path uses the same public image origin as production;
+      // exact snapshot-owned images below remain embedded, never public.
+      localAssets: import.meta.env.DEV && !assets,
       ownedMediaIds: owned
         ? new Set(referencedMediaIds(owned.source))
         : undefined,
