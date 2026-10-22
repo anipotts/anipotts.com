@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "source": "aa860b4b3aeee9b8c2a0a1beec1f075845fd91c3",
+  "source": "865211b8d05ea867d71229aaa2ea413990982481",
   "options": {
     "sourceSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "eventName": "pull_request"
@@ -2263,6 +2263,27 @@
       "id": 123,
       "release": {
         "risk": "automatic",
+        "local_dev_changed": true,
+        "deploy_targets": {
+          "www": false,
+          "admin": true,
+          "ingest": false,
+          "newsletter": false,
+          "state": false,
+          "weekly_email": false
+        }
+      },
+      "outputs": { "local_dev_changed": "true", "admin": "true" },
+      "unclassified": [],
+      "ignored": [false],
+      "sensitive": [true],
+      "deployTargets": { "admin": true },
+      "broad": true
+    },
+    {
+      "id": 124,
+      "release": {
+        "risk": "automatic",
         "ci_policy_changed": true,
         "deploy_targets": {
           "www": false,
@@ -2281,7 +2302,7 @@
       "broad": true
     },
     {
-      "id": 124,
+      "id": 125,
       "release": {
         "risk": "automatic",
         "migration_preflight_required": true,
@@ -2298,7 +2319,7 @@
       "broad": true
     },
     {
-      "id": 125,
+      "id": 126,
       "release": {
         "risk": "approval",
         "migration_preflight_required": true,
@@ -2316,7 +2337,7 @@
       "broad": true
     },
     {
-      "id": 126,
+      "id": 127,
       "release": {
         "risk": "automatic",
         "ci_policy_changed": true,
@@ -2337,7 +2358,7 @@
       "broad": true
     },
     {
-      "id": 127,
+      "id": 128,
       "release": {
         "risk": "automatic",
         "public_browser_changed": true,
@@ -2362,7 +2383,7 @@
       "broad": true
     },
     {
-      "id": 128,
+      "id": 129,
       "release": {
         "risk": "automatic",
         "deploy_targets": {
@@ -2379,27 +2400,6 @@
       "ignored": [false],
       "sensitive": [true],
       "deployTargets": { "www": true, "admin": true },
-      "broad": true
-    },
-    {
-      "id": 129,
-      "release": {
-        "risk": "automatic",
-        "local_dev_changed": true,
-        "deploy_targets": {
-          "www": false,
-          "admin": true,
-          "ingest": false,
-          "newsletter": false,
-          "state": false,
-          "weekly_email": false
-        }
-      },
-      "outputs": { "local_dev_changed": "true", "admin": "true" },
-      "unclassified": [],
-      "ignored": [false],
-      "sensitive": [true],
-      "deployTargets": { "admin": true },
       "broad": true
     },
     {
@@ -8729,6 +8729,7 @@
     "apps/admin/src/components/astryx/ProjectSections.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/ProjectSections.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/ProjectSettings.tsx": [10, 10, 10],
+    "apps/admin/src/components/astryx/ProjectWorkspace.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/PublicationIssues.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/PublicationIssues.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/PublicationProgress.test.tsx": [
@@ -8866,6 +8867,12 @@
       10, 10, 10
     ],
     "apps/admin/src/components/workspace/dev-openai-fixture.ts": [10, 10, 10],
+    "apps/admin/src/components/workspace/dev-project-workspace.test.tsx": [
+      10, 10, 10
+    ],
+    "apps/admin/src/components/workspace/dev-project-workspace.tsx": [
+      10, 10, 10
+    ],
     "apps/admin/src/components/workspace/dev-table-loading-catalog.tsx": [
       10, 10, 10
     ],
@@ -8888,6 +8895,14 @@
     "apps/admin/src/editorial-updates.d.ts": [10, 10, 10],
     "apps/admin/src/editorial/direct-publisher.ts": [12, 12, 12],
     "apps/admin/src/editorial/draft-store.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-images-adapter.test.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-images-adapter.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-processing-plan.test.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-processing-plan.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-processing-store.test.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-processing-store.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-processing-stream.test.ts": [12, 12, 12],
+    "apps/admin/src/editorial/media-processing-stream.ts": [12, 12, 12],
     "apps/admin/src/editorial/media-store.ts": [12, 12, 12],
     "apps/admin/src/env.d.ts": [10, 10, 10],
     "apps/admin/src/fixtures/data_v1.synthetic.json": [10, 10, 10],
@@ -9036,11 +9051,16 @@
     "apps/admin/src/lib/ops-view.test.ts": [12, 12, 12],
     "apps/admin/src/lib/ops-view.ts": [12, 12, 12],
     "apps/admin/src/lib/patterns.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-client.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-html.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-html.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-icons.mjs": [12, 12, 12],
     "apps/admin/src/lib/preview-media.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-media.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-owned-media.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-owned-media.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-public-assets.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-public-assets.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-routing.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-status.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-status.ts": [12, 12, 12],
@@ -9191,9 +9211,13 @@
     "apps/admin/test/editorial/direct-publisher.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/draft-store.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/home-api.test.ts": [10, 10, 10],
+    "apps/admin/test/editorial/media-processing-store.test.ts": [10, 10, 10],
+    "apps/admin/test/editorial/media-processing-stream.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/media-store.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/runtime-contract.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/writing-create.test.ts": [10, 10, 10],
+    "apps/admin/test/fixtures/media-processing-store.ts": [10, 10, 10],
+    "apps/admin/test/fixtures/media-processing.ts": [10, 10, 10],
     "apps/admin/test/recovery-key-fixture.ts": [10, 10, 10],
     "apps/admin/test/support/README.md": [0, 0, 0],
     "apps/admin/test/support/browser-environment.ts": [10, 10, 10],
@@ -9403,6 +9427,7 @@
     "apps/www/src/scripts/admin-transitions.ts": [18, 18, 18],
     "apps/www/src/scripts/page-canvas.ts": [18, 18, 18],
     "apps/www/src/scripts/pointer-modality.ts": [18, 18, 18],
+    "apps/www/src/scripts/preview-client.js": [18, 18, 18],
     "apps/www/src/scripts/workflow-animation.ts": [18, 18, 18],
     "apps/www/src/scripts/workflow-motion.ts": [18, 18, 18],
     "apps/www/src/scripts/writing-ghost.ts": [18, 18, 18],
@@ -10327,6 +10352,7 @@
     "scripts/admin/perf-measure.test.mjs": [122, 122, 122],
     "scripts/admin/perf-proxy.mjs": [122, 122, 122],
     "scripts/admin/perf-proxy.test.mjs": [122, 122, 122],
+    "scripts/admin/preview-public-assets.mjs": [123, 123, 123],
     "scripts/admin/round2-screenshots.mjs": [122, 122, 122],
     "scripts/admin/screenshot-origin.mjs": [122, 122, 122],
     "scripts/admin/test_export_observability_activity.py": [122, 122, 122],
@@ -10341,7 +10367,7 @@
     "scripts/ci/admin-local-owner-leak.mjs": [23, 23, 23],
     "scripts/ci/admin-local-owner.test.mjs": [23, 23, 23],
     "scripts/ci/admin-preview.test.mjs": [23, 23, 23],
-    "scripts/ci/admin-route-inventory.mjs": [123, 123, 123],
+    "scripts/ci/admin-route-inventory.mjs": [124, 124, 124],
     "scripts/ci/admin-route-parity.test.mjs": [23, 23, 23],
     "scripts/ci/admin-solid-retirement.test.mjs": [23, 23, 23],
     "scripts/ci/agent-guidance.test.mjs": [23, 23, 23],
@@ -10360,14 +10386,14 @@
     "scripts/ci/compute-deploy-targets.test.mjs": [23, 23, 23],
     "scripts/ci/content-d1-seed.test.mjs": [23, 23, 23],
     "scripts/ci/content-platform.test.mjs": [23, 23, 23],
-    "scripts/ci/content-publication-migration-proof.mjs": [124, 124, 124],
+    "scripts/ci/content-publication-migration-proof.mjs": [125, 125, 125],
     "scripts/ci/content-release-isolation.mjs": [23, 23, 23],
     "scripts/ci/content-release-isolation.test.mjs": [23, 23, 23],
-    "scripts/ci/d1-ledger-bootstrap.mjs": [124, 124, 124],
-    "scripts/ci/d1-ledger-bootstrap.test.mjs": [124, 124, 124],
-    "scripts/ci/d1-migration-conditions.mjs": [125, 125, 125],
-    "scripts/ci/d1-schema-docs.test.mjs": [124, 124, 124],
-    "scripts/ci/d1-schema-fingerprint.mjs": [125, 125, 125],
+    "scripts/ci/d1-ledger-bootstrap.mjs": [125, 125, 125],
+    "scripts/ci/d1-ledger-bootstrap.test.mjs": [125, 125, 125],
+    "scripts/ci/d1-migration-conditions.mjs": [126, 126, 126],
+    "scripts/ci/d1-schema-docs.test.mjs": [125, 125, 125],
+    "scripts/ci/d1-schema-fingerprint.mjs": [126, 126, 126],
     "scripts/ci/dependency-maintenance.mjs": [23, 23, 23],
     "scripts/ci/dependency-maintenance.test.mjs": [23, 23, 23],
     "scripts/ci/deployment-plan.mjs": [23, 23, 23],
@@ -10378,8 +10404,8 @@
     "scripts/ci/fixtures/release-corpus.json": [23, 23, 23],
     "scripts/ci/landscape.test.mjs": [23, 23, 23],
     "scripts/ci/local-content-db.test.mjs": [23, 23, 23],
-    "scripts/ci/migration-local-proof.mjs": [125, 125, 125],
-    "scripts/ci/migration-policy.mjs": [125, 125, 125],
+    "scripts/ci/migration-local-proof.mjs": [126, 126, 126],
+    "scripts/ci/migration-policy.mjs": [126, 126, 126],
     "scripts/ci/navigation.test.mjs": [23, 23, 23],
     "scripts/ci/path-hygiene.test.mjs": [23, 23, 23],
     "scripts/ci/path-manifest.mjs": [6, 6, 6],
@@ -10387,7 +10413,7 @@
     "scripts/ci/preview-script-urls.test.mjs": [23, 23, 23],
     "scripts/ci/public-api.test.mjs": [23, 23, 23],
     "scripts/ci/public-app-boundary.test.mjs": [23, 23, 23],
-    "scripts/ci/public-built-output.test.mjs": [126, 126, 126],
+    "scripts/ci/public-built-output.test.mjs": [127, 127, 127],
     "scripts/ci/public-copy-lint.mjs": [23, 23, 23],
     "scripts/ci/public-copy-lint.test.mjs": [23, 23, 23],
     "scripts/ci/public-e2e-migrations.mjs": [113, 113, 113],
@@ -10403,7 +10429,7 @@
     "scripts/ci/release-smoke.test.mjs": [23, 23, 23],
     "scripts/ci/security-review.mjs": [23, 23, 23],
     "scripts/ci/security-review.test.mjs": [23, 23, 23],
-    "scripts/ci/site-migrations-local-proof.mjs": [124, 124, 124],
+    "scripts/ci/site-migrations-local-proof.mjs": [125, 125, 125],
     "scripts/ci/work-migration.test.mjs": [23, 23, 23],
     "scripts/ci/worker-version.mjs": [6, 6, 6],
     "scripts/ci/workflow-inventory.test.mjs": [23, 23, 23],
@@ -10411,17 +10437,18 @@
     "scripts/ci/workspace-inventory-parser.test.mjs": [23, 23, 23],
     "scripts/ci/workspace-inventory.test.mjs": [23, 23, 23],
     "scripts/codex-action": [122, 122, 122],
-    "scripts/content/content-d1-seed.mjs": [127, 127, 127],
-    "scripts/content/generate-public-content.mjs": [128, 128, 128],
-    "scripts/content/seed-content-d1.mjs": [127, 127, 127],
-    "scripts/dev/admin-dependency-discovery.mjs": [129, 129, 129],
-    "scripts/dev/admin-local-owner-host.mjs": [129, 129, 129],
+    "scripts/content/content-d1-seed.mjs": [128, 128, 128],
+    "scripts/content/generate-public-content.mjs": [129, 129, 129],
+    "scripts/content/seed-content-d1.mjs": [128, 128, 128],
+    "scripts/dev/admin-dependency-discovery.mjs": [123, 123, 123],
+    "scripts/dev/admin-local-owner-host.mjs": [123, 123, 123],
     "scripts/dev/admin-local-owner.mjs": [122, 122, 122],
     "scripts/dev/admin-preview-identity.mjs": [130, 130, 130],
     "scripts/dev/dev-server-ports.mjs": [122, 122, 122],
+    "scripts/dev/dev-servers-child.mjs": [122, 122, 122],
     "scripts/dev/dev-servers.mjs": [122, 122, 122],
-    "scripts/dev/editorial-public-assets.mjs": [129, 129, 129],
-    "scripts/dev/editorial-updates.mjs": [129, 129, 129],
+    "scripts/dev/editorial-public-assets.mjs": [123, 123, 123],
+    "scripts/dev/editorial-updates.mjs": [123, 123, 123],
     "scripts/dev/editorial-updates.test.mjs": [122, 122, 122],
     "scripts/dev/heavy-slot.mjs": [122, 122, 122],
     "scripts/dev/heavy-slot.test.mjs": [122, 122, 122],
@@ -10431,7 +10458,7 @@
     "scripts/dev/preview-budget.mjs": [122, 122, 122],
     "scripts/dev/preview-budget.test.mjs": [122, 122, 122],
     "scripts/dev/preview-reaper.mjs": [122, 122, 122],
-    "scripts/dev/public-content-hot-reload.mjs": [129, 129, 129],
+    "scripts/dev/public-content-hot-reload.mjs": [123, 123, 123],
     "scripts/dev/review-state.mjs": [130, 130, 130],
     "scripts/dev/review-state.test.mjs": [122, 122, 122],
     "scripts/dev/review-supervisor.mjs": [122, 122, 122],
@@ -10668,9 +10695,9 @@
     "M\tpackages/lib/src/db.ts": 117,
     "A\tpackages/lib/src/db.ts": 117,
     "D\tpackages/lib/src/db.ts": 117,
-    "M\tscripts/content/new.mjs": 128,
-    "A\tscripts/content/new.mjs": 128,
-    "D\tscripts/content/new.mjs": 128,
+    "M\tscripts/content/new.mjs": 129,
+    "A\tscripts/content/new.mjs": 129,
+    "D\tscripts/content/new.mjs": 129,
     "M\tscripts/contentx/a.mjs": 5,
     "A\tscripts/contentx/a.mjs": 5,
     "D\tscripts/contentx/a.mjs": 5,

@@ -1,6 +1,159 @@
 # Website source preparation
 
+## October 22 media review repair and footer release checkpoint
+
+Released main is `5615da43b0ba06189112419713ed0f04c9499b21` (#554), normally
+incorporated into media checkpoint `8d977278`. Footer
+[release39728806591](https://github.com/anipotts/anipotts.com/actions/runs/39728806591)
+deployed www and Admin, with all four workers skipped, schema0044 and no
+migration. Exact public smoke, active provider versions and eight Admin Access
+probes pass. The footer's own public/layout qualification remains distinct from
+media processing proof.
+
+Three automated review findings are repaired in `b711f57c`; test-only `ba6b6910`
+forces the rejected provider through a microtask so its regression exercises the
+actual wait-handler race. Input snapshots use the intrinsic typed-array storage
+length and native indexed copying; caller length fields and iterators cannot
+control identity or allocation. Provider rejections recheck the absolute
+monotonic deadline before propagating a provider error. The bounded JPEG/PNG/WebP
+IFD0 EXIF parser inverse-maps display crop rectangles into encoded axes for all
+eight rotations/mirrors, preserving the original stream and current byte limits.
+Malformed or ambiguous EXIF and orientation/display disagreement fail closed.
+
+The coordinate model follows the [Cloudflare transformation documentation](https://developers.cloudflare.com/images/optimization/features/#trim)
+and [CIPA orientation definitions](https://cipa.jp/std/documents/e/DC-X010-2017.pdf).
+Asymmetric labeled-pixel, endian, metadata-bound and adapter-trim fixtures prove
+the source model. They do not prove the live Images binding's implicit EXIF
+order or actual decoded pixels; that provider qualification remains held.
+No production Images caller, binding, capture/enrollment or migration is added.
+
+CI39730036934 failed only the multi-MiB/32k-fragment memory regression's default
+five-second Vitest timeout; its 2,629 other Admin cases passed. The test retained
+its greater-than-2MiB PNG, 32,768 one-byte fragments, exact byte identity and
+allocation bounds, replacing generic JavaScript deep equality with native byte
+comparison. No test timeout, production deadline or admission limit increased.
+The full repaired 15-case stream suite took196ms locally. Slow-host CI must
+still pass on the final head; the original failure is retained.
+
+Full `pnpm validate` passes14/14 at clean
+`ba6b6910249bffae1c9079fd02094e1112a14c66`. Admin actually executed2,656 core,
+79 Astro,113 local editorial workerd and3 CSP cases, with one existing
+browser-gated skip. Media coverage is70 Node-environment cases and30 actual local
+workerd cases. www's197 public cases pass, including the inherited footer.
+Five new targeted regressions fail the original `8d977278` runtime and all54
+focused repair cases pass. Strict typing, builds, local-owner bundle exclusion
+and post-build source drift pass. This documentation-only follow-up preserves
+the qualified runtime. Required ready-event CI, the three review resolutions and
+fresh protected integration remain pending; #540 remains draft until the owner
+starts those checks. Public provider activation and operational recovery remain
+held. Receipts are in the existing project-cleanup held-foundations directory.
+
+Recovery checkpoint `1d50c94a` separately passed full14/14,129 recovery Node,
+27 local workerd/R2 and120 ordinary editorial workerd cases with the earlier
+qualified media bytes. It remains preserved; after #540 integrates, normally
+merge actual main and qualify the affected changed media/recovery behavior.
+Earlier source and draft-guard statements below are dated checkpoints.
+
+## October 22 fresh media qualification and next review checkpoints
+
+Media #540 passes full validation14/14 at clean `a128b79aa0dfdd7757f83f0d605ab28588ac5c1c`.
+Admin tests actually executed:2,630 core,79 Astro,113 editorial workerd and3 CSP
+checks pass, with one existing browser-gated skip. Media-specific coverage is44
+Node cases plus30 actual local workerd cases, including the historical27-case
+subset. The full run covered those files; no duplicate focused rerun was needed.
+Frozen offline installation, strict typing, builds, local-owner bundle exclusion
+and post-check source/lock drift checks pass. The following documentation-only
+checkpoint preserves all qualified runtime bytes. Hosted Build is still the
+deliberate draft guard until the integration owner marks the checkpoint ready;
+Security and CodeQL pass and there are no review threads.
+
+Source release selects Admin only, no migration, schema0044. The deployment
+planner can additionally select www if live public provenance requires it.
+No Images caller/binding, provider activation, remote migration or recovery
+operation is activated. Current admission remains10 MiB/16 MP. Operational
+decode/orientation/crop/resource qualification remains separate from this software
+release. Earlier source-only checkpoints below retain their observation dates.
+
+Core consolidation is locally qualified at `754eae38f32ef7c030e0435fff6e30c7bbae48b4`,
+with runtime identical to full-qualified `edcf22bf`:14/14 tasks,2,593 Admin core,
+79 Astro and98 workerd cases pass. Ten selected native cases pass across recorded
+Chromium/WebKit attempts. A real viewport-edge selector regression was repaired
+using Core's supported collision-fitting placement, retaining trusted pointer
+selection/save/reload at the original edge. SDK and its101 unused dependency
+versions/snapshots are removed; frozen install and zero-advisory audit pass.
+Markdown math is literal source with code copying retained; static callers are
+only dev/tests, with no private records inspected.
+
+The narrow coarse context proves trusted single-contact taps and16px generic
+fields/24px title, but its overall run fails on a canceled DEV `/@react-refresh`
+pre-hydration import. The error is retained. The existing built manifest resolves
+the pre-hydration entry to empty; generic support and a server DEV allowlist remain.
+No physical-device, actual IME, screen-reader or zero-error touch claim is made.
+All owned browsers, contexts and preview processes are closed; canonical previews
+remain untouched. Core selects Admin only, no migration. New browser-policy and
+Core PR descriptions are prepared locally pending native public-send approval.
+
+## October 21 inactive media source refresh
+
+Draft #540 was refreshed locally from `da1076b21522cdfe1d38af2e8b403ff59386bb5e`
+with a normal merge of current main `07da221d82aa4b0d6b7d4dabcc363103fdd3959a`.
+Only README and this dated history required conflict resolution; package and
+lockfile match main, and media implementation and fixture bytes match the prior
+head. #550 is merged and deployed to www and Admin; all four workers were
+skipped, with no migration. #551 remains a separate unreleased candidate; its
+consolidated #552 runner changes are not included in this media refresh.
+
+This is source preparation only. Earlier validation counts below are historical
+and do not qualify this combined tree. No install, tests, build, browser, push,
+provider setup or deployment accompanied this refresh. The integration owner
+must schedule frozen dependency installation, focused Node and actual workerd
+checks and affected app qualification before considering the candidate ready.
+
+Keep #540 draft. Images entitlement, real decode and EXIF orientation, crop
+coordinates, charged CPU/memory and cancellation, recovery integration and
+activation remain held. Upload admission stays 10 MiB/16 MP; the whole-publication
+media budget stays 10 MiB. No binding, endpoint, production config, remote
+migration, auth change or service activation is selected. The older dated queue
+entries and source receipts below remain historical.
+
 ## October 22 release and cleanup checkpoint
+
+#551 is merged at `1936106c934ba53a7edf6e0fc0defbffbf6b6ffb` after live strict
+protection, exact-head required checks and all review conversations passed.
+[Release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758)
+succeeded for www and Admin; all four workers skipped, schema0044, no migration.
+Provider versions are www `696f2818-dafc-4c3f-823e-a525226ca2ea` and Admin
+`29c94e26-9fbe-45df-ad3c-9aa600917271`. Public smoke verifies exact release,
+schema, routes and security headers. Workflow provider proof and eight unauthenticated
+Access redirects pass; private production UI is not claimed. #552 was automatically
+marked merged through the preserved ancestry and its redundant PR attachment removed.
+#551 archival is queued, not confirmed. Its public description update remains
+pending native send approval; the release did not modify that description.
+
+The browser-policy patch is qualified at `f500bde8`, with final tree identical
+to fully validated `719439c9`. Full validation14/14, six router tests and final
+public native13-pass/1-intentional-skip coverage pass. All14 attempts cleaned up.
+Controlled Chromium/WebKit checks prove cold/cached static-import ordering,
+authored async behavior and sentinel failure. The initial static-import ordering
+negative control failed, motivating the explicit non-async module repair.
+A zero-context packaging experiment misapplied and was restored by a normal
+corrective commit; frozen installation and both installed router hashes match
+validated bytes. The initial11 upstream patch-context whitespace warnings were resolved by a
+standard full-content replacement hunk. Frozen installation and both installed
+router hashes remain byte-identical to validated719; all six focused router tests
+and working-tree-aware whitespace checking pass, without check exemptions.
+Chromium parent focus proof passes separately. Final native reports omit console
+fields, so they supply no independent console-cleanliness claim. Heavy and
+preview slots were released with owned listeners and browser targets closed.
+
+The SDK removal candidate's initial wrapper gaps are repaired and its final
+qualification is recorded above. It remains unreleased pending public PR creation,
+exact-head protected CI and release controls. Held foundation
+source refreshes are #540 `a128b79a` and #541 `16f37382`, both normally merged
+with released main. All13 media and42 recovery-owned paths remain byte-identical
+to their prior local checkpoints. Classifier replay and focused policy/formatting
+checks pass. Fresh media qualification now passes as recorded above; recovery
+runtime/typing/build qualification and operational gates remain.
 
 Integration owner: site-improvements, local chat
 `01a14ffb-519c-73b1-a63a-380f9d7274d0`. #550 is merged as
@@ -49,23 +202,19 @@ retain expected 503 and LayerProvider fallback warnings. Chromium's four preview
 autofocus refusals and the existing public Astro transition-module CSP event are
 separate prepared browser-policy work, not zero-console acceptance.
 
-Integration remains pending exact-head protected CI and native release controls.
-Targets are www and Admin; all four workers are skipped, schema 0044, no migration.
-Keep #552 open until the combined source integrates. A separate local #540 refresh
-at `865211b8` normally merges main `07da221d`; media source still equals its prior
-qualified head, with fresh checks and all provider activation gates outstanding.
-The prepared browser-policy branch is `4c905156`; independent source review passes,
-but installation/build/browser qualification remains due. Subsequent Admin control
-consolidation should remove the remaining SDK-origin KaTeX path. KaTeX has a fix
-from 0.18.2; the current supported parent dependency ranges cannot select it.
+The completed #551 release and qualified browser-policy evidence are recorded above.
+The remaining SDK and held-foundation qualification is separate from shipped proof.
 
 Thirty-one retired checkout paths are removed with source refs and local
-receipts preserved. The seven remaining stale app cards were traced to this
+receipts preserved. Another109 inactive local agent branches were removed only
+after verifying their exact heads are merged into main and absent from active
+worktrees. A local branch/SHA receipt preserves recovery; active, unmerged and
+human-named branches remain. The seven remaining stale app cards were traced to this
 chat (three) and original content worker
 `01a15008-1dac-7480-90b2-424f4c9d0787` (four). Native archival rejects ownership
 even from those contexts; direct app-server messages to the multi-agent worker
 are disallowed. Do not recreate checkout directories or alter app databases.
-The completed formatter card has queued archival without confirmed completion.
+Exact-path read-only thread-index and app-hint lookups found no new owning-chat route. No app state was modified. The completed formatter card has queued archival without confirmed completion.
 Primary, canonical review, active candidate and dirty table-work preservation
 remain separate. Exact inventory and native denials are retained locally under
 `.local/project-cleanup/2026-10-21/`.
@@ -366,6 +515,57 @@ Inactive #540 media and #541 recovery remain independently checked drafts.
 Their latest source/qualification receipts are in their PRs. A caller-supplied
 ciphertext artifact adapter is a separable source step underway for recovery;
 operational custody, provider setup, migrations and activation remain gated.
+
+## October 19 completed releases and media refresh
+
+#539 is deployed to Admin at `cf7b757b`; exact provider/schema and eight Access
+redirect probes pass. #542 is merged at `aa860b4b`; its
+[release 39275594601](https://github.com/anipotts/anipotts.com/actions/runs/39275594601)
+succeeded with all six runtime targets and Production skipped, no migration.
+Both exact approvals and source/release receipts are in the existing queue.
+
+Media full qualification at `08029df7108f50323acb597dcb794918893507c1`
+passes all fourteen `pnpm validate` tasks: Admin 2,509 core / 79 Astro / 113
+editorial workerd / three CSP checks plus one existing skip. Focused foundation
+coverage remains 44 Node-environment and 27 actual workerd cases.
+Logs: `/private/tmp/anipotts-media-main539-{install,validation}.log`.
+
+The normal merge of #542 at `62c6117a5ec15d864d9808559f3941533f5746ec`
+changes only the independently qualified unused CLI/config/lock cleanup and
+documentation. All app, package, script, worker, Turbo, workflow, runtime config
+and migration source bytes equal the full-qualified tree. A fresh offline frozen
+install, complete CI invariants and formatting pass on this final combination.
+Post-check drift is clean; nine sensitive changed paths pass static review;
+the earlier full-built 344-file Admin bundle excludes local-owner markers.
+Logs: `/private/tmp/anipotts-media-main542-{install,checks}.log`.
+
+Keep #540 draft. Provider entitlement, actual decode/orientation/crop/resource
+qualification, recovery integration and activation authority remain open.
+Its proposed target remains Admin only; no production setup, route, binding or
+migration is activated. Later checkpoint documentation preserves this source.
+
+## October 19 inactive media foundation main refresh
+
+The media foundation branch normally merged approved main
+`cf7b757be2c0bfc72d9886a27599e615b7ec3b66` into prior head
+`de4f9fcfc42337bf51ba3fcb44f95f195e034cf3`, preserving both histories at merge
+`f178670b751b9bc56de74852abb075c5b71fb36d`. Media adapter, stream/plan,
+atomic commit, admission helper and their focused fixture/test source are
+unchanged by this refresh. Earlier exact-head qualification remains historical;
+the integration owner must qualify the refreshed candidate before review.
+
+Approved #539 merged as `cf7b757b`. Its [successful admin-only deployment
+39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+records provider version `ab08369b` and eight protected-route 302 responses at the
+Cloudflare Access boundary. No migration or media-processing activation was
+selected. Earlier withdrawn approval requests below remain historical receipts.
+
+Inactive draft #540 has no merge approval from this refresh. Upload admission
+remains 10 MiB/16 MP, retained images and the whole-publication media budget remain
+10 MiB, and the browser crop policy is unchanged. Images binding/provider setup,
+real-provider qualification, persisted provenance activation, recovery namespace
+support and custody remain held. No tests, install, build, browser or preview
+were run during this normal-main merge, and no push was performed.
 
 ## October 19 browser recovery release and dependency refresh
 

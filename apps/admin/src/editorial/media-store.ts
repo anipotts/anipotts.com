@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 export const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 export const MAX_MEDIA_PIXELS = 16 * 1024 * 1024;
 export const MAX_MEDIA_DIMENSION = 16_384;
-const chunkSize = 64 * 1024;
+export const EDITORIAL_MEDIA_CHUNK_BYTES = 64 * 1024;
+const chunkSize = EDITORIAL_MEDIA_CHUNK_BYTES;
 const identity = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
 export type EditorialMedia = {
   id: string;
@@ -196,6 +197,41 @@ function imageHeader(bytes: Uint8Array): ImageHeader | null {
   return null;
 }
 
+export type EditorialMediaAdmission =
+  | {
+      ok: true;
+      media: EditorialMedia;
+      dimensions: { width: number; height: number };
+    }
+  | { ok: false; error: "image_too_large" | "unsupported_image" };
+
+/** Existing upload admission only. Does not decode pixels or establish provider
+ * evidence. Call synchronously before using admitted bytes asynchronously. */
+export function inspectEditorialMediaAdmission(
+  bytes: Uint8Array,
+): EditorialMediaAdmission {
+  if (!(bytes instanceof Uint8Array) || bytes.length > MAX_MEDIA_BYTES)
+    return { ok: false, error: "image_too_large" };
+  const header = imageHeader(bytes);
+  if (!header || !header.width || !header.height)
+    return { ok: false, error: "unsupported_image" };
+  if (
+    header.width > MAX_MEDIA_DIMENSION ||
+    header.height > MAX_MEDIA_DIMENSION ||
+    header.width * header.height > MAX_MEDIA_PIXELS
+  )
+    return { ok: false, error: "image_too_large" };
+  const { type } = header;
+  const extension = type === "image/jpeg" ? "jpg" : type.split("/")[1];
+  const id = `${createHash("sha256").update(bytes).digest("hex")}.${extension}`;
+  const metadata: EditorialMedia = { id, type, size: bytes.length };
+  return {
+    ok: true,
+    media: metadata,
+    dimensions: { width: header.width, height: header.height },
+  };
+}
+
 /** Immutable private uploads; no public route or Git write is created here. */
 export class EditorialMediaStore {
   constructor(private storage: DurableObjectStorage) {}
@@ -206,21 +242,10 @@ export class EditorialMediaStore {
     | { ok: true; media: EditorialMedia }
     | { ok: false; error: "image_too_large" | "unsupported_image" }
   > {
-    if (!(bytes instanceof Uint8Array) || bytes.length > MAX_MEDIA_BYTES)
-      return { ok: false, error: "image_too_large" };
-    const header = imageHeader(bytes);
-    if (!header || !header.width || !header.height)
-      return { ok: false, error: "unsupported_image" };
-    if (
-      header.width > MAX_MEDIA_DIMENSION ||
-      header.height > MAX_MEDIA_DIMENSION ||
-      header.width * header.height > MAX_MEDIA_PIXELS
-    )
-      return { ok: false, error: "image_too_large" };
-    const { type } = header;
-    const extension = type === "image/jpeg" ? "jpg" : type.split("/")[1];
-    const id = `${createHash("sha256").update(bytes).digest("hex")}.${extension}`;
-    const metadata: EditorialMedia = { id, type, size: bytes.length };
+    const admission = inspectEditorialMediaAdmission(bytes);
+    if (!admission.ok) return admission;
+    const { media: metadata } = admission;
+    const { id } = metadata;
     const entries: Record<string, EditorialMedia | Uint8Array> = {
       [`media:${id}`]: metadata,
     };
