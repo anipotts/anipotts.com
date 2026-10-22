@@ -30,11 +30,13 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [x] Merge [#550](https://github.com/anipotts/anipotts.com/pull/550), the qualified Astro formatter migration, as `07da221d`. [Release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879) deployed www and Admin; all four workers were skipped, schema 0044, no migration.
-- [ ] Qualify draft [#551](https://github.com/anipotts/anipotts.com/pull/551), the combined Core/Neutral and Projects authoring candidate. The independent Projects worktree is consolidated into this branch; full validation passed at runtime head `d47a67fb`; corrected focused native checks passed 20/22 at `7e830830`. Final Projects link lookup, media-loading readiness and preview asset/rendering acceptance remain open.
-- [ ] Complete held provider and operational gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery. Their checkouts are archived, their exact branches/PRs and local evidence remain recoverable.
-- [ ] Qualify [#552](https://github.com/anipotts/anipotts.com/pull/552), the browser-runner patch update opened during cleanup. Its source is consolidated into #551; #552 remains open until the combined candidate is accepted and integrated.
+- [ ] Integrate and release checked [#551](https://github.com/anipotts/anipotts.com/pull/551) through exact-head protected checks. Full validation14/14, Admin native50/50 and the recorded touch coverage pass; qualified runtime remains unchanged by test/documentation follow-ups.
+- [ ] Reconcile [#552](https://github.com/anipotts/anipotts.com/pull/552) after its normally consolidated source integrates through #551.
+- [ ] Qualify the prepared browser-policy patch, then consolidate Admin controls to remove the remaining SDK/KaTeX dependency path.
+- [ ] Refresh and qualify held [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery source. #540 has a clean local normal-main refresh; provider, custody and activation gates remain separate.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#550 is merged as `07da221d`; [release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879) deployed www and Admin. All four workers were skipped; schema 0044, no migration.
 
 #553 is merged as `1efed957`; [release 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877) deployed www and Admin with approved brand geometry/motion. All four workers were skipped.
 
