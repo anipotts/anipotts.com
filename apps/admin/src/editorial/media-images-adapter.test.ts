@@ -180,6 +180,7 @@ describe("disabled Images foundation with synthetic provider outputs", () => {
     const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
     const fixture = syntheticImages({ info, outputs: [] });
     fixture.binding.info = async () => {
+      await Promise.resolve(); // Reject after wait() performs its entry check.
       now = 1001;
       throw new Error("private provider failure");
     };
