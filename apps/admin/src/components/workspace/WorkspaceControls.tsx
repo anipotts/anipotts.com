@@ -151,7 +151,20 @@ export function TextInput({
 export { TextArea } from "@astryxdesign/core/TextArea";
 export { NumberInput } from "@astryxdesign/core/NumberInput";
 export { ToggleButtonGroup } from "@astryxdesign/core/ToggleButton";
-export { Selector } from "@astryxdesign/core/Selector";
+import {
+  Selector as CoreSelector,
+  type SelectorProps,
+  type SelectorOptionType,
+} from "@astryxdesign/core/Selector";
+
+/** Conventional placement preserves viewport flipping at Properties edges.
+ * Core's implicit selected-row overlay can put later options below the viewport. */
+export function Selector<T extends SelectorOptionType>({
+  placement = "below",
+  ...props
+}: SelectorProps<T>) {
+  return <CoreSelector {...props} placement={placement} />;
+}
 export { MoreMenu } from "@astryxdesign/core/MoreMenu";
 export {
   DropdownMenuRadioGroup,

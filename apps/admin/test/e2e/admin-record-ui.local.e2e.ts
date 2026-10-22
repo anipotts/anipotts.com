@@ -1099,12 +1099,57 @@ async function readSyntheticProject(browser: Browser, path: string) {
 }
 
 async function projectChoice(
-  { screen }: Fixtures,
+  { browser, screen }: Fixtures,
   label: string,
   value: string,
 ) {
-  await screen.getByRole("combobox", { name: label, exact: true }).click();
-  await screen.getByRole("option", { name: value, exact: true }).click();
+  // Core retains closed listboxes, so select through the open trigger's owner.
+  const trigger = screen.getByRole("combobox", { name: label, exact: true });
+  await trigger.click();
+  const listboxId = await browser.evaluate((fieldLabel) => {
+    const field = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button[role="combobox"]'),
+    ).find((button) =>
+      Array.from(button.labels ?? []).some(
+        (label) => label.textContent?.trim() === fieldLabel,
+      ),
+    );
+    const id = field?.getAttribute("aria-controls");
+    if (!id || field?.getAttribute("aria-expanded") !== "true")
+      throw new Error(`Project selector did not open: ${fieldLabel}`);
+    return id;
+  }, label);
+  const option = browser
+    .locator(`[id=${JSON.stringify(listboxId)}]`)
+    .getByRole("option", { name: value, exact: true });
+  await expect(option).toBeVisible();
+  const optionBounds = () =>
+    browser.evaluate(
+      ({ id, optionName }) => {
+        const option = Array.from(
+          document.getElementById(id)?.querySelectorAll('[role="option"]') ??
+            [],
+        ).find((node) => node.textContent?.trim() === optionName);
+        if (!option) throw new Error(`Missing active option: ${optionName}`);
+        const rect = option.getBoundingClientRect();
+        return {
+          top: rect.top,
+          bottom: rect.bottom,
+          height: window.innerHeight,
+        };
+      },
+      { id: listboxId, optionName: value },
+    );
+  await expect
+    .poll(async () => {
+      const bounds = await optionBounds();
+      return bounds.top >= 0 && bounds.bottom <= bounds.height;
+    })
+    .toBe(true);
+  console.log("core-project-selector-viewport", label, await optionBounds());
+  await option.click();
+  await expect(trigger).toContainText(value);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
 }
 
 async function projectAppearance(
@@ -1385,10 +1430,10 @@ test(
       .getByRole("button", { name: "Properties", exact: true })
       .click();
     await expect(
-      screen.getByRole("button", { name: "Homepage section", exact: true }),
+      screen.getByRole("combobox", { name: "Homepage section", exact: true }),
     ).toContainText("Work");
     await expect(
-      screen.getByRole("button", { name: "Project group", exact: true }),
+      screen.getByRole("combobox", { name: "Project group", exact: true }),
     ).toContainText("Past");
     await expect(
       screen.getByRole("spinbutton", { name: "Homepage order", exact: true }),
