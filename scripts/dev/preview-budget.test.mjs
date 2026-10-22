@@ -9,11 +9,17 @@ import {
   IDLE_CPU_SECONDS_PER_MINUTE,
   isIntegrationCheckout,
   nextIdleMinutes,
+  nextGroupsIdleMinutes,
+  runningPreviews,
   parseCount,
   parseGroupCpu,
   parseWorktreeList,
   slotError,
 } from "./preview-budget.mjs";
+import {
+  managedChildArgs,
+  isManagedProcessCommand,
+} from "./dev-server-ports.mjs";
 
 test("worktree paths come from porcelain output", () => {
   const porcelain = [
@@ -164,5 +170,75 @@ test("two individually idle groups accumulate idle time independently", async ()
       1,
     ),
     0,
+  );
+});
+
+test("emitted managed children consume a worker slot and remain visible to the idle reaper", () => {
+  const worktree = "/tmp/site-worker/checkout";
+  assert.equal(worktree.includes("astro"), false);
+  const record = {
+    key: "www",
+    pid: 32123,
+    port: 4580,
+    url: "http://127.0.0.1:4580",
+    ownership: "managed",
+  };
+  // This is the same argument builder passed to spawn by the manager.
+  const emittedCommand = [
+    process.execPath,
+    ...managedChildArgs(worktree, record.port),
+  ].join(" ");
+  const discover = (cmd = emittedCommand, change = {}) =>
+    runningPreviews(worktree, {
+      readJson: () => ({
+        worktreeRoot: worktree,
+        apps: [{ ...record, ...change }],
+      }),
+      isAlive: () => true,
+      command: () => cmd,
+    });
+  assert.deepEqual(discover(), [record]);
+  assert.match(
+    slotError([{ worktree, apps: discover() }], 1),
+    /budget is full \(1\/1/,
+  );
+  const samples = new Map(discover().map((preview) => [preview.pid, 10.1]));
+  assert.equal(
+    nextGroupsIdleMinutes(2, samples, new Map([[record.pid, 10]]), 1),
+    3,
+    "the reaper receives the child group and accumulates idle time instead of exiting with nothing running",
+  );
+  assert.match(
+    readFileSync(new URL("./preview-reaper.mjs", import.meta.url), "utf8"),
+    /const previews = runningPreviews\(WORKTREE_ROOT\)/,
+  );
+  for (const cmd of [
+    [
+      process.execPath,
+      ...managedChildArgs("/tmp/other-worker/checkout", record.port),
+    ].join(" "),
+    [process.execPath, ...managedChildArgs(worktree, 45801)].join(" "),
+    `echo ${emittedCommand}`,
+    `${process.execPath} /tmp/fake-astro dev --port 4580`,
+    `${emittedCommand} --port 4581`,
+    `${emittedCommand.replace("dev-servers-child.mjs", "dev-servers-child.mjs-impostor")}`,
+  ])
+    assert.deepEqual(discover(cmd), [], cmd);
+  assert.deepEqual(discover(emittedCommand, { ownership: "existing" }), []);
+  assert.equal(
+    isManagedProcessCommand(
+      "pnpm exec astro dev --port 4580 --ignore-lock",
+      4580,
+      worktree,
+    ),
+    true,
+  );
+  assert.equal(
+    isManagedProcessCommand(
+      "pnpm exec astro dev --port 45801 --ignore-lock",
+      4580,
+      worktree,
+    ),
+    false,
   );
 });

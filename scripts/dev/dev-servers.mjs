@@ -20,6 +20,8 @@ import {
   freePortPair,
   isPortFree,
   parsePortOverride,
+  managedChildArgs,
+  isManagedProcessCommand,
 } from "./dev-server-ports.mjs";
 import {
   DEFAULT_WORKER_SLOTS,
@@ -133,18 +135,13 @@ function processCommand(pid) {
   }
 }
 
-/** Recognize current children and retained CLI previews at the exact port. */
-export function isManagedProcessCommand(command, port) {
-  return (
-    ((command.includes("astro") && command.includes(" dev")) ||
-      command.includes(join(SCRIPT_DIR, "dev-servers-child.mjs"))) &&
-    new RegExp(String.raw`(?:^|\s)--port(?:=|\s+)${port}(?:\s|$)`).test(command)
-  );
-}
-
 /** Only a process this manager started for this app and port is ever stopped. */
 function isRecognizedProcess(record) {
-  return isManagedProcessCommand(processCommand(record.pid), record.port);
+  return isManagedProcessCommand(
+    processCommand(record.pid),
+    record.port,
+    WORKTREE_ROOT,
+  );
 }
 
 function readMetadata() {
@@ -206,19 +203,15 @@ function startApp(app, port, siteUrl) {
   const logFd = openSync(logPath, "a", 0o600);
   // The app's Astro API stays foreground and uses Vite's supported strictPort.
   // The child confirms its actual address before any HTTP health is accepted.
-  const child = spawn(
-    process.execPath,
-    [join(SCRIPT_DIR, "dev-servers-child.mjs"), "--port", String(port)],
-    {
-      cwd: app.cwd,
-      env: childEnv({
-        localOwner: app.key === "admin",
-        siteUrl: app.key === "admin" ? siteUrl : undefined,
-      }),
-      detached: true,
-      stdio: ["ignore", logFd, logFd, "ipc"],
-    },
-  );
+  const child = spawn(process.execPath, managedChildArgs(WORKTREE_ROOT, port), {
+    cwd: app.cwd,
+    env: childEnv({
+      localOwner: app.key === "admin",
+      siteUrl: app.key === "admin" ? siteUrl : undefined,
+    }),
+    detached: true,
+    stdio: ["ignore", logFd, logFd, "ipc"],
+  });
   const listening = new Promise((resolveReady, rejectReady) => {
     child.once("message", (message) => {
       if (

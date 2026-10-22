@@ -6,11 +6,7 @@ import { createServer } from "node:net";
 import { createServer as createHttpServer } from "node:http";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  ensureAppProcess,
-  isManagedProcessCommand,
-  waitForApp,
-} from "../dev/dev-servers.mjs";
+import { ensureAppProcess, waitForApp } from "../dev/dev-servers.mjs";
 import { startManagedAstro } from "../dev/dev-servers-child.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import {
@@ -21,6 +17,7 @@ import {
   devUrl,
   freePortPair,
   parsePortOverride,
+  isManagedProcessCommand,
   portPair,
 } from "../dev/dev-server-ports.mjs";
 
@@ -90,7 +87,7 @@ assert.ok(!/portless/i.test(manager), "the manager must not mention portless");
 assert.equal(DEV_HOST, "127.0.0.1");
 assert.match(
   manager,
-  /\[join\(SCRIPT_DIR, "dev-servers-child.mjs"\), "--port", String\(port\)\]/,
+  /managedChildArgs\(WORKTREE_ROOT, port\)/,
   "the manager starts its own exact-port Astro child",
 );
 assert.ok(manager.includes('stdio: ["ignore", logFd, logFd, "ipc"]'));
@@ -350,6 +347,7 @@ assert.equal(
   isManagedProcessCommand(
     `node ${resolve("scripts/dev/dev-servers-child.mjs")} --port 4580`,
     4580,
+    process.cwd(),
   ),
   true,
 );
