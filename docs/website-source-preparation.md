@@ -1,5 +1,59 @@
 # Website source preparation
 
+## October 22 media review repair and footer release checkpoint
+
+Released main is `5615da43b0ba06189112419713ed0f04c9499b21` (#554), normally
+incorporated into media checkpoint `8d977278`. Footer
+[release39728806591](https://github.com/anipotts/anipotts.com/actions/runs/39728806591)
+deployed www and Admin, with all four workers skipped, schema0044 and no
+migration. Exact public smoke, active provider versions and eight Admin Access
+probes pass. The footer's own public/layout qualification remains distinct from
+media processing proof.
+
+Three automated review findings are repaired in `b711f57c`; test-only `ba6b6910`
+forces the rejected provider through a microtask so its regression exercises the
+actual wait-handler race. Input snapshots use the intrinsic typed-array storage
+length and native indexed copying; caller length fields and iterators cannot
+control identity or allocation. Provider rejections recheck the absolute
+monotonic deadline before propagating a provider error. The bounded JPEG/PNG/WebP
+IFD0 EXIF parser inverse-maps display crop rectangles into encoded axes for all
+eight rotations/mirrors, preserving the original stream and current byte limits.
+Malformed or ambiguous EXIF and orientation/display disagreement fail closed.
+
+The coordinate model follows the [Cloudflare transformation documentation](https://developers.cloudflare.com/images/optimization/features/#trim)
+and [CIPA orientation definitions](https://cipa.jp/std/documents/e/DC-X010-2017.pdf).
+Asymmetric labeled-pixel, endian, metadata-bound and adapter-trim fixtures prove
+the source model. They do not prove the live Images binding's implicit EXIF
+order or actual decoded pixels; that provider qualification remains held.
+No production Images caller, binding, capture/enrollment or migration is added.
+
+CI39730036934 failed only the multi-MiB/32k-fragment memory regression's default
+five-second Vitest timeout; its 2,629 other Admin cases passed. The test retained
+its greater-than-2MiB PNG, 32,768 one-byte fragments, exact byte identity and
+allocation bounds, replacing generic JavaScript deep equality with native byte
+comparison. No test timeout, production deadline or admission limit increased.
+The full repaired 15-case stream suite took196ms locally. Slow-host CI must
+still pass on the final head; the original failure is retained.
+
+Full `pnpm validate` passes14/14 at clean
+`ba6b6910249bffae1c9079fd02094e1112a14c66`. Admin actually executed2,656 core,
+79 Astro,113 local editorial workerd and3 CSP cases, with one existing
+browser-gated skip. Media coverage is70 Node-environment cases and30 actual local
+workerd cases. www's197 public cases pass, including the inherited footer.
+Five new targeted regressions fail the original `8d977278` runtime and all54
+focused repair cases pass. Strict typing, builds, local-owner bundle exclusion
+and post-build source drift pass. This documentation-only follow-up preserves
+the qualified runtime. Required ready-event CI, the three review resolutions and
+fresh protected integration remain pending; #540 remains draft until the owner
+starts those checks. Public provider activation and operational recovery remain
+held. Receipts are in the existing project-cleanup held-foundations directory.
+
+Recovery checkpoint `1d50c94a` separately passed full14/14,129 recovery Node,
+27 local workerd/R2 and120 ordinary editorial workerd cases with the earlier
+qualified media bytes. It remains preserved; after #540 integrates, normally
+merge actual main and qualify the affected changed media/recovery behavior.
+Earlier source and draft-guard statements below are dated checkpoints.
+
 ## October 22 fresh media qualification and next review checkpoints
 
 Media #540 passes full validation14/14 at clean `a128b79aa0dfdd7757f83f0d605ab28588ac5c1c`.
