@@ -1061,7 +1061,7 @@ test(
     for (const [name, value] of [
       ["Homepage order", "7"],
       ["Catalog order", "11"],
-    ]) {
+    ] as const) {
       const order = screen.getByRole("spinbutton", { name, exact: true });
       await order.fill(value);
       await order.press("Enter");

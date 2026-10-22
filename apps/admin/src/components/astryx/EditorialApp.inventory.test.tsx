@@ -152,7 +152,6 @@ it("follows a save and a create made in another open tab", async () => {
       <EditorialApp
         title="Content"
         area="content"
-        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="writing"
@@ -240,7 +239,6 @@ it("moves between libraries in place and back again with history", () => {
       <EditorialApp
         title="Pages"
         area="content"
-        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="website"
