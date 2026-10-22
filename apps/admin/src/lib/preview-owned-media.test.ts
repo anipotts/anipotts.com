@@ -297,7 +297,7 @@ it("keeps real media-store corruption checks in the read path", async () => {
     transaction: async (run: (value: unknown) => Promise<void>) => run(storage),
   };
   const store = new EditorialMediaStore(
-    storage as unknown as DurableObjectStorage,
+    storage as unknown as ConstructorParameters<typeof EditorialMediaStore>[0],
   );
   const saved = await store.save(png);
   if (!saved.ok) throw new Error("real synthetic PNG must be admitted");
