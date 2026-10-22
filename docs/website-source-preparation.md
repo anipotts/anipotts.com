@@ -6,9 +6,15 @@ Recovery `1d50c94a` normally merges repaired media checkpoint `6cb87ed1`,
 whose runtime matches full-qualified `ba6b6910`. The concurrent checked footer
 from main `5615da43` is retained. All recovery runtime/fence bytes and all repaired
 media implementation/test bytes retain their respective parent identities.
-Fresh focused recovery Node/local workerd and ordinary writer/seed regressions
-are scheduled on the combined tree. This does not repeat or extend the prior
-media provider qualification. Production cohort rejection, remote0003, bindings,
+Fresh focused checks pass at clean `41b9aa994eaecc20c610cdb6c6c27be9e5ca13e8`:
+all129 recovery Node,27 actual local workerd/R2 and94 selected ordinary writer/
+media/publication workerd cases, plus6 local SQLite seed cases and strict
+generated editorial typing. The selected ordinary files retain draft24,
+direct-publication40, media15, atomic-media12 and stream3 cases. Both local
+workerd configurations explicitly disable remote bindings. Parent byte identity,
+manifest replay and post-check source drift pass. Full qualification remains
+mapped to recovery `1d50c94a` plus media `ba6b6910`; the focused combination does
+not repeat or extend provider qualification. Production cohort rejection, remote0003, bindings,
 custody and activation remain unchanged. Actual #540 main-merge ancestry and
 protected exact-head checks are still required after #540 integration.
 
