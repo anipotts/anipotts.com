@@ -1,5 +1,43 @@
 # Website source preparation
 
+## October 21 UI candidate refresh and targeted repairs
+
+Current main #553 is deployed to www and Admin by
+[release 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877);
+all four workers were skipped.
+
+The integration owner is refreshing draft #551 with current main
+`1efed9570102052420d65d2fa364350b12ec1398` by ordinary merge. The dependency
+conflict retains released `@astrojs/react` 7.1.0 and pinned Core/Neutral 0.7.1;
+Wrangler 4.151.1, Cloudflare Vitest 1.4.4 and approved brand geometry/motion
+arrive unchanged from main. Projects authoring and the existing Core patch remain
+in this single candidate. No production binding, migration, auth or publication
+change is introduced by this refresh.
+
+Targeted repair `5894a354031efe6e5d6927261b4649239eff9e93` gives the phone
+More actions sheet an explicit trigger `finalFocusRef`. Its real-component DOM
+regression starts with an unrelated main element focused, opens without moving
+focus to the trigger, then verifies Escape and exit return focus to that trigger.
+All 11 action-bar tests pass; removing `finalFocusRef` fails that exact assertion.
+The CSRF test waits for its hydrated recovery input before its one-shot mutation;
+the lifecycle popup uses the existing 20-second readiness budget. The crop helper
+uses the shared SDK button/menuitemradio roles, retaining geometry/hash checks.
+Focused production/native TypeScript, formatting, diff checks and fixture-boundary
+checks pass for the repair. A full combined validation and native run remain due.
+The mixed worker/jsdom declaration check is not counted as a pass: worker globals
+conflict with existing `document.body.append` calls; component and native test
+entry points were checked separately.
+
+The unresolved native brand-asset transport 500 and WebKit `APP_NOT_OPEN` findings
+remain open. The supplemental touch driver remains unqualified. No new browser,
+preview or heavy validation process was started for these repairs. #550 owns the
+current heavy verification slot; #552 browser-runner qualification proceeds
+separately. Held #540/#541 provider, custody and activation gates remain unchanged.
+Fresh exact-head checks, resolved required conversations, current no-bypass branch
+protection and the applicable native release gates are required for integration.
+The October 19 statements below describe their observation time; current standing
+release authority in AGENTS.md supersedes the earlier extra chat-review rule.
+
 ## October 19 project cleanup and consolidated continuation
 
 ### Cleanup verification
@@ -99,6 +137,40 @@ that evidence and qualify native touch events/capabilities before changing the
 assertion. All owned contexts/browser/process groups/ports were confirmed closed.
 Normal main integration, refreshed exact-head checks and Ani's review remain
 required before either candidate can merge.
+
+## October 19 compatible runtime dependency refresh
+
+#539 is merged as `cf7b757b` and Admin-only deploy39272399483 succeeded.
+Its exact provider/schema/eight Access redirect proof passes. #542 is merged as
+`aa860b4b`; release39275594601 succeeded with every runtime target and
+Production skipped, no migration. Their PR descriptions contain current receipts.
+
+Fresh Dependabot proposals arrived after those releases. This isolated candidate
+independently reproduces compatible #546 and #548 updates on main `aa860b4b`:
+Admin React integration 7.1.0, ESLint 10.13.0, Wrangler 4.151.1 across root and all
+four retained workers, and Admin's matching Cloudflare Vitest plugin 1.4.4.
+React/DOM remain 19.3.1, types 19.3.0, Astro 7.4.0, its Cloudflare adapter 14.3.4,
+and Node 24.19.0. Five old package records are removed and three new records added;
+existing retained package records are unchanged. Frozen installation and dependency
+family assertions pass. Full validation, actual browser/native qualification,
+hosted checks, canonical integration and exact review remain pending.
+
+The proposed runtime scope is Admin plus four workers; www is excluded while its
+deployed public tree remains unchanged. No migration, bindings, send logic,
+authentication or production content edits are planned. The fresh bot branches
+are preserved; no bot branch has been edited or merged.
+
+#545 is a separate coherent Core/Neutral 0.7.1 migration: Neutral's exact Core
+peer and adaptive typography make the theme-only bot update incompatible with
+Core 0.4.6. #547 is a separate formatter migration: its default JSX whitespace
+mode differs from both apps' compressHTML:true. Match html before reviewing
+printer changes. Those implementation workers have isolated worktrees and no
+heavy verification slot; the integration owner schedules tests serially.
+
+Inactive #540 media and #541 recovery remain independently checked drafts.
+Their latest source/qualification receipts are in their PRs. A caller-supplied
+ciphertext artifact adapter is a separable source step underway for recovery;
+operational custody, provider setup, migrations and activation remain gated.
 
 ## October 19 browser recovery release and dependency refresh
 
