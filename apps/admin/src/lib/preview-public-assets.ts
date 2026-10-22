@@ -1,4 +1,8 @@
 import client from "../../../www/src/scripts/preview-client.js?raw";
+import { fromHtml } from "hast-util-from-html";
+import { unified } from "unified";
+import rehypeStringify from "rehype-stringify";
+import type { Element, Root, RootContent } from "hast";
 
 declare const __PREVIEW_PUBLIC_SOURCE_ROOT__: string;
 export type PreviewAssetReader = { fetch(request: Request): Promise<Response> };
@@ -15,9 +19,6 @@ type AssetPackage = {
   scripts: string[];
 };
 
-function pathname(value: string) {
-  return value.replaceAll("&amp;", "&");
-}
 async function read(
   reader: PreviewAssetReader,
   origin: URL,
@@ -121,10 +122,9 @@ function devRouterStyle(path: string) {
   const file = decodeURIComponent(url.pathname).replace(/^\/@fs/, "");
   const prefix = `${__PREVIEW_PUBLIC_SOURCE_ROOT__}/node_modules/`;
   if (!file.startsWith(prefix)) return false;
-  const relative = file.slice(prefix.length);
   const component =
     /^(?:\.pnpm\/astro@[^/]+\/node_modules\/)?astro\/components\/(ClientRouter\.astro|viewtransitions\.css)$/.exec(
-      relative,
+      file.slice(prefix.length),
     )?.[1];
   return (
     component === "viewtransitions.css" ||
@@ -133,14 +133,99 @@ function devRouterStyle(path: string) {
       url.searchParams.get("type") === "style")
   );
 }
-function attributes(text: string) {
-  return new Map(
-    [...text.matchAll(/([\w-]+)="([^"<>]*)"/g)].map((match) => [
-      match[1].toLowerCase(),
-      pathname(match[2]),
-    ]),
+function devPublicScript(path: string) {
+  if (!path.startsWith("/") || path.startsWith("//")) return false;
+  const url = new URL(path, "http://localhost");
+  if (
+    url.hash ||
+    [...url.searchParams.keys()].some(
+      (key) =>
+        !["astro", "type", "index", "lang.ts", "lang.js", "t", "v"].includes(
+          key,
+        ),
+    )
+  )
+    return false;
+  if (
+    !url.searchParams.has("astro") ||
+    url.searchParams.get("type") !== "script" ||
+    (url.searchParams.has("index") && url.searchParams.get("index") !== "0")
+  )
+    return false;
+  const file = decodeURIComponent(url.pathname).replace(/^\/@fs/, "");
+  const root = __PREVIEW_PUBLIC_SOURCE_ROOT__;
+  return (
+    [
+      "components/Nav",
+      "components/ProjectMediaStage",
+      "components/SystemMap",
+      "layouts/Shell",
+    ].some((name) => file === `${root}/apps/www/src/${name}.astro`) ||
+    (file.startsWith(`${root}/node_modules/`) &&
+      /^(?:\.pnpm\/astro@[^/]+\/node_modules\/)?astro\/components\/ClientRouter\.astro$/.test(
+        file.slice(`${root}/node_modules/`.length),
+      ))
   );
 }
+
+type Resource = { element: Element; parent: Root | Element; foreign: boolean };
+function resources(tree: Root): Resource[] {
+  const found: Resource[] = [];
+  const pending: Array<{
+    node: RootContent;
+    parent: Root | Element;
+    foreign: boolean;
+  }> = tree.children
+    .map((node) => ({ node, parent: tree, foreign: false }))
+    .reverse();
+  while (pending.length) {
+    const { node, parent, foreign: inherited } = pending.pop()!;
+    if (node.type !== "element") continue;
+    const foreign =
+      inherited || ["svg", "math"].includes(node.tagName.toLowerCase());
+    found.push({ element: node, parent, foreign });
+    const content = (node as Element & { content?: Root }).content;
+    if (content)
+      for (let i = content.children.length - 1; i >= 0; i--)
+        pending.push({ node: content.children[i], parent: content, foreign });
+    for (let i = node.children.length - 1; i >= 0; i--)
+      pending.push({ node: node.children[i], parent: node, foreign });
+  }
+  return found;
+}
+function property(element: Element, name: string): string | undefined {
+  const value = element.properties[name];
+  return typeof value === "string"
+    ? value
+    : typeof value === "number"
+      ? String(value)
+      : undefined;
+}
+function relations(element: Element): string[] {
+  const value = element.properties.rel;
+  return (
+    Array.isArray(value) ? value.map(String) : String(value ?? "").split(/\s+/)
+  ).map((token) => token.toLowerCase());
+}
+function replace(resource: Resource, replacement: Element | null) {
+  const index = resource.parent.children.indexOf(resource.element);
+  if (index < 0) throw new Error("Invalid preview resource tree");
+  if (replacement) resource.parent.children.splice(index, 1, replacement);
+  else resource.parent.children.splice(index, 1);
+}
+function styleElement(css: string): Element {
+  if (css.toLowerCase().includes("</style"))
+    throw new Error("Invalid preview CSS terminator");
+  return {
+    type: "element",
+    tagName: "style",
+    properties: { dataPreviewPublicStyle: true },
+    children: [{ type: "text", value: css }],
+  };
+}
+const stringify = unified().use(rehypeStringify, {
+  characterReferences: { useNamedReferences: true },
+});
 
 /** Closed public CSS/font inputs, one import-free script. No draft bytes enter ASSETS. */
 export async function materializePreviewAssets(
@@ -151,14 +236,20 @@ export async function materializePreviewAssets(
 ) {
   if (new TextEncoder().encode(html).length > MAX_PACKAGE)
     throw new Error("Preview document budget exceeded");
-  const links = [...html.matchAll(/<link\b([^>]*)>/g)];
+  const tree = fromHtml(html);
+  const nodes = resources(tree);
+  const links = nodes.filter(
+    ({ element }) => element.tagName.toLowerCase() === "link",
+  );
   const stylePaths = links
-    .filter((match) => attributes(match[1]).get("rel") === "stylesheet")
-    .map((match) => attributes(match[1]).get("href") ?? "");
+    .filter(({ element }) => relations(element).includes("stylesheet"))
+    .map(({ element }) => property(element, "href") ?? "");
   if (stylePaths.length > 32) throw new Error("Preview style count exceeded");
   const inlineStyles = dev
-    ? [...html.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style>/g)].filter(
-        (match) => attributes(match[1]).has("data-vite-dev-id"),
+    ? nodes.filter(
+        ({ element }) =>
+          element.tagName.toLowerCase() === "style" &&
+          property(element, "dataViteDevId") !== undefined,
       )
     : [];
   const pairedStyles = new Set<string>();
@@ -166,8 +257,9 @@ export async function materializePreviewAssets(
   let pack: AssetPackage;
   if (dev) {
     const styles: AssetPackage["styles"] = [];
-    for (const match of inlineStyles) {
-      const path = attributes(match[1]).get("data-vite-dev-id")!;
+    for (const { element, foreign } of inlineStyles) {
+      if (foreign) throw new Error("Unapproved preview foreign style");
+      const path = property(element, "dataViteDevId")!;
       if (devRouterStyle(path)) {
         routerStyles.add(devStyleKey(path));
         continue;
@@ -175,7 +267,14 @@ export async function materializePreviewAssets(
       if (devFile(path) !== "style")
         throw new Error("Unapproved preview inline style");
       pairedStyles.add(devStyleKey(path));
-      styles.push({ path, css: match[2] });
+      const css = element.children
+        .map((child) => {
+          if (child.type !== "text")
+            throw new Error("Invalid preview style content");
+          return child.value;
+        })
+        .join("");
+      styles.push({ path, css });
     }
     if (inlineStyles.length + stylePaths.length > 32)
       throw new Error("Preview style count exceeded");
@@ -268,6 +367,8 @@ export async function materializePreviewAssets(
         (!dev && !/^\/_astro\/[\w.-]+\.css$/.test(style.path))
       )
         throw new Error("Invalid preview style");
+      if (style.css.toLowerCase().includes("</style"))
+        throw new Error("Invalid preview CSS terminator");
       if (/@import\b/i.test(style.css))
         throw new Error("Unapproved preview CSS import");
       const css = style.css.replace(
@@ -283,59 +384,72 @@ export async function materializePreviewAssets(
       return [style.path, css];
     }),
   );
-  if (dev)
-    html = html.replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/g, (tag, raw) => {
-      const path = attributes(raw).get("data-vite-dev-id");
-      if (!path) return tag;
-      if (routerStyles.has(devStyleKey(path))) return "";
-      const css = styles.get(path);
-      if (css === undefined)
-        throw new Error("Unmanifested preview inline style");
-      return `<style data-preview-public-style>${css.replace(/<\/style/gi, "<\\/style")}</style>`;
-    });
-  html = html.replace(/<link\b([^>]*)>/g, (tag, raw) => {
-    const attr = attributes(raw);
-    const href = attr.get("href") ?? "";
-    if (attr.get("rel") === "stylesheet") {
+  for (const resource of inlineStyles) {
+    const path = property(resource.element, "dataViteDevId")!;
+    if (routerStyles.has(devStyleKey(path))) {
+      replace(resource, null);
+      continue;
+    }
+    const css = styles.get(path);
+    if (css === undefined) throw new Error("Unmanifested preview inline style");
+    replace(resource, styleElement(css));
+  }
+  for (const resource of links) {
+    const rel = relations(resource.element);
+    const href = property(resource.element, "href") ?? "";
+    if (rel.includes("stylesheet")) {
+      if (resource.foreign)
+        throw new Error("Unapproved preview foreign stylesheet");
       const css = styles.get(href);
       if (css === undefined) throw new Error("Unmanifested preview stylesheet");
-      return `<style data-preview-public-style>${css.replace(/<\/style/gi, "<\\/style")}</style>`;
-    }
-    if (attr.get("as") === "font" && attr.get("rel") === "preload") return "";
-    if (attr.get("rel") === "modulepreload") return "";
-    return tag;
-  });
-  html = html.replace(/<script\b([^>]*)>\s*<\/script>/g, (tag, raw) => {
-    const src = attributes(raw).get("src");
-    if (!src) return tag;
-    const decoded = pathname(src);
-    if (dev && (devFile(decoded) === "style" || devRouterStyle(decoded))) {
-      const key = devStyleKey(decoded);
-      if (pairedStyles.has(key) || routerStyles.has(key)) return "";
+      replace(resource, styleElement(css));
+    } else if (
+      (property(resource.element, "as")?.toLowerCase() === "font" &&
+        rel.includes("preload")) ||
+      rel.includes("modulepreload")
+    )
+      replace(resource, null);
+  }
+  for (const resource of nodes) {
+    if (resource.element.tagName.toLowerCase() !== "script") continue;
+    if (resource.foreign) throw new Error("Unapproved preview foreign script");
+    const src = property(resource.element, "src");
+    if (src === undefined) continue; // Trusted renderer product inline code.
+    if (dev && (devFile(src) === "style" || devRouterStyle(src))) {
+      const key = devStyleKey(src);
+      if (pairedStyles.has(key) || routerStyles.has(key)) {
+        replace(resource, null);
+        continue;
+      }
       throw new Error("Unpaired preview style module");
     }
     const knownDev =
       dev &&
-      (decoded === "/@vite/client" ||
-        decoded === "/@id/astro/runtime/client/dev-toolbar/entrypoint.js" ||
-        /\/apps\/www\/src\/(?:components\/(?:Nav|ProjectMediaStage|SystemMap)|layouts\/Shell)\.astro\?astro&type=script/.test(
-          decoded,
-        ) ||
-        /\/node_modules\/astro\/components\/ClientRouter\.astro\?astro&type=script/.test(
-          decoded,
-        ));
-    // Systems previews retain the complete, wrapped source list and hidden
-    // motion control rendered by SystemMap; only its decorative marquee is
-    // omitted. Ordinary public pages still mount their normal animation.
-    if (knownDev || pack.scripts.includes(decoded)) return "";
-    throw new Error("Unmanifested preview script");
-  });
+      (src === "/@vite/client" ||
+        src === "/@id/astro/runtime/client/dev-toolbar/entrypoint.js" ||
+        devPublicScript(src));
+    // Only explicit trusted public scripts are replaced. Systems retains its
+    // complete static workflow; unknown external scripts always fail closed,
+    // including template content and alternate HTML attribute spellings.
+    if (!knownDev && !pack.scripts.includes(src))
+      throw new Error("Unmanifested preview script");
+    replace(resource, null);
+  }
   const ready = `installPreviewClient(); installOwnedPreviewMedia().then(healthy => { if (!healthy()) return; parent.postMessage({type:"editorial-preview-status",request:new URL(location.href).searchParams.get("previewRequest") ?? "",status:"ready"},"*"); }, () => { parent.postMessage({type:"editorial-preview-status",request:new URL(location.href).searchParams.get("previewRequest") ?? "",status:"unavailable"},"*"); console.error("Preview media unavailable"); });`;
-  const script = `${client}\n${ready}`.replace(/<\/script/gi, "<\\/script");
-  html = html.replace(
-    "</body>",
-    `<script type="module" data-preview-public-client>${script}</script></body>`,
-  );
+  const script = `${client}\n${ready}`;
+  if (script.toLowerCase().includes("</script"))
+    throw new Error("Invalid preview client terminator");
+  const body = nodes.find(
+    ({ element, foreign }) => !foreign && element.tagName === "body",
+  )?.element;
+  if (!body) throw new Error("Preview body missing");
+  body.children.push({
+    type: "element",
+    tagName: "script",
+    properties: { type: "module", dataPreviewPublicClient: true },
+    children: [{ type: "text", value: script }],
+  });
+  html = stringify.stringify(tree);
   if (new TextEncoder().encode(html).length > 4 * 1024 * 1024)
     throw new Error("Materialized preview budget exceeded");
   return html;

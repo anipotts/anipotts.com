@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import ts from "typescript";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -161,7 +162,10 @@ it("replaces only the known Systems motion script while retaining its static com
   );
   expect(result).toContain('data-source="gmail"');
   expect(result).toContain('data-source="github"');
-  expect(result).toContain("data-motion-toggle hidden");
+  const parsed = new DOMParser().parseFromString(result, "text/html");
+  expect(
+    parsed.querySelector<HTMLButtonElement>("[data-motion-toggle]")?.hidden,
+  ).toBe(true);
   expect(result).not.toContain("data-animated");
   expect(result).not.toContain('<script src="/_astro/SystemMap');
   const devPath = `/@fs${root}/apps/www/src/components/SystemMap.astro?astro&type=script&index=0&lang.ts`;
@@ -176,7 +180,10 @@ it("replaces only the known Systems motion script while retaining its static com
     assets,
     true,
   );
-  expect(devResult).toContain("data-motion-toggle hidden");
+  const parsedDEV = new DOMParser().parseFromString(devResult, "text/html");
+  expect(
+    parsedDEV.querySelector<HTMLButtonElement>("[data-motion-toggle]")?.hidden,
+  ).toBe(true);
   expect(assets.fetch).not.toHaveBeenCalled();
   await expect(
     materializePreviewAssets(
@@ -273,4 +280,115 @@ it.each([
     ),
   ).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it.each([
+  '<SCRIPT SRC="/api/private">ignored external body</SCRIPT >',
+  "<script src='/api/private'></script>",
+  "<script src=/api/private></script >",
+  '<ScRiPt src="&#47;api&#47;private"></ScRiPt>',
+  '<script\nsrc="/api/private"></script\t>',
+  '<template><script src="/api/private"></script></template>',
+  "<template><template><SCRIPT SRC=/api/private></SCRIPT ></template></template>",
+  '<svg><script href="/api/private"></script></svg>',
+  '<svg><script xlink:href="/api/private" /></svg>',
+  '<svg><foreignObject><script src="/api/private"></script></foreignObject></svg>',
+  '<math><script src="/api/private"></script></math>',
+  '<script/SRC="/api/private"></script>',
+  '<noscript><script src="/api/private"></script></noscript>',
+])(
+  "rejects unknown or foreign external scripts using HTML structure: %s",
+  async (input) => {
+    const assets = reader(pack());
+    await expect(
+      materializePreviewAssets(
+        `<html><head></head><body>${input}</body></html>`,
+        origin,
+        assets,
+        false,
+      ),
+    ).rejects.toThrow();
+    expect(assets.fetch).toHaveBeenCalledTimes(1);
+  },
+);
+it.each([
+  `<SCRIPT SRC='${script}'>ignored external body</SCRIPT >`,
+  `<script src=${script}></script\t>`,
+  `<script src="&#47;_astro&#47;Nav.ABC123.js"></script>`,
+  `<template><script src='${script}'></script ></template>`,
+])(
+  "replaces manifest-owned scripts regardless of legal HTML spelling: %s",
+  async (input) => {
+    const result = await materializePreviewAssets(
+      `<html><head></head><body>${input}<script>window.productInline=true</script></body></html>`,
+      origin,
+      reader(pack()),
+      false,
+    );
+    const parsed = new DOMParser().parseFromString(result, "text/html");
+    expect(parsed.querySelector("script[src]")).toBeNull();
+    expect(
+      parsed.querySelector("template")?.content.querySelector("script[src]") ??
+        null,
+    ).toBeNull();
+    expect(result).toContain("window.productInline=true");
+  },
+);
+it("structurally materializes uppercase single-quoted stylesheet links and decoded URL entities", async () => {
+  const input = `<HTML><HEAD><LINK REL='stylesheet' HREF='&#47;_astro&#47;record.ABC123.css'></HEAD><BODY><a href="/work?one=1&amp;two=2">link</a></BODY></HTML>`;
+  const result = await materializePreviewAssets(
+    input,
+    origin,
+    reader(pack()),
+    false,
+  );
+  const parsed = new DOMParser().parseFromString(result, "text/html");
+  expect(parsed.querySelector('link[rel="stylesheet"]')).toBeNull();
+  expect(
+    parsed.querySelector("[data-preview-public-style]")?.textContent,
+  ).toContain("data:font/woff2");
+  expect(parsed.querySelector("a")?.getAttribute("href")).toBe(
+    "/work?one=1&two=2",
+  );
+});
+it.each(["</style", "</STYLE >", "</sTyLe\t>", "</styleanything"])(
+  "rejects CSS closing prefixes before raw-text insertion: %s",
+  async (end) => {
+    const value = pack();
+    value.styles[0].css = `body{color:red}${end}<script src=/api/private></script>`;
+    await expect(
+      materializePreviewAssets(html, origin, reader(value), false),
+    ).rejects.toThrow("Invalid preview CSS terminator");
+  },
+);
+it.each(["</script", "</SCRIPT >", "</sCrIpT\t>"])(
+  "rejects fixed client closing prefixes before raw-text insertion: %s",
+  async (end) => {
+    vi.resetModules();
+    vi.doMock("../../../www/src/scripts/preview-client.js?raw", () => ({
+      default: `/* ${end} */`,
+    }));
+    try {
+      const isolated = await import("./preview-public-assets");
+      await expect(
+        isolated.materializePreviewAssets(html, origin, reader(pack()), false),
+      ).rejects.toThrow("Invalid preview client terminator");
+    } finally {
+      vi.doUnmock("../../../www/src/scripts/preview-client.js?raw");
+      vi.resetModules();
+    }
+  },
+);
+it("does not mistake an external origin's source-path lookalike for a trusted DEV script", async () => {
+  const input =
+    '<html><head></head><body><script src="https://foreign.example/apps/www/src/components/Nav.astro?astro&type=script"></script></body></html>';
+  const assets = {
+    fetch: vi.fn(async () => {
+      throw new Error("No asset reads expected");
+    }),
+  };
+  await expect(
+    materializePreviewAssets(input, origin, assets, true),
+  ).rejects.toThrow("Unmanifested preview script");
+  expect(assets.fetch).not.toHaveBeenCalled();
 });

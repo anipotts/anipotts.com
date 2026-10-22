@@ -52,6 +52,7 @@
     "astro": "7.4.0",
     "astro-icon": "^1.2.0",
     "github-slugger": "^2.0.0",
+    "hast-util-from-html": "2.0.3",
     "jose": "^6.2.12",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
