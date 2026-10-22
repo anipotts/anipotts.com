@@ -1,0 +1,12 @@
+diff --git a/dist/transitions/router.js b/dist/transitions/router.js
+--- a/dist/transitions/router.js
++++ b/dist/transitions/router.js
+@@ -107,7 +107,7 @@ function runScripts() {
+ 	for (const script of document.getElementsByTagName("script")) {
+ 		script.dataset.astroExec === undefined && script.getAttribute("type") === "module" && (needsWaitForInlineModuleScript = script.getAttribute("src") === null);
+ 	}
+-	needsWaitForInlineModuleScript && document.body.insertAdjacentHTML("beforeend", `<script type="module" src="data:application/javascript,"/>`);
++	needsWaitForInlineModuleScript && document.body.insertAdjacentHTML("beforeend", `<script type="module" src="/_astro/astro-module-sentinel.js"/>`);
+ 	for (const script of document.getElementsByTagName("script")) {
+ 		if (script.dataset.astroExec === "") continue;
+ 		const type = script.getAttribute("type");

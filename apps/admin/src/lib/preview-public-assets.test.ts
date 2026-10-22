@@ -392,3 +392,33 @@ it("does not mistake an external origin's source-path lookalike for a trusted DE
   ).rejects.toThrow("Unmanifested preview script");
   expect(assets.fetch).not.toHaveBeenCalled();
 });
+
+it("removes parser-time autofocus only from the known preview image viewer close control", async () => {
+  const input =
+    '<html><head></head><body><dialog data-image-viewer><button data-image-close autofocus>close</button><button autofocus>other viewer control</button></dialog><dialog><button data-image-close autofocus>unrelated close</button></dialog><button id="ordinary" autofocus>ordinary</button></body></html>';
+  const result = await materializePreviewAssets(
+    input,
+    origin,
+    reader(pack()),
+    false,
+  );
+  const parsed = new DOMParser().parseFromString(result, "text/html");
+  expect(
+    parsed
+      .querySelector("[data-image-viewer] [data-image-close]")
+      ?.hasAttribute("autofocus"),
+  ).toBe(false);
+  expect(
+    parsed
+      .querySelector("[data-image-viewer] button:not([data-image-close])")
+      ?.hasAttribute("autofocus"),
+  ).toBe(true);
+  expect(
+    parsed
+      .querySelector("dialog:not([data-image-viewer]) [data-image-close]")
+      ?.hasAttribute("autofocus"),
+  ).toBe(true);
+  expect(parsed.querySelector("#ordinary")?.hasAttribute("autofocus")).toBe(
+    true,
+  );
+});

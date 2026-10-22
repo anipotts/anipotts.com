@@ -37,6 +37,9 @@ export function mountProjectMedia() {
         dialog.dataset.zoomed = "false";
         zoom.setAttribute("aria-pressed", "false");
         dialog.showModal();
+        dialog
+          .querySelector("[data-image-close]")
+          ?.focus({ preventScroll: true });
         canvas.scrollTo(0, 0);
       });
     });

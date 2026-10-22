@@ -238,6 +238,26 @@ export async function materializePreviewAssets(
     throw new Error("Preview document budget exceeded");
   const tree = fromHtml(html);
   const nodes = resources(tree);
+  // A closed viewer must not attempt parser-time focus in an opaque frame.
+  // User activation explicitly focuses its close control when it opens.
+  for (const { element, foreign } of nodes) {
+    if (
+      foreign ||
+      element.tagName !== "dialog" ||
+      !Object.hasOwn(element.properties, "dataImageViewer")
+    )
+      continue;
+    for (const { element: control } of resources({
+      type: "root",
+      children: [element],
+    })) {
+      if (
+        control.tagName === "button" &&
+        Object.hasOwn(control.properties, "dataImageClose")
+      )
+        delete control.properties.autoFocus;
+    }
+  }
   const links = nodes.filter(
     ({ element }) => element.tagName.toLowerCase() === "link",
   );

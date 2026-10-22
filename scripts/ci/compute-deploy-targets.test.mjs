@@ -163,6 +163,12 @@ expectTargets(
   {},
 );
 
+expectTargets(
+  "reviewed Astro router patch deploys both app consumers",
+  ["patches/astro@7.4.0.patch"],
+  { www: true, admin: true },
+);
+
 // The exact patch mapping must be revisited if another workspace adopts core.
 const coreConsumers = execFileSync(
   "git",

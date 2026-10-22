@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import {
   installOwnedPreviewMedia,
   installPreviewClient,
+  mountProjectMedia,
 } from "../../../www/src/scripts/preview-client.js";
 const id = "a".repeat(64) + ".png";
 afterEach(() => {
@@ -143,3 +144,38 @@ it.each([
     expect(root.dataset.theme).toBe(expected);
   },
 );
+
+it("focuses image-viewer close only after its user-triggered open", () => {
+  document.body.innerHTML =
+    '<button id="parent-focus">parent</button><figure data-project-media><a href="/images/synthetic.png" data-media-enlarge data-media-alt="synthetic image">enlarge</a><dialog data-image-viewer><button data-image-zoom>actual size</button><a data-image-original>original</a><button data-image-close>close</button><div class="image-viewer__canvas" tabindex="0"><img data-viewer-image></div><p data-image-description></p></dialog></figure>';
+  const dialog = document.querySelector("dialog")!;
+  const parent = document.querySelector<HTMLButtonElement>("#parent-focus")!;
+  const close = dialog.querySelector<HTMLButtonElement>("[data-image-close]")!;
+  const zoom = dialog.querySelector<HTMLButtonElement>("[data-image-zoom]")!;
+  const canvas = dialog.querySelector<HTMLElement>(".image-viewer__canvas")!;
+  const show = vi.fn(() => {
+    dialog.setAttribute("open", "");
+    zoom.focus(); // Native default after preview-only autofocus removal.
+  });
+  Object.defineProperty(dialog, "showModal", {
+    configurable: true,
+    value: show,
+  });
+  Object.defineProperty(canvas, "scrollTo", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  parent.focus();
+  mountProjectMedia();
+  expect(show).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(parent);
+  document.querySelector<HTMLAnchorElement>("[data-media-enlarge]")!.click();
+  expect(show).toHaveBeenCalledTimes(1);
+  expect(dialog.open).toBe(true);
+  expect(document.activeElement).toBe(close);
+  expect(
+    dialog.querySelector<HTMLImageElement>("[data-viewer-image]")!.alt,
+  ).toBe("synthetic image");
+  zoom.click();
+  expect(document.activeElement).toBe(canvas);
+});
