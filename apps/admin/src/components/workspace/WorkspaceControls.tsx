@@ -13,10 +13,16 @@ function tooltip(
     label: string;
     tooltip?: string;
     "aria-describedby"?: string;
+    isDisabled?: boolean;
+    isLoading?: boolean;
   },
   fallback: boolean,
 ) {
-  return Object.prototype.hasOwnProperty.call(props, "aria-describedby")
+  // Core keeps tooltip-bearing disabled buttons focusable with aria-disabled.
+  // Workspace disabled/loading controls must retain native disabled semantics.
+  return props.isDisabled ||
+    props.isLoading ||
+    Object.prototype.hasOwnProperty.call(props, "aria-describedby")
     ? undefined
     : (props.tooltip ?? (fallback ? props.label : undefined));
 }

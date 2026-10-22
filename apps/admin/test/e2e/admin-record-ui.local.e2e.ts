@@ -683,7 +683,7 @@ async function titleGeometry(browser: Browser) {
 }
 
 test(
-  "Astryx migration preserves Writing typography, autosize, tooltip Escape and SDK selectors in sheets",
+  "Core consolidation preserves Writing typography, autosize, tooltip Escape and selectors in sheets",
   { timeout: 120_000 },
   async (fixtures) => {
     const { app, browser, screen } = fixtures;
@@ -840,7 +840,7 @@ test(
 );
 
 test(
-  "Astryx migration preserves native Core fields and nested selector focus and relationships",
+  "Core consolidation preserves native Core fields and nested selector focus and relationships",
   { timeout: 120_000 },
   async ({ app, browser, screen }) => {
     let publicationWrites = 0;

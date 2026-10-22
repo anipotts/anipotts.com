@@ -359,7 +359,7 @@ it("shows an icon-only action tooltip when focused by keyboard", async () => {
 });
 
 it.each(["button", "icon", "toggle"] as const)(
-  "retains externally owned tooltip descriptions without adding an SDK tooltip on %s controls",
+  "retains externally owned tooltip descriptions without adding a competing tooltip on %s controls",
   async (kind) => {
     vi.useFakeTimers();
     const ref = React.createRef<HTMLButtonElement>();

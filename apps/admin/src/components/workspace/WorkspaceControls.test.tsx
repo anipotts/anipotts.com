@@ -127,8 +127,7 @@ it.each([false, true])(
       );
       const box = field.closest<HTMLElement>(`.${control}`)!;
       expect(box).not.toBeNull();
-      // Core paints the control box; SDK Input puts its native style on
-      // the input inside that box. Both retain the requested text color.
+      // The native control and its Core box retain the requested text color.
       expect(field.style.color || box.style.color).toBe(color);
       expect(field.labels?.[0]?.textContent).toBe(
         field === inputRef.current ? "Address" : "Body",
@@ -333,3 +332,30 @@ it("composes menu trigger callbacks, preserves refs and respects caller cancella
       ?.getAttribute("role"),
   ).toBe("menu");
 });
+
+it.each(["disabled", "loading"] as const)(
+  "keeps %s icon actions natively disabled despite tooltip text",
+  async (state) => {
+    act(() =>
+      root.render(
+        <AdminUIProvider enabled>
+          <controls.IconButton
+            label="Synthetic action"
+            icon={<span />}
+            tooltip="Synthetic action help"
+            isDisabled={state === "disabled"}
+            isLoading={state === "loading"}
+          />
+        </AdminUIProvider>,
+      ),
+    );
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-label")).toBe("Synthetic action");
+    if (state === "loading")
+      expect(button.getAttribute("aria-busy")).toBe("true");
+    await act(async () => button.focus());
+    expect(document.activeElement).not.toBe(button);
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+  },
+);

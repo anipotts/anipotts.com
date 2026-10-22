@@ -129,13 +129,15 @@ function button(label: string) {
   return target!;
 }
 function selector(label: string) {
-  const name = [...host.querySelectorAll("span[id]")].find(
-    (item) => item.textContent === label,
+  const trigger = [
+    ...host.querySelectorAll<HTMLButtonElement>('button[role="combobox"]'),
+  ].find((button) =>
+    [...(button.labels ?? [])].some(
+      (item) => item.textContent?.trim() === label,
+    ),
   );
-  expect(name, label).toBeDefined();
-  return host.querySelector<HTMLButtonElement>(
-    `button[aria-labelledby="${name!.id}"]`,
-  )!;
+  expect(trigger, label).toBeDefined();
+  return trigger!;
 }
 function open(label: string) {
   const trigger = selector(label);
@@ -147,15 +149,19 @@ function open(label: string) {
   return trigger;
 }
 function choose(label: string, value: string) {
-  open(label);
+  const trigger = open(label);
+  const listbox = document.getElementById(
+    trigger.getAttribute("aria-controls")!,
+  );
+  expect(listbox?.getAttribute("role")).toBe("listbox");
   const option = [
-    ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ...listbox!.querySelectorAll<HTMLElement>('[role="option"]'),
   ].find((item) => item.textContent === value);
   expect(option, value).toBeDefined();
   act(() => option!.click());
 }
 
-it("round-trips project metadata through actual SDK fields while retaining body and unrelated frontmatter", () => {
+it("round-trips project metadata through actual Core fields while retaining body and unrelated frontmatter", () => {
   source = setEditorialField(source, ["retained_extension"], "keep me");
   act(() => root.render(<Fixture />));
   input("Role", "Engineering");
@@ -204,7 +210,7 @@ it("keeps Hidden unavailable in the visibility menu so taking down remains a rev
   act(() => root.render(<Fixture />));
   open("Website visibility");
   const hidden = [
-    ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    ...document.querySelectorAll<HTMLElement>('[role="option"]'),
   ].find((item) => item.textContent === "Hidden")!;
   expect(hidden.getAttribute("aria-disabled")).toBe("true");
   act(() => hidden.click());
@@ -277,7 +283,7 @@ it("moves story media with its section and edits roadmap and image metadata thro
 });
 
 it.each([false, true])(
-  "disabled project controls retain the source and block all media callbacks (SDK=%s)",
+  "disabled project controls retain the source and block all media callbacks (workspace boundary=%s)",
   (enabled) => {
     const original = source;
     act(() => root.render(<Fixture enabled={enabled} disabled />));
