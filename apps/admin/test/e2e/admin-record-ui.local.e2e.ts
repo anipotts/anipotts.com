@@ -1296,6 +1296,27 @@ test(
     expect(saved.hasPublishedBase).toBe(false);
     expect(project.evidence.publicationWrites).toBe(0);
     await app.open("/content/projects");
+    console.info(
+      "synthetic-project-library-link",
+      await browser.evaluate(
+        ({ path, title }) => {
+          const links = [
+            ...document.querySelectorAll<HTMLAnchorElement>("main a"),
+          ]
+            .filter((link) => link.textContent?.includes(title))
+            .map((link) => ({
+              rawHref: link.getAttribute("href"),
+              resolvedHref: link.href,
+              pathname: new URL(link.href).pathname,
+              origin: new URL(link.href).origin,
+              accessibleName:
+                link.getAttribute("aria-label") ?? link.textContent,
+            }));
+          return { path, title, origin: location.origin, links };
+        },
+        { path: project.path, title: project.title },
+      ),
+    );
     const listed = browser
       .locator(
         `main a[href="${project.path}"], main a[href^="${project.path}?"]`,

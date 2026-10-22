@@ -1057,7 +1057,16 @@ it("holds project navigation and unload while media is pending", async () => {
     ),
   );
   expect(host.querySelector('[data-testid="project-media"]')).not.toBeNull();
+  const publishButton = () =>
+    [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Publish",
+    )!;
+  expect(publishButton().disabled).toBe(false);
   act(() => projectMedia.props.onPendingChange(true));
+  expect(publishButton().disabled).toBe(true);
+  await click("Publish");
+  expect(window.location.search).not.toContain("view=review");
+  expect(host.querySelector('aside[aria-label="Review changes"]')).toBeNull();
   await menuItem("Properties");
   expect(host.querySelector('aside[aria-label="Properties"]')).toBeNull();
   expect(host.textContent).toContain(
@@ -1076,6 +1085,7 @@ it("holds project navigation and unload while media is pending", async () => {
   });
   expect(window.location.search).not.toContain("view=preview");
   act(() => projectMedia.props.onPendingChange(false));
+  expect(publishButton().disabled).toBe(false);
   await menuItem("Properties");
   expect(host.querySelector('aside[aria-label="Properties"]')).not.toBeNull();
 });

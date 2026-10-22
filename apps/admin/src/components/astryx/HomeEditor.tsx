@@ -1970,7 +1970,7 @@ function HomeEditorImpl({
             : "Publish",
         isPublished: publishedCurrent,
         isLoading: reviewLoading && tab === "publish",
-        isDisabled: !valid || discarded || publishedCurrent,
+        isDisabled: !valid || discarded || publishedCurrent || uploadPending,
         onClick: () => {
           setConfirmingUnpublish(false);
           setTab("publish");
