@@ -38,24 +38,20 @@ const links = [
     <p class="mono">{siteConfig.displayName}</p>
     <h1>links</h1>
     <nav aria-label="profile links">
-      {
-        links.map((link) => (
-          <a
-            href={link.href}
-            target={link.external ? "_blank" : undefined}
-            rel={link.external ? "noopener noreferrer" : undefined}
-          >
-            {link.label}
-            {link.external && (
-              <Icon
-                name="ph:arrow-bend-right-up"
-                class="links-affordance"
-                aria-hidden="true"
-              />
-            )}
-          </a>
-        ))
-      }
+      {links.map((link) => <a
+        href={link.href}
+        target={link.external ? "_blank" : undefined}
+        rel={link.external ? "noopener noreferrer" : undefined}
+      >
+        {link.label}
+        {link.external && (
+          <Icon
+            name="ph:arrow-bend-right-up"
+            class="links-affordance"
+            aria-hidden="true"
+          />
+        )}
+      </a>)}
     </nav>
   </section>
 </Shell>

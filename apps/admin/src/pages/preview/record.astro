@@ -96,42 +96,36 @@ if (!writing && !project && !page?.success)
   return previewFailure(Astro.url, "source-only", 409);
 ---
 
-{
-  writing ? (
-    <WritingDetail item={writing} allWriting={allWriting} preview />
-  ) : project ? (
-    <WorkDetail project={project} preview />
-  ) : (
-    page?.success && (
-      <Shell
-        title={page.data.title}
-        description={page.data.description}
-        path={`/${record.id}`}
-        robots="noindex, nofollow, noarchive"
-      >
-        <p class="muted">Page introduction preview</p>
-        <PageHero
-          title={page.data.hero_title}
-          summary={page.data.hero_summary}
-          summaryCompact={page.data.hero_summary_compact}
-        />
-        {systems && (
-          <>
-            <p>
-              <InlineText text={systems.workflow.intro} />
-            </p>
-            <SystemMap workflow={systems.workflow} />
-            {systems.workflow.outro && (
-              <p>
-                <InlineText text={systems.workflow.outro} />
-              </p>
-            )}
-          </>
-        )}
-      </Shell>
-    )
-  )
-}
+{writing ? (
+  <WritingDetail item={writing} allWriting={allWriting} preview />
+) : project ? (
+  <WorkDetail project={project} preview />
+) : (
+  page?.success && <Shell
+    title={page.data.title}
+    description={page.data.description}
+    path={`/${record.id}`}
+    robots="noindex, nofollow, noarchive"
+  >
+    <p class="muted">Page introduction preview</p>
+    <PageHero
+      title={page.data.hero_title}
+      summary={page.data.hero_summary}
+      summaryCompact={page.data.hero_summary_compact}
+    />
+    {systems && (
+      <>
+        <p>
+          <InlineText text={systems.workflow.intro} />
+        </p>
+        <SystemMap workflow={systems.workflow} />
+        {systems.workflow.outro && <p>
+          <InlineText text={systems.workflow.outro} />
+        </p>}
+      </>
+    )}
+  </Shell>
+)}
 
 <script is:inline>
   const request =

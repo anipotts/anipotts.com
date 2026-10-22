@@ -21,21 +21,17 @@ const current = Astro.url.pathname;
     data-open="false"
   >
     <span class="nav-links">
-      {
-        items.map((item) => (
-          <a
-            href={item.path}
-            class="nav-link"
-            aria-current={
-              current === item.path || current.startsWith(`${item.path}/`)
-                ? "page"
-                : undefined
-            }
-          >
-            {item.name}
-          </a>
-        ))
-      }
+      {items.map((item) => <a
+        href={item.path}
+        class="nav-link"
+        aria-current={
+          current === item.path || current.startsWith(`${item.path}/`)
+            ? "page"
+            : undefined
+        }
+      >
+        {item.name}
+      </a>)}
     </span>
   </nav>
   <button

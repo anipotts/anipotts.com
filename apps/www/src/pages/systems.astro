@@ -19,25 +19,17 @@ const content = page;
   />
   <section class="stack" aria-label="Working with agents">
     <div class="intro">
-      {
-        content.workflow.intro
-          .split(/\n\s*\n/)
-          .filter(Boolean)
-          .map((paragraph) => (
-            <p class="page-intro">
-              <InlineText text={paragraph} />
-            </p>
-          ))
-      }
+      {content.workflow.intro
+        .split(/\n\s*\n/)
+        .filter(Boolean)
+        .map((paragraph) => <p class="page-intro">
+          <InlineText text={paragraph} />
+        </p>)}
     </div>
     <SystemMap workflow={content.workflow} />
-    {
-      content.workflow.outro && (
-        <p class="page-intro workflow-outro">
-          <InlineText text={content.workflow.outro} />
-        </p>
-      )
-    }
+    {content.workflow.outro && <p class="page-intro workflow-outro">
+      <InlineText text={content.workflow.outro} />
+    </p>}
   </section>
 </Shell>
 

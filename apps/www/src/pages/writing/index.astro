@@ -23,11 +23,9 @@ const copy = page;
 
   <section data-rise class="stack">
     <div class="list">
-      {
-        writingEntries.map((item, index) => (
-          <WritingRow item={item} flowVariant={index} />
-        ))
-      }
+      {writingEntries.map((item, index) => (
+        <WritingRow item={item} flowVariant={index} />
+      ))}
     </div>
   </section>
 </Shell>

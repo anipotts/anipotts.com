@@ -17,21 +17,19 @@ const { text, format, mentionKeys, mentions } = Astro.props;
 const segments = segmentHomepageSummaryParagraph(text, mentionKeys, mentions);
 ---
 
-{
-  format === "markdown" || /!?\[[^\]]*\]\(/u.test(text) ? (
-    <InlineText text={text} />
-  ) : (
-    segments.map((segment) =>
-      segment.kind === "text" ? (
-        segment.text
-      ) : (
-        <InlineMention
-          {...mentions[segment.key]}
-          label={segment.text}
-          suffix={segment.suffix}
-          eager
-        />
-      ),
-    )
+{format === "markdown" || /!?\[[^\]]*\]\(/u.test(text) ? (
+  <InlineText text={text} />
+) : (
+  segments.map((segment) =>
+    segment.kind === "text" ? (
+      segment.text
+    ) : (
+      <InlineMention
+        {...mentions[segment.key]}
+        label={segment.text}
+        suffix={segment.suffix}
+        eager
+      />
+    ),
   )
-}
+)}

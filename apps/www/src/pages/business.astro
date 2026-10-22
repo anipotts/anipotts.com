@@ -51,11 +51,9 @@ const organizationLd = {
         <dt class="section-label">registered agent</dt>
         <dd>
           <address>
-            {
-              [registeredAgent.name, ...registeredAgent.lines].map((line) => (
-                <span>{line}</span>
-              ))
-            }
+            {[registeredAgent.name, ...registeredAgent.lines].map(
+              (line) => <span>{line}</span>,
+            )}
           </address>
         </dd>
       </div>

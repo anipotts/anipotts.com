@@ -76,13 +76,11 @@ const appProps = {
 ---
 
 <AdminDocument title={Astro.props.title}>
-  {
-    renderContent ? (
-      <EditorialApp {...appProps} client:load>
-        <slot />
-      </EditorialApp>
-    ) : (
-      <EditorialApp {...appProps} client:load />
-    )
-  }
+  {renderContent ? (
+    <EditorialApp {...appProps} client:load>
+      <slot />
+    </EditorialApp>
+  ) : (
+    <EditorialApp {...appProps} client:load />
+  )}
 </AdminDocument>
