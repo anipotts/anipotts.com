@@ -86,7 +86,10 @@ The completed #551 release and qualified browser-policy evidence are recorded ab
 The remaining SDK and held-foundation qualification is separate from shipped proof.
 
 Thirty-one retired checkout paths are removed with source refs and local
-receipts preserved. The seven remaining stale app cards were traced to this
+receipts preserved. Another109 inactive local agent branches were removed only
+after verifying their exact heads are merged into main and absent from active
+worktrees. A local branch/SHA receipt preserves recovery; active, unmerged and
+human-named branches remain. The seven remaining stale app cards were traced to this
 chat (three) and original content worker
 `01a15008-1dac-7480-90b2-424f4c9d0787` (four). Native archival rejects ownership
 even from those contexts; direct app-server messages to the multi-agent worker

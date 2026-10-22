@@ -34,6 +34,7 @@ See [local development](docs/local-development.md).
 - [ ] Repair and qualify the Admin Core consolidation. Frozen installation and the candidate dependency audit pass with zero advisories; focused mounted tests exposed wrapper behavior gaps that must pass before release.
 - [ ] Refresh and qualify held [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery source. #540 has a clean local normal-main refresh; provider, custody and activation gates remain separate.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+- [ ] Resolve seven stale native worktree-card ownership errors; formatter and released authoring worktree archival remain queued. See the [cleanup checkpoint](docs/website-source-preparation.md).
 
 #551 is merged as `1936106c`; [release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758) deployed www and Admin. All four workers were skipped, schema0044, no migration. Exact public smoke and provider/Admin Access proof pass. #552 was consolidated and marked merged by GitHub.
 
