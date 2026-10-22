@@ -756,6 +756,22 @@ test(
     // real native Core controls inside the same RecordPanel as the editor,
     // without forcing any production route back out of its migrated SDK UI.
     await app.open("/content/dev-catalog");
+    // The opener is server-rendered; wait for its real event handler before
+    // the one click whose focus and selector behavior this case verifies.
+    await expect
+      .poll(
+        () =>
+          browser.evaluate(
+            () =>
+              document
+                .querySelector(
+                  'astro-island[component-url*="dev-review-catalog"]',
+                )
+                ?.hasAttribute("ssr") === false,
+          ),
+        { timeout: 20_000 },
+      )
+      .toBe(true);
     expect(
       await browser.evaluate(
         () =>
@@ -1280,7 +1296,11 @@ test(
     expect(saved.hasPublishedBase).toBe(false);
     expect(project.evidence.publicationWrites).toBe(0);
     await app.open("/content/projects");
-    const listed = browser.locator(`main a[href="${project.path}"]`).first();
+    const listed = browser
+      .locator(
+        `main a[href="${project.path}"], main a[href^="${project.path}?"]`,
+      )
+      .first();
     await expect(listed).toBeVisible({ timeout: 20_000 });
     await expect(listed).toContainText(project.title);
     await listed.click();
