@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { ensureLocalContentDatabase } from "./local-content-db.mjs";
 import {
   DEV_HOST,
@@ -20,6 +20,8 @@ import {
   freePortPair,
   isPortFree,
   parsePortOverride,
+  managedChildArgs,
+  isManagedProcessCommand,
 } from "./dev-server-ports.mjs";
 import {
   DEFAULT_WORKER_SLOTS,
@@ -135,11 +137,10 @@ function processCommand(pid) {
 
 /** Only a process this manager started for this app and port is ever stopped. */
 function isRecognizedProcess(record) {
-  const command = processCommand(record.pid);
-  return (
-    command.includes("astro") &&
-    command.includes(" dev") &&
-    command.includes(`--port ${record.port}`)
+  return isManagedProcessCommand(
+    processCommand(record.pid),
+    record.port,
+    WORKTREE_ROOT,
   );
 }
 
@@ -200,34 +201,42 @@ function startApp(app, port, siteUrl) {
   mkdirSync(LOCAL_DIR, { recursive: true, mode: 0o700 });
   const logPath = join(LOCAL_DIR, `${app.key}.log`);
   const logFd = openSync(logPath, "a", 0o600);
-  // Astro 7 detaches `astro dev` when it detects a coding agent. This manager
-  // owns the process, its port and its log, so it keeps the server in the
-  // foreground and skips Astro's own lock (--ignore-lock does both).
-  const child = spawn(
-    "pnpm",
-    [
-      "exec",
-      "astro",
-      "dev",
-      "--host",
-      DEV_HOST,
-      "--port",
-      String(port),
-      "--ignore-lock",
-    ],
-    {
-      cwd: app.cwd,
-      env: childEnv({
-        localOwner: app.key === "admin",
-        siteUrl: app.key === "admin" ? siteUrl : undefined,
-      }),
-      detached: true,
-      stdio: ["ignore", logFd, logFd],
-    },
-  );
+  // The app's Astro API stays foreground and uses Vite's supported strictPort.
+  // The child confirms its actual address before any HTTP health is accepted.
+  const child = spawn(process.execPath, managedChildArgs(WORKTREE_ROOT, port), {
+    cwd: app.cwd,
+    env: childEnv({
+      localOwner: app.key === "admin",
+      siteUrl: app.key === "admin" ? siteUrl : undefined,
+    }),
+    detached: true,
+    stdio: ["ignore", logFd, logFd, "ipc"],
+  });
+  const listening = new Promise((resolveReady, rejectReady) => {
+    child.once("message", (message) => {
+      if (
+        message?.type === "listening" &&
+        message.host === DEV_HOST &&
+        message.port === port
+      )
+        resolveReady();
+      else
+        rejectReady(
+          new Error(`${app.key} reported an unexpected listening address`),
+        );
+    });
+    child.once("error", rejectReady);
+    child.once("exit", () =>
+      rejectReady(
+        new Error(
+          `${app.key} exited before confirming port ${port}; inspect ${logPath}`,
+        ),
+      ),
+    );
+  });
   child.unref();
   closeSync(logFd);
-  return {
+  const record = {
     key: app.key,
     url: devUrl(port),
     port,
@@ -236,6 +245,9 @@ function startApp(app, port, siteUrl) {
     localOwner: LOCAL_OWNER && app.key === "admin",
     logPath,
   };
+  // Runtime-only readiness is never persisted as process metadata.
+  Object.defineProperty(record, "listening", { value: listening });
+  return record;
 }
 
 function prepareAppDependencies(app) {
@@ -254,8 +266,27 @@ function prepareAppDependencies(app) {
   ensureLocalContentDatabase({ appDir: app.cwd });
 }
 
-async function waitForApp(app, record) {
+export async function waitForApp(app, record) {
   const deadline = Date.now() + 60_000;
+  let timer;
+  try {
+    await Promise.race([
+      record.listening,
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                `${app.key} did not confirm port ${record.port}; inspect ${record.logPath}`,
+              ),
+            ),
+          60_000,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
   while (Date.now() < deadline) {
     if (await isHealthy(record.url, app.healthPath)) return;
     if (record.pid && !isAlive(record.pid)) {
@@ -332,6 +363,53 @@ function ensureReaper() {
   child.unref();
 }
 
+/** A live owned process is never replaced merely because an HTTP probe fails. */
+export async function ensureAppProcess(
+  app,
+  { prior, port, siteUrl, localOwner },
+  operations = {
+    isRecognizedProcess,
+    isHealthy,
+    isPortFree,
+    prepareAppDependencies,
+    startApp,
+    waitForApp,
+    stopRecord,
+  },
+) {
+  const wantsLocalOwner = localOwner && app.key === "admin";
+  const running =
+    prior?.ownership === "managed" && operations.isRecognizedProcess(prior);
+  if (running) {
+    if (prior.port !== port)
+      throw new Error(
+        `${app.key} is already running at ${prior.url}; explicitly stop it before changing its port`,
+      );
+    // Never reuse a server across owner modes, in either direction.
+    if (Boolean(prior.localOwner) !== wantsLocalOwner)
+      throw new Error(
+        `${app.key} at ${prior.url} is already running ${prior.localOwner ? "with" : "without"} local owner; run pnpm dev:stop first`,
+      );
+    if (await operations.isHealthy(prior.url, app.healthPath)) return prior;
+    throw new Error(
+      `${app.key} managed process ${prior.pid} is alive but ${prior.url} is unhealthy; inspect ${prior.logPath}. No replacement was started; retry ensure after checking the log.`,
+    );
+  }
+  if (!(await operations.isPortFree(port)))
+    throw new Error(
+      `${app.key} port ${port} is in use by another process; stop it or set ${app.portEnv}`,
+    );
+  operations.prepareAppDependencies(app);
+  const record = operations.startApp(app, port, siteUrl);
+  try {
+    await operations.waitForApp(app, record);
+  } catch (error) {
+    await operations.stopRecord(record);
+    throw error;
+  }
+  return record;
+}
+
 async function ensure(surface) {
   if (LOCAL_OWNER && surface !== "admin") {
     throw new Error("local owner mode starts only the admin surface");
@@ -346,36 +424,13 @@ async function ensure(surface) {
   const records = previous?.apps ? [...previous.apps] : [];
   for (const app of selectedApps(surface)) {
     const port = ports[app.key];
-    const url = devUrl(port);
     const prior = records.find((record) => record.key === app.key);
-    const wantsLocalOwner = LOCAL_OWNER && app.key === "admin";
-    const running =
-      prior?.ownership === "managed" &&
-      prior.port === port &&
-      isRecognizedProcess(prior);
-    if (running) {
-      // Never reuse a server across owner modes, in either direction.
-      if (Boolean(prior.localOwner) !== wantsLocalOwner) {
-        throw new Error(
-          `${app.key} at ${url} is already running ${prior.localOwner ? "with" : "without"} local owner; run pnpm dev:stop first`,
-        );
-      }
-      if (await isHealthy(url, app.healthPath)) continue;
-    }
-    if (!running && !(await isPortFree(port))) {
-      throw new Error(
-        `${app.key} port ${port} is in use by another process; stop it or set ${app.portEnv}`,
-      );
-    }
-
-    prepareAppDependencies(app);
-    const record = startApp(app, port, devUrl(ports.www));
-    try {
-      await waitForApp(app, record);
-    } catch (error) {
-      await stopRecord(record);
-      throw error;
-    }
+    const record = await ensureAppProcess(app, {
+      prior,
+      port,
+      siteUrl: devUrl(ports.www),
+      localOwner: LOCAL_OWNER,
+    });
     upsert(records, record);
   }
 
@@ -476,18 +531,23 @@ async function stop(surface) {
   );
 }
 
-const action = process.argv[2] ?? "ensure";
-const surface = process.argv[3] ?? "all";
-try {
-  if (action === "ensure")
-    await withPreviewStartup(WORKTREE_ROOT, () => ensure(surface));
-  else if (action === "status") await status(surface);
-  else if (action === "stop") await stop(surface);
-  else
-    throw new Error(
-      "usage: dev-servers.mjs {ensure|status|stop} {www|admin|all} [--local-owner]",
-    );
-} catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
+if (
+  process.argv[1] &&
+  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
+) {
+  const action = process.argv[2] ?? "ensure";
+  const surface = process.argv[3] ?? "all";
+  try {
+    if (action === "ensure")
+      await withPreviewStartup(WORKTREE_ROOT, () => ensure(surface));
+    else if (action === "status") await status(surface);
+    else if (action === "stop") await stop(surface);
+    else
+      throw new Error(
+        "usage: dev-servers.mjs {ensure|status|stop} {www|admin|all} [--local-owner]",
+      );
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  }
 }
