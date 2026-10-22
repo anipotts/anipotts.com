@@ -299,6 +299,7 @@ const DEPLOY_TARGET_PATH_SETS = [
   ["package.json", "pnpm-lock.yaml"],
   ["apps/admin/src/pages/proof.astro", "workers/newsletter/src/index.ts"],
   ["patches/@astryxdesign__core@0.4.6.patch"],
+  ["patches/@astryxdesign__core@0.7.1.patch"],
   [".gitignore", ".prettierignore"],
   ["apps/www/src/components/shared.ts"],
   ["apps/www/src/layouts/shared.ts"],
@@ -358,6 +359,7 @@ const SENSITIVE_PATHS = [
   "packages/lib/src/cms/homepage.ts",
   "packages/runtime-contract/src/index.ts",
   "patches/@astryxdesign__core@0.4.6.patch",
+  "patches/@astryxdesign__core@0.7.1.patch",
   "scripts/ci/security-review.mjs",
   "scripts/example.ts",
   "tsconfig.json",
@@ -1205,6 +1207,7 @@ function assertCoverage(tracked) {
       "scripts/dev/review-state.mjs",
     ],
     "apps/admin": [
+      "scripts/admin/preview-public-assets.mjs",
       "scripts/ci/admin-route-inventory.mjs",
       "scripts/content/generate-public-content.mjs",
       "scripts/dev/admin-local-owner-host.mjs",

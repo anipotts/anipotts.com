@@ -30,18 +30,19 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Repair and qualify [#551](https://github.com/anipotts/anipotts.com/pull/551), the combined Core/Neutral and Projects authoring candidate.
-- [ ] Qualify the local current-main refresh of draft [#540](https://github.com/anipotts/anipotts.com/pull/540), then complete its held Images entitlement, real decode/orientation/crop/resource and activation gates. [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery retains its separate custody and restore gates.
-- [ ] Complete integration of the runner update consolidated into #551; [#552](https://github.com/anipotts/anipotts.com/pull/552) remains open until that integration.
+- [ ] Verify the affected-target deployment of merged [#551](https://github.com/anipotts/anipotts.com/pull/551) at `1936106c`; release39724851758 is under integration-owner verification. Its source passed full validation14/14, Admin native50/50 and the recorded touch coverage.
+- [x] Consolidate [#552](https://github.com/anipotts/anipotts.com/pull/552) through #551; both are merged at `1936106c`.
+- [ ] Qualify the prepared browser-policy patch, then consolidate Admin controls to remove the remaining SDK/KaTeX dependency path.
+- [ ] Refresh and qualify held [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery source. #540 now includes released #551 source; fresh qualification, Images entitlement, real decode/orientation/crop/resource and activation gates remain separate. #541 retains its custody and operational restore gates.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#550 is merged as `07da221d`; www and Admin deployment and smoke checks passed. All four workers were skipped, with no migration.
+#550 is merged as `07da221d`; [release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879) deployed www and Admin. All four workers were skipped; schema 0044, no migration.
 
-#553 is merged as `1efed957`; release39695194877 deployed www and Admin with the approved monogram geometry. All four worker targets were skipped.
+#553 is merged as `1efed957`; [release 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877) deployed www and Admin with approved brand geometry/motion. All four workers were skipped.
 
-#549 is merged as `39204ca89`; release39298284295 deployed Admin and all four retained workers. www was skipped, schema0044, no migration. Provider identity and eight Admin Access probes pass; ingest/state service health remains separate.
+#549 is merged as `39204ca89`; [release39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295) deployed Admin and all four retained workers. www was skipped, schema0044, no migration. Provider versions and eight Admin Access probes pass. Ingest/state service-health gaps and the intentionally retired weekly route remain separate.
 
-#542 is merged as `aa860b4b`; its successful release skipped all runtime targets and ran no migration.
+#542 is merged as `aa860b4b`; its successful release skipped all runtime targets.
 
 #539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 

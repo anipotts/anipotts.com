@@ -59,6 +59,12 @@ expectTargets(
 );
 
 expectTargets(
+  "owner preview asset packaging deploys admin only",
+  ["scripts/admin/preview-public-assets.mjs"],
+  { admin: true },
+);
+
+expectTargets(
   "admin-control library code deploys admin only",
   ["packages/lib/src/admin-control/index.ts"],
   { admin: true },
@@ -144,6 +150,11 @@ assert.equal(
 expectTargets(
   "reviewed Astryx patch deploys only its Admin consumer",
   ["patches/@astryxdesign__core@0.4.6.patch"],
+  { admin: true },
+);
+expectTargets(
+  "aligned Astryx patch deploys only its Admin consumer",
+  ["patches/@astryxdesign__core@0.7.1.patch"],
   { admin: true },
 );
 expectTargets(

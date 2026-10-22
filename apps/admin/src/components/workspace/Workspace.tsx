@@ -518,7 +518,7 @@ function LiveSearch({
     );
   return (
     <TextInput
-      className="workspace-search"
+      controlClassName="workspace-search"
       label={label}
       isLabelHidden
       placeholder={label}
@@ -1668,6 +1668,7 @@ export function InlineNotice({
     );
   return (
     <Banner
+      role={tone === "error" ? "alert" : "status"}
       status={tone}
       container="section"
       title={unpunctuated(title)}

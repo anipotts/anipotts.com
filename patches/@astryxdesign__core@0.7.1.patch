@@ -1,0 +1,1150 @@
+diff --git a/dist/DropdownMenu/DropdownMenu.d.ts b/dist/DropdownMenu/DropdownMenu.d.ts
+index 5a886bad22abef0f861df4ca50273c2838447c92..fab0357ffc7c57d46033f82783483616ea3a9003 100644
+--- a/dist/DropdownMenu/DropdownMenu.d.ts
++++ b/dist/DropdownMenu/DropdownMenu.d.ts
+@@ -99,7 +99,7 @@ export interface DropdownMenuTriggerProps {
+     onFocus: (event: React.FocusEvent<HTMLElement>) => void;
+     'aria-haspopup': 'menu' | 'dialog';
+     'aria-expanded': boolean;
+-    'aria-controls': string;
++    'aria-controls': string | undefined;
+ }
+ interface DropdownMenuBaseProps extends BaseProps {
+     /**
+diff --git a/dist/DropdownMenu/DropdownMenu.js b/dist/DropdownMenu/DropdownMenu.js
+index fa868d71250566019afaaf1179172ef529c85c78..cfed03a6e545ae254940d0bbea96752044fa7bcd 100644
+--- a/dist/DropdownMenu/DropdownMenu.js
++++ b/dist/DropdownMenu/DropdownMenu.js
+@@ -548,7 +548,7 @@ function DropdownMenuBottomSheet({
+       onFocus: onFocusReturnTargetFocus,
+       'aria-haspopup': 'dialog',
+       'aria-expanded': isOpen,
+-      'aria-controls': sheetId
++      'aria-controls': isOpen ? sheetId : undefined
+     }) : /*#__PURE__*/_jsx(Button, {
+       ...button,
+       ref: buttonRef,
+@@ -1180,7 +1180,7 @@ function DropdownMenuPopover({
+     onFocus: () => {},
+     'aria-haspopup': hasRegions ? 'dialog' : 'menu',
+     'aria-expanded': isOpen,
+-    'aria-controls': hasRegions ? popover.id : menuId
++    'aria-controls': popover.isMounted ? (hasRegions ? popover.id : menuId) : undefined
+   };
+   return /*#__PURE__*/_jsxs(_Fragment, {
+     children: [renderTrigger != null ? renderTrigger(triggerProps) : /*#__PURE__*/_jsx(Button, {
+@@ -1220,7 +1220,7 @@ function DropdownMenuPopover({
+       },
+       "aria-haspopup": hasRegions ? 'dialog' : 'menu',
+       "aria-expanded": isOpen,
+-      "aria-controls": hasRegions ? popover.id : menuId,
++      "aria-controls": popover.isMounted ? (hasRegions ? popover.id : menuId) : undefined,
+       "data-testid": testId
+     }), popover.render(renderWithRegions(/*#__PURE__*/_jsx("div", {
+       ...rest,
+diff --git a/dist/DropdownMenu/DropdownMenuSubMenu.js b/dist/DropdownMenu/DropdownMenuSubMenu.js
+index 052d311d5d1398f6cbf1d85aa2c86ffd06bd519b..613c2391a93c421491b401aca70bd25bb7367d49 100644
+--- a/dist/DropdownMenu/DropdownMenuSubMenu.js
++++ b/dist/DropdownMenu/DropdownMenuSubMenu.js
+@@ -675,7 +675,7 @@ export function DropdownMenuSubMenu(props) {
+     }), {
+       placement: 'end',
+       alignment: 'start',
+-      offset: spacingVars['--spacing-1'],
++      offset: 0,
+       xstyle: [flyoutStyles.popoverViewport, popoverXstyle, layerAnimations.end]
+     })]
+   });
+diff --git a/dist/HoverCard/HoverCard.js b/dist/HoverCard/HoverCard.js
+index f35a6cec4dcb25b1521faa6188dd5243bf93a24a..9763d73430b9daeff0d99328c20d0f95490c5a8a 100644
+--- a/dist/HoverCard/HoverCard.js
++++ b/dist/HoverCard/HoverCard.js
+@@ -68,13 +68,28 @@ function isTextOnly(children) {
+ }
+
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+ function mergeIds(...ids) {
+   const filtered = ids.filter(Boolean);
+   return filtered.length > 0 ? filtered.join(' ') : undefined;
+ }
+
++function toggleIdToken(element, attribute, id, present) {
++  const tokens = (element.getAttribute(attribute) ?? '').split(/\s+/).filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present ? [...tokens, id] : tokens.filter(token => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
++}
++
+ /**
+  * HoverCard component for displaying interactive content on hover/focus.
+  *
+@@ -95,8 +110,8 @@ export function HoverCard({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 300,
+-  hideDelay = 200,
++  delay = 0,
++  hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+   isEnabled = true,
+@@ -213,15 +228,11 @@ export function HoverCard({
+     // Unnamed fallback: the popup remains role="group", which is not a dialog,
+     // so keep the previous description relationship until a naming decision is
+     // made for the no-label case (tracked in #5049).
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    firstChild.setAttribute('aria-describedby', mergeIds(existingDescribedBy, hoverCard.describedBy) ?? '');
++    const describedBy = hoverCard.describedBy;
++    if (describedBy) toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
+     return () => {
+       hoverCard.ref(null);
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
+-      }
++      if (describedBy) toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+     };
+   }, [textOnly, label, hoverCard.ref, hoverCard.id, hoverCard.isOpen, hoverCard.describedBy]);
+
+diff --git a/dist/HoverCard/useHoverCard.d.ts b/dist/HoverCard/useHoverCard.d.ts
+index 5822043e58ac98abe8645a0da42105e48fe8001c..c6c27791b9b644a298ac7d15626c823a7ef9ecac 100644
+--- a/dist/HoverCard/useHoverCard.d.ts
++++ b/dist/HoverCard/useHoverCard.d.ts
+@@ -131,7 +131,7 @@ export interface HoverCardReturn {
+     /**
+      * Deprecated alias of `id`. Kept for backwards compatibility; prefer `id`.
+      */
+-    describedBy: string;
++    describedBy: string | undefined;
+     /**
+      * Whether the hover card is currently open.
+      * Useful for driving `aria-expanded` on the trigger — but only when the
+diff --git a/dist/HoverCard/useHoverCard.js b/dist/HoverCard/useHoverCard.js
+index c8a6dbacbc7e40899be8537909276170d20f0f49..dde43b8f210d915b99bc541491704fdf76db8e92 100644
+--- a/dist/HoverCard/useHoverCard.js
++++ b/dist/HoverCard/useHoverCard.js
+@@ -82,8 +82,8 @@ export function useHoverCard(options = {}) {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 300,
+-    hideDelay = 200,
++    delay = 0,
++    hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+     isEnabled = true,
+@@ -380,7 +380,7 @@ export function useHoverCard(options = {}) {
+     const renderProps = {
+       placement: renderPlacement,
+       alignment: props?.alignment ?? alignment,
+-      offset: spacingVars['--spacing-1'],
++      offset: 0,
+       // A named dialog when a label is provided; otherwise a group. A group
+       // may validly be unnamed, an unnamed dialog may not — and hover cards
+       // are non-modal, so group is honest semantics without a name.
+@@ -444,7 +444,7 @@ export function useHoverCard(options = {}) {
+     interactionRef,
+     anchorId: layerAnchorId,
+     id: layerId,
+-    describedBy: layerId,
++    describedBy: layer.isMounted ? layerId : undefined,
+     isOpen: isLayerOpen,
+     renderHoverCard,
+     show: showLayer,
+diff --git a/dist/Layer/useLayer.d.ts b/dist/Layer/useLayer.d.ts
+index e7593447afed05941b9e8a64ae96a8ddb9b0a20a..368fd646b2b3cde71c5f4232745c9dc9e388ebb0 100644
+--- a/dist/Layer/useLayer.d.ts
++++ b/dist/Layer/useLayer.d.ts
+@@ -218,6 +218,11 @@ export interface ContextLayerReturn {
+      * Unique ID for aria-describedby
+      */
+     id: string;
++    /**
++     * Whether the layer element carrying `id` is mounted. False in server
++     * markup and during hydration, so ARIA references to `id` should wait.
++     */
++    isMounted: boolean;
+     /**
+      * Render function for layer content.
+      * Pass placement and alignment for anchor positioning.
+diff --git a/dist/Layer/useLayer.js b/dist/Layer/useLayer.js
+index 037cc2139163a680ee4caefecb4a084954a43149..9f75ec33abb641b6f6749b85d0d6a8fc5c638e77 100644
+--- a/dist/Layer/useLayer.js
++++ b/dist/Layer/useLayer.js
+@@ -878,8 +878,9 @@ function useLayerImplementation(options) {
+     isOpen,
+     wasJustDismissed,
+     id,
++    isMounted: contextMount !== null,
+     render: renderContext
+-  }), [contextRef, anchorId, show, hide, isOpen, wasJustDismissed, id, renderContext]);
++  }), [contextRef, anchorId, show, hide, isOpen, wasJustDismissed, id, contextMount, renderContext]);
+   const fixedResult = useMemo(() => ({
+     ref: undefined,
+     show,
+diff --git a/dist/Popover/Popover.d.ts b/dist/Popover/Popover.d.ts
+index ca806e224b531fe95ab3effabac128b98c78652f..539c616cd90710ec0b2075b147e7d3d42554cc14 100644
+--- a/dist/Popover/Popover.d.ts
++++ b/dist/Popover/Popover.d.ts
+@@ -30,8 +30,8 @@ export interface PopoverTriggerRenderProps {
+     'aria-haspopup': 'dialog';
+     /** ARIA attribute: whether the popover is currently open. */
+     'aria-expanded': boolean;
+-    /** ARIA attribute: ID of the controlled popover element. */
+-    'aria-controls': string;
++    /** ARIA attribute: ID of the controlled popover element, once mounted. */
++    'aria-controls': string | undefined;
+ }
+ export interface PopoverProps extends Pick<BaseProps, 'xstyle' | 'className' | 'style'> {
+     /**
+diff --git a/dist/Popover/Popover.js b/dist/Popover/Popover.js
+index 5d9bf3733651acac0abf86dc0442e7e965182afa..08b811ffcd14c3ec638c037b49faa0b27f38cc74 100644
+--- a/dist/Popover/Popover.js
++++ b/dist/Popover/Popover.js
+@@ -259,7 +259,12 @@ export function Popover({
+     // ARIA attributes
+     button.setAttribute('aria-haspopup', popover.triggerProps['aria-haspopup']);
+     button.setAttribute('aria-expanded', String(popover.triggerProps['aria-expanded']));
+-    button.setAttribute('aria-controls', popover.triggerProps['aria-controls']);
++    const controls = popover.triggerProps['aria-controls'];
++    if (controls) {
++      button.setAttribute('aria-controls', controls);
++    } else {
++      button.removeAttribute('aria-controls');
++    }
+
+     // Event handlers
+     button.addEventListener('click', handleTriggerClick);
+@@ -382,7 +387,7 @@ export function Popover({
+       onClick: handleTriggerClick,
+       'aria-haspopup': 'dialog',
+       'aria-expanded': popover.isOpen,
+-      'aria-controls': popover.id
++      'aria-controls': popover.triggerProps['aria-controls']
+     };
+     return /*#__PURE__*/_jsxs(_Fragment, {
+       children: [children(triggerProps), popover.render(/*#__PURE__*/_jsx("div", {
+diff --git a/dist/Popover/usePopover.d.ts b/dist/Popover/usePopover.d.ts
+index 3634144c1e1302ed355be0440179594b436bf026..d85d4b8d7f236b48c53eddf6a3b3f6ef509cbe65 100644
+--- a/dist/Popover/usePopover.d.ts
++++ b/dist/Popover/usePopover.d.ts
+@@ -193,6 +193,11 @@ export interface UsePopoverReturn {
+      * Unique ID for aria-describedby or aria-controls
+      */
+     id: string;
++    /**
++     * Whether the popover layer carrying `id` is mounted. False in server
++     * markup and during hydration; gate references to ids inside the popover.
++     */
++    isMounted: boolean;
+     /**
+      * Render function for popover content.
+      * Automatically wraps content in a focus trap container with a hidden close button.
+@@ -212,7 +217,7 @@ export interface UsePopoverReturn {
+     triggerProps: {
+         'aria-haspopup': 'dialog' | 'true';
+         'aria-expanded': boolean;
+-        'aria-controls': string;
++        'aria-controls': string | undefined;
+     };
+ }
+ export declare function usePopover(options?: UsePopoverOptions): UsePopoverReturn;
+diff --git a/dist/Popover/usePopover.js b/dist/Popover/usePopover.js
+index 3c3d84c5c7449994455d205b18bb03a13594d123..821bb11b1a93a51d73069c53378da32b1eee7faa 100644
+--- a/dist/Popover/usePopover.js
++++ b/dist/Popover/usePopover.js
+@@ -223,7 +223,8 @@ function usePopoverImplementation(options = {}) {
+   const triggerProps = {
+     'aria-haspopup': role === 'dialog' ? 'dialog' : 'true',
+     'aria-expanded': layer.isOpen,
+-    'aria-controls': layer.id
++    // Server markup has no popover element yet; reference it once mounted.
++    'aria-controls': layer.isMounted ? layer.id : undefined
+   };
+
+   // Dev-time guardrail: a dialog popover should always be labeled.
+@@ -271,6 +272,7 @@ function usePopoverImplementation(options = {}) {
+     toggle,
+     isOpen: layer.isOpen,
+     id: layer.id,
++    isMounted: layer.isMounted,
+     render,
+     triggerProps
+   };
+diff --git a/dist/Selector/Selector.js b/dist/Selector/Selector.js
+index c0816f87a196cb5f5bca0924d4966b8aae1cab3c..15e23533c945c6dd9f9e506cd678b54f95f806a1 100644
+--- a/dist/Selector/Selector.js
++++ b/dist/Selector/Selector.js
+@@ -1211,7 +1211,7 @@ export function Selector(props) {
+         role: isEffectivelyReadOnly || !hasSearch ? 'combobox' : undefined,
+         "aria-haspopup": isEffectivelyReadOnly ? undefined : surface.activePresentation === 'bottom-sheet' ? 'dialog' : 'listbox',
+         "aria-expanded": isEffectivelyReadOnly ? false : surface.isOpen,
+-        "aria-controls": isEffectivelyReadOnly ? undefined : listboxId,
++        "aria-controls": !isEffectivelyReadOnly && (surface.activePresentation === 'bottom-sheet' ? surface.isOpen : popover.isMounted) ? listboxId : undefined,
+         "aria-readonly": isEffectivelyReadOnly || undefined,
+         "aria-activedescendant": !isEffectivelyReadOnly && !hasSearch && surface.isOpen && highlightedIndex >= 0 ? getItemId(highlightedIndex) : undefined
+         // With a disabledMessage the trigger keeps focusability via
+diff --git a/dist/TabList/TabMenu.js b/dist/TabList/TabMenu.js
+index db2c263595aa05b99086cdfd3692381cf594882e..c05156d7afcacd1c31f691b799d3a7f069009210 100644
+--- a/dist/TabList/TabMenu.js
++++ b/dist/TabList/TabMenu.js
+@@ -235,7 +235,8 @@ export function TabMenu({
+       type: "button",
+       "aria-haspopup": "menu",
+       "aria-expanded": popover.isOpen,
+-      "aria-controls": menuId,
++      // The menu lives in the popover layer, absent from server markup.
++      "aria-controls": popover.isMounted ? menuId : undefined,
+       "data-tab-menu": "",
+       tabIndex: hasSelectedOption ? 0 : -1,
+       onClick: handleToggle,
+diff --git a/dist/Tooltip/Tooltip.js b/dist/Tooltip/Tooltip.js
+index bfb7c65099911349844dc9f094be7362e2bca6cf..ba495646b15f7f2549dcab889b3425be6ac3a303 100644
+--- a/dist/Tooltip/Tooltip.js
++++ b/dist/Tooltip/Tooltip.js
+@@ -28,11 +28,21 @@ function isTextOnly(children) {
+ }
+
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+-function mergeIds(...ids) {
+-  const filtered = ids.filter(Boolean);
+-  return filtered.length > 0 ? filtered.join(' ') : undefined;
++function toggleIdToken(element, attribute, id, present) {
++  const tokens = (element.getAttribute(attribute) ?? '').split(/\s+/).filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present ? [...tokens, id] : tokens.filter(token => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
+ }
+
+ /**
+@@ -55,7 +65,7 @@ export function Tooltip({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 200,
++  delay = 0,
+   hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+@@ -105,15 +115,17 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(el);
+
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = el.getAttribute('aria-describedby');
+-    el.setAttribute('aria-describedby', mergeIds(existingDescribedBy, tooltip.describedBy) ?? '');
++    // Merge this layer's id into the element's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
++    if (describedBy) {
++      toggleIdToken(el, 'aria-describedby', describedBy, true);
++    }
+     return () => {
+       tooltip.ref(null);
+-      if (existingDescribedBy) {
+-        el.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        el.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the element's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(el, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, tooltip.ref, tooltip.describedBy]);
+@@ -139,15 +151,17 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(firstChild);
+
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    firstChild.setAttribute('aria-describedby', mergeIds(existingDescribedBy, tooltip.describedBy) ?? '');
++    // Merge this layer's id into the child's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
++    if (describedBy) {
++      toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
++    }
+     return () => {
+       tooltip.ref(null);
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the child's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, textOnly, tooltip.ref, tooltip.describedBy]);
+diff --git a/dist/Tooltip/useTooltip.d.ts b/dist/Tooltip/useTooltip.d.ts
+index bb08484e5ba616274d9001f9d9a653d2f594be46..b8057922b43c062f54179a2ef702949e07c34f45 100644
+--- a/dist/Tooltip/useTooltip.d.ts
++++ b/dist/Tooltip/useTooltip.d.ts
+@@ -119,10 +119,11 @@ export interface TooltipReturn {
+      */
+     anchorId: string;
+     /**
+-     * ID for aria-describedby on the trigger element.
++     * ID for aria-describedby on the trigger element, once the tooltip layer is
++     * mounted. Undefined in server markup and during hydration.
+      * Caller should compose with other IDs using mergeIds utility.
+      */
+-    describedBy: string;
++    describedBy: string | undefined;
+     /**
+      * Render function for tooltip content.
+      * Returns anchor-positioned popover element.
+diff --git a/dist/Tooltip/useTooltip.js b/dist/Tooltip/useTooltip.js
+index fe9e59f6fa09e66ee1ac928ef220fe0fd20c6247..51fcb2339f012f796547dc530fa22828d1470b30 100644
+--- a/dist/Tooltip/useTooltip.js
++++ b/dist/Tooltip/useTooltip.js
+@@ -21,13 +21,7 @@ import { themeProps } from "../utils/themeProps.js";
+ import "../theme/tokens.stylex.js";
+ import { colorVars, radiusVars, spacingVars, typographyVars, typeScaleVars } from "../theme/tokens.stylex.js";
+
+-/**
+- * Grace period (ms) before hiding on pointer-leave when no explicit `hideDelay`
+- * is set, so the pointer can travel across the small gap from the trigger onto
+- * the tooltip surface without the tooltip disappearing (WCAG 1.4.13 hoverable).
+- */
+ import { jsx as _jsx } from "react/jsx-runtime";
+-const HOVER_BRIDGE_DELAY = 100;
+ const styles = {
+   container: {
+     kWkggS: "x19aspcf",
+@@ -98,7 +92,7 @@ export function useTooltip(options = {}) {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 200,
++    delay = 0,
+     hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+@@ -139,6 +133,18 @@ export function useTooltip(options = {}) {
+     }
+   }, []);
+
++  // A queued focus hint is not yet a visible layer in the dismissal stack.
++  // Cancel its timer without consuming Escape from the actual topmost layer.
++  useEffect(() => {
++    const cancelPendingFocus = (event) => {
++      if (event.key === 'Escape' && !event.isComposing && event.keyCode !== 229 && showTimeoutRef.current !== null) {
++        clearTimeouts();
++      }
++    };
++    document.addEventListener('keydown', cancelPendingFocus, true);
++    return () => document.removeEventListener('keydown', cancelPendingFocus, true);
++  }, [clearTimeouts]);
++
+   // Touch resolves immediately: the hover delays exist to filter out a pointer
+   // passing across the trigger, and a tap is never that.
+   const showNow = useCallback(() => {
+@@ -178,18 +184,16 @@ export function useTooltip(options = {}) {
+   }, [isEnabled, isOpen, clearTimeouts, showLayer, delay]);
+
+   // Schedule hide with delay (suppressed when isOpen is true).
+-  // A small hover bridge (when hideDelay is 0) lets the pointer travel from the
+-  // trigger onto the tooltip surface without the tooltip vanishing — required
+-  // for WCAG 1.4.13 (Content on Hover or Focus: hoverable).
++  // The zero-offset surface touches its trigger, retaining pointer access
++  // without a timed dismissal grace period.
+   const scheduleHide = useCallback(() => {
+     if (isOpen === true) {
+       return;
+     }
+     clearTimeouts();
+-    const effectiveHideDelay = hideDelay > 0 ? hideDelay : HOVER_BRIDGE_DELAY;
+     hideTimeoutRef.current = setTimeout(() => {
+       hideLayer();
+-    }, effectiveHideDelay);
++    }, hideDelay);
+   }, [isOpen, clearTimeouts, hideLayer, hideDelay]);
+
+   // Cancel a pending hide (e.g. the pointer entered the tooltip surface).
+@@ -210,15 +214,19 @@ export function useTooltip(options = {}) {
+     }
+     scheduleShow();
+   }, [isTouchPointerRef, scheduleShow]);
+-  const handleMouseLeave = useCallback(() => {
++  const handleMouseLeave = useCallback(event => {
+     // On touch the synthesized mouseleave arrives with the next tap elsewhere,
+     // which the outside-tap dismissal already handles — and handling it here
+     // too would close the tooltip behind the tap-open bookkeeping's back.
+     if (isTouchPointerRef.current) {
+       return;
+     }
++    const next = event.relatedTarget;
++    if (next instanceof Node && document.getElementById(layerId)?.contains(next)) {
++      return;
++    }
+     scheduleHide();
+-  }, [isTouchPointerRef, scheduleHide]);
++  }, [isTouchPointerRef, scheduleHide, layerId]);
+   const handleFocusIn = useCallback(e => {
+     if (!isEnabled) {
+       return;
+@@ -238,7 +246,7 @@ export function useTooltip(options = {}) {
+       return;
+     }
+     clearTimeouts();
+-    showLayer();
++    showTimeoutRef.current = setTimeout(() => { showLayer(); }, 0);
+   }, [isEnabled, isTouchInteraction, clearTimeouts, showLayer]);
+   const handleFocusOut = useCallback(() => {
+     scheduleHide();
+@@ -378,7 +386,7 @@ export function useTooltip(options = {}) {
+     const renderProps = {
+       placement: renderPlacement,
+       alignment: props?.alignment ?? alignment,
+-      offset: spacingVars['--spacing-1'],
++      offset: 0,
+       role: 'tooltip',
+       xstyle: [popoverXstyle, layerAnimations[renderPlacement]],
+       className: themeProps('tooltip').className,
+@@ -401,7 +409,7 @@ export function useTooltip(options = {}) {
+     positionRef: layerRef,
+     interactionRef,
+     anchorId: layerAnchorId,
+-    describedBy: layerId,
++    describedBy: layer.isMounted ? layerId : undefined,
+     renderTooltip
+   };
+ }
+\ No newline at end of file
+diff --git a/dist/Typeahead/BaseTypeahead.js b/dist/Typeahead/BaseTypeahead.js
+index 042c72539ded635033e98037ce9eb19cd87af323..7214c75c25c960890109d77d5174ee1015676826 100644
+--- a/dist/Typeahead/BaseTypeahead.js
++++ b/dist/Typeahead/BaseTypeahead.js
+@@ -732,7 +732,7 @@ export const BaseTypeahead = function BaseTypeahead({
+       type: "text",
+       role: "combobox",
+       "aria-expanded": popover.isOpen,
+-      "aria-controls": listboxId,
++      "aria-controls": popover.isMounted ? listboxId : undefined,
+       "aria-activedescendant": popover.isOpen && highlightedIndex >= 0 && highlightedIndex < results.length ? getItemId(highlightedIndex) : undefined,
+       "aria-autocomplete": "list",
+       "aria-busy": isLoading || undefined,
+diff --git a/dist/hooks/useMenuHover.js b/dist/hooks/useMenuHover.js
+index b8b885fb5970e42b5ce78da30c3df08cbf4996cb..657567bae5bb3dccc10b4b2c6e1f74372492eabf 100644
+--- a/dist/hooks/useMenuHover.js
++++ b/dist/hooks/useMenuHover.js
+@@ -127,8 +127,8 @@ export function useMenuHover(options) {
+     hide,
+     isOpen,
+     isEnabled,
+-    showDelay = 150,
+-    hideDelay = 200,
++    showDelay = 0,
++    hideDelay = 0,
+     clickGuardMs = DEFAULT_CLICK_GUARD_MS,
+     itemSelector,
+     popoverId,
+diff --git a/src/DropdownMenu/DropdownMenu.tsx b/src/DropdownMenu/DropdownMenu.tsx
+index c4b2887775530484c6925986a048041750a5b323..208053c2a8440aa6ad7474714626f44e2def0c2a 100644
+--- a/src/DropdownMenu/DropdownMenu.tsx
++++ b/src/DropdownMenu/DropdownMenu.tsx
+@@ -437,7 +437,7 @@ export interface DropdownMenuTriggerProps {
+   onFocus: (event: React.FocusEvent<HTMLElement>) => void;
+   'aria-haspopup': 'menu' | 'dialog';
+   'aria-expanded': boolean;
+-  'aria-controls': string;
++  'aria-controls': string | undefined;
+ }
+
+ interface DropdownMenuBaseProps extends BaseProps {
+@@ -822,7 +822,7 @@ function DropdownMenuBottomSheet({
+           onFocus: onFocusReturnTargetFocus,
+           'aria-haspopup': 'dialog',
+           'aria-expanded': isOpen,
+-          'aria-controls': sheetId,
++          'aria-controls': isOpen ? sheetId : undefined,
+         })
+       ) : (
+         <Button
+@@ -1575,7 +1575,7 @@ function DropdownMenuPopover({
+     onFocus: () => {},
+     'aria-haspopup': hasRegions ? 'dialog' : 'menu',
+     'aria-expanded': isOpen,
+-    'aria-controls': hasRegions ? popover.id : menuId,
++    'aria-controls': popover.isMounted ? (hasRegions ? popover.id : menuId) : undefined,
+   };
+
+   return (
+@@ -1625,7 +1625,7 @@ function DropdownMenuPopover({
+           }}
+           aria-haspopup={hasRegions ? 'dialog' : 'menu'}
+           aria-expanded={isOpen}
+-          aria-controls={hasRegions ? popover.id : menuId}
++          aria-controls={popover.isMounted ? (hasRegions ? popover.id : menuId) : undefined}
+           data-testid={testId}
+         />
+       )}
+diff --git a/src/DropdownMenu/DropdownMenuSubMenu.tsx b/src/DropdownMenu/DropdownMenuSubMenu.tsx
+index ba8a9c868dc924998ac4edd41f75cbc9d46f6328..09893ffcb47043785b4f24093e0b7afa9cf65378 100644
+--- a/src/DropdownMenu/DropdownMenuSubMenu.tsx
++++ b/src/DropdownMenu/DropdownMenuSubMenu.tsx
+@@ -895,7 +895,7 @@ export function DropdownMenuSubMenu(
+             {
+               placement: 'end',
+               alignment: 'start',
+-              offset: spacingVars['--spacing-1'],
++              offset: 0,
+               xstyle: [
+                 flyoutStyles.popoverViewport,
+                 popoverXstyle,
+diff --git a/src/HoverCard/HoverCard.tsx b/src/HoverCard/HoverCard.tsx
+index 4316875cdf8894cd9a29b68e39929ff550c3d0b7..ce486cd02f6cc1faf2ba0b98ac3d9d283d08ecd7 100644
+--- a/src/HoverCard/HoverCard.tsx
++++ b/src/HoverCard/HoverCard.tsx
+@@ -228,13 +228,37 @@ function isTextOnly(children: ReactNode): boolean {
+ }
+
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+ function mergeIds(...ids: (string | undefined | null)[]): string | undefined {
+   const filtered = ids.filter(Boolean);
+   return filtered.length > 0 ? filtered.join(' ') : undefined;
+ }
+
++function toggleIdToken(
++  element: Element,
++  attribute: string,
++  id: string,
++  present: boolean,
++): void {
++  const tokens = (element.getAttribute(attribute) ?? '')
++    .split(/\s+/)
++    .filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present
++    ? [...tokens, id]
++    : tokens.filter((token) => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
++}
++
+ /**
+  * HoverCard component for displaying interactive content on hover/focus.
+  *
+@@ -255,8 +279,8 @@ export function HoverCard({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 300,
+-  hideDelay = 200,
++  delay = 0,
++  hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+   isEnabled = true,
+@@ -383,19 +407,11 @@ export function HoverCard({
+     // Unnamed fallback: the popup remains role="group", which is not a dialog,
+     // so keep the previous description relationship until a naming decision is
+     // made for the no-label case (tracked in #5049).
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    firstChild.setAttribute(
+-      'aria-describedby',
+-      mergeIds(existingDescribedBy, hoverCard.describedBy) ?? '',
+-    );
+-
++    const describedBy = hoverCard.describedBy;
++    if (describedBy) toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
+     return () => {
+       hoverCard.ref(null);
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
+-      }
++      if (describedBy) toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+     };
+   }, [
+     textOnly,
+diff --git a/src/HoverCard/useHoverCard.tsx b/src/HoverCard/useHoverCard.tsx
+index 64f256591ef1f3fc07690ffa2a0d2b1a0bf2d364..4d0fe34ce53e908076bb4262f9e941a4191f71ce 100644
+--- a/src/HoverCard/useHoverCard.tsx
++++ b/src/HoverCard/useHoverCard.tsx
+@@ -198,7 +198,7 @@ export interface HoverCardReturn {
+   /**
+    * Deprecated alias of `id`. Kept for backwards compatibility; prefer `id`.
+    */
+-  describedBy: string;
++  describedBy: string | undefined;
+
+   /**
+    * Whether the hover card is currently open.
+@@ -277,8 +277,8 @@ export function useHoverCard(options: HoverCardOptions = {}): HoverCardReturn {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 300,
+-    hideDelay = 200,
++    delay = 0,
++    hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+     isEnabled = true,
+@@ -632,7 +632,7 @@ export function useHoverCard(options: HoverCardOptions = {}): HoverCardReturn {
+       const renderProps = {
+         placement: renderPlacement,
+         alignment: props?.alignment ?? alignment,
+-        offset: spacingVars['--spacing-1'],
++        offset: 0,
+         // A named dialog when a label is provided; otherwise a group. A group
+         // may validly be unnamed, an unnamed dialog may not — and hover cards
+         // are non-modal, so group is honest semantics without a name.
+@@ -716,7 +716,7 @@ export function useHoverCard(options: HoverCardOptions = {}): HoverCardReturn {
+     interactionRef,
+     anchorId: layerAnchorId,
+     id: layerId,
+-    describedBy: layerId,
++    describedBy: layer.isMounted ? layerId : undefined,
+     isOpen: isLayerOpen,
+     renderHoverCard,
+     show: showLayer,
+diff --git a/src/Layer/useLayer.tsx b/src/Layer/useLayer.tsx
+index 694e422902845f62e9fc0008e4771386733869bc..b51a90dd050b8a4dec34a6de6544324ac2d723b1 100644
+--- a/src/Layer/useLayer.tsx
++++ b/src/Layer/useLayer.tsx
+@@ -367,6 +367,12 @@ export interface ContextLayerReturn {
+    */
+   id: string;
+
++  /**
++   * Whether the layer element carrying `id` is mounted. False in server
++   * markup and during hydration, so ARIA references to `id` should wait.
++   */
++  isMounted: boolean;
++
+   /**
+    * Render function for layer content.
+    * Pass placement and alignment for anchor positioning.
+@@ -1306,6 +1312,7 @@ function useLayerImplementation(
+       isOpen,
+       wasJustDismissed,
+       id,
++      isMounted: contextMount !== null,
+       render: renderContext,
+     }),
+     [
+@@ -1316,6 +1323,7 @@ function useLayerImplementation(
+       isOpen,
+       wasJustDismissed,
+       id,
++      contextMount,
+       renderContext,
+     ],
+   );
+diff --git a/src/Popover/Popover.tsx b/src/Popover/Popover.tsx
+index e17ad6ff27aece2db2ae745afb7c64d0eed033fa..2a5e550011fea2bf0d0a4bb1e4a51b0f75eebfc3 100644
+--- a/src/Popover/Popover.tsx
++++ b/src/Popover/Popover.tsx
+@@ -70,8 +70,8 @@ export interface PopoverTriggerRenderProps {
+   'aria-haspopup': 'dialog';
+   /** ARIA attribute: whether the popover is currently open. */
+   'aria-expanded': boolean;
+-  /** ARIA attribute: ID of the controlled popover element. */
+-  'aria-controls': string;
++  /** ARIA attribute: ID of the controlled popover element, once mounted. */
++  'aria-controls': string | undefined;
+ }
+
+ export interface PopoverProps extends Pick<
+@@ -516,10 +516,12 @@ export function Popover({
+         'aria-expanded',
+         String(popover.triggerProps['aria-expanded']),
+       );
+-      button.setAttribute(
+-        'aria-controls',
+-        popover.triggerProps['aria-controls'],
+-      );
++      const controls = popover.triggerProps['aria-controls'];
++      if (controls) {
++        button.setAttribute('aria-controls', controls);
++      } else {
++        button.removeAttribute('aria-controls');
++      }
+
+       // Event handlers
+       button.addEventListener('click', handleTriggerClick);
+@@ -665,7 +667,7 @@ export function Popover({
+       onClick: handleTriggerClick,
+       'aria-haspopup': 'dialog',
+       'aria-expanded': popover.isOpen,
+-      'aria-controls': popover.id,
++      'aria-controls': popover.triggerProps['aria-controls'],
+     };
+
+     return (
+diff --git a/src/Popover/usePopover.tsx b/src/Popover/usePopover.tsx
+index 83b09d458ee9d137610d86c7c42f6480b5d0aeef..889bf64c538d397c71eabd3ec0f1ac73ab82caee 100644
+--- a/src/Popover/usePopover.tsx
++++ b/src/Popover/usePopover.tsx
+@@ -314,6 +314,12 @@ export interface UsePopoverReturn {
+    */
+   id: string;
+
++  /**
++   * Whether the popover layer carrying `id` is mounted. False in server
++   * markup and during hydration; gate references to ids inside the popover.
++   */
++  isMounted: boolean;
++
+   /**
+    * Render function for popover content.
+    * Automatically wraps content in a focus trap container with a hidden close button.
+@@ -334,7 +340,7 @@ export interface UsePopoverReturn {
+   triggerProps: {
+     'aria-haspopup': 'dialog' | 'true';
+     'aria-expanded': boolean;
+-    'aria-controls': string;
++    'aria-controls': string | undefined;
+   };
+ }
+
+@@ -486,7 +492,8 @@ function usePopoverImplementation(
+     'aria-haspopup':
+       role === 'dialog' ? ('dialog' as const) : ('true' as const),
+     'aria-expanded': layer.isOpen,
+-    'aria-controls': layer.id,
++    // Server markup has no popover element yet; reference it once mounted.
++    'aria-controls': layer.isMounted ? layer.id : undefined,
+   };
+
+   // Dev-time guardrail: a dialog popover should always be labeled.
+@@ -575,6 +582,7 @@ function usePopoverImplementation(
+     toggle,
+     isOpen: layer.isOpen,
+     id: layer.id,
++    isMounted: layer.isMounted,
+     render,
+     triggerProps,
+   };
+diff --git a/src/Selector/Selector.tsx b/src/Selector/Selector.tsx
+index 487e0f149c41e1a8ad06164786a51a3cc2dec5d1..9fc5cb612208a7599293dd743938947dbca29661 100644
+--- a/src/Selector/Selector.tsx
++++ b/src/Selector/Selector.tsx
+@@ -1981,7 +1981,7 @@ export function Selector<T extends SelectorOptionType>(
+                 : 'listbox'
+           }
+           aria-expanded={isEffectivelyReadOnly ? false : surface.isOpen}
+-          aria-controls={isEffectivelyReadOnly ? undefined : listboxId}
++          aria-controls={!isEffectivelyReadOnly && (surface.activePresentation === 'bottom-sheet' ? surface.isOpen : popover.isMounted) ? listboxId : undefined}
+           aria-readonly={isEffectivelyReadOnly || undefined}
+           aria-activedescendant={
+             !isEffectivelyReadOnly &&
+diff --git a/src/TabList/TabMenu.tsx b/src/TabList/TabMenu.tsx
+index e2cb390a855ca95f3302780ea08efb96b0d912a8..2888bab0fd65ab918af9203d5d01d7633056bc2b 100644
+--- a/src/TabList/TabMenu.tsx
++++ b/src/TabList/TabMenu.tsx
+@@ -350,7 +350,8 @@ export function TabMenu({
+         type="button"
+         aria-haspopup="menu"
+         aria-expanded={popover.isOpen}
+-        aria-controls={menuId}
++        // The menu lives in the popover layer, absent from server markup.
++        aria-controls={popover.isMounted ? menuId : undefined}
+         data-tab-menu=""
+         tabIndex={hasSelectedOption ? 0 : -1}
+         onClick={handleToggle}
+diff --git a/src/Tooltip/Tooltip.tsx b/src/Tooltip/Tooltip.tsx
+index 5956864acf4f9a230d2e0463df6a33708bddc811..d75dce6b94f11e37735f4d273f462bb0d78dae11 100644
+--- a/src/Tooltip/Tooltip.tsx
++++ b/src/Tooltip/Tooltip.tsx
+@@ -169,11 +169,30 @@ function isTextOnly(children: ReactNode): boolean {
+ }
+
+ /**
+- * Utility to merge ARIA ID strings
++ * Adds or removes one id in an ARIA id list attribute, keeping the ids other
++ * code owns. React can rewrite the element's own ids after a layer effect ran,
++ * so edit the live attribute instead of restoring a saved copy.
+  */
+-function mergeIds(...ids: (string | undefined | null)[]): string | undefined {
+-  const filtered = ids.filter(Boolean);
+-  return filtered.length > 0 ? filtered.join(' ') : undefined;
++function toggleIdToken(
++  element: Element,
++  attribute: string,
++  id: string,
++  present: boolean,
++): void {
++  const tokens = (element.getAttribute(attribute) ?? '')
++    .split(/\s+/)
++    .filter(Boolean);
++  if (tokens.includes(id) === present) {
++    return;
++  }
++  const next = present
++    ? [...tokens, id]
++    : tokens.filter((token) => token !== id);
++  if (next.length > 0) {
++    element.setAttribute(attribute, next.join(' '));
++  } else {
++    element.removeAttribute(attribute);
++  }
+ }
+
+ /**
+@@ -196,7 +215,7 @@ export function Tooltip({
+   content,
+   placement = 'above',
+   alignment = 'center',
+-  delay = 200,
++  delay = 0,
+   hideDelay = 0,
+   focusTrigger = 'auto',
+   touchTrigger = 'auto',
+@@ -250,19 +269,18 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(el);
+
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = el.getAttribute('aria-describedby');
+-    el.setAttribute(
+-      'aria-describedby',
+-      mergeIds(existingDescribedBy, tooltip.describedBy) ?? '',
+-    );
++    // Merge this layer's id into the element's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
++    if (describedBy) {
++      toggleIdToken(el, 'aria-describedby', describedBy, true);
++    }
+
+     return () => {
+       tooltip.ref(null);
+-      if (existingDescribedBy) {
+-        el.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        el.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the element's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(el, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, tooltip.ref, tooltip.describedBy]);
+@@ -289,19 +307,18 @@ export function Tooltip({
+     // Use combined ref for position + interaction
+     tooltip.ref(firstChild);
+
+-    // Set aria-describedby, merging with existing
+-    const existingDescribedBy = firstChild.getAttribute('aria-describedby');
+-    firstChild.setAttribute(
+-      'aria-describedby',
+-      mergeIds(existingDescribedBy, tooltip.describedBy) ?? '',
+-    );
++    // Merge this layer's id into the child's current descriptions. The hook
++    // withholds its id until the layer is mounted, so nothing dangles first.
++    const describedBy = tooltip.describedBy;
++    if (describedBy) {
++      toggleIdToken(firstChild, 'aria-describedby', describedBy, true);
++    }
+
+     return () => {
+       tooltip.ref(null);
+-      if (existingDescribedBy) {
+-        firstChild.setAttribute('aria-describedby', existingDescribedBy);
+-      } else {
+-        firstChild.removeAttribute('aria-describedby');
++      // Remove only this layer's id; the child's own ids may have changed.
++      if (describedBy) {
++        toggleIdToken(firstChild, 'aria-describedby', describedBy, false);
+       }
+     };
+   }, [anchorRef, textOnly, tooltip.ref, tooltip.describedBy]);
+diff --git a/src/Tooltip/useTooltip.tsx b/src/Tooltip/useTooltip.tsx
+index b904ce2073848f10d98ea2e387b33071236243fb..f8101bbc4128b5861cb070c9f7792129e3ee9baa 100644
+--- a/src/Tooltip/useTooltip.tsx
++++ b/src/Tooltip/useTooltip.tsx
+@@ -41,12 +41,6 @@ import {
+   typeScaleVars,
+ } from '../theme/tokens.stylex';
+
+-/**
+- * Grace period (ms) before hiding on pointer-leave when no explicit `hideDelay`
+- * is set, so the pointer can travel across the small gap from the trigger onto
+- * the tooltip surface without the tooltip disappearing (WCAG 1.4.13 hoverable).
+- */
+-const HOVER_BRIDGE_DELAY = 100;
+
+ const styles = stylex.create({
+   // Base container styles - inverted colors for high contrast
+@@ -198,10 +192,11 @@ export interface TooltipReturn {
+   anchorId: string;
+
+   /**
+-   * ID for aria-describedby on the trigger element.
++   * ID for aria-describedby on the trigger element, once the tooltip layer is
++   * mounted. Undefined in server markup and during hydration.
+    * Caller should compose with other IDs using mergeIds utility.
+    */
+-  describedBy: string;
++  describedBy: string | undefined;
+
+   /**
+    * Render function for tooltip content.
+@@ -268,7 +263,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+   const {
+     placement = 'above',
+     alignment = 'center',
+-    delay = 200,
++    delay = 0,
+     hideDelay = 0,
+     focusTrigger = 'auto',
+     touchTrigger = 'auto',
+@@ -312,6 +307,18 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+     }
+   }, []);
+
++  // A queued focus hint is not yet a visible layer in the dismissal stack.
++  // Cancel its timer without consuming Escape from the actual topmost layer.
++  useEffect(() => {
++    const cancelPendingFocus = (event: KeyboardEvent) => {
++      if (event.key === 'Escape' && !event.isComposing && event.keyCode !== 229 && showTimeoutRef.current !== null) {
++        clearTimeouts();
++      }
++    };
++    document.addEventListener('keydown', cancelPendingFocus, true);
++    return () => document.removeEventListener('keydown', cancelPendingFocus, true);
++  }, [clearTimeouts]);
++
+   // Touch resolves immediately: the hover delays exist to filter out a pointer
+   // passing across the trigger, and a tap is never that.
+   const showNow = useCallback(() => {
+@@ -353,18 +360,16 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+   }, [isEnabled, isOpen, clearTimeouts, showLayer, delay]);
+
+   // Schedule hide with delay (suppressed when isOpen is true).
+-  // A small hover bridge (when hideDelay is 0) lets the pointer travel from the
+-  // trigger onto the tooltip surface without the tooltip vanishing — required
+-  // for WCAG 1.4.13 (Content on Hover or Focus: hoverable).
++  // The zero-offset surface touches its trigger, retaining pointer access
++  // without a timed dismissal grace period.
+   const scheduleHide = useCallback(() => {
+     if (isOpen === true) {
+       return;
+     }
+     clearTimeouts();
+-    const effectiveHideDelay = hideDelay > 0 ? hideDelay : HOVER_BRIDGE_DELAY;
+     hideTimeoutRef.current = setTimeout(() => {
+       hideLayer();
+-    }, effectiveHideDelay);
++    }, hideDelay);
+   }, [isOpen, clearTimeouts, hideLayer, hideDelay]);
+
+   // Cancel a pending hide (e.g. the pointer entered the tooltip surface).
+@@ -386,15 +391,19 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+     scheduleShow();
+   }, [isTouchPointerRef, scheduleShow]);
+
+-  const handleMouseLeave = useCallback(() => {
++  const handleMouseLeave = useCallback((event: MouseEvent) => {
+     // On touch the synthesized mouseleave arrives with the next tap elsewhere,
+     // which the outside-tap dismissal already handles — and handling it here
+     // too would close the tooltip behind the tap-open bookkeeping's back.
+     if (isTouchPointerRef.current) {
+       return;
+     }
++    const next = event.relatedTarget;
++    if (next instanceof Node && document.getElementById(layerId)?.contains(next)) {
++      return;
++    }
+     scheduleHide();
+-  }, [isTouchPointerRef, scheduleHide]);
++  }, [isTouchPointerRef, scheduleHide, layerId]);
+
+   const handleFocusIn = useCallback(
+     (e: Event) => {
+@@ -416,7 +425,8 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+         return;
+       }
+       clearTimeouts();
+-      showLayer();
++      // Wait for native popover dismissal to finish before restoring a tooltip.
++      showTimeoutRef.current = setTimeout(() => { showLayer(); }, 0);
+     },
+     [isEnabled, isTouchInteraction, clearTimeouts, showLayer],
+   );
+@@ -594,7 +604,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+       const renderProps = {
+         placement: renderPlacement,
+         alignment: props?.alignment ?? alignment,
+-        offset: spacingVars['--spacing-1'],
++        offset: 0,
+         role: 'tooltip',
+         xstyle: [popoverXstyle, layerAnimations[renderPlacement]],
+         className: themeProps('tooltip').className,
+@@ -626,7 +636,7 @@ export function useTooltip(options: TooltipOptions = {}): TooltipReturn {
+     positionRef: layerRef,
+     interactionRef,
+     anchorId: layerAnchorId,
+-    describedBy: layerId,
++    describedBy: layer.isMounted ? layerId : undefined,
+     renderTooltip,
+   };
+ }
+diff --git a/src/Typeahead/BaseTypeahead.tsx b/src/Typeahead/BaseTypeahead.tsx
+index c9f1d89b777ad0922c35424e356e010b6075394b..130074dbab4abc2254d1413967b96414da9f91c5 100644
+--- a/src/Typeahead/BaseTypeahead.tsx
++++ b/src/Typeahead/BaseTypeahead.tsx
+@@ -1127,7 +1127,8 @@ export const BaseTypeahead = function BaseTypeahead<T extends SearchableItem>({
+         type="text"
+         role="combobox"
+         aria-expanded={popover.isOpen}
+-        aria-controls={listboxId}
++        // The listbox lives in the popover layer, absent from server markup.
++        aria-controls={popover.isMounted ? listboxId : undefined}
+         aria-activedescendant={
+           popover.isOpen &&
+           highlightedIndex >= 0 &&
+diff --git a/src/hooks/useMenuHover.ts b/src/hooks/useMenuHover.ts
+index a2e229b2d5ce4fdeed26a3e956b7f08e4c3d768e..b2adbc6cc26703199278a2eec08ecb279cfd0aa1 100644
+--- a/src/hooks/useMenuHover.ts
++++ b/src/hooks/useMenuHover.ts
+@@ -207,8 +207,8 @@ export function useMenuHover<T extends HTMLElement = HTMLElement>(
+     hide,
+     isOpen,
+     isEnabled,
+-    showDelay = 150,
+-    hideDelay = 200,
++    showDelay = 0,
++    hideDelay = 0,
+     clickGuardMs = DEFAULT_CLICK_GUARD_MS,
+     itemSelector,
+     popoverId,

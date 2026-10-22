@@ -165,7 +165,7 @@
   border-end-end-radius: 0;
   padding-block-end: 0;
 }
-.workspace-table .astryx-base-table:not(#\#):not(#\#) {
+.workspace-table .astryx-table:not(#\#):not(#\#) {
   background: transparent;
 }
 /* Each range's minimum width counts only the columns it shows. DataTable

@@ -193,6 +193,7 @@ export function RecoveryBanner({
 }) {
   return (
     <Banner
+      role="alert"
       status="error"
       title={title}
       description={description}

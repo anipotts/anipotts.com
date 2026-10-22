@@ -133,7 +133,7 @@ export function Logout({
       <p>
         Signing out of Access clears browser recovery. Google stays signed in.
       </p>
-      {error && <Banner status="error" title={error} />}
+      {error && <Banner role="alert" status="error" title={error} />}
       <HStack gap={3}>
         <Button
           variant="primary"

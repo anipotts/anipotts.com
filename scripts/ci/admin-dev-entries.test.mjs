@@ -40,3 +40,76 @@ for (const [name, options] of Object.entries(adminDependencyDiscovery)) {
       );
   });
 }
+
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { previewPublicAssets } from "../admin/preview-public-assets.mjs";
+
+test("preview package contains only preview-route CSS and its explicitly approved fonts/public scripts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "preview-public-package-"));
+  try {
+    await mkdir(join(root, "_astro"));
+    await writeFile(
+      join(root, "_astro/record.synthetic.css"),
+      "body{color:red}@font-face{src:url(/_astro/instrument-sans-latin-wght-normal.synthetic.woff2)}",
+    );
+    await writeFile(
+      join(root, "_astro/instrument-sans-latin-wght-normal.synthetic.woff2"),
+      new Uint8Array([119, 79, 70, 50]),
+    );
+    const integration = previewPublicAssets();
+    integration.hooks["astro:build:ssr"]({
+      manifest: {
+        routes: [
+          {
+            routeData: { route: "/preview/record" },
+            styles: [{ type: "external", src: "_astro/record.synthetic.css" }],
+          },
+          {
+            routeData: { route: "/content/new" },
+            styles: [{ type: "external", src: "_astro/private.synthetic.css" }],
+          },
+        ],
+        entryModules: {
+          "/synthetic/apps/www/src/components/Nav.astro?astro&type=script":
+            "_astro/Nav.synthetic.js",
+          "/synthetic/apps/www/src/components/SystemMap.astro?astro&type=script":
+            "_astro/SystemMap.synthetic.js",
+          "/synthetic/apps/admin/src/components/EditorialApp.tsx":
+            "_astro/private.synthetic.js",
+        },
+      },
+    });
+    await integration.hooks["astro:build:done"]({
+      dir: pathToFileURL(root + "/"),
+    });
+    const value = JSON.parse(
+      await readFile(join(root, "__preview/public-assets.json"), "utf8"),
+    );
+    assert.deepEqual(
+      value.styles.map((style) => style.path),
+      ["/_astro/record.synthetic.css"],
+    );
+    assert.deepEqual(value.scripts, [
+      "/_astro/Nav.synthetic.js",
+      "/_astro/SystemMap.synthetic.js",
+    ]);
+    assert.equal(value.fonts.length, 1);
+    assert.equal(value.fonts[0].data, "d09GMg==");
+    await writeFile(
+      join(root, "_astro/record.synthetic.css"),
+      "body{background:url(https://private.example/data)}",
+    );
+    await assert.rejects(
+      () =>
+        integration.hooks["astro:build:done"]({
+          dir: pathToFileURL(root + "/"),
+        }),
+      /Unapproved/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

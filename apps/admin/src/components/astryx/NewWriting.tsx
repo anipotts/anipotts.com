@@ -517,6 +517,7 @@ function NewWritingForm({
     return (
       <VStack gap={3}>
         <Banner
+          role="alert"
           status="warning"
           title="Session ended. Sign in again to resume."
         />
@@ -635,7 +636,9 @@ function NewWritingForm({
             Open the existing {project ? "project" : "article"}
           </Link>
         )}
-        {loggedOut && <Banner status="warning" title="Session ended" />}
+        {loggedOut && (
+          <Banner role="alert" status="warning" title="Session ended" />
+        )}
         {(recoveryProblem || recoveryFailed) && !loggedOut && (
           <BrowserRecoveryNotice
             problem={recoveryProblem ?? "unavailable"}
@@ -696,9 +699,12 @@ function NewWritingForm({
           />
         )}
         {leaving && <Text role="status">Keeping title before leaving</Text>}
-        {leaveError && <Banner status="warning" title={leaveError} />}
+        {leaveError && (
+          <Banner role="alert" status="warning" title={leaveError} />
+        )}
         {error && !taken && (
           <Banner
+            role="alert"
             status="error"
             title={error}
             endContent={

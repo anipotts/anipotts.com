@@ -23,6 +23,21 @@ import {
 
 const base = { sourceSha: "a".repeat(40), eventName: "pull_request" };
 
+const previewAssetRelease = classifyRelease(
+  ["M\tscripts/admin/preview-public-assets.mjs"],
+  base,
+);
+assert.deepEqual(previewAssetRelease.deploy_targets, {
+  www: false,
+  admin: true,
+  ingest: false,
+  newsletter: false,
+  state: false,
+  weekly_email: false,
+});
+assert.equal(previewAssetRelease.local_dev_changed, true);
+assert.equal(previewAssetRelease.migration_preflight_required, false);
+
 assert.equal(classifyRelease(["docs/release.md"], base).docs_only, true);
 for (const path of [
   "AGENTS.md",

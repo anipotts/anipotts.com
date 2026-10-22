@@ -868,6 +868,22 @@ test(
           await expect
             .poll(async () => new URL(await browser.url()).pathname)
             .toBe(project ? "/content/projects" : "/content/writing");
+          // Finish the real library island hydration before deliberately
+          // replacing this document with the recovery roundtrip.
+          await expect
+            .poll(
+              () =>
+                browser.evaluate(
+                  () =>
+                    document
+                      .querySelector(
+                        'astro-island[component-url*="EditorialApp"]',
+                      )
+                      ?.hasAttribute("ssr") === false,
+                ),
+              { timeout: 20_000 },
+            )
+            .toBe(true);
           // A real pagehide drops the key. Re-import through the actual input,
           // then verify the UI restores the exact title and custom address.
           await app.open(path);

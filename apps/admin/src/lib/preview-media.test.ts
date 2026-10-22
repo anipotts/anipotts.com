@@ -67,3 +67,23 @@ it("rewrites exact preview media, responsive sources and enlarge links with no u
     vi.unstubAllEnvs();
   }
 });
+
+it("keeps published related media outside the exact snapshot off the private reader", () => {
+  const own = "a".repeat(64) + ".png";
+  const related = "b".repeat(64) + ".png";
+  const context = {
+    requestUrl: new URL("https://admin.anipotts.com/preview/home"),
+    publicSiteUrl: "https://anipotts.com/",
+    ownedMediaIds: new Set([own]),
+  };
+  expect(previewMediaUrl(`/images/editorial/${own}`, context)).toBe(
+    `https://admin.anipotts.com/api/editorial/media?id=${own}`,
+  );
+  expect(previewMediaUrl(`/images/editorial/${related}`, context)).toBe(
+    `https://anipotts.com/images/editorial/${related}`,
+  );
+  expect(previewMediaUrl(`/api/editorial/media?id=${related}`, context)).toBe(
+    `https://anipotts.com/images/editorial/${related}`,
+  );
+  expect(previewMediaUrl("/api/editorial/media?id=invalid", context)).toBe("");
+});

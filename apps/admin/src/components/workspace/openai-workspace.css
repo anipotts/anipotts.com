@@ -119,3 +119,13 @@ html[data-astryx-theme="editorial"] {
     min-height: var(--spacing-11);
   }
 }
+
+/* Coarse-pointer editing uses a readable floor without flattening larger
+   document title styles. Keep the rule scoped and zero-specificity so each
+   document field can retain its explicitly authored typography. */
+@media (pointer: coarse) {
+  :where([data-admin-ui="openai"])
+    :where(input, textarea, [contenteditable="true"]) {
+    font-size: max(1rem, var(--text-body-size));
+  }
+}

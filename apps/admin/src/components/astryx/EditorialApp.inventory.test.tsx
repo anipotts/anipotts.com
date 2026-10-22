@@ -152,7 +152,6 @@ it("follows a save and a create made in another open tab", async () => {
       <EditorialApp
         title="Content"
         area="content"
-        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="writing"
@@ -240,7 +239,6 @@ it("moves between libraries in place and back again with history", () => {
       <EditorialApp
         title="Pages"
         area="content"
-        selectedGroup="writing"
         localPreview
         siteUrl="https://anipotts.com"
         selectedGroup="website"
@@ -447,3 +445,37 @@ it("keeps Writing's SDK boundary inside main, away from the shared navigation", 
   expect(boundary?.contains(nav)).toBe(false);
   expect(nav?.closest('[data-admin-ui="openai"]')).toBeNull();
 });
+
+it.each([
+  { name: "Projects list", selectedGroup: "work", enabled: true },
+  { name: "Project creation", newProject: true, enabled: true },
+  {
+    name: "Project editor",
+    editorRecord: { kind: "work" as const, id: "synthetic-project" },
+    enabled: true,
+  },
+  { name: "Pages", selectedGroup: "website", enabled: false },
+  { name: "Newsletter", area: "newsletter" as const, enabled: false },
+])(
+  "keeps the shared UI scoped to the authorized $name surface",
+  ({ name, enabled, ...props }) => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <EditorialApp
+        title={name}
+        localPreview
+        siteUrl="https://example.com"
+        {...props}
+        area={props.area ?? "content"}
+      />,
+    );
+    const boundary = host.querySelector('[data-admin-ui="openai"]');
+    expect(Boolean(boundary)).toBe(enabled);
+    if (enabled) {
+      expect(
+        host.querySelector("#astryx-app-shell-main")?.contains(boundary),
+      ).toBe(true);
+      expect(boundary?.querySelector("nav")).toBeNull();
+    }
+  },
+);

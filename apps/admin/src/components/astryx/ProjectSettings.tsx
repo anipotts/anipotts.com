@@ -1,10 +1,12 @@
+import {
+  NumberInput,
+  TextInput,
+  Selector,
+} from "../workspace/WorkspaceControls";
 import React from "react";
 import { TagInput } from "./TagInput";
 import { FormLayout } from "@astryxdesign/core/FormLayout";
-import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { setProjectLink } from "../../lib/project-properties";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Selector } from "@astryxdesign/core/Selector";
 import { Text } from "@astryxdesign/core/Text";
 import {
   parseEditorialSource,
