@@ -25,17 +25,137 @@ if (![undefined, "", "1"].includes(adminLocalOwnerFlag)) {
   throw new Error("ADMIN_LOCAL_OWNER must be 1 or unset");
 }
 const adminLocalOwner = adminLocalOwnerFlag === "1";
+const isolatedOwnerTest =
+  adminLocalOwner && Boolean(process.env.ADMIN_E2E_STATE_DIR);
 if (adminLocalOwner && process.env.GITHUB_ACTIONS === "true") {
   throw new Error(
     "ADMIN_LOCAL_OWNER is local-only and must not be set in GitHub Actions",
   );
 }
 
+/** Only public preview code/assets need opaque-frame CORS in disposable tests.
+ * Vite still serves the request and enforces its own filesystem restrictions. */
+/** @returns {import("vite").Plugin} */
+function isolatedPreviewAssets() {
+  const root = fileURLToPath(new URL("../..", import.meta.url)).replace(
+    /\/$/,
+    "",
+  );
+  return {
+    name: "isolated-owner-preview-assets",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        if (
+          !["GET", "HEAD"].includes(request.method ?? "") ||
+          request.headers.origin !== "null" ||
+          request.headers.forwarded ||
+          request.headers["x-forwarded-host"]
+        )
+          return next();
+        let url;
+        try {
+          url = new URL(request.url ?? "", `http://${request.headers.host}`);
+          if (
+            url.protocol !== "http:" ||
+            url.username ||
+            url.password ||
+            url.hash ||
+            !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+            url.host !== request.headers.host
+          )
+            return next();
+        } catch {
+          return next();
+        }
+        let path;
+        try {
+          path = decodeURIComponent(url.pathname);
+        } catch {
+          return next();
+        }
+        const queries = [...url.searchParams.keys()];
+        if (
+          queries.some(
+            (key) =>
+              ![
+                "astro",
+                "type",
+                "index",
+                "v",
+                "t",
+                "import",
+                "url",
+                "lang.css",
+                "lang.ts",
+                "lang.js",
+              ].includes(key),
+          )
+        )
+          return next();
+        const file = path.startsWith("/@fs/") ? path.slice(4) : path;
+        const publicSource = [
+          `${root}/apps/www/src/components/`,
+          `${root}/apps/www/src/layouts/`,
+          `${root}/apps/www/src/styles/`,
+        ].some((prefix) => file.startsWith(prefix));
+        // Raw Astro documents never qualify, only their generated script/style.
+        const module =
+          (publicSource ||
+            file === `${root}/packages/brand/src/BrandMark.astro`) &&
+          (/\.(?:css|ts|js|mjs)$/.test(file) ||
+            (file.endsWith(".astro") &&
+              url.searchParams.has("astro") &&
+              ["script", "style"].includes(
+                url.searchParams.get("type") ?? "",
+              )));
+        const clientModule = [
+          `${root}/apps/www/src/scripts/pointer-modality.ts`,
+          `${root}/apps/www/src/lib/shared-currents.ts`,
+          `${root}/apps/www/src/lib/current-tuner.ts`,
+          `${root}/packages/brand/src/theme.ts`,
+        ].includes(file);
+        const font =
+          /\.woff2?$/.test(file) &&
+          (file.startsWith(
+            `${root}/packages/brand/ap-structural-v0.2.0-candidate.1/fonts/`,
+          ) ||
+            new RegExp(
+              `^${root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/node_modules/\\.pnpm/@fontsource-variable\\+(?:instrument-sans|jetbrains-mono)@[^/]+/node_modules/@fontsource-variable/(?:instrument-sans|jetbrains-mono)/files/[^/]+\\.woff2?$`,
+            ).test(file));
+        const viteModule =
+          path === "/@vite/client" ||
+          /^\/node_modules\/\.vite\/editorial-preview\/deps\/[^/]+\.(?:js|css)$/.test(
+            path,
+          );
+        if (
+          !(module || clientModule || font || viteModule) ||
+          file.split("/").includes("..") ||
+          file.includes("\\")
+        )
+          return next();
+        response.setHeader("Access-Control-Allow-Origin", "null");
+        const vary = response.getHeader("Vary");
+        const values = (
+          Array.isArray(vary) ? vary.join(",") : String(vary ?? "")
+        )
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+        if (!values.some((value) => value.toLowerCase() === "origin"))
+          values.push("Origin");
+        response.setHeader("Vary", values.join(", "));
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   // The disposable owner test server does not exercise Astro developer tools.
   // Ordinary development and the durable owner preview retain their toolbar.
   devToolbar: {
-    enabled: !(adminLocalOwner && Boolean(process.env.ADMIN_E2E_STATE_DIR)),
+    enabled: !isolatedOwnerTest,
   },
   // Auth uses Access and application cookies, never Astro sessions. Without
   // this the adapter provisions a SESSION KV binding the Worker never had.
@@ -122,6 +242,7 @@ export default defineConfig({
       __LOCAL_OWNER_BUILD__: JSON.stringify(adminLocalOwner),
     },
     plugins: [
+      ...(isolatedOwnerTest ? [isolatedPreviewAssets()] : []),
       tailwindcss(),
       adminPreviewIdentity(fileURLToPath(new URL("../..", import.meta.url))),
       {
