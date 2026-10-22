@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { APIContext, AstroIntegration } from "astro";
 import { ALL } from "./retired-route";
 import { RETIRED_ROUTE_REDIRECTS } from "./retired-routes.mjs";
@@ -53,4 +53,28 @@ describe("retired routes", () => {
     for (const route of injected)
       expect(String(route.entrypoint)).toMatch(/\/retired-route\.ts$/);
   });
+});
+
+describe("isolated owner test toolbar", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it.each([
+    ["ordinary development", undefined, undefined, true],
+    ["state without the local owner", undefined, "/tmp/synthetic-e2e", true],
+    ["durable owner preview", "1", undefined, true],
+    ["isolated owner e2e server", "1", "/tmp/synthetic-e2e", false],
+  ] as const)(
+    "%s preserves the supported toolbar boundary",
+    async (_, owner, state, enabled) => {
+      vi.stubEnv("ADMIN_LOCAL_OWNER", owner);
+      vi.stubEnv("ADMIN_E2E_STATE_DIR", state);
+      vi.stubEnv("GITHUB_ACTIONS", undefined);
+      vi.resetModules();
+      const { default: actual } = await import("../../astro.config.mjs");
+      expect(actual.devToolbar?.enabled).toBe(enabled);
+    },
+  );
 });

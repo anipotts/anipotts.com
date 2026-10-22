@@ -2,6 +2,33 @@
 
 ## October 21 UI candidate refresh and targeted repairs
 
+### Isolated browser toolbar and partial touch evidence
+
+On clean candidate `c831dec78be47090996c8cdfb7c4532a4b98b5e2`, the supplemental
+native WebKit touch run stopped after its first Writing390/light scenario at
+its strict runtime-error gate. Both real `locator.tap` and `touchscreen.tap`
+qualified trusted one-contact touchstart/end and touch pointer events with
+coarse-pointer media; WebKit reported maxTouchPoints0. Executed field typography,
+autosize, compact sheet inset and selector/Escape focus assertions passed before
+the final gate. This is partial evidence, not an accepted scenario or matrix.
+The other11 Core/Writing and all6 Projects contexts remained unrun.
+
+The only recorded page exception points to Astro's DEV toolbar dynamic imports;
+the retained screenshot has a working properties sheet without an error overlay.
+Some initial module requests were cancelled; the exact cancellation cause remains
+unproven. No runtime/console error was suppressed or retried. The test server now
+uses supported `devToolbar.enabled:false` only when both the existing local-owner
+flag and isolated `ADMIN_E2E_STATE_DIR` are present. Ordinary dev and the durable
+owner preview retain their toolbar; production/auth behavior is unchanged.
+Focused tests import the actual config for ordinary dev, state-only, canonical
+owner and isolated owner modes. Fresh exact-head touch qualification remains due;
+physical-device acceptance is unclaimed.
+
+Task-local diagnosis and raw results are preserved at
+`/private/tmp/anipotts-native-touch-first-run-diagnosis.md` and
+`/private/tmp/anipotts-astryx-touch-2lEmN6/`. Cleanup proved zero owned browser
+contexts, disconnected browser, removed server process group and closed8917.
+
 Current main #553 is deployed to www and Admin by
 [release 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877);
 all four workers were skipped.

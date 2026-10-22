@@ -32,6 +32,11 @@ if (adminLocalOwner && process.env.GITHUB_ACTIONS === "true") {
 }
 
 export default defineConfig({
+  // The disposable owner test server does not exercise Astro developer tools.
+  // Ordinary development and the durable owner preview retain their toolbar.
+  devToolbar: {
+    enabled: !(adminLocalOwner && Boolean(process.env.ADMIN_E2E_STATE_DIR)),
+  },
   // Auth uses Access and application cookies, never Astro sessions. Without
   // this the adapter provisions a SESSION KV binding the Worker never had.
   session: false,
