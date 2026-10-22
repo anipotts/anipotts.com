@@ -1,5 +1,32 @@
 # Website source preparation
 
+## October 22 actual media integration and recovery review checkpoint
+
+Media #540 merged as `d539e38267d78e34fdc3d6d82f05a1842871a88b` from checked
+`6cb87ed138bf5d9a1c9ee6346bce52e1f1f42a86`. Required Build, Security and CodeQL
+passed; all three review threads were resolved. The integration owner reread
+strict live protection and no-bypass controls immediately before merge.
+[Deployment39733075733](https://github.com/anipotts/anipotts.com/actions/runs/39733075733)
+is running; live target/provider and route success are not yet claimed.
+
+Recovery normally merges actual main `d539e382` into qualified checkpoint
+`8d5bf0a0`, adding ancestry with no source-file delta. The maintained documentation
+is refreshed separately. Recovery runtime/fence and media implementation/test
+bytes remain identical to focused-qualified `41b9aa99`:129 recovery Node,
+27 actual local workerd/R2,94 ordinary writer/media/publication and6 local seed
+cases plus strict editorial typing pass. Earlier full runs remain mapped to
+recovery `1d50c94a` and media `ba6b6910`; no expensive full repeat is added solely
+for ancestry or documentation. Source identities, format/diff and native commit
+hooks are checked on the final tree. Recovery is ready for its protected exact-
+head CI and review gate; required hosted checks on the new head remain pending.
+
+The source release selects www/Admin, all four workers skipped, schema0044 and
+no remote migration0003. Operational cohort eligibility still always rejects;
+no Images/provider, binding, enrollment, destination/key custody, capture or
+restore activation is selected. The real Images implicit EXIF order/pixel proof
+and operational restore drill remain distinct held gates. Footer #554 and its
+verified release39728806591 remain preserved.
+
 ## October 22 repaired-media recovery merge candidate
 
 Recovery `1d50c94a` normally merges repaired media checkpoint `6cb87ed1`,
