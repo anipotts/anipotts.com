@@ -25,7 +25,7 @@ test("project library search opens the record recovery gate", async ({
       { timeout: 20_000 },
     )
     .toBe(true);
-  const search = screen.getByRole("textbox", { name: "Search projects" });
+  const search = screen.getByRole("searchbox", { name: "Search projects" });
   await search.fill("chainedchat");
   const record = screen.getByRole("link", { name: /chainedchat/i });
   await expect(record).toBeVisible();
@@ -56,7 +56,7 @@ test("project library shows a real no-match state", async ({
     )
     .toBe(true);
   await screen
-    .getByRole("textbox", { name: "Search projects" })
+    .getByRole("searchbox", { name: "Search projects" })
     .fill("no-such-project-7f4e9a");
 
   await expect(

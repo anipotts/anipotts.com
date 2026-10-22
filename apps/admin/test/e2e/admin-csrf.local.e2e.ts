@@ -9,6 +9,11 @@ test("local owner CSRF cookie accompanies a same-origin mutation", async ({
   browser,
 }) => {
   await app.open("/content/new");
+  // Navigation load does not imply that the owner gate has hydrated. Wait
+  // before the one-shot mutation; never retry a request that may have run.
+  await expect(
+    browser.locator('input[type="file"][accept="application/json,.json"]'),
+  ).toBeEnabled({ timeout: 20_000 });
   const result = await browser.evaluate(async () => {
     if (
       location.protocol !== "http:" ||

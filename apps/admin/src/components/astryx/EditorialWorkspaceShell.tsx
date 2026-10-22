@@ -24,6 +24,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { Button } from "@astryxdesign/core/Button";
 import { Tooltip } from "@astryxdesign/core/Tooltip";
 import { AppShell } from "@astryxdesign/core/AppShell";
+import { useMediaQuery } from "@astryxdesign/core/hooks";
 import { NavigationIconScope } from "./adminThemeIcons";
 import { MobileNav } from "@astryxdesign/core/MobileNav";
 import {
@@ -362,6 +363,7 @@ export function EditorialWorkspaceShell({
   /** Matching managed www preview in development, public site in production. */
   siteUrl?: string;
 }) {
+  const compact = useMediaQuery(COMPACT_QUERY);
   const [rail, setRail] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const navigationId = useId();
@@ -540,8 +542,10 @@ export function EditorialWorkspaceShell({
         height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
-        // Tablets and desktops share the inline sidebar. Only phones use a drawer.
-        mobileNav={{ breakpoint: "sm", hasToggle: false, content: NO_DRAWER }}
+        // The app's inclusive <=640 contract owns this boundary. Core's named
+        // breakpoints are strict (<640 for sm); the supported `none` option
+        // prevents a second policy while our existing drawer owns navigation.
+        mobileNav={{ breakpoint: "none", hasToggle: false, content: NO_DRAWER }}
         banner={
           <PhoneBar
             workspace={workspace}
@@ -553,30 +557,32 @@ export function EditorialWorkspaceShell({
           />
         }
         sideNav={
-          <SideNav
-            className="editorial-workspace-nav"
-            aria-label="Admin"
-            collapsible={{
-              isCollapsed: rail,
-              onCollapsedChange: changeCollapsed,
-              hasButton: false,
-            }}
-            header={
-              <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
-            }
-            footer={<WorkspaceUtilities rail={rail} siteUrl={siteUrl} />}
-          >
-            <UnifiedNavigation
-              rail={rail}
-              activeGroup={workspace}
-              selected={selected}
-              contentHref={destination}
-              groupCounts={groupCounts}
-              afterOverview={
-                rail && showLocalOwner ? <LocalOwnerTile /> : undefined
+          compact ? undefined : (
+            <SideNav
+              className="editorial-workspace-nav"
+              aria-label="Admin"
+              collapsible={{
+                isCollapsed: rail,
+                onCollapsedChange: changeCollapsed,
+                hasButton: false,
+              }}
+              header={
+                <WorkspaceIdentity rail={rail} localOwner={showLocalOwner} />
               }
-            />
-          </SideNav>
+              footer={<WorkspaceUtilities rail={rail} siteUrl={siteUrl} />}
+            >
+              <UnifiedNavigation
+                rail={rail}
+                activeGroup={workspace}
+                selected={selected}
+                contentHref={destination}
+                groupCounts={groupCounts}
+                afterOverview={
+                  rail && showLocalOwner ? <LocalOwnerTile /> : undefined
+                }
+              />
+            </SideNav>
+          )
         }
       >
         <NavigationIconScope value>

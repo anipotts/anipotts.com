@@ -53,6 +53,14 @@ if (snapshot.status !== "found")
     snapshot.status,
     snapshot.status === "stale" ? 409 : 503,
   );
+Astro.locals.previewOwnedMedia = {
+  source: snapshot.source,
+  readMedia: async (id) => {
+    const storage = productionEditor(runtimeEnv())?.storage;
+    if (!storage) throw new Error("Preview media unavailable");
+    return storage.readMedia(id);
+  },
+};
 let data: unknown;
 let body = "";
 try {
@@ -102,6 +110,7 @@ if (!writing && !project && !page?.success)
   <WorkDetail project={project} preview />
 ) : (
   page?.success && <Shell
+    preview
     title={page.data.title}
     description={page.data.description}
     path={`/${record.id}`}
@@ -130,10 +139,7 @@ if (!writing && !project && !page?.success)
 <script is:inline>
   const request =
     new URL(location.href).searchParams.get("previewRequest") ?? "";
-  parent.postMessage(
-    { type: "editorial-preview-status", request, status: "ready" },
-    "*",
-  );
+
   // Preview-only presentation; published article templates stay unchanged.
   const card = document.querySelector(".editorial-card-preview");
   if (card) {

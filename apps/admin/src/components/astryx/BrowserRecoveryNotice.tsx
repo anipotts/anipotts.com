@@ -67,6 +67,7 @@ export function BrowserRecoveryNotice({
   return (
     <VStack gap={3}>
       <Banner
+        role="alert"
         status="warning"
         title="Browser recovery needs attention"
         description={description}

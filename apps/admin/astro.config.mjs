@@ -1,4 +1,5 @@
 // @ts-check
+import { previewPublicAssets } from "../../scripts/admin/preview-public-assets.mjs";
 import { adminDependencyDiscovery } from "../../scripts/dev/admin-dependency-discovery.mjs";
 import { fileURLToPath } from "node:url";
 import { adminPreviewIdentity } from "../../scripts/dev/admin-preview-identity.mjs";
@@ -32,6 +33,11 @@ if (adminLocalOwner && process.env.GITHUB_ACTIONS === "true") {
 }
 
 export default defineConfig({
+  // The disposable owner test server does not exercise Astro developer tools.
+  // Ordinary development and the durable owner preview retain their toolbar.
+  devToolbar: {
+    enabled: !(adminLocalOwner && Boolean(process.env.ADMIN_E2E_STATE_DIR)),
+  },
   // Auth uses Access and application cookies, never Astro sessions. Without
   // this the adapter provisions a SESSION KV binding the Worker never had.
   session: false,
@@ -65,6 +71,7 @@ export default defineConfig({
   // One coherent React island per editorial page; Astro retains server routing.
   integrations: [
     astroAdvisoryGuard(),
+    previewPublicAssets(),
     react(),
     icon({ include: previewIcons }),
     // Retired URLs answer 308 through the middleware, like any other route.
@@ -111,6 +118,9 @@ export default defineConfig({
     css: { postcss: { plugins: [openaiScope()] } },
     // Explicit loopback-only editor development. Production compilation ignores it.
     define: {
+      __PREVIEW_PUBLIC_SOURCE_ROOT__: JSON.stringify(
+        fileURLToPath(new URL("../..", import.meta.url)).replace(/\/$/, ""),
+      ),
       "import.meta.env.EDITORIAL_LOCAL_PREVIEW": "true",
       // Not import.meta.env: Astro rewrites a private env name there into a
       // runtime process.env read, which Workers fill from wrangler vars.

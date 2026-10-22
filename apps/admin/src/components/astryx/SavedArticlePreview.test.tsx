@@ -8,6 +8,7 @@ let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
   vi.useFakeTimers();
+  delete document.documentElement.dataset.theme;
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -17,6 +18,8 @@ afterEach(() => {
   host.remove();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
 });
 function render(src = "/preview/record?kind=writing&id=post&revision=1") {
   act(() =>
@@ -134,4 +137,65 @@ it("distinguishes stale revisions and ignores previous-src messages after naviga
     status: "stale",
   });
   expect(host.textContent).toContain("no longer matches");
+});
+
+it("passes the resolved parent dark theme even when the system is light", () => {
+  document.documentElement.dataset.theme = "dark";
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+  const frame = render();
+  expect(new URL(frame.src).searchParams.get("theme")).toBe("dark");
+  expect(frame.getAttribute("sandbox")).toBe("allow-scripts");
+});
+it("renavigates on parent theme changes and rejects the previous render", async () => {
+  document.documentElement.dataset.theme = "light";
+  const frame = render();
+  const previous = request(frame);
+  await act(async () => {
+    document.documentElement.dataset.theme = "dark";
+    await Promise.resolve();
+  });
+  expect(new URL(frame.src).searchParams.get("theme")).toBe("dark");
+  expect(request(frame)).not.toBe(previous);
+  send(frame, {
+    type: "editorial-preview-status",
+    request: previous,
+    status: "ready",
+  });
+  expect(frame.hidden).toBe(true);
+  send(frame, {
+    type: "editorial-preview-status",
+    request: request(frame),
+    status: "ready",
+  });
+  expect(frame.hidden).toBe(false);
+});
+it("follows system changes and cleans up its listener", () => {
+  let change: (() => void) | undefined;
+  const remove = vi.fn();
+  const query = {
+    matches: true,
+    addEventListener: vi.fn((_name: string, listener: () => void) => {
+      change = listener;
+    }),
+    removeEventListener: remove,
+  };
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => query),
+  );
+  const frame = render();
+  expect(new URL(frame.src).searchParams.get("theme")).toBe("dark");
+  query.matches = false;
+  act(() => change?.());
+  expect(new URL(frame.src).searchParams.get("theme")).toBe("light");
+  act(() => root.unmount());
+  expect(remove).toHaveBeenCalledWith("change", change);
+  root = createRoot(host);
 });

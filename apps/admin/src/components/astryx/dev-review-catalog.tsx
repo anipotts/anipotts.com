@@ -6,6 +6,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Selector } from "@astryxdesign/core/Selector";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import { HomeAutosave, type SaveState } from "../../lib/home-autosave";
 import type { Draft, SaveResult } from "../../editorial/draft-store";
 import { ReviewChanges, ReviewHeading } from "./ReviewChanges";
@@ -96,6 +97,11 @@ export function DevReviewCatalog({
   const [scenario, setScenario] = useState<Scenario>("private");
   const [copy, setCopy] = useState("standard");
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Native Core acceptance stays on a DEV-only memory surface when Projects
+  // opts into SDK controls. No route/provider flag can disable the production UI.
+  const [nativeOpen, setNativeOpen] = useState(false);
+  const [nativeYear, setNativeYear] = useState("2026");
+  const [nativeCategory, setNativeCategory] = useState("other");
   const [state, setState] = useState<SaveState>({
     source: after,
     revision: 1,
@@ -248,6 +254,31 @@ export function DevReviewCatalog({
               ]}
             />
           </VStack>
+        )}
+        <Button
+          label="Open native Core fields"
+          onClick={() => setNativeOpen(true)}
+        />
+        {nativeOpen && (
+          <RecordPanel
+            title="Native Core fields"
+            onClose={() => setNativeOpen(false)}
+          >
+            <TextInput
+              label="Synthetic Core year"
+              value={nativeYear}
+              onChange={setNativeYear}
+            />
+            <Selector
+              label="Synthetic Core category"
+              value={nativeCategory}
+              options={[
+                { value: "other", label: "Other" },
+                { value: "product", label: "Product" },
+              ]}
+              onChange={setNativeCategory}
+            />
+          </RecordPanel>
         )}
         <Button
           label="Open review dialog"

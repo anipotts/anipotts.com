@@ -33,6 +33,7 @@ interface Props {
   canonicalUrl?: string;
   detail?: boolean;
   adminEntry?: boolean;
+  preview?: boolean;
 }
 
 const {
@@ -45,6 +46,7 @@ const {
   robots,
   detail = false,
   adminEntry = false,
+  preview = false,
 } = Astro.props;
 const settings = resolveSiteSettings(
   "siteSettings" in Astro.props
@@ -100,20 +102,26 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     </style>
     <script is:inline>
       (() => {
-        let stored;
-        try {
-          const incoming = new URL(location.href).searchParams.get("theme");
-          const cookie = document.cookie.match(
-            /(?:^|;\s*)ap-theme=(light|dark|system)(?:;|$)/,
-          )?.[1];
-          stored =
-            (["light", "dark", "system"].includes(incoming)
-              ? incoming
-              : null) ||
-            cookie ||
-            localStorage.getItem("theme");
-        } catch {
-          // Storage can be disabled; the default theme still renders normally.
+        const incoming = new URL(location.href).searchParams.get("theme");
+        let stored = ["light", "dark", "system"].includes(incoming)
+          ? incoming
+          : null;
+        if (!stored) {
+          try {
+            stored =
+              document.cookie.match(
+                /(?:^|;\s*)ap-theme=(light|dark|system)(?:;|$)/,
+              )?.[1] ?? null;
+          } catch {
+            // Opaque owner previews have no cookie access.
+          }
+        }
+        if (!stored) {
+          try {
+            stored = localStorage.getItem("theme");
+          } catch {
+            // Storage can be disabled; explicit request theme remains authoritative.
+          }
         }
         const theme =
           stored === "system"
@@ -175,7 +183,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       type="font/woff2"
       crossorigin
     />
-    <ClientRouter fallback="swap" />
+    {!preview && <ClientRouter fallback="swap" />}
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"

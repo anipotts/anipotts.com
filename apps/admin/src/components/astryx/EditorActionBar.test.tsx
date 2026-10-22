@@ -137,6 +137,66 @@ describe("shared editor action bar", () => {
     expect(host.style.getPropertyValue("--editor-bar-height")).toBe("44px");
   });
 
+  it("returns phone sheet focus to its trigger when a pointer click did not focus it", () => {
+    compact = true;
+    const dialogPrototype = HTMLDialogElement.prototype;
+    const previousShow = Object.getOwnPropertyDescriptor(
+      dialogPrototype,
+      "showModal",
+    );
+    const previousClose = Object.getOwnPropertyDescriptor(
+      dialogPrototype,
+      "close",
+    );
+    Object.defineProperty(dialogPrototype, "showModal", {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.setAttribute("open", "");
+      },
+    });
+    Object.defineProperty(dialogPrototype, "close", {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.removeAttribute("open");
+      },
+    });
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const main = document.createElement("main");
+    main.tabIndex = -1;
+    document.body.append(main);
+    try {
+      render({ menu: [{ items: [{ label: "Download", onClick: vi.fn() }] }] });
+      const trigger = host.querySelector<HTMLButtonElement>(
+        'button[aria-label="More actions"]',
+      )!;
+      main.focus();
+      expect(document.activeElement).toBe(main);
+      // HTMLElement.click mirrors a WebKit pointer activation without moving focus.
+      act(() => trigger.click());
+      const dialog = document.querySelector<HTMLDialogElement>(
+        'dialog[aria-label="More actions"]',
+      )!;
+      expect(dialog.open).toBe(true);
+      act(() =>
+        dialog.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        ),
+      );
+      act(() => vi.runAllTimers());
+      expect(dialog.open).toBe(false);
+      expect(document.activeElement).toBe(trigger);
+    } finally {
+      scrollTo.mockRestore();
+      main.remove();
+      if (previousShow)
+        Object.defineProperty(dialogPrototype, "showModal", previousShow);
+      else Reflect.deleteProperty(dialogPrototype, "showModal");
+      if (previousClose)
+        Object.defineProperty(dialogPrototype, "close", previousClose);
+      else Reflect.deleteProperty(dialogPrototype, "close");
+    }
+  });
+
   it("omits an empty command row and reserves no phone toolbar offset", () => {
     compact = true;
     render({ save: undefined, menu: [{ items: [] }] });

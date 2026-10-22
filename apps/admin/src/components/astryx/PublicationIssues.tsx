@@ -26,6 +26,7 @@ export function PublicationIssues({
   return (
     <VStack gap={2} role="region" aria-label="Publication issues">
       <Banner
+        role="alert"
         status="warning"
         title={`Resolve ${safe.length} ${safe.length === 1 ? "issue" : "issues"} before publishing`}
         description="Your private draft is retained."

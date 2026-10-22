@@ -46,7 +46,7 @@ export function AutoSizeTextArea(props: ComponentProps<typeof TextArea>) {
       {...props}
       ref={ref}
       rows={1}
-      className={`document-auto-textarea ${props.className ?? ""}`}
+      controlClassName={`document-auto-textarea ${props.controlClassName ?? ""}`}
     />
   );
 }

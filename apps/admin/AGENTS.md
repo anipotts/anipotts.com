@@ -22,8 +22,9 @@ for coverage, intentional differences and the migration sequence.
 
 Run `pnpm theme:build` to regenerate the editorial theme and `pnpm theme:check`
 to verify its outputs, from `apps/admin`. These scripts use the repository's
-theme wrapper with the installed CLI. Core and Neutral remain at 0.4.6; the CLI
-is 0.7.1.
+theme wrapper with the installed CLI. Core, Neutral and CLI are aligned at 0.7.1. The version-specific Core patch
+retains the admin hover, focus and mounted-ARIA behavior; its 0.4.6 predecessor
+is preserved in `patches/` for rollback.
 
 For direct theme commands, including commands copied from generated headers,
 set the scoped Jiti transform environment on each invocation:
@@ -40,7 +41,7 @@ only for direct theme compiler commands. Never hand-edit generated theme files.
 
 <!-- ASTRYX:START -->
 
-Astryx v0.4.6 · 158 components
+Astryx v0.7.1 · installed component catalog
 CLI: run every command as `pnpm exec astryx <cmd>` (shown below as `astryx ...`).
 
 SETUP (once, in your app entry e.g. main.tsx) — without these, components render unstyled:
@@ -64,7 +65,7 @@ RULES:
 
 MORE CLI:
 search "<query>" find any component / hook / doc / template / block
-component --list 158 components by category
+component --list installed components by category
 template --list page + block recipes
 docs <topic> browser-support, cli-integrations, color, elevation, getting-started, icons, illustrations, internationalization, layout, migration, motion, principles, shape, spacing, styling-libraries, styling, theme, tokens, typography, working-with-ai
 swizzle <Name> eject component source for deep customization

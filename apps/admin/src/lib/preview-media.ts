@@ -1,9 +1,10 @@
-import { editorialImagePreview } from "./editorial-media";
+import { editorialImagePreview, editorialMediaId } from "./editorial-media";
 
 export type PreviewMediaContext = {
   requestUrl: URL;
   publicSiteUrl: string;
   localAssets?: boolean;
+  ownedMediaIds?: ReadonlySet<string>;
 };
 const assetPath = /^\/(?:images|media|fonts|brand)\//u;
 /** Pure preview resolution. Uploaded candidate media stays on the owner API;
@@ -25,6 +26,19 @@ export function previewMediaUrl(
       uploadedPath = url.pathname;
   } catch {
     /* Authored source validation owns invalid URLs. */
+  }
+  if (context.ownedMediaIds) {
+    const url = new URL(path, context.requestUrl);
+    const id = uploadedPath.startsWith("/images/editorial/")
+      ? uploadedPath.slice("/images/editorial/".length)
+      : url.pathname === "/api/editorial/media"
+        ? (url.searchParams.get("id") ?? "")
+        : "";
+    if (id && editorialMediaId.test(id))
+      return context.ownedMediaIds.has(id)
+        ? new URL(`/api/editorial/media?id=${id}`, context.requestUrl).href
+        : new URL(`/images/editorial/${id}`, context.publicSiteUrl).href;
+    if (url.pathname === "/api/editorial/media") return "";
   }
   const privatePath = editorialImagePreview(uploadedPath);
   if (privatePath !== uploadedPath)

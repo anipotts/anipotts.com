@@ -120,7 +120,23 @@ async function handleRequest(
       );
     }
     const response = PREVIEW_PATHS.has(pathname)
-      ? await renderPreviewResponse(next, context.url)
+      ? await renderPreviewResponse(
+          next,
+          context.url,
+          {
+            fetch: (request) => {
+              if (!env.ASSETS) throw new Error("Preview assets unavailable");
+              return env.ASSETS.fetch(request);
+            },
+          },
+          () =>
+            context.locals.previewOwnedMedia
+              ? {
+                  ...context.locals.previewOwnedMedia,
+                  signal: context.request.signal,
+                }
+              : undefined,
+        )
       : await next();
     return withPrivateHeaders(response);
   }

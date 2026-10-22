@@ -3,10 +3,12 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorialWorkspaceShell } from "./EditorialWorkspaceShell";
+import { browserMedia } from "../../../test/support/browser-media";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 describe("responsive workspace navigation", () => {
   let host: HTMLDivElement;
   let root: Root;
+  let mediaCleanup: () => void;
   beforeEach(() => {
     localStorage.clear();
     Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
@@ -29,23 +31,9 @@ describe("responsive workspace navigation", () => {
         disconnect() {}
       },
     );
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => {
-        const min = /min-width:\s*(\d+)px/.exec(query);
-        const max = /max-width:\s*(\d+)px/.exec(query);
-        return {
-          matches:
-            (!min || window.innerWidth >= Number(min[1])) &&
-            (!max || window.innerWidth <= Number(max[1])),
-          media: query,
-          addEventListener() {},
-          removeEventListener() {},
-          addListener() {},
-          removeListener() {},
-        };
-      }),
-    );
+    const media = browserMedia(window);
+    mediaCleanup = media.dispose;
+    vi.stubGlobal("matchMedia", media.matchMedia);
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 690,
@@ -57,6 +45,7 @@ describe("responsive workspace navigation", () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
+    mediaCleanup();
     vi.unstubAllGlobals();
   });
   function render(changeTheme = vi.fn(), key = "shell") {
@@ -191,6 +180,50 @@ describe("responsive workspace navigation", () => {
       expect(menu.getAttribute("aria-expanded")).toBe("false");
     },
   );
+  it("crosses the inclusive 640/641 boundary without remounting main or leaving a drawer open", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 640,
+    });
+    render();
+    const main = host.querySelector<HTMLElement>("#astryx-app-shell-main")!;
+    const toggle = host.querySelector<HTMLButtonElement>(
+      '.admin-phone-bar [aria-label="Open navigation"]',
+    )!;
+    const drawer = host.querySelector<HTMLDialogElement>(
+      "dialog.admin-navigation-drawer",
+    )!;
+    expect(host.querySelector(".astryx-app-shell-sidenav")).toBeNull();
+    act(() => toggle.click());
+    expect(drawer.open).toBe(true);
+    act(() => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 641,
+      });
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(host.querySelector(".astryx-app-shell-sidenav")).not.toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    // Core retains the native modal until its exit finishes, then restores focus.
+    await act(async () => {
+      await vi.waitFor(() => expect(drawer.open).toBe(false));
+    });
+    expect(host.querySelector("#astryx-app-shell-main")).toBe(main);
+    act(() => main.focus());
+    expect(document.activeElement).toBe(main);
+    act(() => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 640,
+      });
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(host.querySelector(".astryx-app-shell-sidenav")).toBeNull();
+    expect(host.querySelector("#astryx-app-shell-main")).toBe(main);
+    expect(document.activeElement).toBe(main);
+    expect(drawer.open).toBe(false);
+  });
   it.each([
     [390, 1, 0],
     [1280, 0, 1],

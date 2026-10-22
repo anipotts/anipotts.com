@@ -27,9 +27,44 @@ export function SavedArticlePreview({
   const frame = useRef<HTMLIFrameElement>(null);
   const id = useId();
   const [attempt, setAttempt] = useState(0);
-  const request = `${id}:${src}:${attempt}`;
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof document === "undefined") return "light";
+    const explicit = document.documentElement.dataset.theme;
+    if (explicit === "light" || explicit === "dark") return explicit;
+    return typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  });
+  useEffect(() => {
+    const root = document.documentElement;
+    const system = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const sync = () => {
+      const explicit = root.dataset.theme;
+      setTheme(
+        explicit === "light" || explicit === "dark"
+          ? explicit
+          : system?.matches
+            ? "dark"
+            : "light",
+      );
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    system?.addEventListener("change", sync);
+    sync();
+    return () => {
+      observer.disconnect();
+      system?.removeEventListener("change", sync);
+    };
+  }, []);
+  const request = `${id}:${src}:${attempt}:${theme}`;
   const frameUrl = new URL(src, "https://admin.anipotts.com");
   frameUrl.searchParams.set("embedded", "1");
+  frameUrl.searchParams.set("theme", theme);
   frameUrl.searchParams.set("previewRequest", request);
   const frameSrc = frameUrl.pathname + frameUrl.search;
   const [result, setResult] = useState<{
@@ -92,6 +127,7 @@ export function SavedArticlePreview({
       {status !== "loading" && status !== "ready" && (
         <VStack gap={2}>
           <Banner
+            role="alert"
             status="error"
             title="Preview unavailable"
             description={failures[status]}

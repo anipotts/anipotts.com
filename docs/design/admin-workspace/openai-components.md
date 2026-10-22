@@ -2,7 +2,8 @@
 
 ## contract
 
-Content -> Writing is the first migrated workflow. The development catalog at
+Content -> Writing is the first migrated workflow. The next isolated candidate
+extends the same shared kit to Projects list, creation and editor flows. The development catalog at
 `/content/dev-catalog?fixture=openai` demonstrates the same synthetic article as
 a table row, details, editable fields and a real ChatKit widget. It is not a
 production route. The existing workspace kit remains the component entrypoint;
@@ -115,3 +116,79 @@ must find no catalog sentinel or development domain key in production bundles.
 
 Record concrete commands, results, screenshots and remaining limitations in
 the implementation PR. A build alone does not prove the rendered workflow.
+
+## aligned Astryx family migration candidate, October 19, 2026
+
+The isolated source candidate aligns Core and Neutral at 0.7.1 with the existing
+CLI 0.7.1. This is a family migration requiring its own exact-head review and
+rendered acceptance. It is not a theme-only dependency bump or a production
+rollout. The normal theme wrapper and adaptation compatibility guard remain.
+
+The version-specific `patches/@astryxdesign__core@0.7.1.patch` rebases the existing
+zero-delay touching hover surfaces, deferred focus tooltip, live ARIA-id merge
+and mounted relationship guards in source, distribution JS and declarations.
+The original 0.4.6 patch remains unchanged for rollback. Core's newer overlay
+stack, touch behavior, adaptive selector and stable layer refs remain upstream
+owned. A queued tooltip cancels on non-IME Escape without consuming the press
+intended for the actual topmost layer.
+
+Shared field adapters use canonical control/container styling slots in both UI
+modes. Handwritten textarea/table theme selectors use canonical target names.
+Explicit roles preserve actionable error and recovery announcements; a Banner's
+color alone no longer requests an announcement. Existing phone sheets retain
+their own inset through `padding={0}` on BottomSheet.
+
+Instrument Sans is authored through the typography axes so the inherited touch
+adaptation cannot replace it with Figtree. Compiled coarse-pointer typography
+below 1024px retains the 16px body base and pinned display scale. The SDK bridge
+also sets a scoped, zero-specificity editable-text floor on coarse pointers,
+including wider touch layouts, while larger authored document type wins.
+Fonts continue to load only through the existing optional-display font contract.
+
+Focused source, compiler, DOM and release-policy checks qualify only those
+boundaries. Owner qualification still needs the full relevant validation and
+actual desktop/phone browser journeys, with light/dark appearances, input font
+sizes, wrapping/autosize, sheets, menu hover travel, focus return and layer
+relationships. No new provider, access, content or publication behavior is part
+of the migration.
+
+## Projects shared-kit source candidate, October 19, 2026
+
+Based on the aligned Core family candidate `8850a8fe`, Projects opts into the
+same scoped provider as Writing. Pages, Newsletter, Data, Observability and the
+shared navigation keep their existing UI boundary. Project settings, roadmap
+and section actions, logo/preview/story-media fields and crop actions reuse the
+workspace controls. Record source transformations, private persistence, review,
+publication and upload/crop limits remain unchanged.
+
+The installed SDK has no numeric field. The workspace kit explicitly retains
+Core's localized NumberInput engine for the two ordering fields, including
+draft commit, IME, clamping and spinbutton behavior. Core layout, removable tag
+tokens, file-input admission and crop sliders also retain their specialized
+behavior. These are deliberate composed/retained controls, not claimed SDK
+exports. Shared selectors associate errors with their trigger. Shared buttons
+keep a supplied short visible child and the caller's full accessible label,
+matching Core without duplicate visible text.
+
+The existing OpenAI catalog adds real project components backed only by synthetic
+in-memory source and explicit simulated save acknowledgments/failures. Its media
+uploads are disabled and it makes no editorial API call. Actual binary upload,
+preview, crop and storage acceptance stays in the local-owner project journey.
+No fixture state is a private save or publication receipt.
+
+Before integration, qualify full Admin typing/builds and the actual project
+list/new/detail journey at desktop and phone sizes in light/dark: properties,
+metadata and section ordering, project/story media, pending upload, save/reload,
+review/history/preview navigation, conflict and session expiry. Keep equivalent
+Writing coverage and legacy Core acceptance on an unmigrated surface. This
+source checkpoint alone is not rendered acceptance or release approval.
+
+Focused qualification: 133 project, creation/navigation, Writing compatibility,
+shared-control, catalog and source-helper cases pass; 49 divider/theme/portal
+cases also pass. A final 9-case media run covers project/story metadata and crop
+encoding failure/cancellation in both UI modes. Adapter-scoped TypeScript passes
+for the shared controls and project components. These runs do not replace full
+Astro typing or browser acceptance. The broader local DOM selection still needs
+the Core migration's coordinated matchMedia setup for four legacy project tests.
+Fixture isolation and working-tree static/format checks pass. No app build,
+native Worker or browser process was started for this source batch.

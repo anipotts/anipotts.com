@@ -1,36 +1,61 @@
 # Website completeness audit
 
-## Current reconciliation, October 19
+## Current reconciliation, October 22
 
-Current main is `795920090a594dbf347e2c7de35967e6d1ee76bb`, the protected
-merge of Ani-reviewed #538. Its approved all-six-target release39209913406 succeeded, with every new provider
-version active at100%, public smoke/admin Access proof passing, schema0044 and
-no migration. #529/#530/#531 are deployed; #532
-selected zero runtime targets. Old October10 Production approvals were
-superseded and cancelled. See [release receipts](website-source-preparation.md).
+Current main is `07da221d82aa4b0d6b7d4dabcc363103fdd3959a`, the #550
+formatter release, retaining approved brand geometry/motion #553.
+[Deploy 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879)
+succeeded for www and Admin; all four workers were skipped, schema 0044,
+no migration. Exact public health/provider identity and eight Admin Access
+probes passed. #549 merged as
+`39204ca8960d18de2064cc5a47c00dced4f99592` and
+[deploy 39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295)
+succeeded for Admin and all four workers, with www skipped, schema 0044 and no
+migration. Provider version and eight Admin Access probes passed. Ingest health
+returned `ok:false` and state returned 503; those service/producer gaps remain
+separate from successful deployment. #539 (`cf7b757b`) is deployed to Admin;
+#542 selected no runtime targets. #538's all-six-target release is historical.
+#529/#530/#531 are deployed; #532 selected zero runtime targets. Old October 10
+Production approvals were superseded and cancelled. See
+[release receipts](website-source-preparation.md).
 
 The remaining software work is finite:
 
-| Action                            | Current disposition and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Encrypted browser recovery        | #539 implements saved-key/manual unlock in both authoring entry points. Earlier expiry/custody/storage repairs pass full/native checks. A later review required pending-navigation durability, shared-kit ownership and setup cancellation cleanup; those repairs are now integrated with focused regression proof. Refresh combined full/browser/hosted checks, canonical preview and Ani’s exact review before admin-only deployment without migration.                             |
-| Media qualification and lifecycle | Browser upload/crop/stored-preview/original-retention proof shipped in #538. Upload admission remains10MiB/16MP. Separate disabled foundationc70cff33, runtime source38a9a270, passes44 Node and27 actual workerd cases plus generated editorial typing, including atomic private provenance/receipt persistence. Provider decode/orientation/crop/resource qualification, entitlement and atomically persisted provenance remain open. No paid activation or silent limit reduction. |
-| Portable recovery capture/restore | Separate disabled foundationc99b8edd passes full validation on main795, including51 recovery Node,21 capture workerd and3 native transport cases, with writer fences, journal and suspended restore. Operational eligibility always rejects.4MiB/8MiB capture bounds cannot cover every10MiB upload; old-writer enrollment, complete inventory, custody, external copy and restore drill remain open. No production capture route, credentials or activation.                         |
+| Action                            | Current disposition and acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encrypted browser recovery        | Saved-key/manual unlock and pending-navigation durability shipped in #539. Its release checks and Admin deployment passed. This does not establish physical-device or every owner draft-write acceptance case.                                                                                                                                                                                                                                                                                                                                                                              |
+| Media qualification and lifecycle | Browser upload/crop/stored-preview/original-retention proof shipped in #538; admission remains 10 MiB/16 MP. Draft #540 has a clean local normal-main refresh `865211b8`, with media source unchanged and fresh qualification pending. Historical source `da1076b21522cdfe1d38af2e8b403ff59386bb5e` retains private original/derivative provenance and atomic receipts, with full validation, 44 Node and 27 actual workerd cases. Provider entitlement, decode/orientation/crop/resource qualification and activation remain held. No production caller, binding or migration is selected. |
+| Portable recovery capture/restore | Inactive draft #541 at `f91f6b62426b9b9a6e5ac8fd63469d484ab589af` passes full 14-task validation, 129 Node and 27 actual workerd/R2 cases. Local native tests cover 10 MiB media and 4 MiB class controls, bounded encrypted capture, two-pass restore, suspended reopen and readback. Operational eligibility always rejects. Inventory/enrollment, destination and key custody, external copy and operational restore-drill gates remain open. No production capture route, remote migration or activation is claimed.                                                                    |
+| Formatter and browser tooling     | #550 is merged and deployed to www/Admin. #552's compatible runner patches are locally qualified and normally consolidated into #551; its PR stays open until combined acceptance and integration.                                                                                                                                                                                                                                                                                                                                                                                          |
+| Shared authoring UI               | #551 runtime6f28 repairs Projects controls, Publish readiness and contained preview rendering. Full validation14/14 and Admin native50/50 pass at clean ca66; twelve unique Writing/Core touch outcomes and Projects6/6 pass across preserved attempts. Test-only b52b Back readiness passes both engines without warning/error logs. Runtime remains identical; exact-head protected integration/deploy is pending.                                                                                                                                                                        |
+
+Next software batches: qualify the prepared strict-browser-policy patch (same-origin
+Astro module barrier and contained-preview autofocus), then consolidate Admin
+controls and remove the SDK-origin KaTeX dependency path. The audit remains zero
+moderate/high/critical with one low KaTeX finding; an upstream fix exists from
+0.18.2, outside supported parent ranges. Current browser proof retains expected
+fault-injection logs and named warnings; physical iOS and unconditional inspector
+focus restoration are not claimed. See the current source-preparation checkpoint
+for exact revisions, failed-driver diagnostics and cleanup proof.
 
 Completed in #538: native scroll indicators, stable cold-record loading,
 recoverable module failure, writing source/artifact controls, hydrated creation,
 phone modal properties and loopback-only local CSRF. Dependency #534/#535/#537
 heads are preserved and consolidated, with whole-family Tiptap alignment,
-Node24 declarations, guarded theme generation and zero high/critical lock-audit
-findings. Two upstream advisories remain. The ignored per-article social-card
-prop/seed lookup is removed; the approved canonical brand card remains invariant.
+Node 24 declarations, guarded theme generation and zero high/critical lock-audit
+findings. Later #549 validation reports zero moderate/high/critical advisories
+and one low upstream KaTeX advisory. The ignored per-article social-card prop/seed
+lookup is removed; the approved canonical brand card remains invariant.
 
-Reserved live gates stay separate: exact review for each new PR; named-record
-owner draft-write acceptance; physical IME/mobile keyboard/resume/screen-reader
-acceptance; Knowledge/Health source grants; backup destination/key custody and
-operational restore drill; Access/host/DNS cutover; state/Brands producers and
-collectors; newsletter-send semantics. None is implied by green tests. Read-only
-investigation may proceed without changing providers, private content or credentials.
+Software integration follows current standing authority: fresh live default-branch
+protection, exact-head required checks, resolved required conversations, no bypass
+and applicable native release controls. No extra per-head chat approval is added.
+Reserved live gates stay separate: named-record owner draft-write acceptance;
+physical IME/mobile keyboard/resume/screen-reader acceptance; Knowledge/Health
+source grants; backup destination/key custody and operational restore drill;
+Access/host/DNS cutover; state/Brands producers and collectors; newsletter-send
+semantics. None is implied by green tests. Read-only investigation may proceed
+without changing providers, private content or credentials.
 
 Explicit product deferrals remain deferred: multi-record publication, schedules,
 published slug redirects, permanent staging, page builders, Finance/persistent

@@ -47,7 +47,7 @@ describe("workspace page frames", () => {
     expect(observability).not.toMatch(/ops-status-table|ops-mobile-status/);
     // Workspace themes cannot tint a table apart from the others.
     expect(kit).toContain(
-      ".workspace-table .astryx-base-table:not(#\\#):not(#\\#) { background: transparent; }",
+      ".workspace-table .astryx-table:not(#\\#):not(#\\#) { background: transparent; }",
     );
   });
 

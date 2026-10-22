@@ -33,6 +33,14 @@ if (snapshot.status !== "found")
     snapshot.status,
     snapshot.status === "stale" ? 409 : 503,
   );
+Astro.locals.previewOwnedMedia = {
+  source: snapshot.source,
+  readMedia: async (id) => {
+    const storage = productionEditor(runtimeEnv())?.storage;
+    if (!storage) throw new Error("Preview media unavailable");
+    return storage.readMedia(id);
+  },
+};
 let home;
 try {
   home = homepageSchema.parse(parseEditorialSource(snapshot.source).data);
@@ -53,10 +61,7 @@ try {
   // navigation, the same handshake the record preview makes.
   const request =
     new URL(location.href).searchParams.get("previewRequest") ?? "";
-  parent.postMessage(
-    { type: "editorial-preview-status", request, status: "ready" },
-    "*",
-  );
+
   let queued = false;
   const reportSize = () => {
     if (queued) return;

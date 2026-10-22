@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { acquire, lockPath, release } from "./heavy-slot.mjs";
+import { isManagedProcessCommand } from "./dev-server-ports.mjs";
 
 // Host-wide preview budget shared by every worktree of this repository. The
 // integration owner's checkout (the one running `pnpm review`) is exempt;
@@ -89,15 +90,22 @@ export function isIntegrationCheckout(worktree, env = {}) {
 }
 
 /** Managed dev servers this worktree's manager started and that still run. */
-export function runningPreviews(worktree) {
-  const metadata = readJson(
+export function runningPreviews(worktree, probes = {}) {
+  const metadata = (probes.readJson ?? readJson)(
     join(worktree, ".local/dev-servers/processes.json"),
   );
   if (!metadata || metadata.worktreeRoot !== worktree) return [];
   return (metadata.apps ?? []).filter((record) => {
-    if (record.ownership !== "managed" || !isAlive(record.pid)) return false;
-    const cmd = command(record.pid);
-    return cmd.includes("astro") && cmd.includes(`--port ${record.port}`);
+    if (
+      record.ownership !== "managed" ||
+      !(probes.isAlive ?? isAlive)(record.pid)
+    )
+      return false;
+    return isManagedProcessCommand(
+      (probes.command ?? command)(record.pid),
+      record.port,
+      worktree,
+    );
   });
 }
 

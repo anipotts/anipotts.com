@@ -176,8 +176,17 @@ assert.match(
   /<img\s+src=\{item\.src\}\s+alt=\{item\.alt\}/,
   "the shared viewer must preserve canonical image sources and alternative text",
 );
+const projectMediaClient = readFileSync(
+  "apps/www/src/scripts/preview-client.js",
+  "utf8",
+);
 assert.match(
   projectMediaSource,
+  /import \{ mountProjectMedia \} from "\.\.\/scripts\/preview-client\.js";\s*mountProjectMedia\(\);/,
+  "the public media component must mount its shared progressive enhancement",
+);
+assert.match(
+  projectMediaClient,
   /typeof dialog\.showModal !== "function"\) return;\s*event\.preventDefault\(\);/,
   "native enlargement must progressively enhance the original-file link",
 );
