@@ -1329,6 +1329,9 @@ test(
     expect(linkEvidence.links[0]?.origin).toBe(linkEvidence.origin);
     expect(linkEvidence.links[0]?.pathname).toBe(project.path);
     await listed.click();
+    // A real library navigation creates a fresh document. Honor the same
+    // recovery-key file boundary used by the existing reload acceptance.
+    await unlockSyntheticBrowserRecovery(browser);
     await expect(
       screen.getByRole("textbox", { name: "Title", exact: true }),
     ).toHaveValue(project.title);
