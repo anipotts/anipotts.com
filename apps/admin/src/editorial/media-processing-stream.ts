@@ -97,6 +97,14 @@ export class ProcessingBudget {
         },
         (error: unknown) => {
           if (settled) return;
+          // A rejected microtask can also beat the watchdog's timer turn.
+          try {
+            this.check();
+          } catch {
+            abort();
+            return;
+          }
+          if (settled) return;
           settled = true;
           this.signal.removeEventListener("abort", abort);
           reject(error);

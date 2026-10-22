@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import {
+  encodedCropRectangle,
+  mediaExifOrientation,
+} from "./media-orientation";
+import {
   MAX_MEDIA_BYTES,
   MAX_MEDIA_DIMENSION,
   MAX_MEDIA_PIXELS,
@@ -157,6 +161,26 @@ const discardOutput = (
   }
 };
 
+// Match the storage primitive's intrinsic snapshot boundary: caller-owned
+// length/byteLength properties and iterators cannot describe native storage.
+const typedArrayByteLength = Object.getOwnPropertyDescriptor(
+  Object.getPrototypeOf(Uint8Array.prototype),
+  "byteLength",
+)!.get!;
+function originalSnapshot(bytes: Uint8Array): Uint8Array {
+  let size: unknown;
+  try {
+    if (!(bytes instanceof Uint8Array))
+      throw new MediaProcessingError("image_too_large");
+    size = typedArrayByteLength.call(bytes);
+  } catch {
+    throw new MediaProcessingError("image_too_large");
+  }
+  if (typeof size !== "number" || size < 1 || size > MAX_MEDIA_BYTES)
+    throw new MediaProcessingError("image_too_large");
+  return new Uint8Array(bytes);
+}
+
 /** Source-only dependency injection. No env lookup, provider setup, route or
  * persistence. With no explicit Images object every operation is disabled. */
 export function mediaImagesAdapter(images?: PrivateImages) {
@@ -174,14 +198,8 @@ export function mediaImagesAdapter(images?: PrivateImages) {
     const budget = new ProcessingBudget(options.timeoutMs, options.signal);
     try {
       budget.check();
-      if (
-        !(bytes instanceof Uint8Array) ||
-        !bytes.length ||
-        bytes.length > MAX_MEDIA_BYTES
-      )
-        throw new MediaProcessingError("image_too_large");
-      // A bounded snapshot prevents caller mutation while asynchronous work runs.
-      const original = Uint8Array.from(bytes),
+      // Native TypedArray construction copies indexed storage, not iteration.
+      const original = originalSnapshot(bytes),
         type = inputType(original);
       budget.check();
       const result = await operation(original, type, budget, images);
@@ -255,12 +273,19 @@ export function mediaImagesAdapter(images?: PrivateImages) {
         const decode = await inspect(original, type, budget, binding);
         budget.check();
         const plan = planMediaCrop(decode.display, requested);
+        const encoded = encodedCropRectangle(
+          decode.encoded,
+          decode.display,
+          plan.effective,
+          mediaExifOrientation(original, type),
+        );
+        budget.check();
         const trim: ImageTransform = {
           trim: {
-            left: plan.effective.x,
-            top: plan.effective.y,
-            width: plan.effective.width,
-            height: plan.effective.height,
+            left: encoded.x,
+            top: encoded.y,
+            width: encoded.width,
+            height: encoded.height,
           },
         };
         const resize: ImageTransform = { ...plan.output, fit: "squeeze" };

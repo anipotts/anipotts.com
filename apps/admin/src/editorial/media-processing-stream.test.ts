@@ -306,7 +306,10 @@ describe("bounded PNG container stream, not a pixel decoder", () => {
     vi.stubGlobal("Uint8Array", observed);
     try {
       const result = await consumePng(stream, policy, budget, true);
-      expect(result.bytes).toEqual(bytes);
+      expect(result.bytes).toBeInstanceOf(NativeBytes);
+      expect(result.bytes!.byteLength).toBe(bytes.byteLength);
+      // Native exact comparison avoids a multi-MiB JavaScript assertion walk.
+      expect(Buffer.compare(result.bytes!, bytes)).toBe(0);
       // Includes small parser scratch and one final exact-length encoded buffer.
       expect(allocations.length).toBeLessThanOrEqual(
         Math.ceil(bytes.length / (64 * 1024)) + 3,
@@ -318,6 +321,46 @@ describe("bounded PNG container stream, not a pixel decoder", () => {
     } finally {
       budget.finish();
       vi.unstubAllGlobals();
+    }
+  });
+  it("checks the absolute deadline before propagating a rejected ready promise", async () => {
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const budget = new ProcessingBudget(1000);
+    const providerFailure = new Error("provider failure");
+    try {
+      const rejected = Promise.resolve().then(() => {
+        now = 1001;
+        throw providerFailure;
+      });
+      await expect(budget.wait(rejected)).rejects.toMatchObject({
+        code: "processing_timeout",
+      });
+    } finally {
+      budget.finish();
+      clock.mockRestore();
+    }
+  });
+  it("preserves an on-time provider rejection and explicit cancellation precedence", async () => {
+    const failure = new Error("provider failure");
+    const onTime = new ProcessingBudget(1000);
+    try {
+      await expect(onTime.wait(Promise.reject(failure))).rejects.toBe(failure);
+    } finally {
+      onTime.finish();
+    }
+    const controller = new AbortController();
+    const cancelled = new ProcessingBudget(1000, controller.signal);
+    try {
+      const rejected = Promise.resolve().then(() => {
+        controller.abort();
+        throw failure;
+      });
+      await expect(cancelled.wait(rejected)).rejects.toMatchObject({
+        code: "processing_cancelled",
+      });
+    } finally {
+      cancelled.finish();
     }
   });
   it("times out stalled output and observes late rejection without returning a receipt", async () => {

@@ -148,3 +148,31 @@ export function syntheticImages(options: {
     calls: () => ({ infoCalls, outputCalls }),
   };
 }
+
+/** Metadata-only synthetic TIFF/JPEG wrappers; no JPEG decoder is simulated. */
+export function orientationTiff(orientation: number, little = true) {
+  const bytes = new Uint8Array(26);
+  bytes.set(little ? [73, 73] : [77, 77]);
+  const view = new DataView(bytes.buffer);
+  view.setUint16(2, 42, little);
+  view.setUint32(4, 8, little);
+  view.setUint16(8, 1, little);
+  view.setUint16(10, 0x0112, little);
+  view.setUint16(12, 3, little);
+  view.setUint32(14, 1, little);
+  view.setUint16(18, orientation, little);
+  return bytes;
+}
+export function orientationJpeg(orientation: number, little = true) {
+  const tiff = orientationTiff(orientation, little);
+  const segment = joinBytes([
+    new Uint8Array([255, 225, 0, 8 + tiff.length]),
+    new Uint8Array([69, 120, 105, 102, 0, 0]),
+    tiff,
+  ]);
+  return joinBytes([
+    new Uint8Array([255, 216]),
+    segment,
+    new Uint8Array([255, 217]),
+  ]);
+}
