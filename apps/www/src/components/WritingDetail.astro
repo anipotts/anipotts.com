@@ -62,17 +62,13 @@ const articleLd = {
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
 >
-  {
-    Astro.props.preview && (
-      <aside class="editorial-card-preview">
-        <>
-          <p class="muted">Card preview</p>
-          <WritingRow item={item} />
-          <p class="muted">Article preview</p>
-        </>
-      </aside>
-    )
-  }
+  {Astro.props.preview && <aside class="editorial-card-preview">
+    <>
+      <p class="muted">Card preview</p>
+      <WritingRow item={item} />
+      <p class="muted">Article preview</p>
+    </>
+  </aside>}
   <article class="article" data-writing-article>
     <DetailWaves seed={`writing/${slug}`} />
     <header data-rise class="head">
@@ -84,41 +80,30 @@ const articleLd = {
         >
           <Icon name="ph:arrow-bend-up-left" /> all writing
         </a>
-        {
-          d.published_at && (
-            <time
-              class="date mono muted"
-              datetime={d.published_at.toISOString()}
-            >
-              {formatDate(d.published_at)}
-            </time>
-          )
-        }
+        {d.published_at && <time
+          class="date mono muted"
+          datetime={d.published_at.toISOString()}
+        >
+          {formatDate(d.published_at)}
+        </time>}
       </div>
       <h1 class="title">{d.title}</h1>
       <p class="mono muted">
-        by <a href="/" rel="author" class="quiet-link"
-          >{siteConfig.displayName}</a
-        >
+        by
+        <a href="/" rel="author" class="quiet-link">{siteConfig.displayName}</a>
       </p>
       <p class="summary"><InlineText text={d.summary} /></p>
-      {
-        d.artifact_url && (
-          <a
-            href={d.artifact_url}
-            class="quiet-link mono article-source"
-            target={externalArtifact ? "_blank" : undefined}
-            rel={externalArtifact ? "noopener noreferrer" : undefined}
-            aria-label={
-              externalArtifact
-                ? `${artifactLabel} (opens in new tab)`
-                : undefined
-            }
-          >
-            {artifactLabel} <Icon name="ph:arrow-bend-right-up" />
-          </a>
-        )
-      }
+      {d.artifact_url && <a
+        href={d.artifact_url}
+        class="quiet-link mono article-source"
+        target={externalArtifact ? "_blank" : undefined}
+        rel={externalArtifact ? "noopener noreferrer" : undefined}
+        aria-label={
+          externalArtifact ? `${artifactLabel} (opens in new tab)` : undefined
+        }
+      >
+        {artifactLabel} <Icon name="ph:arrow-bend-right-up" />
+      </a>}
     </header>
 
     <div data-rise class="article-body">
@@ -126,24 +111,19 @@ const articleLd = {
       <Content />
     </div>
     <footer class="article-end">
-      {
-        d.tags.length > 0 && (
-          <ul class="topics" aria-label="Topics" role="list">
-            {d.tags.map((tag) => (
-              <li class="pill">{tag.replaceAll("-", " ")}</li>
-            ))}
-          </ul>
-        )
-      }
+      {d.tags.length > 0 && <ul class="topics" aria-label="Topics" role="list">
+        {d.tags.map((tag) => <li class="pill">{tag.replaceAll("-", " ")}</li>)}
+      </ul>}
       <div class="more-heading">
-        <h2 class="section-label">more writing</h2><a
-          href="/writing"
-          class="quiet-link mono"
-          >view all <Icon name="ph:arrow-bend-right-up" /></a
-        >
+        <h2 class="section-label">more writing</h2>
+        <a href="/writing" class="quiet-link mono"
+          >view all <Icon name="ph:arrow-bend-right-up"
+        /></a>
       </div>
       <div class="more-writing">
-        {moreWriting.map((post) => <WritingRow item={post} />)}
+        {moreWriting.map((post) => (
+          <WritingRow item={post} />
+        ))}
       </div>
     </footer>
   </article>

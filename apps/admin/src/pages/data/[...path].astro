@@ -29,11 +29,13 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     {...privateShellFlags(env)}
     dataFixture={fixtures?.data}
     fixture={fixtures?.snapshot}
-    fixtureOrigin={fixtures && {
-      replay: fixtures.replay,
-      capturedAt: fixtures.capturedAt,
-      payloads: fixtures.payloads,
-    }}
+    fixtureOrigin={
+      fixtures && {
+        replay: fixtures.replay,
+        capturedAt: fixtures.capturedAt,
+        payloads: fixtures.payloads,
+      }
+    }
     renderedAt={Date.now()}
     client:load
   />

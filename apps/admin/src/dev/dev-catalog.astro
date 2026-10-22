@@ -38,26 +38,24 @@ const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
   hasContent
   inventoryProjection={inventoryProjection}
 >
-  {
-    fixture === "table-loading" ? (
-      <DevTableLoadingCatalog client:load />
-    ) : fixture === "openai" ? (
-      <DevOpenAICatalog client:load />
-    ) : fixture === "data" ? (
-      <DevDataCatalog client:load />
-    ) : fixture === "marks" ? (
-      <DevMarksCatalog />
-    ) : fixture === "split" ? (
-      <DevSplitCatalog client:load />
-    ) : kit ? (
-      <DevKitCatalog
-        client:load
-        ops={kit.snapshot}
-        opsEvents={kit.events}
-        source={kit.replay ? "replay" : "sample"}
-      />
-    ) : (
-      <DevReviewCatalog client:load publication={fixture === "publication"} />
-    )
-  }
+  {fixture === "table-loading" ? (
+    <DevTableLoadingCatalog client:load />
+  ) : fixture === "openai" ? (
+    <DevOpenAICatalog client:load />
+  ) : fixture === "data" ? (
+    <DevDataCatalog client:load />
+  ) : fixture === "marks" ? (
+    <DevMarksCatalog />
+  ) : fixture === "split" ? (
+    <DevSplitCatalog client:load />
+  ) : kit ? (
+    <DevKitCatalog
+      client:load
+      ops={kit.snapshot}
+      opsEvents={kit.events}
+      source={kit.replay ? "replay" : "sample"}
+    />
+  ) : (
+    <DevReviewCatalog client:load publication={fixture === "publication"} />
+  )}
 </EditorialLayout>

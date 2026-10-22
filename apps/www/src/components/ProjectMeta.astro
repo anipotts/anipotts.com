@@ -17,15 +17,11 @@ const timeframe = year
   class:list={["project-meta-group", { "project-meta-group--inline": inline }]}
 >
   <span class="project-meta-ui">
-    {
-      (!inline || status !== "live") && (
-        <span class="status">
-          <span class="sr-only">Status: </span>
-          {label}
-          <span class="sr-only">.</span>
-        </span>
-      )
-    }
+    {(!inline || status !== "live") && <span class="status">
+      <span class="sr-only">Status: </span>
+      {label}
+      <span class="sr-only">.</span>
+    </span>}
     <span class="timeframe"
       ><span class="sr-only">Timeframe: </span>{timeframe}</span
     >

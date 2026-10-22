@@ -82,22 +82,19 @@ const groups = [
         <Icon name="ph:squares-four" aria-hidden="true" />
         <span>Overview</span>
       </div>
-      {
-        groups.map(({ title, items }) => (
-          <section class="entry-nav-group" aria-label={title}>
-            <div class="entry-group-heading">
-              <span>{title}</span>
-              <Icon name="ph:caret-down" aria-hidden="true" />
-            </div>
-            {items.map(([label, icon]) => (
-              <div class="entry-nav-row">
-                <Icon name={`ph:${icon}`} aria-hidden="true" />
-                <span>{label}</span>
-              </div>
-            ))}
-          </section>
-        ))
-      }
+      {groups.map(({ title, items }) => <section
+        class="entry-nav-group"
+        aria-label={title}
+      >
+        <div class="entry-group-heading">
+          <span>{title}</span>
+          <Icon name="ph:caret-down" aria-hidden="true" />
+        </div>
+        {items.map(([label, icon]) => <div class="entry-nav-row">
+          <Icon name={`ph:${icon}`} aria-hidden="true" />
+          <span>{label}</span>
+        </div>)}
+      </section>)}
     </div>
     <div class="entry-utilities" data-admin-controls>
       <a
@@ -122,8 +119,11 @@ const groups = [
       </button>
     </div>
   </aside>
-  <div class="entry-main-surface" data-admin-main-surface aria-hidden="true">
-  </div>
+  <div
+    class="entry-main-surface"
+    data-admin-main-surface
+    aria-hidden="true"
+  ></div>
   <section class="entry-main" data-admin-main aria-label="sign in">
     <header class="entry-page-header">
       <h1 data-admin-heading tabindex="-1">sign in</h1>
@@ -135,7 +135,8 @@ const groups = [
         href={protectedAdmin}
         data-admin-action
         data-astro-reload
-        data-astro-prefetch="false">continue to admin</a
+        data-astro-prefetch="false"
+        >continue to admin</a
       >
     </div>
   </section>

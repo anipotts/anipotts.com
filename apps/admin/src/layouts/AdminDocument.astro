@@ -63,21 +63,17 @@ const scriptNonce = Astro.locals.cspNonce;
 >
   <head>
     <meta charset="utf-8" />
-    {
-      bootstrapScript && (
-        <script is:inline nonce={scriptNonce} set:html={bootstrapScript} />
-      )
-    }
-    {
-      shell && (
-        <style
-          is:inline
-          set:html={
-            "[data-admin-document-locked] [data-admin-private-document] { display: none !important; } [data-admin-session-reentry] a { display: block; margin-block: var(--spacing-4); }"
-          }
-        />
-      )
-    }
+    {bootstrapScript && (
+      <script is:inline nonce={scriptNonce} set:html={bootstrapScript} />
+    )}
+    {shell && (
+      <style
+        is:inline
+        set:html={
+          "[data-admin-document-locked] [data-admin-private-document] { display: none !important; } [data-admin-session-reentry] a { display: block; margin-block: var(--spacing-4); }"
+        }
+      />
+    )}
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -110,38 +106,32 @@ const scriptNonce = Astro.locals.cspNonce;
       href="/manifest.webmanifest"
       crossorigin="use-credentials"
     />
-    {
-      preloadedFontUrls.map((href) => (
-        <link
-          rel="preload"
-          as="font"
-          type="font/woff2"
-          href={href}
-          crossorigin=""
-        />
-      ))
-    }
+    {preloadedFontUrls.map((href) => (
+      <link
+        rel="preload"
+        as="font"
+        type="font/woff2"
+        href={href}
+        crossorigin=""
+      />
+    ))}
     <title>{title} | Admin</title>
     <script is:inline nonce={scriptNonce} set:html={adminThemePrepaintScript} />
-    {
-      shell && (
-        <script
-          is:inline
-          nonce={scriptNonce}
-          set:html={adminSidebarPrepaintScript}
-        />
-      )
-    }
+    {shell && (
+      <script
+        is:inline
+        nonce={scriptNonce}
+        set:html={adminSidebarPrepaintScript}
+      />
+    )}
   </head>
   <body>
-    {
-      shell ? (
-        <section data-admin-private-document style="display: contents">
-          <slot />
-        </section>
-      ) : (
+    {shell ? (
+      <section data-admin-private-document style="display: contents">
         <slot />
-      )
-    }
+      </section>
+    ) : (
+      <slot />
+    )}
   </body>
 </html>

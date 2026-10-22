@@ -20,14 +20,12 @@ const { localCrop = false } = Astro.props;
     focusable="false"
   >
     <g opacity="var(--flow-opacity)">
-      {
-        [1, 2, 3, 3, 1, 2].map((color) => (
-          <path
-            fill={`var(--flow-${color})`}
-            d="M0 160Q150 60 300 160T600 160V320H0Z"
-          />
-        ))
-      }
+      {[1, 2, 3, 3, 1, 2].map((color) => (
+        <path
+          fill={`var(--flow-${color})`}
+          d="M0 160Q150 60 300 160T600 160V320H0Z"
+        />
+      ))}
     </g>
   </svg>
 </span>

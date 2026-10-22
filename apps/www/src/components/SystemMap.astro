@@ -14,13 +14,9 @@ const { workflow } = Astro.props;
   <div class="source-panel">
     <div class="source-window">
       <ul class="source-track" aria-label="Everyday sources">
-        {
-          workflow.sources.map((id) => (
-            <li data-source={id}>
-              <WorkflowMark id={id} />
-            </li>
-          ))
-        }
+        {workflow.sources.map((id) => <li data-source={id}>
+          <WorkflowMark id={id} />
+        </li>)}
       </ul>
     </div>
     <button
@@ -40,34 +36,30 @@ const { workflow } = Astro.props;
   <div class="diagram">
     <div class="step-flow">
       <ol class="steps">
-        {
-          workflow.steps.map((step) => (
-            <li class="step" data-step={step.id}>
-              <h2>
-                <span>{step.label}</span>
-                <span
-                  class:list={[
-                    "step-mark",
-                    { "device-files": step.id === "outcome" },
-                  ]}
-                  role={step.id === "outcome" ? "img" : undefined}
-                  aria-label={
-                    step.id === "outcome"
-                      ? "Mac mini with GitHub and Linear records"
-                      : undefined
-                  }
-                >
-                  {step.marks.map((id) => (
-                    <WorkflowMark id={id} grouped={step.id === "outcome"} />
-                  ))}
-                </span>
-              </h2>
-              <p>
-                <InlineText text={step.detail} />
-              </p>
-            </li>
-          ))
-        }
+        {workflow.steps.map((step) => <li class="step" data-step={step.id}>
+          <h2>
+            <span>{step.label}</span>
+            <span
+              class:list={[
+                "step-mark",
+                { "device-files": step.id === "outcome" },
+              ]}
+              role={step.id === "outcome" ? "img" : undefined}
+              aria-label={
+                step.id === "outcome"
+                  ? "Mac mini with GitHub and Linear records"
+                  : undefined
+              }
+            >
+              {step.marks.map((id) => (
+                <WorkflowMark id={id} grouped={step.id === "outcome"} />
+              ))}
+            </span>
+          </h2>
+          <p>
+            <InlineText text={step.detail} />
+          </p>
+        </li>)}
       </ol>
       <span class="return-route" aria-hidden="true"></span>
     </div>

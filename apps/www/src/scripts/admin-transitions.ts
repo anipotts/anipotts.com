@@ -18,6 +18,7 @@ import {
   motionLayout,
   reducedDuration,
   sampleIdentity,
+  projectPublicLogo,
   sampleSurface,
   surfacePath,
   surfaceInsetEdge,
@@ -97,21 +98,26 @@ const reveal = (el: HTMLElement, value: number, distance = 6) => {
   el.style.transform =
     value === 1 ? "none" : `translateY(${distance * (1 - value)}px)`;
 };
-const anchor = (el: Element) => {
-  const r = el.getBoundingClientRect();
-  return {
-    x: r.left + r.width / 2,
-    y: r.top + (r.height - r.width) / 2 + r.width * 0.4238955078,
-    scale: (r.width * 0.68965517) / 204.8,
-  };
+const publicLogo = (el: Element) => {
+  const a = $<SVGPathElement>(
+    ".brand-mark__half--left path",
+    el,
+  )?.getScreenCTM();
+  const p = $<SVGPathElement>(
+    ".brand-mark__half--right path",
+    el,
+  )?.getScreenCTM();
+  if (!a || !p) throw new NoMotionSurface();
+  return projectPublicLogo(a, p);
 };
 
 type PublicScene = {
   morph: boolean;
   ghost: Ghost;
   scope: Scope;
-  header: ReturnType<typeof anchor>;
-  footer: ReturnType<typeof anchor>;
+  header: IdentityGeometry["header"];
+  footer: IdentityGeometry["footer"];
+  pX: number;
   card: Rect;
   radii: CornerRadii;
   button: Rect;
@@ -179,6 +185,8 @@ class NoMotionSurface extends Error {}
 function publicScene(direction: Direction): PublicScene {
   const header = $("[data-admin-header-logo] svg")!;
   const footer = $("[data-admin-footer-logo] svg")!;
+  const headerLogo = publicLogo(header);
+  const footerLogo = publicLogo(footer);
   const mainWidth = $("body > main")!.getBoundingClientRect().width;
   const candidates = all(
     ".work-card, .writing-card, .experience-feature, .coding-agent-card, .press-mention, .editorial-card-preview",
@@ -228,8 +236,9 @@ function publicScene(direction: Direction): PublicScene {
     morph: Boolean(selected),
     ghost,
     scope,
-    header: anchor(header),
-    footer: anchor(footer),
+    header: headerLogo.anchor,
+    footer: footerLogo.anchor,
+    pX: direction === 1 ? footerLogo.pX : headerLogo.pX,
     card,
     radii: radii(paper),
     button: rect(button),
@@ -318,6 +327,7 @@ function run(
     layout,
     header: publicView.header,
     footer: publicView.footer,
+    publicPX: publicView.pX,
     ...adminView.identity,
     targetLetters: adminView.identity.targetLetters.map((x) => x * dockRatio),
   };

@@ -36,17 +36,13 @@ const displayTitle =
   detail
   robots={Astro.props.preview ? "noindex, nofollow, noarchive" : undefined}
 >
-  {
-    Astro.props.preview && (
-      <aside class="editorial-card-preview">
-        <>
-          <p class="muted">Card preview</p>
-          <WorkCard project={project} />
-          <p class="muted">Article preview</p>
-        </>
-      </aside>
-    )
-  }
+  {Astro.props.preview && <aside class="editorial-card-preview">
+    <>
+      <p class="muted">Card preview</p>
+      <WorkCard project={project} />
+      <p class="muted">Article preview</p>
+    </>
+  </aside>}
   <article class="project-page">
     <DetailWaves seed={`work/${slug}`} tone="work" />
     <header data-rise class="project-head">
@@ -56,64 +52,50 @@ const displayTitle =
         </a>
 
         <div class="project-actions">
-          {
-            d.link_live && (
-              <a
-                href={d.link_live}
-                class="quiet-link project-action"
-                target={
-                  isExternalDestination(d.link_live) ? "_blank" : undefined
-                }
-                rel={
-                  isExternalDestination(d.link_live)
-                    ? "noopener noreferrer"
-                    : undefined
-                }
-              >
-                visit project <Icon name="ph:arrow-bend-right-up" />
-              </a>
-            )
-          }
-          {
-            d.link_repo && (
-              <a
-                href={d.link_repo}
-                class="quiet-link project-action"
-                target={
-                  isExternalDestination(d.link_repo) ? "_blank" : undefined
-                }
-                rel={
-                  isExternalDestination(d.link_repo)
-                    ? "noopener noreferrer"
-                    : undefined
-                }
-              >
-                source <Icon name="ph:github-logo" />
-              </a>
-            )
-          }
+          {d.link_live && <a
+            href={d.link_live}
+            class="quiet-link project-action"
+            target={isExternalDestination(d.link_live) ? "_blank" : undefined}
+            rel={
+              isExternalDestination(d.link_live)
+                ? "noopener noreferrer"
+                : undefined
+            }
+          >
+            visit project <Icon name="ph:arrow-bend-right-up" />
+          </a>}
+          {d.link_repo && <a
+            href={d.link_repo}
+            class="quiet-link project-action"
+            target={isExternalDestination(d.link_repo) ? "_blank" : undefined}
+            rel={
+              isExternalDestination(d.link_repo)
+                ? "noopener noreferrer"
+                : undefined
+            }
+          >
+            source <Icon name="ph:github-logo" />
+          </a>}
         </div>
       </div>
 
       <div class="project-heading">
         <div class="project-identity">
-          {
-            d.identity.logo_src ? (
-              <img
-                src={d.identity.logo_src}
-                alt={d.identity.logo_alt ?? ""}
-                class:list={[
-                  "project-mark",
-                  d.identity.logo_tone === "light" && "project-mark--light",
-                  (d.identity.logo_tone === "adaptive" ||
-                    slug === "pgi-research-platform") &&
-                    "project-mark--adaptive",
-                ]}
-              />
-            ) : d.identity.icon ? (
-              <Icon name={`ph:${d.identity.icon}`} class="project-mark-icon" />
-            ) : null
-          }
+          {d.identity.logo_src ? (
+            <img
+              src={d.identity.logo_src}
+              alt={d.identity.logo_alt ?? ""}
+              class:list={[
+                "project-mark",
+                d.identity.logo_tone === "light" && "project-mark--light",
+                (d.identity.logo_tone === "adaptive" ||
+                  slug === "pgi-research-platform") &&
+                  "project-mark--adaptive",
+              ]}
+            />
+          ) : d.identity.icon ? (
+            <Icon name={`ph:${d.identity.icon}`} class="project-mark-icon" />
+          ) : null}
           <h1 class="hero-title">
             {displayTitle}
           </h1>
@@ -129,113 +111,88 @@ const displayTitle =
       <ProjectMeta status={d.status} year={d.year} role={d.role} />
     </header>
 
-    {
-      d.preview_media && (
-        <section
-          data-rise
-          class="project-visual"
-          aria-label={`${displayTitle} preview`}
-        >
-          <ProjectMediaStage
-            items={[d.preview_media]}
-            label={`${slug}-preview`}
-            eager
-          />
-        </section>
-      )
-    }
+    {d.preview_media && <section
+      data-rise
+      class="project-visual"
+      aria-label={`${displayTitle} preview`}
+    >
+      <ProjectMediaStage
+        items={[d.preview_media]}
+        label={`${slug}-preview`}
+        eager
+      />
+    </section>}
 
-    {
-      hasBody && (
-        <section data-rise class="project-overview">
-          <div class="article-body project-prose">
-            <Content />
-          </div>
-        </section>
-      )
-    }
+    {hasBody && <section data-rise class="project-overview">
+      <div class="article-body project-prose">
+        <Content />
+      </div>
+    </section>}
 
-    {
-      d.story.length > 0 && (
-        <div class="project-story">
-          {d.story.map((section, index) => (
-            <section data-rise class="story-section">
-              <div class="story-copy">
-                <span class="story-index" aria-hidden="true">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h2>{section.title}</h2>
-                {section.paragraphs.map((paragraph) => (
-                  <p>
-                    <InlineText text={paragraph} />
-                  </p>
-                ))}
-              </div>
-              {section.media && (
-                <div class="story-media">
-                  <ProjectMediaStage
-                    items={[section.media]}
-                    label={`${slug}-section-${index + 1}`}
-                  />
-                </div>
-              )}
-            </section>
-          ))}
+    {d.story.length > 0 && <div class="project-story">
+      {d.story.map((section, index) => <section data-rise class="story-section">
+        <div class="story-copy">
+          <span class="story-index" aria-hidden="true">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <h2>{section.title}</h2>
+          {section.paragraphs.map((paragraph) => <p>
+            <InlineText text={paragraph} />
+          </p>)}
         </div>
-      )
-    }
+        {section.media && <div class="story-media">
+          <ProjectMediaStage
+            items={[section.media]}
+            label={`${slug}-section-${index + 1}`}
+          />
+        </div>}
+      </section>)}
+    </div>}
 
-    {
-      !hasBody && d.story.length === 0 && (
-        <section data-rise class="project-overview">
-          <p class="project-fallback">
-            <InlineText text={d.description} />
+    {!hasBody && d.story.length === 0 && <section
+      data-rise
+      class="project-overview"
+    >
+      <p class="project-fallback">
+        <InlineText text={d.description} />
+      </p>
+    </section>}
+
+    {Boolean(d.technical?.length) && <section
+      data-rise
+      class="project-detail-block"
+    >
+      <h2 class="section-label">under the hood</h2>
+      <div class="project-detail-grid">
+        {d.technical?.map((item) => <article class="project-detail-card">
+          <h3>{item.title}</h3>
+          <p>
+            <InlineText text={item.content} />
           </p>
-        </section>
-      )
-    }
+        </article>)}
+      </div>
+    </section>}
 
-    {
-      Boolean(d.technical?.length) && (
-        <section data-rise class="project-detail-block">
-          <h2 class="section-label">under the hood</h2>
-          <div class="project-detail-grid">
-            {d.technical?.map((item) => (
-              <article class="project-detail-card">
-                <h3>{item.title}</h3>
-                <p>
-                  <InlineText text={item.content} />
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )
-    }
-
-    {
-      Boolean(d.roadmap?.length) && (
-        <section data-rise class="project-detail-block">
-          <h2 class="section-label">next</h2>
-          <ul class="project-roadmap">
-            {d.roadmap?.map((item) => (
-              <li class={item.status}>
-                <Icon
-                  name={
-                    item.status === "done"
-                      ? "ph:check-circle"
-                      : item.status === "in-progress"
-                        ? "ph:circle-half"
-                        : "ph:circle"
-                  }
-                />
-                <span>{item.text}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    }
+    {Boolean(d.roadmap?.length) && <section
+      data-rise
+      class="project-detail-block"
+    >
+      <h2 class="section-label">next</h2>
+      <ul class="project-roadmap">
+        {d.roadmap?.map((item) => <li class={item.status}>
+          <Icon
+            name={
+              item.status === "done"
+                ? "ph:check-circle"
+                : item.status === "in-progress"
+                  ? "ph:circle-half"
+                  : "ph:circle"
+            }
+          />
+          <span>{item.text}</span>
+        </li>)}
+      </ul>
+    </section>}
   </article>
 </Shell>
 
