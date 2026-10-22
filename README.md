@@ -30,8 +30,8 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [x] Merge [#550](https://github.com/anipotts/anipotts.com/pull/550), the qualified Astro formatter migration, as `07da221d`. Its www/Admin deployment is in progress.
-- [ ] Qualify draft [#551](https://github.com/anipotts/anipotts.com/pull/551), the combined Core/Neutral and Projects authoring candidate. The independent Projects worktree is consolidated into this branch; focus and hydrated-readiness repairs are committed as `5894a354`; combined full, native and touch acceptance remain pending.
+- [x] Merge [#550](https://github.com/anipotts/anipotts.com/pull/550), the qualified Astro formatter migration, as `07da221d`. [Release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879) deployed www and Admin; all four workers were skipped, schema 0044, no migration.
+- [ ] Qualify draft [#551](https://github.com/anipotts/anipotts.com/pull/551), the combined Core/Neutral and Projects authoring candidate. The independent Projects worktree is consolidated into this branch; full validation passed at runtime head `d47a67fb`; corrected focused native checks passed 20/22 at `7e830830`. Final Projects link lookup, media-loading readiness and preview asset/rendering acceptance remain open.
 - [ ] Complete held provider and operational gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery. Their checkouts are archived, their exact branches/PRs and local evidence remain recoverable.
 - [ ] Qualify [#552](https://github.com/anipotts/anipotts.com/pull/552), the browser-runner patch update opened during cleanup. Its source is consolidated into #551; #552 remains open until the combined candidate is accepted and integrated.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).

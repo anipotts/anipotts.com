@@ -1,10 +1,13 @@
 # Website completeness audit
 
-## Current reconciliation, October 21
+## Current reconciliation, October 22
 
-Current main is `1efed9570102052420d65d2fa364350b12ec1398`, including approved
-brand geometry/motion #553. [Deploy 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877)
-succeeded for www and Admin; all four workers were skipped. #549 merged as
+Current main is `07da221d82aa4b0d6b7d4dabcc363103fdd3959a`, the #550
+formatter release, retaining approved brand geometry/motion #553.
+[Deploy 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879)
+succeeded for www and Admin; all four workers were skipped, schema 0044,
+no migration. Exact public health/provider identity and eight Admin Access
+probes passed. #549 merged as
 `39204ca8960d18de2064cc5a47c00dced4f99592` and
 [deploy 39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295)
 succeeded for Admin and all four workers, with www skipped, schema 0044 and no
@@ -23,8 +26,8 @@ The remaining software work is finite:
 | Encrypted browser recovery        | Saved-key/manual unlock and pending-navigation durability shipped in #539. Its release checks and Admin deployment passed. This does not establish physical-device or every owner draft-write acceptance case.                                                                                                                                                                                                                                                                                                           |
 | Media qualification and lifecycle | Browser upload/crop/stored-preview/original-retention proof shipped in #538; admission remains 10 MiB/16 MP. Inactive draft #540 at `da1076b21522cdfe1d38af2e8b403ff59386bb5e` retains private original/derivative provenance and atomic receipts, with full validation, 44 Node and 27 actual workerd cases. Provider entitlement, decode/orientation/crop/resource qualification and activation remain held. No production caller, binding or migration is selected.                                                   |
 | Portable recovery capture/restore | Inactive draft #541 at `f91f6b62426b9b9a6e5ac8fd63469d484ab589af` passes full 14-task validation, 129 Node and 27 actual workerd/R2 cases. Local native tests cover 10 MiB media and 4 MiB class controls, bounded encrypted capture, two-pass restore, suspended reopen and readback. Operational eligibility always rejects. Inventory/enrollment, destination and key custody, external copy and operational restore-drill gates remain open. No production capture route, remote migration or activation is claimed. |
-| Formatter and browser tooling     | #550's refreshed formatter checks and #552's compatible browser-runner patch qualification are underway. Neither is represented as released.                                                                                                                                                                                                                                                                                                                                                                             |
-| Shared authoring UI               | Draft #551 consolidates Core/Neutral 0.7.1 and Projects authoring. Repair `5894a354` adds explicit phone sheet focus return and focused negative-control regression proof, hydrated CSRF/popup readiness, and SDK crop selectors. Focused checks pass; combined full/native acceptance remains pending. Asset-transport 500, unexplained WebKit page closure and unqualified supplemental touch-emulation findings remain open.                                                                                          |
+| Formatter and browser tooling     | #550 is merged and deployed to www/Admin. #552's compatible runner patches are locally qualified and normally consolidated into #551; its PR stays open until combined acceptance and integration.                                                                                                                                                                                                                                                                                                                       |
+| Shared authoring UI               | Draft #551 consolidates Core/Neutral 0.7.1 and Projects authoring. Repair `5894a354` adds explicit phone sheet focus return and focused negative-control regression proof, hydrated CSRF/popup readiness, and SDK crop selectors. Full validation passed all 14 tasks at runtime head `d47a67fb`. Corrected focused native checks passed 20/22 at `7e830830`; final Projects library-link lookup, Publish/media-loading readiness, sandbox asset rendering and supplemental touch runtime acceptance remain open.        |
 
 Completed in #538: native scroll indicators, stable cold-record loading,
 recoverable module failure, writing source/artifact controls, hydrated creation,

@@ -1,10 +1,53 @@
 # Website source preparation
 
+## October 22 release and cleanup checkpoint
+
+Integration owner: site-improvements, local chat
+`01a14ffb-519c-73b1-a63a-380f9d7274d0`. #550 is merged as
+`07da221d82aa4b0d6b7d4dabcc363103fdd3959a`, with the qualified source tree
+`0eedd543b9ccf1aa54bb81aa1dfdf2d99cf1771e` unchanged by integration.
+[Release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879)
+succeeded for www and Admin. All four workers were skipped; schema 0044,
+no migration. Both provider versions are active at 100%; public health reports
+the exact merge SHA and D1 connected, and eight Admin routes retain Access.
+Required Build and Security checks passed. Optional CodeQL job reporting was
+inconsistent with its successful workflow; it was not a required rule or bypass.
+
+#551 includes main and checked #552 source by normal merges. Full validation
+passed all 14 tasks at runtime head `d47a67fb`, including 2,497 Admin unit tests.
+The first native run passed 42/50. Test-only role and hydration corrections at
+`7e830830` then passed 20/22 focused cases; only the final Projects library-link
+lookup failed on both targets. Its actual href still needs diagnosis. The
+Publish button readiness mismatch during restored-media loading is confirmed;
+its focused fix and acceptance are being qualified. Opaque preview asset CORS
+and supplemental touch runtime errors remain unresolved. An attempted later
+link diagnostic coincided with an actual config-triggered server restart,
+so it provides no clean-head product acceptance. Physical-device proof remains
+separate. Keep #551 draft and #552 open until combined acceptance/integration.
+
+Thirty-one retired checkout paths are removed with source refs and local
+receipts preserved. The seven remaining stale app cards were traced to this
+chat (three) and original content worker
+`01a15008-1dac-7480-90b2-424f4c9d0787` (four). Native archival rejects ownership
+even from those contexts; direct app-server messages to the multi-agent worker
+are disallowed. Do not recreate checkout directories or alter app databases.
+The completed formatter card has queued archival without confirmed completion.
+Primary, canonical review, active candidate and dirty table-work preservation
+remain separate. Exact inventory and native denials are retained locally under
+`.local/project-cleanup/2026-10-21/`.
+
+Canonical source and both HTTP review identities are at `07da221d`. A manager
+health-check race started a duplicate public server on a fallback port; only
+that new duplicate was stopped. Original www and Admin continue serving.
+Public manager tracking now needs a scoped restart, pending the separately
+requested approval after native review rejected it. Admin must stay running.
+The source prevention fix is independently reviewed on
+`codex/preview-process-ownership`; it is not yet integrated or activated.
+
 ## October 21 combined qualification checkpoint
 
 Integration remains with site-improvements. Main formatter #550 is merged at
-`07da221d82aa4b0d6b7d4dabcc363103fdd3959a`; its www/Admin deployment is in
-progress. This candidate normally merges that main and checked runner #552 head
+`07da221d82aa4b0d6b7d4dabcc363103fdd3959a`; its www/Admin deployment subsequently succeeded as recorded above. This candidate normally merges that main and checked runner #552 head
 `a7ea3b87d875cb51f2f8b1b5ee5ceb21e9ca3cbc`, retaining approved brand behavior,
 formatter 1.1.1 HTML whitespace, Core/Neutral/CLI 0.7.1 and the existing Core patch.
 #552 remains open until the combined candidate is accepted and integrated.
