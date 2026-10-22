@@ -819,11 +819,9 @@ test(
     await expect(
       screen.getByRole("option", { name: "Demo", exact: true }),
     ).toBeVisible();
-    // This field sits above the open listbox. Link label sits underneath it
-    // and is physically covered, so it cannot exercise an outside click.
-    await screen
-      .getByRole("textbox", { name: "Source or demo link", exact: true })
-      .click();
+    // The viewport-fitted listbox can flip above Link type and cover Source.
+    // Tags stays above the listbox, so it exercises a real outside click.
+    await screen.getByRole("textbox", { name: "Tags", exact: true }).click();
     await expect(selector).toHaveAttribute("aria-expanded", "false");
     // Core returns focus to its combobox after native light dismissal.
     await expect(selector).toBeFocused();
