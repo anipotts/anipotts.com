@@ -1300,9 +1300,9 @@ test(
       "synthetic-project-library-link",
       await browser.evaluate(
         ({ path, title }) => {
-          const links = [
-            ...document.querySelectorAll<HTMLAnchorElement>("main a"),
-          ]
+          const links = Array.from(
+            document.querySelectorAll<HTMLAnchorElement>("main a"),
+          )
             .filter((link) => link.textContent?.includes(title))
             .map((link) => ({
               rawHref: link.getAttribute("href"),
