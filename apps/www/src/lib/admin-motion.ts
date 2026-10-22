@@ -12,6 +12,22 @@ export interface Pose {
   y: number;
   scale: number;
 }
+/** Project the rendered AP paths into the transition's normalized letter space.
+ * Reading the actual matrices keeps the overlay aligned with kit placement,
+ * unequal header/footer sizes, viewBox fitting and ancestor transforms. */
+export function projectPublicLogo(
+  a: { a: number; d: number; e: number; f: number },
+  p: { a: number; d: number; e: number; f: number },
+): { anchor: LogoAnchor; pX: number } {
+  const scale = a.a * 10;
+  const left = a.e + 60 * a.a;
+  const top = a.f + 1000 * a.d;
+  return {
+    anchor: { x: left + 107.3 * scale, y: top + 51 * scale, scale },
+    pX: (p.e + 120 * p.a - left) / scale,
+  };
+}
+
 /** Center of the native AP artwork and its SVG units-to-CSS-pixels ratio. */
 export interface LogoAnchor extends Pose {}
 export interface IdentityGeometry {
@@ -22,6 +38,7 @@ export interface IdentityGeometry {
   baseline: number;
   adminScale?: number;
   targetLetters: readonly number[];
+  publicPX?: number;
 }
 export interface MotionRoute {
   start: number;
@@ -257,7 +274,11 @@ export function sampleIdentity(
     min,
     bracket,
     native,
-    pX: mix(106.8 + 18 * spread, geometry.targetLetters[1], dock),
+    pX: mix(
+      (geometry.publicPX ?? 106.8) + 18 * spread,
+      geometry.targetLetters[1],
+      dock,
+    ),
     // Resize the letter shapes only while they morph at the dock. The AP's
     // travel scale stays fixed even when header and footer marks differ.
     glyphScale: mix(1, (geometry.adminScale ?? pose.scale) / pose.scale, dock),

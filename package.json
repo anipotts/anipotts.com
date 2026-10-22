@@ -149,7 +149,7 @@
     "@e2e-dev/web": "0.15.1",
     "ai": "7.0.142",
     "e2e": "0.21.1",
-    "eslint": "^10",
+    "eslint": "^10.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "playwright": "1.64.1",
@@ -157,7 +157,7 @@
     "prettier-plugin-astro": "^1.1.1",
     "turbo": "^2.11.8",
     "typescript": "^5.7.0",
-    "wrangler": "4.151.0",
+    "wrangler": "4.151.1",
     "yaml": "2.8.3"
   }
 }

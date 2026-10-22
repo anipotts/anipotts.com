@@ -6,6 +6,7 @@ import {
   motionLayout,
   reducedDuration,
   sourcePose,
+  projectPublicLogo,
   endPose,
   sampleIdentity,
   sampleSurface,
@@ -363,5 +364,48 @@ test("compact nested surfaces share their landing and begin returning before the
     }
     assert.deepEqual(sampleSurface(0, g, -1).rect, g.card);
     assert.deepEqual(sampleSurface(0, g, -1).panel, g.button);
+  }
+});
+
+// Use the approved kit's path placements, including distinct a/p translations.
+// A d-only reconstruction with the previous scale fails these endpoint checks.
+test("kit paths and the transition overlay coincide at both public endpoints", () => {
+  for (const width of [32, 44, 64]) {
+    const viewportScale = (width * 4) / 2048;
+    const pathScale = 0.16848816029143898;
+    const a = {
+      a: viewportScale * pathScale,
+      d: -viewportScale * pathScale,
+      e: 27 + viewportScale * 60.89071038251366,
+      f: 41 + viewportScale * 300.3123861566485,
+    };
+    const p = { ...a, e: 27 + viewportScale * 239.1511839708561 };
+    const projected = projectPublicLogo(a, p);
+    assert.ok(Math.abs(projected.pX - 111.8) < 1e-7);
+    const g = {
+      ...geometry(1440),
+      header: projected.anchor,
+      footer: projected.anchor,
+      publicPX: projected.pX,
+    };
+    for (const direction of [-1, 1]) {
+      const frame = sampleIdentity(0, g, direction);
+      for (const [matrix, offset, origin] of [
+        [a, 0, 60],
+        [p, frame.pX, 120],
+      ]) {
+        for (const [x, y] of [
+          [60, 1000],
+          [590, 500],
+          [1198, -500],
+        ]) {
+          const overlayX =
+            frame.pose.x + frame.pose.scale * (offset + 0.1 * (x - origin));
+          const overlayY = frame.pose.y + frame.pose.scale * (100 - 0.1 * y);
+          assert.ok(Math.abs(overlayX - (matrix.e + matrix.a * x)) < 1e-7);
+          assert.ok(Math.abs(overlayY - (matrix.f + matrix.d * y)) < 1e-7);
+        }
+      }
+    }
   }
 });

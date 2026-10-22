@@ -1,5 +1,23 @@
 # Website source preparation
 
+## October 21 queue refresh and worktree ownership
+
+Current main is `1efed957`, including approved brand geometry #553. The formatter
+refresh preserves its transforms and animation changes. #549 is already deployed;
+its old dependency proposals #546/#548 and #545/#547 are closed as superseded.
+#550 and #551 remain the active source candidates; #552 is the new runner patch.
+
+Seven checkout directories were removed after preservation during October 19
+cleanup. Native creation events identify owner chat
+`01a14ffb-519c-73b1-a63a-380f9d7274d0` for site-first-batch,
+site-dependency-refresh and site-project-authoring; subagent chat
+`01a15008-1dac-7480-90b2-424f4c9d0787` created first-batch-content,
+admin-loading-scroll, local-csrf-webkit and modal-menu-webkit. Native archive
+calls from both contexts still reject ownership. Direct chat dispatch rejects
+multi-agent v2 subagents. The app cards remain blocked on native ownership
+reconciliation; no app database edits or filesystem recreation were used.
+Recovery records remain under `.local/project-cleanup/2026-10-19/`.
+
 ## October 19 Astro formatter migration
 
 This isolated candidate reproduces #547 with prettier-plugin-astro 1.1.1 and
@@ -32,8 +50,42 @@ their PRs. Media/recovery remain inactive drafts; source adapter work does not
 authorize operational custody, provider setup or activation.
 
 Proposed formatter source targets are www and Admin, including the shared brand
-component. Keep this candidate draft until required source/render/hosted checks
-finish and Ani reviews its exact head. No merge/deploy approval exists.
+component. Keep this candidate draft until the current-main source/render and hosted checks
+finish. Integration follows current standing authority and native release gates.
+
+## October 19 compatible runtime dependency refresh
+
+#539 is merged as `cf7b757b` and Admin-only deploy39272399483 succeeded.
+Its exact provider/schema/eight Access redirect proof passes. #542 is merged as
+`aa860b4b`; release39275594601 succeeded with every runtime target and
+Production skipped, no migration. Their PR descriptions contain current receipts.
+
+Fresh Dependabot proposals arrived after those releases. This isolated candidate
+independently reproduces compatible #546 and #548 updates on main `aa860b4b`:
+Admin React integration 7.1.0, ESLint 10.13.0, Wrangler 4.151.1 across root and all
+four retained workers, and Admin's matching Cloudflare Vitest plugin 1.4.4.
+React/DOM remain 19.3.1, types 19.3.0, Astro 7.4.0, its Cloudflare adapter 14.3.4,
+and Node 24.19.0. Five old package records are removed and three new records added;
+existing retained package records are unchanged. Frozen installation and dependency
+family assertions pass. Full validation, actual browser/native qualification,
+hosted checks, canonical integration and exact review remain pending.
+
+The proposed runtime scope is Admin plus four workers; www is excluded while its
+deployed public tree remains unchanged. No migration, bindings, send logic,
+authentication or production content edits are planned. The fresh bot branches
+are preserved; no bot branch has been edited or merged.
+
+#545 is a separate coherent Core/Neutral 0.7.1 migration: Neutral's exact Core
+peer and adaptive typography make the theme-only bot update incompatible with
+Core 0.4.6. #547 is a separate formatter migration: its default JSX whitespace
+mode differs from both apps' compressHTML:true. Match html before reviewing
+printer changes. Those implementation workers have isolated worktrees and no
+heavy verification slot; the integration owner schedules tests serially.
+
+Inactive #540 media and #541 recovery remain independently checked drafts.
+Their latest source/qualification receipts are in their PRs. A caller-supplied
+ciphertext artifact adapter is a separable source step underway for recovery;
+operational custody, provider setup, migrations and activation remain gated.
 
 ## October 19 browser recovery release and dependency refresh
 
