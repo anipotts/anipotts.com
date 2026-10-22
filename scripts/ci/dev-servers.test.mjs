@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import {
+  ensureAppProcess,
+  isManagedProcessCommand,
+  waitForApp,
+} from "../dev/dev-servers.mjs";
+import { startManagedAstro } from "../dev/dev-servers-child.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import {
   DEV_HOST,
@@ -65,7 +76,7 @@ for (const expected of [
   "`--filter=${app.packageName}^...`",
   'if (surface === "admin" || surface === "all") await ensureFallbackAdmin()',
   'fallbackAdminUrl: "http://localhost:4311/"',
-  "isRecognizedProcess(prior)",
+  "operations.isRecognizedProcess(prior)",
   "is in use by another process; stop it or set ${app.portEnv}",
 ]) {
   assert.ok(
@@ -79,9 +90,15 @@ assert.ok(!/portless/i.test(manager), "the manager must not mention portless");
 assert.equal(DEV_HOST, "127.0.0.1");
 assert.match(
   manager,
-  /\[\s*"exec",\s*"astro",\s*"dev",\s*"--host",\s*DEV_HOST,\s*"--port",\s*String\(port\),\s*"--ignore-lock",\s*\]/,
-  "dev servers must bind loopback explicitly on their assigned port",
+  /\[join\(SCRIPT_DIR, "dev-servers-child.mjs"\), "--port", String\(port\)\]/,
+  "the manager starts its own exact-port Astro child",
 );
+assert.ok(manager.includes('stdio: ["ignore", logFd, logFd, "ipc"]'));
+assert.ok(
+  manager.includes("record.listening"),
+  "health must wait for confirmed child readiness",
+);
+
 for (const forbidden of ['"--host", "0.0.0.0"', "--host true", '"--open"']) {
   assert.ok(!manager.includes(forbidden), `manager must not use ${forbidden}`);
 }
@@ -216,3 +233,246 @@ for (const forbidden of [
 }
 
 console.log("dev server invariants passed");
+
+// A failing health probe is not permission to replace a still-live preview.
+const app = { key: "www", healthPath: "/", portEnv: "ANIPOTTS_WWW_PORT" };
+const prior = {
+  key: "www",
+  pid: 4242,
+  port: 4580,
+  url: "http://127.0.0.1:4580",
+  ownership: "managed",
+  localOwner: false,
+  logPath: "/synthetic/www.log",
+};
+const before = structuredClone(prior);
+const calls = [];
+const operations = {
+  isRecognizedProcess: () => true,
+  isHealthy: async () => false,
+  isPortFree: async () => {
+    calls.push("port");
+    return true;
+  },
+  prepareAppDependencies: () => calls.push("prepare"),
+  startApp: () => {
+    calls.push("spawn");
+    return { ...prior, pid: 9999 };
+  },
+  waitForApp: async () => calls.push("wait"),
+  stopRecord: async () => calls.push("stop"),
+};
+await assert.rejects(
+  ensureAppProcess(
+    app,
+    { prior, port: 4580, siteUrl: prior.url, localOwner: false },
+    operations,
+  ),
+  /managed process 4242.*unhealthy.*No replacement was started/,
+);
+assert.deepEqual(
+  calls,
+  [],
+  "unhealthy reuse must not prepare, spawn, stop or return replacement metadata",
+);
+assert.deepEqual(
+  prior,
+  before,
+  "the original ownership metadata remains unchanged",
+);
+assert.equal(
+  await ensureAppProcess(
+    app,
+    { prior, port: 4580, siteUrl: prior.url, localOwner: false },
+    { ...operations, isHealthy: async () => true },
+  ),
+  prior,
+  "healthy reuse returns the original metadata identity",
+);
+await assert.rejects(
+  ensureAppProcess(
+    app,
+    { prior, port: 4582, siteUrl: prior.url, localOwner: false },
+    operations,
+  ),
+  /explicitly stop it before changing its port/,
+);
+await assert.rejects(
+  ensureAppProcess(
+    app,
+    { prior: null, port: 4580, siteUrl: prior.url, localOwner: false },
+    { ...operations, isPortFree: async () => false },
+  ),
+  /in use by another process/,
+);
+assert.deepEqual(
+  calls,
+  [],
+  "occupied ports must not spawn or stop another listener",
+);
+const cleanup = [];
+await assert.rejects(
+  ensureAppProcess(
+    app,
+    { prior: null, port: 4580, siteUrl: prior.url, localOwner: false },
+    {
+      ...operations,
+      waitForApp: async () => {
+        throw new Error("port readiness rejected");
+      },
+      stopRecord: async (record) => cleanup.push(record.pid),
+    },
+  ),
+  /port readiness rejected/,
+);
+assert.deepEqual(
+  cleanup,
+  [9999],
+  "startup failure stops only the just-created candidate",
+);
+
+assert.equal(
+  isManagedProcessCommand(
+    "pnpm exec astro dev --host 127.0.0.1 --port 4580 --ignore-lock",
+    4580,
+  ),
+  true,
+);
+assert.equal(
+  isManagedProcessCommand("pnpm exec astro dev --port 45801", 4580),
+  false,
+);
+assert.equal(
+  isManagedProcessCommand("pnpm exec astro build --port 4580", 4580),
+  false,
+);
+assert.equal(
+  isManagedProcessCommand(
+    `node ${resolve("scripts/dev/dev-servers-child.mjs")} --port 4580`,
+    4580,
+  ),
+  true,
+);
+
+let suppliedOptions;
+let wrongPortStopped = 0;
+await assert.rejects(
+  startManagedAstro("/synthetic/app", 4580, async () => ({
+    dev: async (options) => {
+      suppliedOptions = options;
+      return {
+        address: { address: "127.0.0.1", port: 4581 },
+        stop: async () => wrongPortStopped++,
+      };
+    },
+  })),
+  /refused its actual address/,
+);
+assert.equal(suppliedOptions.vite.server.strictPort, true);
+assert.equal(suppliedOptions.server.open, false);
+assert.equal(
+  wrongPortStopped,
+  1,
+  "a fallback-port child must close before readiness can be accepted",
+);
+let wrongHostStopped = 0;
+await assert.rejects(
+  startManagedAstro("/synthetic/app", 4580, async () => ({
+    dev: async () => ({
+      address: { address: "0.0.0.0", port: 4580 },
+      stop: async () => wrongHostStopped++,
+    }),
+  })),
+  /refused its actual address/,
+);
+assert.equal(wrongHostStopped, 1);
+
+// Exercise the installed Vite port binding with no Astro app, browser or config.
+// The selected app's dependency supplies Vite; no package is installed for this test.
+const requireApp = createRequire(resolve("apps/www/package.json"));
+const requireAstro = createRequire(requireApp.resolve("astro/package.json"));
+const { createServer: createViteServer } = await import(
+  pathToFileURL(requireAstro.resolve("vite")).href
+);
+const occupied = createServer();
+await new Promise((done, reject) => {
+  occupied.once("error", reject);
+  occupied.listen(0, "127.0.0.1", done);
+});
+const occupiedPort = occupied.address().port;
+let viteServer;
+try {
+  await assert.rejects(
+    startManagedAstro(process.cwd(), occupiedPort, async () => ({
+      dev: async (options) => {
+        viteServer = await createViteServer({
+          configFile: false,
+          logLevel: "silent",
+          server: { ...options.server, ...options.vite.server },
+          appType: "custom",
+        });
+        await viteServer.listen();
+        return {
+          address: viteServer.httpServer.address(),
+          stop: () => viteServer.close(),
+        };
+      },
+    })),
+    /already in use/,
+  );
+  assert.equal(
+    occupied.listening,
+    true,
+    "the conflicting listener stays untouched",
+  );
+} finally {
+  await viteServer?.close();
+  await new Promise((done) => occupied.close(done));
+}
+console.log(
+  "dev server ownership, strict-port readiness and isolated port-conflict behavior passed",
+);
+
+// An unrelated healthy HTTP endpoint cannot satisfy readiness before this
+// candidate has confirmed its exact bound address over the parent IPC channel.
+let healthRequests = 0;
+const healthy = createHttpServer((_request, response) => {
+  healthRequests++;
+  response.end("ok");
+});
+await new Promise((done, reject) => {
+  healthy.once("error", reject);
+  healthy.listen(0, "127.0.0.1", done);
+});
+let confirmListening;
+const candidate = {
+  pid: process.pid,
+  port: healthy.address().port,
+  url: `http://127.0.0.1:${healthy.address().port}`,
+  logPath: "/synthetic/child.log",
+};
+Object.defineProperty(candidate, "listening", {
+  value: new Promise((done) => {
+    confirmListening = done;
+  }),
+});
+try {
+  const pending = waitForApp(app, candidate);
+  await new Promise(setImmediate);
+  assert.equal(
+    healthRequests,
+    0,
+    "no HTTP response may be accepted before child address confirmation",
+  );
+  confirmListening();
+  await pending;
+  assert.equal(healthRequests, 1);
+  assert.equal(
+    Object.hasOwn(JSON.parse(JSON.stringify(candidate)), "listening"),
+    false,
+    "IPC readiness must never be persisted as process metadata",
+  );
+} finally {
+  await new Promise((done) => healthy.close(done));
+}
+console.log("managed child readiness precedes HTTP acceptance");
