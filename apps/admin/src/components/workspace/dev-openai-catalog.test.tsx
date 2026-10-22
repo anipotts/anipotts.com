@@ -65,11 +65,18 @@ function click(text: string) {
 function choose(label: string, value: string) {
   const trigger = [
     ...host.querySelectorAll<HTMLButtonElement>('button[role="combobox"]'),
-  ].find((button) =>
-    button
-      .getAttribute("aria-labelledby")
-      ?.split(/\s+/)
-      .some((id) => document.getElementById(id)?.textContent?.trim() === label),
+  ].find(
+    (button) =>
+      button
+        .getAttribute("aria-labelledby")
+        ?.split(/\s+/)
+        .some(
+          (id) => document.getElementById(id)?.textContent?.trim() === label,
+        ) ||
+      button.getAttribute("aria-label") === label ||
+      [...(button.labels ?? [])].some(
+        (item) => item.textContent?.trim() === label,
+      ),
   )!;
   expect(trigger, `selector ${label}`).toBeDefined();
   act(() =>
@@ -99,9 +106,10 @@ describe("admin components catalog", () => {
     expect(host.textContent).toContain("Synthetic records");
     expect(host.querySelector("[data-chatkit-fixture]")).not.toBeNull();
     input("#fixture-title", "An acknowledged synthetic title");
-    expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "Unsaved draft",
-    );
+    expect(
+      host.querySelector('[data-catalog-save-status][role="status"]')
+        ?.textContent,
+    ).toContain("Unsaved draft");
     expect(host.querySelector("h3")?.textContent).toBe(
       "A quieter writing workspace",
     );
@@ -110,9 +118,10 @@ describe("admin components catalog", () => {
     host.querySelector("form")!.addEventListener("submit", nativeSubmit);
     click("Simulate save / retry");
     expect(nativeSubmit).not.toHaveBeenCalled();
-    expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "Simulated saving",
-    );
+    expect(
+      host.querySelector('[data-catalog-save-status][role="status"]')
+        ?.textContent,
+    ).toContain("Simulated saving");
     expect(await card()).not.toContain("An acknowledged synthetic title");
     click("Acknowledge save");
     expect(host.querySelector("h3")?.textContent).toBe(
@@ -122,12 +131,13 @@ describe("admin components catalog", () => {
       "An acknowledged synthetic title",
     );
     expect(await card()).toContain("An acknowledged synthetic title");
-    expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "Acknowledged revision 2",
-    );
+    expect(
+      host.querySelector('[data-catalog-save-status][role="status"]')
+        ?.textContent,
+    ).toContain("Acknowledged revision 2");
   });
   it("filters the displayed rows while keeping the selected detail and synthetic source intact", async () => {
-    input('[aria-label="Search synthetic articles"]', "note 12");
+    input("#fixture-search", "note 12");
     const rows = host.querySelectorAll(".dev-openai-record");
     expect(rows.length).toBe(1);
     expect(rows[0].textContent).toContain("note 12");
@@ -140,13 +150,9 @@ describe("admin components catalog", () => {
     );
     expect(await card()).toContain("Synthetic writing note 12");
     expect(
-      (
-        host.querySelector(
-          '[aria-label="Search synthetic articles"]',
-        ) as HTMLInputElement
-      ).value,
+      (host.querySelector("#fixture-search") as HTMLInputElement).value,
     ).toBe("note 12");
-    input('[aria-label="Search synthetic articles"]', "no fixture matches");
+    input("#fixture-search", "no fixture matches");
     expect(host.querySelectorAll(".dev-openai-record").length).toBe(0);
   });
   it("keeps stable selection through paging and resets paging when filters change", () => {
@@ -188,17 +194,19 @@ describe("admin components catalog", () => {
       );
     }
     click("Reset scenario");
-    expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "Unsaved draft",
-    );
+    expect(
+      host.querySelector('[data-catalog-save-status][role="status"]')
+        ?.textContent,
+    ).toContain("Unsaved draft");
   });
   it("prevents keyboard form submission and declares every action a non-submit button", () => {
     const event = new Event("submit", { bubbles: true, cancelable: true });
     act(() => host.querySelector("form")!.dispatchEvent(event));
     expect(event.defaultPrevented).toBe(true);
-    expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "Simulated saving",
-    );
+    expect(
+      host.querySelector('[data-catalog-save-status][role="status"]')
+        ?.textContent,
+    ).toContain("Simulated saving");
     for (const button of host.querySelectorAll("form button"))
       expect(button.getAttribute("type")).toBe("button");
   });

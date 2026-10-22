@@ -128,7 +128,10 @@ describe("Core selectors in native modal owners", () => {
       const dialog = host.querySelector("dialog")!;
       expect(menu.closest("dialog")).toBe(dialog);
       expect(menu.closest('[data-theme="dark"]')).not.toBeNull();
-      expect(menu.contains(document.activeElement)).toBe(true);
+      expect(document.activeElement).toBe(trigger);
+      expect(
+        document.getElementById(trigger.getAttribute("aria-activedescendant")!),
+      ).not.toBeNull();
       const demo = [
         ...menu.querySelectorAll<HTMLElement>('[role="option"]'),
       ].find((item) => item.textContent === "Demo")!;
@@ -136,7 +139,7 @@ describe("Core selectors in native modal owners", () => {
       await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
       expect(change).toHaveBeenCalledWith("demo");
       expect(trigger.textContent).toBe("Demo");
-      expect(document.querySelector('[role="listbox"]')).toBeNull();
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
       expect(close).not.toHaveBeenCalled();
       expect(document.activeElement).toBe(trigger);
       expect(unrelated.parentElement).toBe(document.body);
@@ -150,7 +153,7 @@ describe("Core selectors in native modal owners", () => {
       sheet(width);
       const { trigger, menu } = await open();
       await act(async () =>
-        menu.dispatchEvent(
+        trigger.dispatchEvent(
           new KeyboardEvent("keydown", {
             key: "Escape",
             bubbles: true,
@@ -159,7 +162,7 @@ describe("Core selectors in native modal owners", () => {
         ),
       );
       await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
-      expect(document.querySelector('[role="listbox"]')).toBeNull();
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
       expect(close).not.toHaveBeenCalled();
       expect(host.querySelector("dialog")?.open).toBe(true);
       expect(document.activeElement).toBe(trigger);
@@ -167,11 +170,12 @@ describe("Core selectors in native modal owners", () => {
   );
 
   it.each([390, 900])(
-    "preserves outside-pointer dismissal without closing Properties at %ipx",
+    "handles native light-dismiss notification without closing Properties at %ipx",
     async (width) => {
       sheet(width);
-      await open();
-      // Allow the opened layer to install its outside-pointer dismissal.
+      const { trigger, menu } = await open();
+      // JSDOM does not implement native popover light dismissal. Exercise the
+      // browser's close notification here; the native journey performs the click.
       await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
       await act(async () =>
         host
@@ -180,7 +184,11 @@ describe("Core selectors in native modal owners", () => {
             new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
           ),
       );
-      expect(document.querySelector('[role="listbox"]')).toBeNull();
+      const surface = menu.closest("[popover]")!;
+      const closed = new Event("toggle");
+      Object.defineProperty(closed, "newState", { value: "closed" });
+      await act(async () => surface.dispatchEvent(closed));
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
       expect(close).not.toHaveBeenCalled();
     },
   );

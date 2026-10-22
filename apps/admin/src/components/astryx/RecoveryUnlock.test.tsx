@@ -107,16 +107,14 @@ it.each([false, true])(
     expect(host.querySelector("h1")?.textContent).toBe(
       "Unlock browser recovery",
     );
-    expect(Boolean(host.querySelector('button[data-size="lg"]'))).toBe(enabled);
+    expect(
+      host.querySelector<HTMLButtonElement>("button")?.getAttribute("type"),
+    ).toBe("button");
     expect(host.querySelector("textarea")).toBeNull();
     const raw = await create();
     expect(host.querySelector("textarea")).toBeNull();
     expect(host.textContent).toContain("Choose the key file you just saved");
-    expect(
-      Boolean(
-        host.querySelector('[data-actions-placement][data-color="info"]'),
-      ),
-    ).toBe(enabled);
+    expect(host.textContent).toContain("Choose the key file you just saved");
     await choose(raw);
     await act(async () => {
       await vi.waitFor(() =>

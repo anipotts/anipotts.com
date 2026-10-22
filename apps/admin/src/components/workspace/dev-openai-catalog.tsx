@@ -256,7 +256,7 @@ export function DevOpenAICatalog() {
               Reset scenario
             </Button>
           </div>
-          <p role="status" aria-live="polite">
+          <p data-catalog-save-status role="status" aria-live="polite">
             {state.scenario === "ready" && dirty
               ? "Unsaved draft, changes have not been acknowledged"
               : notices[state.scenario]}
@@ -267,6 +267,7 @@ export function DevOpenAICatalog() {
           <div className="dev-openai-controls">
             <Input
               label="Search synthetic articles"
+              id="fixture-search"
               isLabelHidden
               placeholder="Search articles"
               value={search}

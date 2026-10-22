@@ -815,6 +815,17 @@ test(
     expect(await panelRelationships(browser)).toEqual([]);
     await browser.keyboard.press("Escape");
     await expect(selector).toBeFocused();
+    await selector.click();
+    await expect(
+      screen.getByRole("option", { name: "Demo", exact: true }),
+    ).toBeVisible();
+    await screen
+      .getByRole("textbox", { name: "Link label", exact: true })
+      .click();
+    await expect(selector).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      screen.getByRole("textbox", { name: "Link label", exact: true }),
+    ).toBeFocused();
     await expect(
       screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
     ).toBeVisible();

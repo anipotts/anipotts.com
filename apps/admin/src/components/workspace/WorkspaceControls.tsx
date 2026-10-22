@@ -1,8 +1,98 @@
 /** Shared workspace controls use the same Core implementation on every route. */
 import type { ComponentProps } from "react";
+import { useMergedRefs } from "@astryxdesign/core/hooks";
 import { useOpenAIUI } from "./AdminUI";
-export { Button } from "@astryxdesign/core/Button";
-export { IconButton } from "@astryxdesign/core/IconButton";
+import { Button as CoreButton } from "@astryxdesign/core/Button";
+import { IconButton as CoreIconButton } from "@astryxdesign/core/IconButton";
+import { ToggleButton as CoreToggleButton } from "@astryxdesign/core/ToggleButton";
+import { Banner as CoreBanner } from "@astryxdesign/core/Banner";
+import { DropdownMenu as CoreDropdownMenu } from "@astryxdesign/core/DropdownMenu";
+
+function tooltip(
+  props: {
+    label: string;
+    tooltip?: React.ReactNode;
+    "aria-describedby"?: string;
+  },
+  fallback: boolean,
+) {
+  return Object.prototype.hasOwnProperty.call(props, "aria-describedby")
+    ? undefined
+    : (props.tooltip ?? (fallback ? props.label : undefined));
+}
+export function Button(props: ComponentProps<typeof CoreButton>) {
+  return (
+    <CoreButton
+      {...props}
+      tooltip={tooltip(props, Boolean(props.isIconOnly))}
+    />
+  );
+}
+export function IconButton(props: ComponentProps<typeof CoreIconButton>) {
+  return <CoreIconButton {...props} tooltip={tooltip(props, true)} />;
+}
+export function ToggleButton(props: ComponentProps<typeof CoreToggleButton>) {
+  return (
+    <CoreToggleButton
+      {...props}
+      tooltip={tooltip(props, Boolean(props.isIconOnly))}
+    />
+  );
+}
+export function Banner({
+  children,
+  description,
+  ...props
+}: ComponentProps<typeof CoreBanner>) {
+  return (
+    <CoreBanner
+      {...props}
+      description={
+        <>
+          {description}
+          {children && <div>{children}</div>}
+        </>
+      }
+    />
+  );
+}
+type CoreMenuProps = ComponentProps<typeof CoreDropdownMenu>;
+type CoreTriggerProps = Parameters<
+  NonNullable<CoreMenuProps["renderTrigger"]>
+>[0];
+function MenuTrigger({
+  button,
+  trigger,
+}: {
+  button: NonNullable<CoreMenuProps["button"]>;
+  trigger: CoreTriggerProps;
+}) {
+  const ref = useMergedRefs(button.ref, trigger.ref);
+  return (
+    <Button
+      {...button}
+      {...trigger}
+      ref={ref}
+      onKeyDown={(event) => {
+        button.onKeyDown?.(event);
+        if (!event.defaultPrevented) trigger.onKeyDown?.(event);
+      }}
+    />
+  );
+}
+export function DropdownMenu({ button, ...props }: CoreMenuProps) {
+  if (!button || props.renderTrigger)
+    return <CoreDropdownMenu {...props} button={button} />;
+  return (
+    <CoreDropdownMenu
+      {...props}
+      aria-label={props["aria-label"] ?? button.label}
+      renderTrigger={(trigger) => (
+        <MenuTrigger button={button} trigger={trigger} />
+      )}
+    />
+  );
+}
 import { TextInput as CoreTextInput } from "@astryxdesign/core/TextInput";
 
 /** A custom Enter action owns the key; plain fields retain native form behavior.
@@ -16,6 +106,7 @@ export function TextInput({
   return (
     <CoreTextInput
       {...props}
+      description={props.status?.message ? undefined : props.description}
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (
@@ -34,15 +125,10 @@ export function TextInput({
 }
 export { TextArea } from "@astryxdesign/core/TextArea";
 export { NumberInput } from "@astryxdesign/core/NumberInput";
-export {
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@astryxdesign/core/ToggleButton";
-export { Banner } from "@astryxdesign/core/Banner";
+export { ToggleButtonGroup } from "@astryxdesign/core/ToggleButton";
 export { Selector } from "@astryxdesign/core/Selector";
 export { MoreMenu } from "@astryxdesign/core/MoreMenu";
 export {
-  DropdownMenu,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@astryxdesign/core/DropdownMenu";

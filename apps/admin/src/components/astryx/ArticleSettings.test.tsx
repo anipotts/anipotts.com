@@ -80,8 +80,17 @@ function type(label: string, value: string) {
 async function choose(label: string) {
   const trigger = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
     (button) =>
-      document.getElementById(button.getAttribute("aria-labelledby") ?? "")
-        ?.textContent === "Link type",
+      button.getAttribute("aria-label") === "Link type" ||
+      [...(button.labels ?? [])].some(
+        (item) => item.textContent?.trim() === "Link type",
+      ) ||
+      button
+        .getAttribute("aria-labelledby")
+        ?.split(/\s+/)
+        .some(
+          (id) =>
+            document.getElementById(id)?.textContent?.trim() === "Link type",
+        ),
   )!;
   await act(async () => {
     trigger.focus();
@@ -96,9 +105,22 @@ async function choose(label: string) {
     option,
     `Missing ${label}: ${document.body.textContent}`,
   ).toBeDefined();
+  const options = document.querySelectorAll('[role="option"]');
+  for (
+    let step = 0;
+    step < options.length &&
+    trigger.getAttribute("aria-activedescendant") !== option.id;
+    step++
+  ) {
+    await act(async () =>
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+      ),
+    );
+  }
+  expect(trigger.getAttribute("aria-activedescendant")).toBe(option.id);
   await act(async () => {
-    option.focus();
-    option.dispatchEvent(
+    trigger.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
@@ -173,13 +195,25 @@ it("associates link errors with the editable field and respects a locked editor"
   expect(input("Link label").disabled).toBe(true);
   expect(link.getAttribute("aria-invalid")).toBe("true");
   expect(
-    document.getElementById(link.getAttribute("aria-describedby")!)
-      ?.textContent,
+    link
+      .getAttribute("aria-describedby")
+      ?.split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(""),
   ).toBe("Use a safe destination.");
   const trigger = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
     (button) =>
-      document.getElementById(button.getAttribute("aria-labelledby") ?? "")
-        ?.textContent === "Link type",
+      button.getAttribute("aria-label") === "Link type" ||
+      [...(button.labels ?? [])].some(
+        (item) => item.textContent?.trim() === "Link type",
+      ) ||
+      button
+        .getAttribute("aria-labelledby")
+        ?.split(/\s+/)
+        .some(
+          (id) =>
+            document.getElementById(id)?.textContent?.trim() === "Link type",
+        ),
   )!;
   expect(trigger.disabled).toBe(true);
   expect(changed).not.toHaveBeenCalled();

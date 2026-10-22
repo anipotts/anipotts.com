@@ -144,8 +144,13 @@ it("opens metadata choices by keyboard and returns the chosen value", async () =
   ].find((node) => node.textContent === "Note")!;
   expect(note).toBeDefined();
   await act(async () => {
-    note.focus();
-    note.dispatchEvent(
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  await act(async () => {
+    expect(trigger.getAttribute("aria-activedescendant")).toBe(note.id);
+    trigger.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
@@ -311,16 +316,19 @@ it("preserves the separate browsing context on public icon links", () => {
   const link = host.querySelector("a")!;
   expect(link.target).toBe("_blank");
   expect(link.rel).toBe("noopener noreferrer");
-  expect(link.hasAttribute("data-uniform")).toBe(true);
+  expect(link.getAttribute("aria-label")).toBe("Open on site");
 });
 
 it("associates field guidance and replaces it with the validation message", () => {
   const description = "Use a local image path or HTTPS URL.";
   show(<TextInput label="Image URL" value="" description={description} />);
   const help = () =>
-    document.getElementById(
-      host.querySelector("input")!.getAttribute("aria-describedby")!,
-    )?.textContent;
+    host
+      .querySelector("input")!
+      .getAttribute("aria-describedby")
+      ?.split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join("");
   expect(help()).toBe(description);
   show(
     <TextInput
@@ -505,6 +513,6 @@ it.each([TextInput, TextArea])(
       input.getAttribute("aria-describedby")!,
     );
     expect(help?.textContent).toBe("Correct this field.");
-    expect(help?.getAttribute("data-status")).toBe("error");
+    expect(help?.hidden).toBe(false);
   },
 );
