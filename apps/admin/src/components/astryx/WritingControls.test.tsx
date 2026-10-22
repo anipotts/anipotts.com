@@ -251,6 +251,37 @@ it("leaves Enter available to enclosing forms unless a custom handler owns it", 
   expect(enter).toHaveBeenCalledOnce();
 });
 
+it("leaves composing Enter with the IME and respects caller cancellation", () => {
+  const enter = vi.fn();
+  const keydown = vi.fn((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.altKey) event.preventDefault();
+  });
+  show(
+    <TextInput
+      label="Tag"
+      value="writing"
+      onEnter={enter}
+      onKeyDown={keydown}
+    />,
+  );
+  for (const options of [
+    { isComposing: true },
+    { keyCode: 229 },
+    { altKey: true },
+  ]) {
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+      ...options,
+    });
+    act(() => host.querySelector("input")!.dispatchEvent(event));
+    expect(enter).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(Boolean("altKey" in options));
+  }
+  expect(keydown).toHaveBeenCalledTimes(3);
+});
+
 it("keeps recovery explanations and additional banner content visible", () => {
   show(
     <Banner

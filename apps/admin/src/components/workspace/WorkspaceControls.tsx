@@ -3,7 +3,35 @@ import type { ComponentProps } from "react";
 import { useOpenAIUI } from "./AdminUI";
 export { Button } from "@astryxdesign/core/Button";
 export { IconButton } from "@astryxdesign/core/IconButton";
-export { TextInput } from "@astryxdesign/core/TextInput";
+import { TextInput as CoreTextInput } from "@astryxdesign/core/TextInput";
+
+/** A custom Enter action owns the key; plain fields retain native form behavior.
+ * Handle it here rather than Core's onEnter, which runs before onKeyDown and
+ * does not cancel the native default. Composition commits never run actions. */
+export function TextInput({
+  onEnter,
+  onKeyDown,
+  ...props
+}: ComponentProps<typeof CoreTextInput>) {
+  return (
+    <CoreTextInput
+      {...props}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (
+          event.key === "Enter" &&
+          !event.defaultPrevented &&
+          !event.nativeEvent.isComposing &&
+          event.nativeEvent.keyCode !== 229 &&
+          onEnter
+        ) {
+          event.preventDefault();
+          onEnter();
+        }
+      }}
+    />
+  );
+}
 export { TextArea } from "@astryxdesign/core/TextArea";
 export { NumberInput } from "@astryxdesign/core/NumberInput";
 export {

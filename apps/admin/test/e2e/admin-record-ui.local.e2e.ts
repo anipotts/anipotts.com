@@ -752,6 +752,46 @@ test(
       await expect(
         screen.getByRole("button", { name: "More actions", exact: true }),
       ).toBeFocused();
+    } else {
+      const more = screen.getByRole("button", {
+        name: "More actions",
+        exact: true,
+      });
+      await more.click();
+      await expect(
+        screen.getByRole("menu", { name: "More actions", exact: true }),
+      ).toBeVisible();
+      const placement = () =>
+        browser.evaluate(() => {
+          const trigger = document.querySelector<HTMLButtonElement>(
+            'button[aria-label="More actions"]',
+          );
+          const menu = document.querySelector<HTMLElement>(
+            '[role="menu"][aria-label="More actions"]',
+          );
+          if (!trigger || !menu)
+            throw new Error("Expected actual More actions trigger and menu");
+          const owner = trigger.getBoundingClientRect(),
+            surface = menu.getBoundingClientRect();
+          if (owner.width <= 0 || surface.width <= 0)
+            throw new Error("Expected rendered menu geometry");
+          return {
+            triggerRight: owner.right,
+            menuRight: surface.right,
+            delta: Math.abs(owner.right - surface.right),
+          };
+        });
+      // Core's end placement is observable as the menu and trigger sharing
+      // their right edge. Poll through the real opening animation.
+      await expect
+        .poll(async () => (await placement()).delta)
+        .toBeLessThanOrEqual(2);
+      console.info(
+        "core-more-actions-end-placement",
+        JSON.stringify(await placement()),
+      );
+      await browser.keyboard.press("Escape");
+      await expect(more).toBeFocused();
     }
     await properties.click();
     await expect(
