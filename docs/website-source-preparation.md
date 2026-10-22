@@ -7,7 +7,12 @@ Media #540 merged as `d539e38267d78e34fdc3d6d82f05a1842871a88b` from checked
 passed; all three review threads were resolved. The integration owner reread
 strict live protection and no-bypass controls immediately before merge.
 [Deployment39733075733](https://github.com/anipotts/anipotts.com/actions/runs/39733075733)
-is running; live target/provider and route success are not yet claimed.
+succeeded for Admin only. www and all four workers were skipped, schema0044,
+no migration. Active Admin provider version
+`6407ec82-c8ff-4d65-b43d-e2ad4ee7141f` and eight Admin Access probes pass.
+The durable release receipt is in the existing cleanup receipts directory at
+`540/release-d539e382/release-receipt.json`. This deployment does not activate
+Images processing or operational recovery.
 
 Recovery normally merges actual main `d539e382` into qualified checkpoint
 `8d5bf0a0`, adding ancestry with no source-file delta. The maintained documentation
