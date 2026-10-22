@@ -55,6 +55,56 @@ async function viewSource({ screen }: Fixtures, browser: Browser) {
     .getByRole("button", { name: "More actions", exact: true })
     .click();
   const compact = await browser.evaluate(() => window.innerWidth <= 640);
+  if (compact)
+    await browser.evaluate(async () => {
+      const deadline = performance.now() + 20_000;
+      let previous = "";
+      let stableFrames = 0;
+      while (performance.now() < deadline) {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        const sheet = document.querySelector(
+          'dialog[aria-label="More actions"]',
+        );
+        const button = Array.from(sheet?.querySelectorAll("button") ?? []).find(
+          (target) => target.textContent?.trim() === "View source",
+        );
+        if (!sheet || !button || button.disabled) {
+          stableFrames = 0;
+          continue;
+        }
+        const rect = button.getBoundingClientRect();
+        const position = JSON.stringify([
+          rect.x,
+          rect.y,
+          rect.width,
+          rect.height,
+        ]);
+        const moving = sheet
+          .getAnimations({ subtree: true })
+          .some(
+            (animation) =>
+              animation.playState === "running" || animation.pending,
+          );
+        const hit = document.elementFromPoint(
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2,
+        );
+        const actionable =
+          !moving &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          hit?.closest("button") === button;
+        stableFrames =
+          actionable && position === previous ? stableFrames + 1 : 0;
+        previous = position;
+        if (stableFrames >= 2) return;
+      }
+      throw new Error(
+        "View source sheet target did not become stationary and hittable",
+      );
+    });
   await screen
     .getByRole(compact ? "button" : "menuitem", {
       name: "View source",
@@ -845,8 +895,45 @@ async function syntheticProject({ app, browser, screen }: Fixtures) {
     throw new Error("Expected the disposable loopback admin harness");
   const evidence = { publicationWrites: 0, refusedSaves: 0 };
   let refuseSaves = false;
+  let createdProjectId: string | null = null;
   await browser.route(/.*/, async (route) => {
     const url = new URL(route.request.url);
+    if (
+      createdProjectId &&
+      route.request.method === "GET" &&
+      /^blob:null\/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(
+        route.request.url,
+      )
+    ) {
+      // Native WebRoute exposes no request-frame identity. Verify the actual
+      // active frame and rendered image instead. The installer consumes its
+      // data-preview-owned-src marker when assigning this exact object URL.
+      const ownedFrame = await browser.evaluate(
+        ({ base, id }) => {
+          const frame = document.querySelector<HTMLIFrameElement>(
+            'iframe[title$=" draft preview"]',
+          );
+          if (!frame) return false;
+          const preview = new URL(frame.src);
+          return (
+            preview.origin === base &&
+            preview.pathname === "/preview/record" &&
+            preview.searchParams.get("kind") === "work" &&
+            preview.searchParams.get("id") === id &&
+            preview.searchParams.get("embedded") === "1"
+          );
+        },
+        { base: origin.origin, id: createdProjectId },
+      );
+      if (
+        ownedFrame &&
+        (await browser
+          .frameLocator('iframe[title$=" draft preview"]')
+          .locator(`img[src="${route.request.url}"]`)
+          .count()) > 0
+      )
+        return route.continue();
+    }
     if (
       url.origin !== origin.origin ||
       url.pathname.startsWith("/cdn-cgi/access/")
@@ -896,9 +983,16 @@ async function syntheticProject({ app, browser, screen }: Fixtures) {
     .poll(async () => new URL(await browser.url()).pathname)
     .toMatch(/^\/content\/projects\/synthetic-project-workspace-[a-f0-9-]+$/);
   await expect(titleField).toHaveValue(title);
+  const projectPath = new URL(await browser.url()).pathname;
+  createdProjectId =
+    /^\/content\/projects\/(synthetic-project-workspace-[a-f0-9-]+)$/.exec(
+      projectPath,
+    )?.[1] ?? null;
+  if (!createdProjectId)
+    throw new Error("Expected the created synthetic project identity");
   return {
     title,
-    path: new URL(await browser.url()).pathname,
+    path: projectPath,
     evidence,
     refuseSaves(value: boolean) {
       refuseSaves = value;
@@ -1252,6 +1346,20 @@ test(
     // Keep the opaque-origin sandbox intact. The supported native frame scope
     // reads the rendered document without exposing it to the parent page.
     const rendered = browser.frameLocator('iframe[title$=" draft preview"]');
+    const previewFrame = browser.locator('iframe[title$=" draft preview"]');
+    await expect(previewFrame).toHaveAttribute("src", /[?&]theme=dark(?:&|$)/);
+    await expect(rendered.locator("html")).toHaveAttribute(
+      "data-theme",
+      "dark",
+    );
+    const darkRequest = await browser.evaluate(() => {
+      const frame = document.querySelector<HTMLIFrameElement>(
+        'iframe[title$=" draft preview"]',
+      );
+      if (!frame) throw new Error("Expected the actual saved preview frame");
+      return new URL(frame.src).searchParams.get("previewRequest");
+    });
+    expect(darkRequest).toBeTruthy();
     await expect(
       rendered.getByText("Second synthetic section", { exact: true }),
     ).toBeVisible();
@@ -1269,6 +1377,30 @@ test(
         { timeout: 20_000 },
       )
       .toBe(true);
+    // Use the real parent appearance control while the opaque preview stays
+    // open. Its fresh navigation must carry the resolved theme and content.
+    await projectAppearance(fixtures, "light");
+    await expect(previewFrame).toHaveAttribute("src", /[?&]theme=light(?:&|$)/);
+    await expect(previewFrame).toBeVisible({ timeout: 20_000 });
+    await expect(rendered.locator("html")).toHaveAttribute(
+      "data-theme",
+      "light",
+    );
+    const lightRequest = await browser.evaluate(() => {
+      const frame = document.querySelector<HTMLIFrameElement>(
+        'iframe[title$=" draft preview"]',
+      );
+      if (!frame) throw new Error("Expected the actual saved preview frame");
+      return new URL(frame.src).searchParams.get("previewRequest");
+    });
+    expect(lightRequest).toBeTruthy();
+    expect(lightRequest).not.toBe(darkRequest);
+    await expect(
+      rendered.getByText("Second synthetic section", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      rendered.getByText("First synthetic section", { exact: true }),
+    ).toBeVisible();
     await screen.getByRole("button", { name: "Preview", exact: true }).click();
     await screen.getByRole("button", { name: "Publish", exact: true }).click();
     await expect(

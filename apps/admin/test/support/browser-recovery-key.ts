@@ -8,6 +8,7 @@ import type { Browser } from "@e2e-dev/web";
  * Setup/download custody itself is covered by the separate owner acceptance. */
 export async function unlockSyntheticBrowserRecovery(browser: Browser) {
   const selector = 'input[type="file"][accept="application/json,.json"]';
+  await expect(browser.locator(selector)).toBeEnabled({ timeout: 20000 });
   if (
     !(await browser.evaluate(
       () =>
@@ -19,7 +20,6 @@ export async function unlockSyntheticBrowserRecovery(browser: Browser) {
     throw new Error(
       "Synthetic recovery requires the disposable loopback owner harness",
     );
-  await expect(browser.locator(selector)).toBeEnabled({ timeout: 20000 });
   const supplied = await browser.evaluate(async () => {
     const input = document.querySelector<HTMLInputElement>(
       'input[type="file"][accept="application/json,.json"]',
