@@ -1,5 +1,18 @@
 # Website source preparation
 
+## October 21 combined qualification checkpoint
+
+Integration remains with site-improvements. Main formatter #550 is merged at
+`07da221d82aa4b0d6b7d4dabcc363103fdd3959a`; its www/Admin deployment is in
+progress. This candidate normally merges that main and checked runner #552 head
+`a7ea3b87d875cb51f2f8b1b5ee5ceb21e9ca3cbc`, retaining approved brand behavior,
+formatter 1.1.1 HTML whitespace, Core/Neutral/CLI 0.7.1 and the existing Core patch.
+#552 remains open until the combined candidate is accepted and integrated.
+Full validation, native browser and supplemental touch acceptance are pending.
+Only Build, lint, typecheck, test and Security Review are required by effective
+main protection; CodeQL is optional. Current standing authority and native release
+gates apply; historical approval notes below retain their observation dates.
+
 ## October 21 UI candidate refresh and targeted repairs
 
 ### Isolated browser toolbar and partial touch evidence
@@ -187,6 +200,59 @@ that evidence and qualify native touch events/capabilities before changing the
 assertion. All owned contexts/browser/process groups/ports were confirmed closed.
 Normal main integration, refreshed exact-head checks and Ani's review remain
 required before either candidate can merge.
+
+## October 21 queue refresh and worktree ownership
+
+Current main is `1efed957`, including approved brand geometry #553. The formatter
+refresh preserves its transforms and animation changes. #549 is already deployed;
+its old dependency proposals #546/#548 and #545/#547 are closed as superseded.
+#550 and #551 remain the active source candidates; #552 is the new runner patch.
+
+Seven checkout directories were removed after preservation during October 19
+cleanup. Native creation events identify owner chat
+`01a14ffb-519c-73b1-a63a-380f9d7274d0` for site-first-batch,
+site-dependency-refresh and site-project-authoring; subagent chat
+`01a15008-1dac-7480-90b2-424f4c9d0787` created first-batch-content,
+admin-loading-scroll, local-csrf-webkit and modal-menu-webkit. Native archive
+calls from both contexts still reject ownership. Direct chat dispatch rejects
+multi-agent v2 subagents. The app cards remain blocked on native ownership
+reconciliation; no app database edits or filesystem recreation were used.
+Recovery records remain under `.local/project-cleanup/2026-10-19/`.
+
+## October 19 Astro formatter migration
+
+This isolated candidate reproduces #547 with prettier-plugin-astro 1.1.1 and
+`astroCompressHTML: "html"` matched to both apps' `compressHTML: true`.
+The fresh bot branch is preserved. The old formatter patch is a distinct
+migration from compatible runtime dependency candidate #549 and the coherent
+Core/Neutral family work for #545.
+
+Source `614883d63672f4ce5a16c53b8e2ce412bef6ec98` changes 38 tracked Astro
+files plus formatter config, package and lock. Existing ignore rules, canonical
+content, private drafts and generated inputs remain untouched. All 65 tracked
+Astro files pass a second format check, whole-repo formatting and frozen lock
+consistency. Static security has no findings. Retained package records and
+non-formatter importer versions are unchanged.
+
+Static comparison using the actual formatter and application compilers parses
+every changed before/after source. Generated-JS AST plus extracted CSS/scripts
+are structurally equal for 34 files. The other four contain five reviewed literal
+differences: normal label whitespace, inline-flex button edge whitespace, byline
+spacing and inline stylesheet formatting with the same declarations. These are
+not rendered acceptance. Full checks and actual public/Admin browser, inline
+text/link, media, byline and CSP acceptance remain owner-scheduled gates.
+Receipts: `/private/tmp/anipotts-astro-formatter-{idempotence,format-check,frozen-lock}.log`,
+`semantics-all.json`, `reviewed-literals.json` and `whitespace.diff`.
+
+#539 is deployed to Admin at `cf7b757b`; its provider/schema and eight Access
+redirects pass. #542 is merged at `aa860b4b`; its source release39275594601
+skipped all six runtime targets and ran no migration. Current receipts are in
+their PRs. Media/recovery remain inactive drafts; source adapter work does not
+authorize operational custody, provider setup or activation.
+
+Proposed formatter source targets are www and Admin, including the shared brand
+component. Keep this candidate draft until the current-main source/render and hosted checks
+finish. Integration follows current standing authority and native release gates.
 
 ## October 19 compatible runtime dependency refresh
 

@@ -23,135 +23,116 @@ const shots = items.map((item) => responsiveScreenshot(item.src));
 const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 ---
 
-{
-  items.length > 0 && (
-    <figure class="project-media" data-project-media>
-      <div class="project-media__stage">
-        {items.map((item, index) => (
-          <div
-            class="project-media__panel"
-            id={`${stageId}-panel-${index}`}
-            data-media-panel={index}
-            hidden={index !== 0}
-          >
-            {item.kind === "video" ? (
-              <video
-                controls
-                playsinline
-                preload="metadata"
-                aria-label={item.alt}
-              >
-                <source src={item.src} />
-              </video>
-            ) : (
-              <a
-                class="project-media__enlarge"
-                href={item.src}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-media-enlarge
-                data-media-alt={item.alt}
-                aria-label={`enlarge image: ${item.alt}`}
-              >
-                {shots[index] ? (
-                  <picture>
-                    <source media={phoneMedia} srcset={shots[index].src} />
-                    <img
-                      src={shots[index].src}
-                      srcset={shots[index].srcset}
-                      sizes={stageSizes}
-                      width={shots[index].width}
-                      height={shots[index].height}
-                      style={`aspect-ratio: ${shots[index].aspectRatio}`}
-                      alt={item.alt}
-                      loading={eager && index === 0 ? "eager" : "lazy"}
-                      decoding="async"
-                    />
-                  </picture>
-                ) : (
-                  <img
-                    src={item.src}
-                    alt={item.alt}
-                    loading={eager && index === 0 ? "eager" : "lazy"}
-                    decoding="async"
-                  />
-                )}
-                <span class="project-media__hint" aria-hidden="true">
-                  enlarge
-                  <Icon name="ph:arrow-bend-right-up" />
-                </span>
-              </a>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {items.length > 1 && (
-        <div
-          class="project-media__rail"
-          role="group"
-          aria-label={`${label} views`}
+{items.length > 0 && <figure class="project-media" data-project-media>
+  <div class="project-media__stage">
+    {items.map((item, index) => <div
+      class="project-media__panel"
+      id={`${stageId}-panel-${index}`}
+      data-media-panel={index}
+      hidden={index !== 0}
+    >
+      {item.kind === "video" ? (
+        <video controls playsinline preload="metadata" aria-label={item.alt}>
+          <source src={item.src} />
+        </video>
+      ) : (
+        <a
+          class="project-media__enlarge"
+          href={item.src}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-media-enlarge
+          data-media-alt={item.alt}
+          aria-label={`enlarge image: ${item.alt}`}
         >
-          {items.map((item, index) => (
-            <button
-              type="button"
-              class="project-media__choice"
-              aria-controls={`${stageId}-panel-${index}`}
-              aria-pressed={index === 0 ? "true" : "false"}
-              data-media-choice={index}
-              data-media-caption={item.caption ?? item.alt}
-            >
-              {item.caption ?? `view ${index + 1}`}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <figcaption data-media-figcaption>
-        {items[0]?.caption ?? items[0]?.alt}
-      </figcaption>
-
-      {items.some((item) => item.kind !== "video") && (
-        <dialog
-          class="image-viewer"
-          data-image-viewer
-          aria-label="enlarged project image"
-        >
-          <div class="image-viewer__toolbar">
-            <button type="button" data-image-zoom aria-pressed="false">
-              actual size
-            </button>
-            <a
-              href={items[0]?.src}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-image-original
-            >
-              open original
-              <Icon
-                name="ph:arrow-bend-right-up"
-                class="image-viewer__affordance"
-                aria-hidden="true"
+          {shots[index] ? (
+            <picture>
+              <source media={phoneMedia} srcset={shots[index].src} />
+              <img
+                src={shots[index].src}
+                srcset={shots[index].srcset}
+                sizes={stageSizes}
+                width={shots[index].width}
+                height={shots[index].height}
+                style={`aspect-ratio: ${shots[index].aspectRatio}`}
+                alt={item.alt}
+                loading={eager && index === 0 ? "eager" : "lazy"}
+                decoding="async"
               />
-            </a>
-            <button type="button" data-image-close autofocus>
-              close
-            </button>
-          </div>
-          <div
-            class="image-viewer__canvas"
-            tabindex="0"
-            role="group"
-            aria-label="image, scroll to inspect at actual size"
-          >
-            <img data-viewer-image alt="" />
-          </div>
-          <p class="image-viewer__description" data-image-description />
-        </dialog>
+            </picture>
+          ) : (
+            <img
+              src={item.src}
+              alt={item.alt}
+              loading={eager && index === 0 ? "eager" : "lazy"}
+              decoding="async"
+            />
+          )}
+          <span class="project-media__hint" aria-hidden="true">
+            enlarge
+            <Icon name="ph:arrow-bend-right-up" />
+          </span>
+        </a>
       )}
-    </figure>
-  )
-}
+    </div>)}
+  </div>
+
+  {items.length > 1 && <div
+    class="project-media__rail"
+    role="group"
+    aria-label={`${label} views`}
+  >
+    {items.map((item, index) => <button
+      type="button"
+      class="project-media__choice"
+      aria-controls={`${stageId}-panel-${index}`}
+      aria-pressed={index === 0 ? "true" : "false"}
+      data-media-choice={index}
+      data-media-caption={item.caption ?? item.alt}
+    >
+      {item.caption ?? `view ${index + 1}`}
+    </button>)}
+  </div>}
+
+  <figcaption data-media-figcaption>
+    {items[0]?.caption ?? items[0]?.alt}
+  </figcaption>
+
+  {items.some((item) => item.kind !== "video") && <dialog
+    class="image-viewer"
+    data-image-viewer
+    aria-label="enlarged project image"
+  >
+    <div class="image-viewer__toolbar">
+      <button type="button" data-image-zoom aria-pressed="false">
+        actual size
+      </button>
+      <a
+        href={items[0]?.src}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-image-original
+      >
+        open original
+        <Icon
+          name="ph:arrow-bend-right-up"
+          class="image-viewer__affordance"
+          aria-hidden="true"
+        />
+      </a>
+      <button type="button" data-image-close autofocus>close</button>
+    </div>
+    <div
+      class="image-viewer__canvas"
+      tabindex="0"
+      role="group"
+      aria-label="image, scroll to inspect at actual size"
+    >
+      <img data-viewer-image alt="" />
+    </div>
+    <p class="image-viewer__description" data-image-description />
+  </dialog>}
+</figure>}
 
 <script>
   function mount() {

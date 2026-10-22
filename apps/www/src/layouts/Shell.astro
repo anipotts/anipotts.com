@@ -228,15 +228,13 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
       type="application/ld+json"
       set:html={JSON.stringify(siteLd)}
     />
-    {
-      jsonLdItems.map((item) => (
-        <script
-          is:inline
-          type="application/ld+json"
-          set:html={JSON.stringify(item)}
-        />
-      ))
-    }
+    {jsonLdItems.map((item) => (
+      <script
+        is:inline
+        type="application/ld+json"
+        set:html={JSON.stringify(item)}
+      />
+    ))}
   </head>
   <body>
     <a class="skip-link" href="#main-content" data-astro-reload

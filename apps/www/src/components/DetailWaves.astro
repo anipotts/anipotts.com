@@ -18,7 +18,9 @@ const curves = detailCurves(seed);
   data-composition={hash >>> 0}
 >
   <svg viewBox="0 -200 1440 800" preserveAspectRatio="none" focusable="false">
-    {curves.toReversed().map((d, i) => <path d={d} class={`layer-${i}`} />)}
+    {curves.toReversed().map((d, i) => (
+      <path d={d} class={`layer-${i}`} />
+    ))}
   </svg>
 </div>
 <style>

@@ -51,12 +51,42 @@ const remainingLabel = remainingWords.join(" ");
   target={external ? "_blank" : undefined}
   rel={external ? "noopener noreferrer" : undefined}
 >
-  {
-    hasVisual && visualLabel ? (
-      <span class="mention-lead mention-lead-compact">
-        {visualPrefix && (
-          <span class="mention-punctuation">{visualPrefix.trim()}</span>
+  {hasVisual && visualLabel ? (
+    <span class="mention-lead mention-lead-compact">
+      {visualPrefix && <span class="mention-punctuation"
+        >{visualPrefix.trim()}</span
+      >}
+      <span
+        class:list={{
+          "brand-mark": true,
+          "brand-mark-wide": logoShape === "wide",
+          "brand-mark-standalone": logoShape === "mark",
+        }}
+        aria-hidden="true"
+      >
+        {logoSrc && (
+          <img
+            src={logoSrc}
+            alt=""
+            class:list={{ logo: true, "logo-white": logoTone === "white" }}
+            loading={eager ? "eager" : "lazy"}
+            decoding="async"
+            width="24"
+            height="24"
+          />
         )}
+        {icon && <Icon name={icon} />}
+        {mark && <span class="mark">{mark}</span>}
+      </span>
+      <span class="sr-only">{logoAlt ?? label}</span>
+      <span class="text">{`${visualLabel}${suffix ?? ""}`}</span>
+      {visualSuffix && <span class="mention-punctuation"
+        >{visualSuffix.trim()}</span
+      >}
+    </span>
+  ) : hasVisual ? (
+    <>
+      <span class="mention-lead">
         <span
           class:list={{
             "brand-mark": true,
@@ -69,7 +99,10 @@ const remainingLabel = remainingWords.join(" ");
             <img
               src={logoSrc}
               alt=""
-              class:list={{ logo: true, "logo-white": logoTone === "white" }}
+              class:list={{
+                logo: true,
+                "logo-white": logoTone === "white",
+              }}
               loading={eager ? "eager" : "lazy"}
               decoding="async"
               width="24"
@@ -79,76 +112,37 @@ const remainingLabel = remainingWords.join(" ");
           {icon && <Icon name={icon} />}
           {mark && <span class="mark">{mark}</span>}
         </span>
-        <span class="sr-only">{logoAlt ?? label}</span>
-        <span class="text">{`${visualLabel}${suffix ?? ""}`}</span>
-        {visualSuffix && (
-          <span class="mention-punctuation">{visualSuffix.trim()}</span>
-        )}
-      </span>
-    ) : hasVisual ? (
-      <>
-        <span class="mention-lead">
-          <span
-            class:list={{
-              "brand-mark": true,
-              "brand-mark-wide": logoShape === "wide",
-              "brand-mark-standalone": logoShape === "mark",
-            }}
-            aria-hidden="true"
-          >
-            {logoSrc && (
-              <img
-                src={logoSrc}
-                alt=""
-                class:list={{
-                  logo: true,
-                  "logo-white": logoTone === "white",
-                }}
-                loading={eager ? "eager" : "lazy"}
-                decoding="async"
-                width="24"
-                height="24"
-              />
-            )}
-            {icon && <Icon name={icon} />}
-            {mark && <span class="mark">{mark}</span>}
-          </span>
-          <span class="text">
-            {firstWord}
-            {remainingLabel ? "" : suffix}
-          </span>
+        <span class="text">
+          {firstWord}
+          {remainingLabel ? "" : suffix}
         </span>
-        {remainingLabel && (
-          <>
-            {" "}
-            <span class="text">
-              {remainingLabel}
-              {suffix}
-            </span>
-          </>
-        )}
-      </>
-    ) : (
-      <span class="text">
-        {label}
-        {suffix}
       </span>
-    )
-  }{
-    badgeSrc && (
-      <span class="brand-mark badge" aria-hidden="true">
-        <img
-          src={badgeSrc}
-          alt={badgeAlt ?? ""}
-          class="logo"
-          loading={eager ? "eager" : "lazy"}
-          decoding="async"
-          width="24"
-          height="24"
-        />
-      </span>
-    )
-  }
+      {remainingLabel && (
+        <>
+          {" "}
+          <span class="text">
+            {remainingLabel}
+            {suffix}
+          </span>
+        </>
+      )}
+    </>
+  ) : (
+    <span class="text">
+      {label}
+      {suffix}
+    </span>
+  )}{badgeSrc && <span class="brand-mark badge" aria-hidden="true">
+    <img
+      src={badgeSrc}
+      alt={badgeAlt ?? ""}
+      class="logo"
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      width="24"
+      height="24"
+    />
+  </span>}
 </Tag>
 
 <style>

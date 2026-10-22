@@ -28,39 +28,33 @@ const {
     },
   ]}
 >
-  {
-    showMark &&
-      (logoSrc ? (
-        <img
-          class:list={[
-            "site-action__mark",
-            { "site-action__mark--adaptive": adaptive },
-          ]}
-          src={logoSrc}
-          alt=""
-          width="16"
-          height="16"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <Icon
-          name={`ph:${icon ?? "globe"}`}
-          class="site-action__mark"
-          aria-hidden="true"
-        />
-      ))
-  }
+  {showMark &&
+    (logoSrc ? (
+      <img
+        class:list={[
+          "site-action__mark",
+          { "site-action__mark--adaptive": adaptive },
+        ]}
+        src={logoSrc}
+        alt=""
+        width="16"
+        height="16"
+        loading="lazy"
+        decoding="async"
+      />
+    ) : (
+      <Icon
+        name={`ph:${icon ?? "globe"}`}
+        class="site-action__mark"
+        aria-hidden="true"
+      />
+    ))}
   <span>
-    {
-      label === "view project" ? (
-        <>
-          view<span class="action-project-word"> project</span>
-        </>
-      ) : (
-        label
-      )
-    }
+    {label === "view project" ? (
+      <> view<span class="action-project-word"> project</span> </>
+    ) : (
+      label
+    )}
   </span>
   <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
 </span>
