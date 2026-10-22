@@ -32,6 +32,9 @@ export class RecoveryCoordinator {
       )
       .one();
   }
+  isFenced(): boolean {
+    return this.state().phase !== "open";
+  }
   async writer<T>(kind: string, work: () => Promise<T>): Promise<T> {
     const token = crypto.randomUUID();
     this.storage.transactionSync(() => {

@@ -189,6 +189,14 @@ export class EditorialDraftStore extends DurableObject<unknown> {
       : { ok: false as const, code: "publication_conflict" as const };
   }
   async alarm(): Promise<void> {
+    // Native alarm retries are finite, while a qualified capture can remain
+    // fenced until explicit completion. Preserve a future wake without admitting
+    // publication work. Await persistence so failure still receives native retry.
+    if (this.#recovery.isFenced()) {
+      await this.ctx.storage.setAlarm(Date.now() + 60_000);
+      return;
+    }
+    // No await separates the open check from synchronous writer admission.
     return this.#recovery.writer("publication-alarm", () =>
       this.#publicationAlarm(),
     );

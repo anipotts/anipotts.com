@@ -31,6 +31,17 @@ export class CaptureFixture extends EditorialDraftStore {
     this.#bindings = env;
     new DirectPublisher(ctx.storage, null);
   }
+  /** Explicit synthetic-only publisher setup for native alarm lifecycle tests.
+   * Never exported by production src/worker.ts; every binding is local. */
+  enableSyntheticPublication(enabled = true) {
+    this.env = {
+      ...(this.env as Record<string, unknown>),
+      CONTENT_DB: this.#bindings.RECOVERY_SOURCE_DB,
+      CONTENT_MEDIA: this.#bindings.RECOVERY_SOURCE_MEDIA,
+      EDITORIAL_ENABLED: "true",
+      EDITORIAL_PUBLISH_ENABLED: enabled ? "true" : "false",
+    };
+  }
   /** Test-only artifact spool in a separate disposable object. Acquire RPC
    * stubs in the current caller context; never transport I/O handles/streams. */
   async putRecoveryArtifact(index: number, event: RecoveryCaptureV3Event) {

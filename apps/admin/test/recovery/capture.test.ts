@@ -7,8 +7,15 @@ import {
   runDurableObjectAlarm,
   runInDurableObject,
 } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
-import { publishDirect } from "@anipotts/content/editorial/direct-publication";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getPublishedInventory,
+  publishDirect,
+} from "@anipotts/content/editorial/direct-publication";
+import {
+  bundledEditorialSources,
+  readPublishedBase,
+} from "../../src/lib/editorial-published-base";
 import {
   acquireRecoveryWriter,
   freezeRecoveryDatabase,
@@ -794,6 +801,161 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       alarmAt: null,
     });
   });
+  it("preserves accepted publication wakes through repeated native alarms during a held capture and resumes after reopening", async () => {
+    const store = fresh();
+    const network = vi.fn(() => {
+      throw new Error("unexpected synthetic alarm network");
+    });
+    vi.stubGlobal("fetch", network);
+    try {
+      // Same complete committed public baseline as the existing actual publisher
+      // fixture. Keep every snapshot validator active; never mock acceptance.
+      for (const {
+        record: seededRecord,
+        source: seededSource,
+      } of bundledEditorialSources()) {
+        const inventory = await getPublishedInventory(env.RECOVERY_SOURCE_DB);
+        expect(
+          (
+            await publishDirect(env.RECOVERY_SOURCE_DB, {
+              contentSchemaVersion: 1,
+              record: seededRecord,
+              source: seededSource,
+              revision: 1,
+              operationId: `git-seed.${seededRecord.kind}.${seededRecord.id}`,
+              expectedPublicationId: null,
+              expectedInventoryVersion: inventory.version,
+              publishedAt: "2026-10-10T00:00:00Z",
+            })
+          ).status,
+        ).toBe("published");
+      }
+      expect((await store.save(save())).ok).toBe(true);
+      await store.enableSyntheticPublication();
+      const baseline = await readPublishedBase(env.RECOVERY_SOURCE_DB, record);
+      const operationId = crypto.randomUUID();
+      const started = await store.startDirectPublication({
+        record,
+        operationId,
+        expectedRevision: 1,
+        reviewedSourceSha256: createHash("sha256").update(source).digest("hex"),
+        expectedPublicationId: baseline.publicationId,
+        expectedBaselineSha256: baseline.sourceSha256,
+      });
+      expect(started, JSON.stringify(started)).toMatchObject({
+        ok: true,
+        publication: { phase: "validate", attempts: 0 },
+      });
+      // A real disabled attempt and explicit retry produce a capture-valid,
+      // pending intent through ordinary transitions (new intents start at v0).
+      await store.enableSyntheticPublication(false);
+      expect(await runDurableObjectAlarm(store)).toBe(true);
+      const disabled = await store.directPublicationStatus(record, operationId);
+      expect(disabled).toMatchObject({
+        phase: "validate",
+        attempts: 1,
+        blocked: "publishing_disabled",
+      });
+      await store.enableSyntheticPublication();
+      expect(
+        await store.retryDirectPublication(
+          record,
+          operationId,
+          disabled!.version,
+        ),
+      ).toMatchObject({ ok: true });
+      await runInDurableObject(store, async (_instance, state) => {
+        // A real accepted intent is due. The initial wake stays outside capture's
+        // quiet window; native test delivery below models a later held alarm.
+        state.storage.sql.exec("UPDATE direct_publication_intents SET dueAt=0");
+        await state.storage.setAlarm(Date.now() + 60_000);
+      });
+      const serialized = await store.capture();
+      const inventoryBefore = await getPublishedInventory(
+        env.RECOVERY_SOURCE_DB,
+      );
+      const intentBefore = await runInDurableObject(store, (_instance, state) =>
+        state.storage.sql
+          .exec("SELECT * FROM direct_publication_intents")
+          .toArray(),
+      );
+      // More deliveries than the native finite retry budget, with reconstruction.
+      // Each successful held delivery must durably schedule another wake.
+      for (let attempt = 0; attempt < 8; attempt++) {
+        expect(await runDurableObjectAlarm(store)).toBe(true);
+        await runInDurableObject(store, async (_instance, state) => {
+          expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now());
+          expect(
+            state.storage.sql
+              .exec("SELECT phase FROM editorial_recovery_control")
+              .one(),
+          ).toEqual({ phase: "draining" });
+          expect(
+            state.storage.sql
+              .exec("SELECT count(*) AS n FROM editorial_recovery_writers")
+              .one(),
+          ).toEqual({ n: 0 });
+        });
+        expect(
+          await runInDurableObject(store, (_instance, state) =>
+            state.storage.sql
+              .exec("SELECT * FROM direct_publication_intents")
+              .toArray(),
+          ),
+        ).toEqual(intentBefore);
+        expect(await store.latestDirectPublication(record)).toMatchObject({
+          id: operationId,
+          phase: "validate",
+          attempts: 1,
+        });
+        expect(await getPublishedInventory(env.RECOVERY_SOURCE_DB)).toEqual(
+          inventoryBefore,
+        );
+        if (attempt === 3) await evictDurableObject(store);
+      }
+      await failure(
+        store,
+        (instance) => instance.save(save(1)),
+        "recovery_write_fenced",
+      );
+      expect(network).not.toHaveBeenCalled();
+      expect(await store.complete(serialized)).toMatchObject({
+        state: "released",
+      });
+      await evictDurableObject(store);
+      await store.enableSyntheticPublication();
+      expect(await runDurableObjectAlarm(store)).toBe(true);
+      // Actual source handler advances preparation using local D1 only. Stop
+      // before the later commit/reader verification phase; no publication occurs.
+      expect(await store.latestDirectPublication(record)).toMatchObject({
+        id: operationId,
+        phase: "commit",
+        attempts: 2,
+        blocked: null,
+      });
+      expect(await getPublishedInventory(env.RECOVERY_SOURCE_DB)).toEqual(
+        inventoryBefore,
+      );
+      await runInDurableObject(store, async (_instance, state) => {
+        expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now());
+        expect(
+          state.storage.sql
+            .exec("SELECT count(*) AS n FROM editorial_recovery_writers")
+            .one(),
+        ).toEqual({ n: 0 });
+        await state.storage.deleteAlarm();
+      });
+      expect(network).not.toHaveBeenCalled();
+    } finally {
+      try {
+        await runInDurableObject(store, (_instance, state) =>
+          state.storage.deleteAlarm(),
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  }, 20_000); // Full public seed + capture/eight native alarms/eviction/completion.
   it("completion cannot reopen D1 while an unresolved external writer is present", async () => {
     const store = fresh(),
       serialized = await store.capture();
