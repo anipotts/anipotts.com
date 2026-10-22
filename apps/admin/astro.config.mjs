@@ -35,7 +35,7 @@ if (adminLocalOwner && process.env.GITHUB_ACTIONS === "true") {
 
 /** Only public preview code/assets need opaque-frame CORS in disposable tests.
  * Vite still serves the request and enforces its own filesystem restrictions. */
-/** @returns {import("vite").Plugin} */
+/** @returns {Extract<NonNullable<import("astro").ViteUserConfig["plugins"]>[number], { name: string }>} */
 function isolatedPreviewAssets() {
   const root = fileURLToPath(new URL("../..", import.meta.url)).replace(
     /\/$/,
