@@ -1,5 +1,23 @@
 # Website source preparation
 
+## October 22 recovery build-cache input repair
+
+The Admin build now hashes `$TURBO_ROOT$/scripts/admin/**`, matching its test
+and editorial typecheck boundaries. Runtime imports of the recovery helpers
+previously selected an Admin release but could reuse a bundle whose explicit
+Turbo inputs omitted those helpers. The actual installed Turbo dry-run
+regression reproduces the old identical build hash, then proves that changing
+each of five recovery helpers changes the fixed Admin build hash. App-source
+and unrelated-document controls pass; no build command executes. The disposable
+fixture always cleans up and is exercised by the existing workspace contract.
+Workspace checks, classifier replay, formatting and diff checks pass.
+
+Only Turbo configuration, tooling tests and this checkpoint change. Recovery and
+media runtime bytes remain identical to qualified `647ca355`; the prior focused
+and full source mappings remain applicable. The fresh required hosted CI must
+cover the new cache boundary before protected integration. No operational gate,
+remote migration, production binding, eligibility or custody setting changes.
+
 ## October 22 actual media integration and recovery review checkpoint
 
 Media #540 merged as `d539e38267d78e34fdc3d6d82f05a1842871a88b` from checked

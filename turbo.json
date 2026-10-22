@@ -33,6 +33,7 @@
     "@anipotts/admin#build": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/scripts/admin/**",
         "$TURBO_ROOT$/content/public/**",
         "$TURBO_ROOT$/content/editorial/**",
         "$TURBO_ROOT$/scripts/dev/editorial-updates.mjs",
