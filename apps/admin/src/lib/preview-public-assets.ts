@@ -106,6 +106,33 @@ function devFile(path: string) {
         )));
   return style ? "style" : font ? "font" : null;
 }
+function devStyleKey(path: string) {
+  const url = new URL(path, "http://localhost");
+  return decodeURIComponent(url.pathname).replace(/^\/@fs/, "") + url.search;
+}
+function devRouterStyle(path: string) {
+  const url = new URL(path, "http://localhost");
+  if (
+    [...url.searchParams.keys()].some(
+      (key) => !["astro", "type", "index", "lang.css", "t", "v"].includes(key),
+    )
+  )
+    return false;
+  const file = decodeURIComponent(url.pathname).replace(/^\/@fs/, "");
+  const prefix = `${__PREVIEW_PUBLIC_SOURCE_ROOT__}/node_modules/`;
+  if (!file.startsWith(prefix)) return false;
+  const relative = file.slice(prefix.length);
+  const component =
+    /^(?:\.pnpm\/astro@[^/]+\/node_modules\/)?astro\/components\/(ClientRouter\.astro|viewtransitions\.css)$/.exec(
+      relative,
+    )?.[1];
+  return (
+    component === "viewtransitions.css" ||
+    (component === "ClientRouter.astro" &&
+      url.searchParams.has("astro") &&
+      url.searchParams.get("type") === "style")
+  );
+}
 function attributes(text: string) {
   return new Map(
     [...text.matchAll(/([\w-]+)="([^"<>]*)"/g)].map((match) => [
@@ -129,9 +156,29 @@ export async function materializePreviewAssets(
     .filter((match) => attributes(match[1]).get("rel") === "stylesheet")
     .map((match) => attributes(match[1]).get("href") ?? "");
   if (stylePaths.length > 32) throw new Error("Preview style count exceeded");
+  const inlineStyles = dev
+    ? [...html.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style>/g)].filter(
+        (match) => attributes(match[1]).has("data-vite-dev-id"),
+      )
+    : [];
+  const pairedStyles = new Set<string>();
+  const routerStyles = new Set<string>();
   let pack: AssetPackage;
   if (dev) {
-    const styles = [];
+    const styles: AssetPackage["styles"] = [];
+    for (const match of inlineStyles) {
+      const path = attributes(match[1]).get("data-vite-dev-id")!;
+      if (devRouterStyle(path)) {
+        routerStyles.add(devStyleKey(path));
+        continue;
+      }
+      if (devFile(path) !== "style")
+        throw new Error("Unapproved preview inline style");
+      pairedStyles.add(devStyleKey(path));
+      styles.push({ path, css: match[2] });
+    }
+    if (inlineStyles.length + stylePaths.length > 32)
+      throw new Error("Preview style count exceeded");
     const fonts = new Set<string>();
     let total = 0;
     for (const path of stylePaths) {
@@ -149,16 +196,20 @@ export async function materializePreviewAssets(
       );
       if (!value.type.includes("text/css"))
         throw new Error("Preview style type mismatch");
-      total += value.bytes.length;
-      if (total > 1024 * 1024) throw new Error("Preview style budget exceeded");
-      const css = new TextDecoder().decode(value.bytes);
+      styles.push({ path, css: new TextDecoder().decode(value.bytes) });
+      pairedStyles.add(devStyleKey(path));
+    }
+    for (const { css } of styles) {
+      const length = new TextEncoder().encode(css).length;
+      total += length;
+      if (length > MAX_STYLE || total > 1024 * 1024)
+        throw new Error("Preview style budget exceeded");
       for (const match of css.matchAll(/url\(\s*["']?([^\s"')]+)["']?\s*\)/g)) {
         if (match[1].startsWith("data:") || match[1].startsWith("#")) continue;
         if (devFile(match[1]) !== "font")
           throw new Error("Unapproved preview CSS resource");
         fonts.add(match[1]);
       }
-      styles.push({ path, css });
     }
     if (fonts.size > MAX_FONTS) throw new Error("Preview font count exceeded");
     const data = [];
@@ -232,6 +283,16 @@ export async function materializePreviewAssets(
       return [style.path, css];
     }),
   );
+  if (dev)
+    html = html.replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/g, (tag, raw) => {
+      const path = attributes(raw).get("data-vite-dev-id");
+      if (!path) return tag;
+      if (routerStyles.has(devStyleKey(path))) return "";
+      const css = styles.get(path);
+      if (css === undefined)
+        throw new Error("Unmanifested preview inline style");
+      return `<style data-preview-public-style>${css.replace(/<\/style/gi, "<\\/style")}</style>`;
+    });
   html = html.replace(/<link\b([^>]*)>/g, (tag, raw) => {
     const attr = attributes(raw);
     const href = attr.get("href") ?? "";
@@ -248,6 +309,11 @@ export async function materializePreviewAssets(
     const src = attributes(raw).get("src");
     if (!src) return tag;
     const decoded = pathname(src);
+    if (dev && (devFile(decoded) === "style" || devRouterStyle(decoded))) {
+      const key = devStyleKey(decoded);
+      if (pairedStyles.has(key) || routerStyles.has(key)) return "";
+      throw new Error("Unpaired preview style module");
+    }
     const knownDev =
       dev &&
       (decoded === "/@vite/client" ||

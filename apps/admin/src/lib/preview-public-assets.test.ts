@@ -190,3 +190,87 @@ it("replaces only the known Systems motion script while retaining its static com
     ),
   ).rejects.toThrow("Unmanifested preview script");
 });
+
+function actualDevStyleForm(path: string, css: string) {
+  return `<style data-vite-dev-id="${path.replaceAll("&", "&amp;")}">${css}</style><script type="module" src="/@fs${path.replaceAll("&", "&amp;")}"></script>`;
+}
+const publicInlinePath = `${root}/apps/www/src/styles/global.css`;
+const inlineFont = `/@fs${root}/packages/brand/ap-structural-v0.2.0-candidate.1/fonts/APStructuralDisplayBlack-v0.2.0-candidate.1.woff2`;
+it("materializes Astro 7.4's real inline CSS plus paired HMR module form without fetching CSS or leaving Vite requests", async () => {
+  const requests: Request[] = [];
+  const assets = {
+    fetch: async (request: Request) => {
+      requests.push(request);
+      expect(new URL(request.url).pathname).toBe(inlineFont);
+      expect(request.headers.has("Cookie")).toBe(false);
+      expect(request.headers.has("Origin")).toBe(false);
+      return new Response(new Uint8Array([119, 79, 70, 50]), {
+        headers: { "Content-Type": "font/woff2" },
+      });
+    },
+  };
+  const router = `${root}/node_modules/.pnpm/astro@7.4.0/node_modules/astro/components/ClientRouter.astro?astro&type=style&index=0&lang.css`;
+  const transition = `${root}/node_modules/.pnpm/astro@7.4.0/node_modules/astro/components/viewtransitions.css`;
+  const input = `<html><head><style>html{color-scheme:light}</style>${actualDevStyleForm(publicInlinePath, `@font-face{font-family:test;src:url(${inlineFont})}body{color:red}`)}${actualDevStyleForm(router, "::view-transition-old(root){opacity:0}")}${actualDevStyleForm(transition, "::view-transition-new(root){opacity:1}")}</head><body><script src="/@vite/client"></script></body></html>`;
+  const output = await materializePreviewAssets(
+    input,
+    new URL("http://127.0.0.1:8917/preview/home"),
+    assets,
+    true,
+  );
+  expect(requests).toHaveLength(1);
+  expect(output).toContain("<style>html{color-scheme:light}</style>");
+  expect(output).toContain("<style data-preview-public-style>");
+  expect(output).toContain("body{color:red}");
+  expect(output).toContain("data:font/woff2;base64,d09GMg==");
+  expect(output).not.toContain("data-vite-dev-id");
+  expect(output).not.toContain("<script src=");
+  expect(output).not.toContain('src="/@fs');
+  expect(output).not.toContain("view-transition-old");
+  expect(output).not.toContain("view-transition-new");
+});
+it.each([
+  "private-style",
+  "foreign-font",
+  "unpaired-module",
+  "unknown-module",
+  "count",
+  "size",
+  "private-router-lookalike",
+])("refuses unapproved Astro inline-form %s", async (kind) => {
+  let input = actualDevStyleForm(publicInlinePath, "body{color:red}");
+  if (kind === "private-style")
+    input = actualDevStyleForm(
+      `${root}/apps/admin/src/styles/private.css`,
+      "body{color:red}",
+    );
+  if (kind === "foreign-font")
+    input = actualDevStyleForm(
+      publicInlinePath,
+      "body{background:url(https://private.example/secret)}",
+    );
+  if (kind === "unpaired-module")
+    input = `<script type="module" src="/@fs${publicInlinePath}"></script>`;
+  if (kind === "unknown-module")
+    input += '<script type="module" src="/@id/unapproved-module"></script>';
+  if (kind === "count") input = input.repeat(33);
+  if (kind === "size")
+    input = actualDevStyleForm(publicInlinePath, "x".repeat(256 * 1024 + 1));
+  if (kind === "private-router-lookalike")
+    input = actualDevStyleForm(
+      `${root}/apps/admin/src/ClientRouter.astro?astro&type=style&index=0&lang.css`,
+      "body{color:red}",
+    );
+  const fetch = vi.fn(async () => {
+    throw new Error("Unapproved reads forbidden");
+  });
+  await expect(
+    materializePreviewAssets(
+      `<html><head>${input}</head><body></body></html>`,
+      origin,
+      { fetch },
+      true,
+    ),
+  ).rejects.toThrow();
+  expect(fetch).not.toHaveBeenCalled();
+});
