@@ -16,6 +16,8 @@ type D1Database = {
 
 /** Worker bindings and vars; read them through src/lib/runtime-env.ts. */
 type AdminEnv = {
+  /** Existing Cloudflare static asset binding, also used for owner-contained preview bytes. */
+  ASSETS?: import("./lib/preview-public-assets").PreviewAssetReader;
   DB: D1Database;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_POLICY_AUD: string;
@@ -46,6 +48,8 @@ declare const __LOCAL_OWNER_BUILD__: boolean;
 
 declare namespace App {
   interface Locals {
+    /** Exact owner snapshot and request-local storage reader for opaque previews. */
+    previewOwnedMedia?: import("./lib/preview-html").PreviewOwnedMediaContext;
     adminPrincipal?: import("./lib/admin-auth").AdminPrincipal;
     /** Set by middleware after it verifies the Access assertion. */
     accessOwner?: import("./lib/access-identity").AccessOwner;
