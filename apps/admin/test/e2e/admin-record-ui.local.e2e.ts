@@ -1296,34 +1296,38 @@ test(
     expect(saved.hasPublishedBase).toBe(false);
     expect(project.evidence.publicationWrites).toBe(0);
     await app.open("/content/projects");
-    console.info(
-      "synthetic-project-library-link",
-      await browser.evaluate(
-        ({ path, title }) => {
-          const links = Array.from(
-            document.querySelectorAll<HTMLAnchorElement>("main a"),
-          )
-            .filter((link) => link.textContent?.includes(title))
-            .map((link) => ({
-              rawHref: link.getAttribute("href"),
-              resolvedHref: link.href,
-              pathname: new URL(link.href).pathname,
-              origin: new URL(link.href).origin,
-              accessibleName:
-                link.getAttribute("aria-label") ?? link.textContent,
-            }));
-          return { path, title, origin: location.origin, links };
-        },
-        { path: project.path, title: project.title },
-      ),
-    );
-    const listed = browser
-      .locator(
-        `main a[href="${project.path}"], main a[href^="${project.path}?"]`,
-      )
-      .first();
+    const linkName = `Review changes: ${project.title}, Unpublished changes: Hidden to Listed`;
+    const listed = screen
+      .getByRole("main")
+      .getByRole("link", { name: linkName, exact: true });
     await expect(listed).toBeVisible({ timeout: 20_000 });
     await expect(listed).toContainText(project.title);
+    const linkEvidence = await browser.evaluate(
+      ({ path, title, linkName }) => {
+        const links = Array.from(
+          document.querySelectorAll<HTMLAnchorElement>(
+            'main a, [role="main"] a',
+          ),
+        ).filter((link) => link.getAttribute("aria-label") === linkName);
+        return {
+          path,
+          title,
+          origin: location.origin,
+          links: links.map((link) => ({
+            rawHref: link.getAttribute("href"),
+            resolvedHref: link.href,
+            pathname: new URL(link.href).pathname,
+            origin: new URL(link.href).origin,
+            accessibleName: link.getAttribute("aria-label"),
+          })),
+        };
+      },
+      { path: project.path, title: project.title, linkName },
+    );
+    console.info("synthetic-project-library-link", linkEvidence);
+    expect(linkEvidence.links).toHaveLength(1);
+    expect(linkEvidence.links[0]?.origin).toBe(linkEvidence.origin);
+    expect(linkEvidence.links[0]?.pathname).toBe(project.path);
     await listed.click();
     await expect(
       screen.getByRole("textbox", { name: "Title", exact: true }),
