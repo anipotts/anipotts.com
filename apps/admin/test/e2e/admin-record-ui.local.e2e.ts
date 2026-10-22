@@ -819,12 +819,14 @@ test(
     await expect(
       screen.getByRole("option", { name: "Demo", exact: true }),
     ).toBeVisible();
+    // This field sits above the open listbox. Link label sits underneath it
+    // and is physically covered, so it cannot exercise an outside click.
     await screen
-      .getByRole("textbox", { name: "Link label", exact: true })
+      .getByRole("textbox", { name: "Source or demo link", exact: true })
       .click();
     await expect(selector).toHaveAttribute("aria-expanded", "false");
     await expect(
-      screen.getByRole("textbox", { name: "Link label", exact: true }),
+      screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
     ).toBeFocused();
     await expect(
       screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
