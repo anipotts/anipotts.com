@@ -82,6 +82,31 @@ const publication = {
 const fresh = () => env.RECOVERY_SOURCE.getByName(crypto.randomUUID());
 const target = () => env.RECOVERY_TARGET.getByName(crypto.randomUUID());
 
+async function seedPublicBaseline() {
+  // Same complete committed public baseline as the existing actual publisher
+  // fixture. Keep every snapshot validator active; never mock acceptance.
+  for (const {
+    record: seededRecord,
+    source: seededSource,
+  } of bundledEditorialSources()) {
+    const inventory = await getPublishedInventory(env.RECOVERY_SOURCE_DB);
+    expect(
+      (
+        await publishDirect(env.RECOVERY_SOURCE_DB, {
+          contentSchemaVersion: 1,
+          record: seededRecord,
+          source: seededSource,
+          revision: 1,
+          operationId: `git-seed.${seededRecord.kind}.${seededRecord.id}`,
+          expectedPublicationId: null,
+          expectedInventoryVersion: inventory.version,
+          publishedAt: "2026-10-10T00:00:00Z",
+        })
+      ).status,
+    ).toBe("published");
+  }
+}
+
 beforeEach(async () => {
   // These bindings are distinct disposable local databases. No production config
   // or account is loaded, and remoteBindings is disabled by the fixture config.
@@ -801,6 +826,77 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
       alarmAt: null,
     });
   });
+  it("captures a freshly accepted version-zero intent and restores it suspended before source-only resumption", async () => {
+    const store = fresh(),
+      restored = target();
+    const network = vi.fn(() => {
+      throw new Error("unexpected fresh-intent network");
+    });
+    vi.stubGlobal("fetch", network);
+    try {
+      await seedPublicBaseline();
+      expect((await store.save(save())).ok).toBe(true);
+      await store.enableSyntheticPublication();
+      const baseline = await readPublishedBase(env.RECOVERY_SOURCE_DB, record);
+      const id = crypto.randomUUID();
+      expect(
+        await store.startDirectPublication({
+          record,
+          operationId: id,
+          expectedRevision: 1,
+          reviewedSourceSha256: createHash("sha256")
+            .update(source)
+            .digest("hex"),
+          expectedPublicationId: baseline.publicationId,
+          expectedBaselineSha256: baseline.sourceSha256,
+        }),
+      ).toMatchObject({
+        ok: true,
+        publication: { phase: "validate", version: 0, attempts: 0 },
+      });
+      await runInDurableObject(store, (_instance, state) =>
+        state.storage.setAlarm(Date.now() + 60_000),
+      );
+      const serialized = await store.capture();
+      await restored.installRecovery(serialized);
+      expect(await restored.directPublicationStatus(record, id)).toMatchObject({
+        phase: "validate",
+        version: 0,
+        attempts: 0,
+      });
+      expect(await runDurableObjectAlarm(restored)).toBe(false);
+      expect(await restored.recoveryStatus()).toMatchObject({
+        mode: "isolated-suspended",
+        alarmAt: null,
+      });
+      await failure(
+        restored,
+        (instance) => instance.save(save(1)),
+        "recovery_write_fenced",
+      );
+      await store.complete(serialized);
+      expect(await runDurableObjectAlarm(store)).toBe(true);
+      expect(await store.directPublicationStatus(record, id)).toMatchObject({
+        phase: "commit",
+        attempts: 1,
+        blocked: null,
+      });
+      expect(await restored.directPublicationStatus(record, id)).toMatchObject({
+        phase: "validate",
+        version: 0,
+        attempts: 0,
+      });
+      expect(network).not.toHaveBeenCalled();
+    } finally {
+      try {
+        await runInDurableObject(store, (_instance, state) =>
+          state.storage.deleteAlarm(),
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  }, 20_000);
   it("preserves accepted publication wakes through repeated native alarms during a held capture and resumes after reopening", async () => {
     const store = fresh();
     const network = vi.fn(() => {
@@ -808,28 +904,7 @@ describe("actual local DO SQLite/D1/R2 recovery", () => {
     });
     vi.stubGlobal("fetch", network);
     try {
-      // Same complete committed public baseline as the existing actual publisher
-      // fixture. Keep every snapshot validator active; never mock acceptance.
-      for (const {
-        record: seededRecord,
-        source: seededSource,
-      } of bundledEditorialSources()) {
-        const inventory = await getPublishedInventory(env.RECOVERY_SOURCE_DB);
-        expect(
-          (
-            await publishDirect(env.RECOVERY_SOURCE_DB, {
-              contentSchemaVersion: 1,
-              record: seededRecord,
-              source: seededSource,
-              revision: 1,
-              operationId: `git-seed.${seededRecord.kind}.${seededRecord.id}`,
-              expectedPublicationId: null,
-              expectedInventoryVersion: inventory.version,
-              publishedAt: "2026-10-10T00:00:00Z",
-            })
-          ).status,
-        ).toBe("published");
-      }
+      await seedPublicBaseline();
       expect((await store.save(save())).ok).toBe(true);
       await store.enableSyntheticPublication();
       const baseline = await readPublishedBase(env.RECOVERY_SOURCE_DB, record);

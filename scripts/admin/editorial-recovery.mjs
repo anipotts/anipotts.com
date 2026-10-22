@@ -739,7 +739,6 @@ function validateRecoveryGraph(snapshot, objects) {
         row.leaseUntil,
         row.retryStartedAt,
       ].every((n) => n >= 0) ||
-      row.version < 1 ||
       ![0, 1].includes(row.superseded) ||
       [row.inventoryVersion, row.activatedAt, row.verifiedAt].some(
         (n) => n !== null && n < 0,
