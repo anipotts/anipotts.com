@@ -99,7 +99,7 @@ async function viewSource({ screen }: Fixtures, browser: Browser) {
         stableFrames =
           actionable && position === previous ? stableFrames + 1 : 0;
         previous = position;
-        if (stableFrames >= 2) return;
+        if (stableFrames >= 2) return true;
       }
       throw new Error(
         "View source sheet target did not become stationary and hittable",
