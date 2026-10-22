@@ -75,6 +75,8 @@ test("preview package contains only preview-route CSS and its explicitly approve
         entryModules: {
           "/synthetic/apps/www/src/components/Nav.astro?astro&type=script":
             "_astro/Nav.synthetic.js",
+          "/synthetic/apps/www/src/components/SystemMap.astro?astro&type=script":
+            "_astro/SystemMap.synthetic.js",
           "/synthetic/apps/admin/src/components/EditorialApp.tsx":
             "_astro/private.synthetic.js",
         },
@@ -90,7 +92,10 @@ test("preview package contains only preview-route CSS and its explicitly approve
       value.styles.map((style) => style.path),
       ["/_astro/record.synthetic.css"],
     );
-    assert.deepEqual(value.scripts, ["/_astro/Nav.synthetic.js"]);
+    assert.deepEqual(value.scripts, [
+      "/_astro/Nav.synthetic.js",
+      "/_astro/SystemMap.synthetic.js",
+    ]);
     assert.equal(value.fonts.length, 1);
     assert.equal(value.fonts[0].data, "d09GMg==");
     await writeFile(

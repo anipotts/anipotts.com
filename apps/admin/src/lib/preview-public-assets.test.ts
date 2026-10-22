@@ -147,3 +147,46 @@ it("emits syntactically valid closed module source rather than escaped separator
   });
   expect(output.diagnostics).toEqual([]);
 });
+
+it("replaces only the known Systems motion script while retaining its static complete workflow", async () => {
+  const value = pack();
+  value.scripts.push("/_astro/SystemMap.synthetic.js");
+  const input =
+    '<html><head></head><body><figure data-workflow><ul><li data-source="gmail">Gmail</li><li data-source="github">GitHub</li></ul><button data-motion-toggle hidden>Pause</button></figure><script src="/_astro/SystemMap.synthetic.js"></script></body></html>';
+  const result = await materializePreviewAssets(
+    input,
+    origin,
+    reader(value),
+    false,
+  );
+  expect(result).toContain('data-source="gmail"');
+  expect(result).toContain('data-source="github"');
+  expect(result).toContain("data-motion-toggle hidden");
+  expect(result).not.toContain("data-animated");
+  expect(result).not.toContain('<script src="/_astro/SystemMap');
+  const devPath = `/@fs${root}/apps/www/src/components/SystemMap.astro?astro&type=script&index=0&lang.ts`;
+  const assets = {
+    fetch: vi.fn(async () => {
+      throw new Error("No assets needed");
+    }),
+  };
+  const devResult = await materializePreviewAssets(
+    input.replace("/_astro/SystemMap.synthetic.js", devPath),
+    origin,
+    assets,
+    true,
+  );
+  expect(devResult).toContain("data-motion-toggle hidden");
+  expect(assets.fetch).not.toHaveBeenCalled();
+  await expect(
+    materializePreviewAssets(
+      input.replace(
+        "/_astro/SystemMap.synthetic.js",
+        "/api/private/SystemMap.js",
+      ),
+      origin,
+      reader(value),
+      false,
+    ),
+  ).rejects.toThrow("Unmanifested preview script");
+});

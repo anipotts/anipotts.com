@@ -252,12 +252,15 @@ export async function materializePreviewAssets(
       dev &&
       (decoded === "/@vite/client" ||
         decoded === "/@id/astro/runtime/client/dev-toolbar/entrypoint.js" ||
-        /\/apps\/www\/src\/(?:components\/(?:Nav|ProjectMediaStage)|layouts\/Shell)\.astro\?astro&type=script/.test(
+        /\/apps\/www\/src\/(?:components\/(?:Nav|ProjectMediaStage|SystemMap)|layouts\/Shell)\.astro\?astro&type=script/.test(
           decoded,
         ) ||
         /\/node_modules\/astro\/components\/ClientRouter\.astro\?astro&type=script/.test(
           decoded,
         ));
+    // Systems previews retain the complete, wrapped source list and hidden
+    // motion control rendered by SystemMap; only its decorative marquee is
+    // omitted. Ordinary public pages still mount their normal animation.
     if (knownDev || pack.scripts.includes(decoded)) return "";
     throw new Error("Unmanifested preview script");
   });

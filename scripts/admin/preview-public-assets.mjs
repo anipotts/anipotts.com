@@ -29,7 +29,7 @@ export function previewPublicAssets() {
         scripts = Object.entries(manifest.entryModules)
           .filter(
             ([source]) =>
-              /\/apps\/www\/src\/(?:components\/(?:Nav|ProjectMediaStage)|layouts\/Shell)\.astro\?/.test(
+              /\/apps\/www\/src\/(?:components\/(?:Nav|ProjectMediaStage|SystemMap)|layouts\/Shell)\.astro\?/.test(
                 source,
               ) || /\/astro\/components\/ClientRouter\.astro\?/.test(source),
           )
