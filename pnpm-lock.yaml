@@ -35,7 +35,7 @@ overrides:
 
 patchedDependencies:
   astro@7.4.0:
-    hash: 1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c
+    hash: ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7
     path: patches/astro@7.4.0.patch
   '@astryxdesign/core@0.7.1':
     hash: efb56a1253b2080a97631274843ca4a44a3ba7a3912b20edf0ad27abc9d6989e
@@ -101,7 +101,7 @@ importers:
         version: link:../../packages/runtime-contract
       '@astrojs/cloudflare':
         specifier: 14.3.4
-        version: 14.3.4(@types/node@24.19.2)(astro@7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2))(yaml@2.9.1)
+        version: 14.3.4(@types/node@24.19.2)(astro@7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2))(yaml@2.9.1)
       '@astrojs/react':
         specifier: 7.1.0
         version: 7.1.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.28.2)(jiti@2.7.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
@@ -164,7 +164,7 @@ importers:
         version: 3.32.0
       astro:
         specifier: 7.4.0
-        version: 7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
       astro-icon:
         specifier: ^1.2.0
         version: 1.2.0
@@ -276,7 +276,7 @@ importers:
         version: link:../../packages/runtime-contract
       '@astrojs/cloudflare':
         specifier: 14.3.4
-        version: 14.3.4(@types/node@26.6.5)(astro@7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@26.6.5))(yaml@2.9.1)
+        version: 14.3.4(@types/node@26.6.5)(astro@7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@26.6.5))(yaml@2.9.1)
       '@astrojs/markdown-remark':
         specifier: 7.3.3
         version: 7.3.3
@@ -288,7 +288,7 @@ importers:
         version: 5.3.0
       astro:
         specifier: 7.4.0
-        version: 7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
       astro-icon:
         specifier: ^1.2.0
         version: 1.2.0
@@ -5998,12 +5998,12 @@ snapshots:
       - prettier
       - prettier-plugin-astro
 
-  '@astrojs/cloudflare@14.3.4(@types/node@24.19.2)(astro@7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2))(yaml@2.9.1)':
+  '@astrojs/cloudflare@14.3.4(@types/node@24.19.2)(astro@7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2))(yaml@2.9.1)':
     dependencies:
       '@astrojs/internal-helpers': 0.12.0
       '@astrojs/underscore-redirects': 1.0.4
       '@cloudflare/vite-plugin': 1.64.0(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2))
-      astro: 7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
+      astro: 7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
       piccolore: 0.1.3
       vite: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
       wrangler: 4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.19.2)
@@ -6023,12 +6023,12 @@ snapshots:
       - utf-8-validate
       - yaml
 
-  '@astrojs/cloudflare@14.3.4(@types/node@26.6.5)(astro@7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@26.6.5))(yaml@2.9.1)':
+  '@astrojs/cloudflare@14.3.4(@types/node@26.6.5)(astro@7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@26.6.5))(yaml@2.9.1)':
     dependencies:
       '@astrojs/internal-helpers': 0.12.0
       '@astrojs/underscore-redirects': 1.0.4
       '@cloudflare/vite-plugin': 1.64.0(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@26.6.5))
-      astro: 7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
+      astro: 7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
       piccolore: 0.1.3
       vite: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1)
       wrangler: 4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@26.6.5)
@@ -8882,7 +8882,7 @@ snapshots:
       '@iconify/types': 2.0.0
       '@iconify/utils': 3.1.7
 
-  astro@7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1):
+  astro@7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@24.19.2)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       '@astrojs/compiler-rs': 0.5.2
       '@astrojs/internal-helpers': 0.13.0
@@ -8972,7 +8972,7 @@ snapshots:
       - uploadthing
       - yaml
 
-  astro@7.4.0(patch_hash=1af1c3b1e0d2e75d293f770c471f6b64139f55c18cfcdb88d9ff3c863682302c)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1):
+  astro@7.4.0(patch_hash=ad3254c59d4a8ee27b2c01b8fb91a89082bac231c2e64497fdfb322688e5dbe7)(@astrojs/markdown-remark@7.3.3)(@types/node@26.6.5)(aws4fetch@1.0.20)(db0@0.3.4(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261016.1)(@opentelemetry/api@1.9.0)(bun-types@1.4.3)))(esbuild@0.28.2)(ioredis@5.10.1)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       '@astrojs/compiler-rs': 0.5.2
       '@astrojs/internal-helpers': 0.13.0

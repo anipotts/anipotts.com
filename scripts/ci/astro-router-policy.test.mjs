@@ -34,6 +34,9 @@ function fixture(definitions) {
       attributes,
       dataset: {},
       innerHTML: text,
+      hasAttribute(name) {
+        return attributes.some((attr) => attr.name === name);
+      },
       getAttribute(name) {
         return attributes.find((attr) => attr.name === name)?.value ?? null;
       },
@@ -70,7 +73,7 @@ function fixture(definitions) {
   return { inserted, replaced, run };
 }
 
-test("the exact Astro patch only changes its module barrier URL and both apps serve identical empty JavaScript", () => {
+test("the exact Astro patch changes only its module barrier URL and non-async module scheduling and both apps serve identical empty JavaScript", () => {
   const patch = readFileSync("patches/astro@7.4.0.patch", "utf8");
   const removed = patch
     .split("\n")
@@ -79,10 +82,14 @@ test("the exact Astro patch only changes its module barrier URL and both apps se
     .split("\n")
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
   assert.equal(removed.length, 1);
-  assert.equal(added.length, 1);
+  assert.equal(added.length, 2);
   assert.equal(
     added[0].slice(1),
     removed[0].slice(1).replace("data:application/javascript,", sentinel),
+  );
+  assert.equal(
+    added[1].trim(),
+    '+\t\tif (type === "module" && !script.hasAttribute("async")) newScript.async = false;'.trim(),
   );
   assert.ok(
     runScriptsSource.includes(sentinel),
@@ -128,6 +135,8 @@ for (const outcome of ["onload", "onerror"])
     assert.equal(complete, false);
     assert.equal(current.inserted.length, 1);
     assert.equal(current.replaced.length, 2);
+    assert.equal(current.replaced[0].async, false);
+    assert.equal(current.replaced[1].async, false);
     assert.equal(
       current.replaced[0].innerHTML,
       "window.syntheticInline = true",
@@ -155,4 +164,15 @@ test("classic scripts do not gain a module barrier", async () => {
   await current.run();
   assert.equal(current.inserted.length, 0);
   assert.equal(current.replaced.length, 1);
+  assert.equal(Object.hasOwn(current.replaced[0], "async"), false);
+});
+
+test("explicit async module attributes retain nonblocking browser scheduling", async () => {
+  const current = fixture([[{ type: "module", async: "" }, "async inline"]]);
+  const waiting = current.run();
+  assert.equal(current.replaced[0].hasAttribute("async"), true);
+  assert.equal(Object.hasOwn(current.replaced[0], "async"), false);
+  assert.equal(current.replaced[1].async, false);
+  current.replaced[1].onload();
+  await waiting;
 });
