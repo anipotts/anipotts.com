@@ -11,7 +11,7 @@ import { DropdownMenu as CoreDropdownMenu } from "@astryxdesign/core/DropdownMen
 function tooltip(
   props: {
     label: string;
-    tooltip?: React.ReactNode;
+    tooltip?: string;
     "aria-describedby"?: string;
   },
   fallback: boolean,
