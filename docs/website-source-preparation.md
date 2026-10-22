@@ -13,17 +13,51 @@ the exact merge SHA and D1 connected, and eight Admin routes retain Access.
 Required Build and Security checks passed. Optional CodeQL job reporting was
 inconsistent with its successful workflow; it was not a required rule or bypass.
 
-#551 includes main and checked #552 source by normal merges. Full validation
-passed all 14 tasks at runtime head `d47a67fb`, including 2,497 Admin unit tests.
-The first native run passed 42/50. Test-only role and hydration corrections at
-`7e830830` then passed 20/22 focused cases; only the final Projects library-link
-lookup failed on both targets. Its actual href still needs diagnosis. The
-Publish button readiness mismatch during restored-media loading is confirmed;
-its focused fix and acceptance are being qualified. Opaque preview asset CORS
-and supplemental touch runtime errors remain unresolved. An attempted later
-link diagnostic coincided with an actual config-triggered server restart,
-so it provides no clean-head product acceptance. Physical-device proof remains
-separate. Keep #551 draft and #552 open until combined acceptance/integration.
+#551 includes released main and exact #552 source by normal merges. Runtime
+`6f28c9df7600f3be0852ce36fef6ded9ea557da8` repairs contained preview transport:
+a fixed bounded CSS/font/interaction package, structural HTML resource checking,
+exact-snapshot private media, cancellation and theme/request identity. It keeps
+the opaque sandbox, CSP, Access and publication boundaries. DEV and built proofs
+each pass four actual documents, including opaque origin, loaded fonts/styles,
+controls and decoded synthetic private PNG. Pixel-color comparison and live
+private-record rendering are not claimed.
+
+Full validation passes 14/14 tasks at clean `ca66ee27` (13 cached), including
+2,586 Admin unit tests, 79 Astro SSR and 98 editorial cases. The configured native
+Admin suite passes 50/50 selected cases on that exact head, all attempts cleaned
+up without secondary errors. Public native coverage passes 13 with one intentional
+desktop-menu skip on unchanged www source. The Projects library link, Publish
+readiness and contained preview rendering gaps are repaired.
+
+Trusted WebKit touch passes 12 unique Writing/Core scenarios across preserved
+attempts and 6/6 Projects scenarios. Projects proves retained originals, 61px
+square crops, refused save with revision held, explicit recovery save and absent
+publication. Corrected temporary drivers wait for actual hydration, use the real
+responsive close labels and remove their own qualification listeners. Original
+failed attempts remain preserved. The emulated engine lacks the iOS CSS feature:
+wide Core fields match the 14px body token; SDK fields retain their 16px coarse
+floor. Physical iOS, IME and assistive-technology acceptance remain unclaimed.
+Inspector post-close focus is observed on main, without an unconditional
+restoration claim.
+
+Test-only follow-up `b52b283d` waits for actual library hydration before the next
+forced test navigation. Its exact Back/unload case passes both engines with no
+warning/error logs; the two earlier DEV import rejections did not recur. Actual
+native TypeScript passes. Runtime bytes remain identical to `6f28c9df` through
+both qualified test heads and this documentation checkpoint. Failed-save cases
+retain expected 503 and LayerProvider fallback warnings. Chromium's four preview
+autofocus refusals and the existing public Astro transition-module CSP event are
+separate prepared browser-policy work, not zero-console acceptance.
+
+Integration remains pending exact-head protected CI and native release controls.
+Targets are www and Admin; all four workers are skipped, schema 0044, no migration.
+Keep #552 open until the combined source integrates. A separate local #540 refresh
+at `865211b8` normally merges main `07da221d`; media source still equals its prior
+qualified head, with fresh checks and all provider activation gates outstanding.
+The prepared browser-policy branch is `4c905156`; independent source review passes,
+but installation/build/browser qualification remains due. Subsequent Admin control
+consolidation should remove the remaining SDK-origin KaTeX path. KaTeX has a fix
+from 0.18.2; the current supported parent dependency ranges cannot select it.
 
 Thirty-one retired checkout paths are removed with source refs and local
 receipts preserved. The seven remaining stale app cards were traced to this
@@ -41,8 +75,10 @@ health-check race started a duplicate public server on a fallback port; only
 that new duplicate was stopped. Original www and Admin continue serving.
 Public manager tracking now needs a scoped restart, pending the separately
 requested approval after native review rejected it. Admin must stay running.
-The source prevention fix is independently reviewed on
-`codex/preview-process-ownership`; it is not yet integrated or activated.
+The source prevention fix is independently reviewed and normally merged into
+#551. It has not been activated in the canonical preview. Two bounded active
+checkouts hold browser-policy work and the #540 refresh; they are separate from
+the seven stale app cards.
 
 ## October 21 combined qualification checkpoint
 
