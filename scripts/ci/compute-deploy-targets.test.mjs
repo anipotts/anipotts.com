@@ -59,6 +59,12 @@ expectTargets(
 );
 
 expectTargets(
+  "owner preview asset packaging deploys admin only",
+  ["scripts/admin/preview-public-assets.mjs"],
+  { admin: true },
+);
+
+expectTargets(
   "admin-control library code deploys admin only",
   ["packages/lib/src/admin-control/index.ts"],
   { admin: true },
