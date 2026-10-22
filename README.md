@@ -30,11 +30,12 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Integrate and release checked [#551](https://github.com/anipotts/anipotts.com/pull/551) through exact-head protected checks. Full validation14/14, Admin native50/50 and the recorded touch coverage pass; qualified runtime remains unchanged by test/documentation follow-ups.
-- [ ] Reconcile [#552](https://github.com/anipotts/anipotts.com/pull/552) after its normally consolidated source integrates through #551.
-- [ ] Qualify the prepared browser-policy patch, then consolidate Admin controls to remove the remaining SDK/KaTeX dependency path.
+- [ ] Integrate and release the qualified browser-policy patch through exact-head protected checks. Full validation14/14, router tests6/6, controlled Chromium/WebKit ordering checks and public native13-pass/1-skip coverage pass.
+- [ ] Repair and qualify the Admin Core consolidation. Frozen installation and the candidate dependency audit pass with zero advisories; focused mounted tests exposed wrapper behavior gaps that must pass before release.
 - [ ] Refresh and qualify held [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery source. #540 has a clean local normal-main refresh; provider, custody and activation gates remain separate.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
+
+#551 is merged as `1936106c`; [release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758) deployed www and Admin. All four workers were skipped, schema0044, no migration. Exact public smoke and provider/Admin Access proof pass. #552 was consolidated and marked merged by GitHub.
 
 #550 is merged as `07da221d`; [release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879) deployed www and Admin. All four workers were skipped; schema 0044, no migration.
 

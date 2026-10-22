@@ -2,6 +2,39 @@
 
 ## October 22 release and cleanup checkpoint
 
+#551 is merged at `1936106c934ba53a7edf6e0fc0defbffbf6b6ffb` after live strict
+protection, exact-head required checks and all review conversations passed.
+[Release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758)
+succeeded for www and Admin; all four workers skipped, schema0044, no migration.
+Provider versions are www `696f2818-dafc-4c3f-823e-a525226ca2ea` and Admin
+`29c94e26-9fbe-45df-ad3c-9aa600917271`. Public smoke verifies exact release,
+schema, routes and security headers. Workflow provider proof and eight unauthenticated
+Access redirects pass; private production UI is not claimed. #552 was automatically
+marked merged through the preserved ancestry and its redundant PR attachment removed.
+#551 archival is queued, not confirmed. Its public description update remains
+pending native send approval; the release did not modify that description.
+
+The browser-policy patch is qualified at `f500bde8`, with final tree identical
+to fully validated `719439c9`. Full validation14/14, six router tests and final
+public native13-pass/1-intentional-skip coverage pass. All14 attempts cleaned up.
+Controlled Chromium/WebKit checks prove cold/cached static-import ordering,
+authored async behavior and sentinel failure. The initial static-import ordering
+negative control failed, motivating the explicit non-async module repair.
+A zero-context packaging experiment misapplied and was restored by a normal
+corrective commit; frozen installation and both installed router hashes match
+validated bytes. Eleven upstream patch-context whitespace warnings remain recorded.
+Chromium parent focus proof passes separately. Final native reports omit console
+fields, so they supply no independent console-cleanliness claim. Heavy and
+preview slots were released with owned listeners and browser targets closed.
+
+The SDK removal candidate has frozen-install and zero-advisory audit proof;
+its first focused mounted run exposed wrapper behavior gaps. It remains unreleased
+until focused, semantic and relevant browser qualification pass. Held foundation
+source refreshes are #540 `a128b79a` and #541 `16f37382`, both normally merged
+with released main. All13 media and42 recovery-owned paths remain byte-identical
+to their prior local checkpoints. Classifier replay and focused policy/formatting
+checks pass; fresh runtime/typing/build qualification and operational gates remain.
+
 Integration owner: site-improvements, local chat
 `01a14ffb-519c-73b1-a63a-380f9d7274d0`. #550 is merged as
 `07da221d82aa4b0d6b7d4dabcc363103fdd3959a`, with the qualified source tree
@@ -49,15 +82,8 @@ retain expected 503 and LayerProvider fallback warnings. Chromium's four preview
 autofocus refusals and the existing public Astro transition-module CSP event are
 separate prepared browser-policy work, not zero-console acceptance.
 
-Integration remains pending exact-head protected CI and native release controls.
-Targets are www and Admin; all four workers are skipped, schema 0044, no migration.
-Keep #552 open until the combined source integrates. A separate local #540 refresh
-at `865211b8` normally merges main `07da221d`; media source still equals its prior
-qualified head, with fresh checks and all provider activation gates outstanding.
-The prepared browser-policy branch is `4c905156`; independent source review passes,
-but installation/build/browser qualification remains due. Subsequent Admin control
-consolidation should remove the remaining SDK-origin KaTeX path. KaTeX has a fix
-from 0.18.2; the current supported parent dependency ranges cannot select it.
+The completed #551 release and qualified browser-policy evidence are recorded above.
+The remaining SDK and held-foundation qualification is separate from shipped proof.
 
 Thirty-one retired checkout paths are removed with source refs and local
 receipts preserved. The seven remaining stale app cards were traced to this
@@ -65,7 +91,7 @@ chat (three) and original content worker
 `01a15008-1dac-7480-90b2-424f4c9d0787` (four). Native archival rejects ownership
 even from those contexts; direct app-server messages to the multi-agent worker
 are disallowed. Do not recreate checkout directories or alter app databases.
-The completed formatter card has queued archival without confirmed completion.
+Exact-path read-only thread-index and app-hint lookups found no new owning-chat route. No app state was modified. The completed formatter card has queued archival without confirmed completion.
 Primary, canonical review, active candidate and dirty table-work preservation
 remain separate. Exact inventory and native denials are retained locally under
 `.local/project-cleanup/2026-10-21/`.
