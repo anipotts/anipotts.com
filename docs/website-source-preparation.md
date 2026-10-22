@@ -4,6 +4,29 @@
 
 ### Isolated browser toolbar and partial touch evidence
 
+The supported toolbar isolation repair is committed at
+`8b0119ae359e2207c65e5e6683b8a73239dce966`. All25 tests in the focused actual-config
+suite pass, including ordinary dev, state-only, durable owner and isolated owner
+modes. The exact clean repaired head was then exercised through the heavy-slot
+manager on8917. Its first Writing390/light context again passed trusted native
+touch and the executed UI assertions, but failed the unchanged runtime-error gate.
+The toolbar exception was gone; the remaining exception is Astro island
+`childrenConnectedCallback` awaiting its before-hydration import, with the sole
+failed request `/@react-refresh` cancelled. Cause of that initial navigation/import
+cancellation remains unresolved. No error filtering or retry was applied.
+
+Installed Vite React6.1.2 can disable refresh transforms with `server.hmr:false`,
+but installed Astro React7.1.0 independently injects its static refresh preamble
+for every dev command. That preamble still imports `/@react-refresh`, so HMRfalse
+was not applied as a speculative fix. The plugin's refresh endpoint remains
+unconditionally available. Further navigation/hydration diagnosis is required.
+No accepted supplemental scenario is claimed; eleven remaining Core/Writing and
+all six Projects contexts remain unrun. Physical-device acceptance remains unclaimed.
+Raw repaired-head results are in `/private/tmp/anipotts-astryx-touch-jBuTBp/`;
+cleanup again proved disconnected browser, zero owned contexts, terminated owned
+server group and closed8917. Source stayed clean throughout the run. No canonical
+preview was navigated or stopped.
+
 On clean candidate `c831dec78be47090996c8cdfb7c4532a4b98b5e2`, the supplemental
 native WebKit touch run stopped after its first Writing390/light scenario at
 its strict runtime-error gate. Both real `locator.tap` and `touchscreen.tap`
