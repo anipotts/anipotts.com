@@ -99,7 +99,15 @@ describe("shared Data and Observability shell", () => {
   it("renders Data navigation with the one palette", () => {
     const markup = renderToStaticMarkup(shell("/data/sources"));
     expect(markup).toContain('data-workspace="data"');
-    expect(markup).toMatch(/href="\/data\/sources"[^>]*aria-current="page"/);
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    const current = host.querySelectorAll(
+      '.admin-unified-nav a[href="/data/sources"][aria-current="page"]',
+    );
+    expect(current).toHaveLength(2); // Inline navigation and the controlled drawer.
+    expect([...current].every((link) => link.textContent === "Sources")).toBe(
+      true,
+    );
     expect(markup).toContain('href="/data/records"');
     expect(markup).not.toContain('href="/life');
     expect(markup).not.toContain('href="/inbox"');

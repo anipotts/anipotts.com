@@ -60,24 +60,29 @@ async function openPeer(browser: Browser) {
     }, peerName),
   ).toBe(true);
   await expect
-    .poll(() =>
-      browser.evaluate((selector) => {
-        const peer = Reflect.get(
-          window,
-          "syntheticRecoveryPeer",
-        ) as Window | null;
-        if (!peer || peer.closed) return false;
-        try {
-          const input = peer.document.querySelector<HTMLInputElement>(selector);
-          return (
-            peer.location.origin === location.origin &&
-            Boolean(input && !input.disabled) &&
-            !peer.document.querySelector('textarea[placeholder="Title"]')
-          );
-        } catch {
-          return false;
-        }
-      }, keyInput),
+    .poll(
+      () =>
+        browser.evaluate((selector) => {
+          const peer = Reflect.get(
+            window,
+            "syntheticRecoveryPeer",
+          ) as Window | null;
+          if (!peer || peer.closed) return false;
+          try {
+            const input =
+              peer.document.querySelector<HTMLInputElement>(selector);
+            return (
+              peer.location.origin === location.origin &&
+              Boolean(input && !input.disabled) &&
+              !peer.document.querySelector('textarea[placeholder="Title"]')
+            );
+          } catch {
+            return false;
+          }
+        }, keyInput),
+      // Match the main-window recovery helper: the popup must hydrate its
+      // real key input before the lifecycle test supplies any key or event.
+      { timeout: 20_000 },
     )
     .toBe(true);
 }

@@ -3,15 +3,43 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 const fixture = vi.hoisted(() => ({
   config: {} as Record<string, string>,
   jwks: {} as unknown,
+  assetReads: 0,
+  assetsAvailable: true,
 }));
-vi.mock("./runtime-env", () => ({ runtimeEnv: () => fixture.config }));
+vi.mock("./runtime-env", () => ({
+  runtimeEnv: () => ({
+    ...fixture.config,
+    ASSETS: {
+      fetch: async (request: Request) => {
+        fixture.assetReads++;
+        expect(new URL(request.url).pathname).toBe(
+          "/__preview/public-assets.json",
+        );
+        return fixture.assetsAvailable
+          ? Response.json({
+              version: 1,
+              styles: [
+                {
+                  path: "/_astro/preview-fixture.css",
+                  css: "body{color:rgb(1,2,3)}",
+                },
+              ],
+              fonts: [],
+              scripts: [],
+            })
+          : new Response(null, { status: 404 });
+      },
+    },
+  }),
+}));
 vi.mock("astro:middleware", () => ({
   defineMiddleware: (handler: unknown) => handler,
 }));
 vi.mock("./editorial-content", () => ({
   publicSiteUrl: "https://fixture.example",
 }));
-vi.mock("./editorial-media", () => ({
+vi.mock("./editorial-media", async (original) => ({
+  ...(await original<typeof import("./editorial-media")>()),
   editorialImagePreview: (path: string) => path,
 }));
 vi.mock("jose", async (original) => {
@@ -25,7 +53,10 @@ vi.mock("jose", async (original) => {
   };
 });
 import { onRequest } from "../middleware";
-import { standalonePreviewFrameUrl } from "./preview-html";
+import {
+  standalonePreviewFrameUrl,
+  type PreviewOwnedMediaContext,
+} from "./preview-html";
 import { previewFailure } from "./preview-status";
 
 const origin = "https://admin.anipotts.com";
@@ -46,6 +77,8 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.stubGlobal("__LOCAL_OWNER_BUILD__", false);
   vi.stubEnv("DEV", false);
+  fixture.assetReads = 0;
+  fixture.assetsAvailable = true;
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -65,6 +98,7 @@ async function dispatch(
   path: string,
   headers: Record<string, string> = {},
   failure = false,
+  snapshot = true,
 ) {
   const rendered: string[] = [];
   const rewrites: URL[] = [];
@@ -73,7 +107,7 @@ async function dispatch(
     const context = {
       url,
       request,
-      locals: {},
+      locals: {} as { previewOwnedMedia?: PreviewOwnedMediaContext },
       redirect: (location: string, status: number) =>
         new Response(null, { status, headers: { location } }),
       rewrite: async (target: URL) => {
@@ -92,10 +126,17 @@ async function dispatch(
             )
           : Response.json({ error: "invalid_preview" }, { status: 400 });
       }
+      if (snapshot)
+        context.locals.previewOwnedMedia = {
+          source: "Synthetic private draft",
+          readMedia: async () => {
+            throw new Error("No media in this snapshot");
+          },
+        };
       return failure
         ? previewFailure(url, "stale", 409)
         : new Response(
-            '<html><body>Synthetic private draft<a href="/writing">read</a></body></html>',
+            '<html><head><link rel="stylesheet" href="/_astro/preview-fixture.css"></head><body>Synthetic private draft<a href="/writing">read</a></body></html>',
             { headers: { "Content-Type": "text/html" } },
           );
     }) as Promise<Response>;
@@ -151,6 +192,7 @@ it("explicit embedded mode preserves the opaque sandbox and draft failure handsh
     "cf-access-jwt-assertion": await token(),
   };
   for (const failure of [false, true]) {
+    const readsBefore = fixture.assetReads;
     const result = await dispatch(
       "/preview/record?kind=writing&id=synthetic&revision=7&embedded=1&previewRequest=exact",
       headers,
@@ -164,8 +206,16 @@ it("explicit embedded mode preserves the opaque sandbox and draft failure handsh
     expect(html).toContain(
       failure ? '"status":"stale"' : "Synthetic private draft",
     );
-    if (failure) expect(html).toContain('"request":"exact"');
-    else expect(html).toContain('href="https://fixture.example/writing"');
+    expect(fixture.assetReads - readsBefore).toBe(failure ? 0 : 1);
+    if (failure) {
+      expect(html).toContain('"request":"exact"');
+      expect(html).not.toContain("data-preview-public-client");
+    } else {
+      expect(html).toContain('href="https://fixture.example/writing"');
+      expect(html).toContain(
+        "<style data-preview-public-style>body{color:rgb(1,2,3)}</style>",
+      );
+    }
   }
 });
 it.each([
@@ -198,4 +248,37 @@ it.each([
   );
   expect(result.response.status).toBe(400);
   expect(result.rewrites).toHaveLength(0);
+});
+
+it("fails closed when an otherwise valid render lacks its snapshot context", async () => {
+  const result = await dispatch(
+    "/preview/record?embedded=1&previewRequest=missing-snapshot",
+    { "sec-fetch-dest": "iframe", "cf-access-jwt-assertion": await token() },
+    false,
+    false,
+  );
+  expect(result.response.status).toBe(503);
+  expect(result.response.headers.get("Content-Security-Policy")).toBe(policy);
+  expect(fixture.assetReads).toBe(0);
+  const html = await result.response.text();
+  expect(html).toContain('"status":"unavailable"');
+  expect(html).not.toContain("Synthetic private draft");
+  expect(html).not.toContain("data-preview-owned-media");
+  expect(html).not.toContain('status:"ready"');
+  expect(html).not.toContain("Synthetic private draft");
+  expect(html).not.toContain("data-preview-owned-media");
+});
+it("fails closed when the deployment-owned public asset package is unavailable", async () => {
+  fixture.assetsAvailable = false;
+  const result = await dispatch(
+    "/preview/record?embedded=1&previewRequest=missing-assets",
+    { "sec-fetch-dest": "iframe", "cf-access-jwt-assertion": await token() },
+  );
+  expect(result.response.status).toBe(503);
+  expect(fixture.assetReads).toBe(1);
+  const html = await result.response.text();
+  expect(html).toContain('"status":"unavailable"');
+  expect(html).not.toContain('status:"ready"');
+  expect(html).not.toContain("Synthetic private draft");
+  expect(html).not.toContain("data-preview-owned-media");
 });

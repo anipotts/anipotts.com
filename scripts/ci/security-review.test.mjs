@@ -30,6 +30,7 @@ for (const file of [
   "apps/admin/wrangler.toml",
   "apps/www/wrangler.toml",
   "patches/@astryxdesign__core@0.4.6.patch",
+  "patches/@astryxdesign__core@0.7.1.patch",
 ]) {
   expectSensitive(file, true);
   assert.ok(

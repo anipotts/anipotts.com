@@ -1,12 +1,14 @@
+import {
+  IconButton,
+  TextInput,
+  Selector,
+} from "../workspace/WorkspaceControls";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
-import { IconButton } from "@astryxdesign/core/IconButton";
 import { XIcon } from "@phosphor-icons/react";
 import { Text } from "@astryxdesign/core/Text";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Selector } from "@astryxdesign/core/Selector";
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
 import { ArticleImageUpload } from "./ArticleImageUpload";
 import {

@@ -156,6 +156,7 @@ export function RecordPanel({
         </LayoutPanel>
       ) : mode === "sheet" ? (
         <BottomSheet
+          padding={0}
           label={title}
           isOpen
           onOpenChange={dismiss}

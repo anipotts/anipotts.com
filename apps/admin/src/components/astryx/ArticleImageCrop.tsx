@@ -1,10 +1,8 @@
+import { Selector, Button, Banner } from "../workspace/WorkspaceControls";
 import React, { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { Selector } from "@astryxdesign/core/Selector";
 import { Slider } from "@astryxdesign/core/Slider";
-import { Button } from "@astryxdesign/core/Button";
-import { Banner } from "@astryxdesign/core/Banner";
 import { Text } from "@astryxdesign/core/Text";
 import { cropOutputSize, imageCrop } from "../../lib/image-crop";
 
@@ -174,7 +172,12 @@ export function ArticleImageCrop({
         onChange={setY}
       />
       {error && (
-        <Banner status="error" title="Crop not saved" description={error} />
+        <Banner
+          role="alert"
+          status="error"
+          title="Crop not saved"
+          description={error}
+        />
       )}
       <HStack gap={2}>
         <Button

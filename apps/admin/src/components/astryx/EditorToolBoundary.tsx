@@ -14,6 +14,7 @@ export class EditorToolBoundary extends Component<
     if (this.state.failed)
       return (
         <Banner
+          role="alert"
           status="warning"
           title="Source editor could not load"
           description="Your draft remains in the editor. Use Back to editor to continue, or download your draft from Document actions before reloading to try again."

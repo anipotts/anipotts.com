@@ -1,5 +1,22 @@
 # Website source preparation
 
+## October 22 recovery and authoring source reconciliation
+
+The inactive recovery refresh `a0964cb2` normally merges the checked #551
+source `fffc239a0d3fc7a9b3d0c2909db247ae329ab540`. Documentation keeps both
+recovery gates and the current #551 acceptance receipts. Classifier conflicts
+retain the scoped recovery build inputs and the preview asset build input;
+the deterministic release corpus is regenerated from those combined rules.
+The integration owner reports #551 and consolidated #552 merged as
+`1936106c934ba53a7edf6e0fc0defbffbf6b6ffb`; deployment39724851758
+remains under owner verification. Earlier pending-integration wording below is
+a dated checkpoint.
+
+Recovery implementation, local migration definitions and bindings are unchanged
+from the premerge recovery refresh. This is source reconciliation, not refreshed
+runtime, native, provider or release qualification. Keep #541 draft until the
+owner-scheduled compatibility checks and the operational gates below are met.
+
 ## October 22 inactive recovery source refresh
 
 Draft #541 was refreshed locally from `f91f6b62426b9b9a6e5ac8fd63469d484ab589af`
@@ -29,6 +46,286 @@ Keep #541 draft. Capture/restore activation, migration 0003, production artifact
 bindings, provider/destination selection, key custody, external copy, enrollment
 and a demonstrated operational restore drill remain held. The test-only cohort
 adapter and supplied local R2 fixtures do not enable production admission.
+
+## October 22 release and cleanup checkpoint
+
+Integration owner: site-improvements, local chat
+`01a14ffb-519c-73b1-a63a-380f9d7274d0`. #550 is merged as
+`07da221d82aa4b0d6b7d4dabcc363103fdd3959a`, with the qualified source tree
+`0eedd543b9ccf1aa54bb81aa1dfdf2d99cf1771e` unchanged by integration.
+[Release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879)
+succeeded for www and Admin. All four workers were skipped; schema 0044,
+no migration. Both provider versions are active at 100%; public health reports
+the exact merge SHA and D1 connected, and eight Admin routes retain Access.
+Required Build and Security checks passed. Optional CodeQL job reporting was
+inconsistent with its successful workflow; it was not a required rule or bypass.
+
+#551 includes released main and exact #552 source by normal merges. Runtime
+`6f28c9df7600f3be0852ce36fef6ded9ea557da8` repairs contained preview transport:
+a fixed bounded CSS/font/interaction package, structural HTML resource checking,
+exact-snapshot private media, cancellation and theme/request identity. It keeps
+the opaque sandbox, CSP, Access and publication boundaries. DEV and built proofs
+each pass four actual documents, including opaque origin, loaded fonts/styles,
+controls and decoded synthetic private PNG. Pixel-color comparison and live
+private-record rendering are not claimed.
+
+Full validation passes 14/14 tasks at clean `ca66ee27` (13 cached), including
+2,586 Admin unit tests, 79 Astro SSR and 98 editorial cases. The configured native
+Admin suite passes 50/50 selected cases on that exact head, all attempts cleaned
+up without secondary errors. Public native coverage passes 13 with one intentional
+desktop-menu skip on unchanged www source. The Projects library link, Publish
+readiness and contained preview rendering gaps are repaired.
+
+Trusted WebKit touch passes 12 unique Writing/Core scenarios across preserved
+attempts and 6/6 Projects scenarios. Projects proves retained originals, 61px
+square crops, refused save with revision held, explicit recovery save and absent
+publication. Corrected temporary drivers wait for actual hydration, use the real
+responsive close labels and remove their own qualification listeners. Original
+failed attempts remain preserved. The emulated engine lacks the iOS CSS feature:
+wide Core fields match the 14px body token; SDK fields retain their 16px coarse
+floor. Physical iOS, IME and assistive-technology acceptance remain unclaimed.
+Inspector post-close focus is observed on main, without an unconditional
+restoration claim.
+
+Test-only follow-up `b52b283d` waits for actual library hydration before the next
+forced test navigation. Its exact Back/unload case passes both engines with no
+warning/error logs; the two earlier DEV import rejections did not recur. Actual
+native TypeScript passes. Runtime bytes remain identical to `6f28c9df` through
+both qualified test heads and this documentation checkpoint. Failed-save cases
+retain expected 503 and LayerProvider fallback warnings. Chromium's four preview
+autofocus refusals and the existing public Astro transition-module CSP event are
+separate prepared browser-policy work, not zero-console acceptance.
+
+Integration remains pending exact-head protected CI and native release controls.
+Targets are www and Admin; all four workers are skipped, schema 0044, no migration.
+Keep #552 open until the combined source integrates. A separate local #540 refresh
+at `865211b8` normally merges main `07da221d`; media source still equals its prior
+qualified head, with fresh checks and all provider activation gates outstanding.
+The prepared browser-policy branch is `4c905156`; independent source review passes,
+but installation/build/browser qualification remains due. Subsequent Admin control
+consolidation should remove the remaining SDK-origin KaTeX path. KaTeX has a fix
+from 0.18.2; the current supported parent dependency ranges cannot select it.
+
+Thirty-one retired checkout paths are removed with source refs and local
+receipts preserved. The seven remaining stale app cards were traced to this
+chat (three) and original content worker
+`01a15008-1dac-7480-90b2-424f4c9d0787` (four). Native archival rejects ownership
+even from those contexts; direct app-server messages to the multi-agent worker
+are disallowed. Do not recreate checkout directories or alter app databases.
+The completed formatter card has queued archival without confirmed completion.
+Primary, canonical review, active candidate and dirty table-work preservation
+remain separate. Exact inventory and native denials are retained locally under
+`.local/project-cleanup/2026-10-21/`.
+
+Canonical source and both HTTP review identities are at `07da221d`. A manager
+health-check race started a duplicate public server on a fallback port; only
+that new duplicate was stopped. Original www and Admin continue serving.
+Public manager tracking now needs a scoped restart, pending the separately
+requested approval after native review rejected it. Admin must stay running.
+The source prevention fix is independently reviewed and normally merged into
+#551. It has not been activated in the canonical preview. Two bounded active
+checkouts hold browser-policy work and the #540 refresh; they are separate from
+the seven stale app cards.
+
+## October 21 combined qualification checkpoint
+
+Integration remains with site-improvements. Main formatter #550 is merged at
+`07da221d82aa4b0d6b7d4dabcc363103fdd3959a`; its www/Admin deployment subsequently succeeded as recorded above. This candidate normally merges that main and checked runner #552 head
+`a7ea3b87d875cb51f2f8b1b5ee5ceb21e9ca3cbc`, retaining approved brand behavior,
+formatter 1.1.1 HTML whitespace, Core/Neutral/CLI 0.7.1 and the existing Core patch.
+#552 remains open until the combined candidate is accepted and integrated.
+Full validation, native browser and supplemental touch acceptance are pending.
+Only Build, lint, typecheck, test and Security Review are required by effective
+main protection; CodeQL is optional. Current standing authority and native release
+gates apply; historical approval notes below retain their observation dates.
+
+## October 21 UI candidate refresh and targeted repairs
+
+### Isolated browser toolbar and partial touch evidence
+
+The supported toolbar isolation repair is committed at
+`8b0119ae359e2207c65e5e6683b8a73239dce966`. All25 tests in the focused actual-config
+suite pass, including ordinary dev, state-only, durable owner and isolated owner
+modes. The exact clean repaired head was then exercised through the heavy-slot
+manager on8917. Its first Writing390/light context again passed trusted native
+touch and the executed UI assertions, but failed the unchanged runtime-error gate.
+The toolbar exception was gone; the remaining exception is Astro island
+`childrenConnectedCallback` awaiting its before-hydration import, with the sole
+failed request `/@react-refresh` cancelled. Cause of that initial navigation/import
+cancellation remains unresolved. No error filtering or retry was applied.
+
+Installed Vite React6.1.2 can disable refresh transforms with `server.hmr:false`,
+but installed Astro React7.1.0 independently injects its static refresh preamble
+for every dev command. That preamble still imports `/@react-refresh`, so HMRfalse
+was not applied as a speculative fix. The plugin's refresh endpoint remains
+unconditionally available. Further navigation/hydration diagnosis is required.
+No accepted supplemental scenario is claimed; eleven remaining Core/Writing and
+all six Projects contexts remain unrun. Physical-device acceptance remains unclaimed.
+Raw repaired-head results are in `/private/tmp/anipotts-astryx-touch-jBuTBp/`;
+cleanup again proved disconnected browser, zero owned contexts, terminated owned
+server group and closed8917. Source stayed clean throughout the run. No canonical
+preview was navigated or stopped.
+
+On clean candidate `c831dec78be47090996c8cdfb7c4532a4b98b5e2`, the supplemental
+native WebKit touch run stopped after its first Writing390/light scenario at
+its strict runtime-error gate. Both real `locator.tap` and `touchscreen.tap`
+qualified trusted one-contact touchstart/end and touch pointer events with
+coarse-pointer media; WebKit reported maxTouchPoints0. Executed field typography,
+autosize, compact sheet inset and selector/Escape focus assertions passed before
+the final gate. This is partial evidence, not an accepted scenario or matrix.
+The other11 Core/Writing and all6 Projects contexts remained unrun.
+
+The only recorded page exception points to Astro's DEV toolbar dynamic imports;
+the retained screenshot has a working properties sheet without an error overlay.
+Some initial module requests were cancelled; the exact cancellation cause remains
+unproven. No runtime/console error was suppressed or retried. The test server now
+uses supported `devToolbar.enabled:false` only when both the existing local-owner
+flag and isolated `ADMIN_E2E_STATE_DIR` are present. Ordinary dev and the durable
+owner preview retain their toolbar; production/auth behavior is unchanged.
+Focused tests import the actual config for ordinary dev, state-only, canonical
+owner and isolated owner modes. Fresh exact-head touch qualification remains due;
+physical-device acceptance is unclaimed.
+
+Task-local diagnosis and raw results are preserved at
+`/private/tmp/anipotts-native-touch-first-run-diagnosis.md` and
+`/private/tmp/anipotts-astryx-touch-2lEmN6/`. Cleanup proved zero owned browser
+contexts, disconnected browser, removed server process group and closed8917.
+
+Current main #553 is deployed to www and Admin by
+[release 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877);
+all four workers were skipped.
+
+The integration owner is refreshing draft #551 with current main
+`1efed9570102052420d65d2fa364350b12ec1398` by ordinary merge. The dependency
+conflict retains released `@astrojs/react` 7.1.0 and pinned Core/Neutral 0.7.1;
+Wrangler 4.151.1, Cloudflare Vitest 1.4.4 and approved brand geometry/motion
+arrive unchanged from main. Projects authoring and the existing Core patch remain
+in this single candidate. No production binding, migration, auth or publication
+change is introduced by this refresh.
+
+Targeted repair `5894a354031efe6e5d6927261b4649239eff9e93` gives the phone
+More actions sheet an explicit trigger `finalFocusRef`. Its real-component DOM
+regression starts with an unrelated main element focused, opens without moving
+focus to the trigger, then verifies Escape and exit return focus to that trigger.
+All 11 action-bar tests pass; removing `finalFocusRef` fails that exact assertion.
+The CSRF test waits for its hydrated recovery input before its one-shot mutation;
+the lifecycle popup uses the existing 20-second readiness budget. The crop helper
+uses the shared SDK button/menuitemradio roles, retaining geometry/hash checks.
+Focused production/native TypeScript, formatting, diff checks and fixture-boundary
+checks pass for the repair. A full combined validation and native run remain due.
+The mixed worker/jsdom declaration check is not counted as a pass: worker globals
+conflict with existing `document.body.append` calls; component and native test
+entry points were checked separately.
+
+The unresolved native brand-asset transport 500 and WebKit `APP_NOT_OPEN` findings
+remain open. The supplemental touch driver remains unqualified. No new browser,
+preview or heavy validation process was started for these repairs. #550 owns the
+current heavy verification slot; #552 browser-runner qualification proceeds
+separately. Held #540/#541 provider, custody and activation gates remain unchanged.
+Fresh exact-head checks, resolved required conversations, current no-bypass branch
+protection and the applicable native release gates are required for integration.
+The October 19 statements below describe their observation time; current standing
+release authority in AGENTS.md supersedes the earlier extra chat-review rule.
+
+## October 19 project cleanup and consolidated continuation
+
+### Cleanup verification
+
+Git registration now contains5worktrees instead of35: the untouched primary
+checkout, canonical review, formatter, the single consolidated UI candidate,
+and the preserved dirty table-layout checkout.31retired checkout paths are
+removed, with35verified preservation-ref mappings and10compressed local-state
+archives.53generated cache/output paths were removed from the inactive primary
+and table-layout copies; both pre-existing source diffs and status bytes are
+unchanged. No branch or user-authored record was permanently deleted.
+The canonical preview is clean on released main39204ca89, published mirrorv17 /
+20records, blockers empty, www4580 and managed Admin4311 listening. Test ports
+8873/8917/8918 are closed. Missing-worktree prune dry run is empty.
+
+20completed PR attachments were unlinked. Four redundant bot PRs are closed.
+A new genuine browser-runner update #552 appeared during cleanup and is retained
+for qualification, so GitHub now has5open PRs:540/541/550/551/552. No additional
+checkout was created for it. Core and Projects source are contained in #551.
+
+Native app archival initially returned queued; readback retained seven stale
+worktree cards. A reconciliation attempt returned the native ownership error
+"This worktree is owned by another task." Do not bypass that control. The Git
+and filesystem cleanup is verified; those app cards need archival from their
+owning chats. UI automation is unavailable in this symlinked workspace, and
+settings were not changed as a workaround. The local summary and preservation
+manifests record this remaining app-only limitation.
+
+Ani requested cleanup of project worktrees, PRs and local files in owner chat
+`01a14ffb-519c-73b1-a63a-380f9d7274d0`. Integration remains with this chat on
+ap-pro. The original dirty checkout and the dirty `table-loading-layout`
+worktree are preserved. Each retired clean checkout has a verified additive
+`refs/archive/site-cleanup-20261019/<full-head>` ref. Ignored local state,
+custom files and review evidence were archived before ordinary, non-forced
+worktree removal. Dependency/build caches are disposable; credentials and
+private drafts are not cleanup targets. The recovery inventory, removal receipts,
+compressed local state and current verification logs are local-only under
+`/Users/anipotts/Projects/anipotts-com/.local/project-cleanup/2026-10-19`.
+
+The remaining source queue is #550, #551 and held foundations #540/#541.
+Redundant bot PRs #546/#548 are closed in favor of released #549; #547 is
+consolidated into #550 and #545 into draft #551. Their branches remain intact.
+Completed PR attachments are unlinked from the owner chat; GitHub history is
+preserved. The canonical review checkout remains
+`/Users/anipotts/.codex/worktrees/combined-public-review/anipotts-com`, based on
+released main `39204ca89`, with its existing www/Admin preview lane. A Git
+worktree lock protects that active checkout from stale-registration pruning.
+
+### Approved runtime release
+
+Ani approved exact #549 head `dbcd69a15d6c1f8ead6bc876c6fc1737f5bf40fd` for
+merge and five-target deploy. Fresh strict branch protection, the no-bypass
+ruleset, exact required checks and resolved conversations were verified before
+ordinary merge `39204ca8960d18de2064cc5a47c00dced4f99592`; both trees equal
+`fcc5291e7f760b96c151d0d72794a9f863fa7679`.
+[Deploy39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295)
+succeeded for Admin, ingest, newsletter, state and weekly email; www was skipped.
+Schema0044 and no migration were independently confirmed in release classification.
+Cloudflare readback serves these exact versions at100%:
+Admin `b6d64eb2-ada2-4ad2-b6f0-f0160e98eede`,
+ingest `e92e810e-2e81-4ac2-ba89-139fee8d629a`,
+newsletter `1586a720-03a4-4e09-98b4-0a20503d93ae`,
+state `e0010b0a-4b05-44a6-926d-504d4fba6289`,
+weekly email `5d08aeac-ae1e-40b4-b51d-a0136e4b04db`.
+Eight protected Admin routes return302 to the exact Access team. www remains
+healthy/D1-connected at its prior `79592009` release. Ingest health returns200
+with `ok:false`, state503 and the retired weekly route410; provider deployment
+success does not resolve those separate service/producer acceptance gates.
+Receipts: `receipts/anipotts-549-{deploy-39298284295.log,live-route-proof.json}`
+in the local evidence directory above.
+
+### Unfinished UI candidate, preserved without approval
+
+The Projects branch `94345e486cfe4aa2b2b9c431a3d7399e058f07cd` contains the
+Core correction `d61c883ef` and was fast-forwarded into the single #551 source
+branch. No runtime source changed in this consolidation. Original Projects
+source `797a0b3f` and acceptance `6586e67e` have clear independent reviews,
+focused DOM/typing/fixture checks; the combined tree has not passed full/native
+acceptance. No merge or deploy approval applies to #550 or #551.
+
+Core `d61c883ef` passes full14-task validation, but its native browser run has
+41passed/5failed. Diagnoses and exact traces are preserved in `receipts`:
+CSRF one-shot evaluation needs hydrated-document readiness; initial peer unlock
+needs the existing20s readiness budget before pagehide is exercised; brand
+asset import500s produced a Vite overlay with unresolved transport cause;
+a WebKit page closed during unlock without retained crash/close evidence;
+More actions Escape loses trigger focus on WebKit. The smallest proposed focus
+repair is an explicit trigger `finalFocusRef`; it is not implemented here.
+Keep the meaningful focus assertion. New Projects crop controls use SDK roles;
+its existing media-test helper still needs the corresponding exact-boundary
+selector update. Native Projects journeys remain unrun.
+
+The supplemental WebKit touch driver stopped all12scenarios at its
+`maxTouchPoints>0` precondition although coarse media was reported. This is an
+unqualified emulation prerequisite, not12demonstrated product failures. Preserve
+that evidence and qualify native touch events/capabilities before changing the
+assertion. All owned contexts/browser/process groups/ports were confirmed closed.
+Normal main integration, refreshed exact-head checks and Ani's review remain
+required before either candidate can merge.
 
 ## October 21 queue refresh and worktree ownership
 

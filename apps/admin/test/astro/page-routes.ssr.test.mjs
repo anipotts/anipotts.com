@@ -8,6 +8,11 @@ import { ADMIN_ROUTES } from "../../../../scripts/ci/admin-route-inventory.mjs";
 import { collectGitSeed } from "../../../../scripts/content/content-d1-seed.mjs";
 import { contentDatabase } from "../../../www/test/content-database.mjs";
 import { env as workerEnv } from "cloudflare:workers";
+import {
+  isEmbeddedPreviewRequest,
+  PREVIEW_PATHS,
+  renderPreviewResponse,
+} from "../../src/lib/preview-html";
 
 // Production renders every Admin page on the server. A browser global touched
 // during that render throws after the response has started, which ships an
@@ -104,7 +109,46 @@ vi.mock("../../src/lib/editorial-inventory-server", () => ({
 // routes render their success path instead of the stale refusal. It is the
 // EDITORIAL Durable Object binding productionEditor reads, in dev and deploy.
 const candidateDrafts = new Map();
+const previewPNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
+  "base64",
+);
+const previewImageID =
+  createHash("sha256").update(previewPNG).digest("hex") + ".png";
+let previewAssetReads = 0;
+const previewAssets = {
+  fetch: async (request) => {
+    expect(new URL(request.url).pathname).toBe("/__preview/public-assets.json");
+    previewAssetReads++;
+    return Response.json({
+      version: 1,
+      styles: [
+        { path: "/_astro/preview-fixture.css", css: "body{color:rgb(1,2,3)}" },
+      ],
+      fonts: [],
+      // AstroContainer's finite source identifiers stand in for the build's
+      // hashed identifiers. No scripts are admitted from rendered content.
+      scripts: [
+        "components/Nav",
+        "components/ProjectMediaStage",
+        "components/SystemMap",
+        "layouts/Shell",
+      ].map(
+        (file) =>
+          new URL(`../../../www/src/${file}.astro`, import.meta.url).pathname +
+          "?astro&type=script&index=0&lang.ts",
+      ),
+    });
+  },
+};
 const draftStorage = {
+  readMedia: async (id) =>
+    id === previewImageID
+      ? {
+          metadata: { id, type: "image/png", size: previewPNG.length },
+          bytes: new Uint8Array(previewPNG),
+        }
+      : null,
   get: async ({ kind, id }) => {
     const candidate = candidateDrafts.get(`${kind}:${id}`);
     if (candidate) return candidate;
@@ -227,12 +271,40 @@ async function render({ file, route, url }) {
     entrypoint: "@astrojs/react/client.js",
   });
   const page = loadedPages.get(file);
-  return container.renderToResponse(page.default, {
-    request: new Request(`https://admin.anipotts.com${url}`),
-    params: paramsFor(file, route),
-    locals: {},
-    partial: false,
+  const preview = PREVIEW_PATHS.has(route);
+  const target = new URL(url, "https://admin.anipotts.com");
+  if (preview) {
+    target.searchParams.set("embedded", "1");
+    target.searchParams.set("previewRequest", "synthetic-ssr-preview");
+  }
+  // Access/exact-owner admission is exercised in preview-routing.test.ts.
+  // Here the finite route fixture models an admitted, explicitly embedded
+  // owner request and composes its real response transformation.
+  const request = new Request(target, {
+    headers: preview ? { "Sec-Fetch-Dest": "iframe" } : {},
   });
+  const locals = {};
+  const renderRoute = () =>
+    container.renderToResponse(page.default, {
+      request,
+      params: paramsFor(file, route),
+      locals,
+      partial: false,
+    });
+  if (!preview) return renderRoute();
+  expect(isEmbeddedPreviewRequest(request, target)).toBe(true);
+  const previousDev = import.meta.env.DEV;
+  vi.stubEnv("DEV", false);
+  try {
+    return await renderPreviewResponse(
+      renderRoute,
+      target,
+      previewAssets,
+      () => locals.previewOwnedMedia,
+    );
+  } finally {
+    vi.stubEnv("DEV", previousDev);
+  }
 }
 
 describe("every Admin page server-renders with the readers on", () => {
@@ -389,8 +461,8 @@ it("renders the exact saved project candidate body and card title without changi
   );
   source +=
     "\n\n## Candidate body\n\n**Exact saved project revision**\n\n<script>alert(1)</script>\n\n![candidate media](/images/editorial/" +
-    "a".repeat(64) +
-    ".png)\n";
+    previewImageID +
+    ")\n";
   candidateDrafts.set("work:chainedchat", {
     source,
     revision: 7,
@@ -433,13 +505,18 @@ it("renders the exact saved project candidate body and card title without changi
   }
 });
 it("refuses to render another saved revision of the project candidate", async () => {
+  const readsBefore = previewAssetReads;
   const response = await render({
     file: "apps/admin/src/pages/preview/record.astro",
     route: "/preview/record",
     url: "/preview/record?kind=work&id=chainedchat&revision=99",
   });
   expect(response.status).toBe(409);
-  expect(await response.text()).not.toContain("Exact saved project revision");
+  const html = await response.text();
+  expect(html).not.toContain("Exact saved project revision");
+  expect(html).not.toMatch(/status:\s*"ready"/);
+  expect(html).not.toContain("data-preview-owned-media");
+  expect(previewAssetReads).toBe(readsBefore);
 });
 // Compile the real shared Systems renderer and its provider icon registry.
 it.each(["saved", "baseline"])(
@@ -475,6 +552,22 @@ it.each(["saved", "baseline"])(
         dom.window.document.querySelector('svg[data-icon="logos:claude-icon"]'),
       ).not.toBeNull();
       expect(html).toContain("editorial-preview-status");
+      expect(html).toMatch(/status:\s*"ready"/);
+      const workflow = dom.window.document.querySelector("[data-workflow]");
+      expect(workflow?.hasAttribute("data-animated")).toBe(false);
+      expect(
+        workflow?.querySelector("[data-motion-toggle]")?.hasAttribute("hidden"),
+      ).toBe(true);
+      const { parseEditorialSource } =
+        await import("@anipotts/content/editorial/source");
+      expect(
+        [...workflow.querySelectorAll("[data-source]")].map((node) =>
+          node.getAttribute("data-source"),
+        ),
+      ).toEqual(parseEditorialSource(source).data.workflow.sources);
+      expect(
+        dom.window.document.querySelector('script[src*="SystemMap"]'),
+      ).toBeNull();
     } finally {
       dom.window.close();
     }

@@ -3,7 +3,7 @@
  * Source: src/themes/editorial.ts
  * Command: astryx theme build src/themes/editorial.ts --out src/themes/editorial.generated.css
  * CLI: @astryxdesign/cli@0.7.1
- * Core: @astryxdesign/core@0.4.6
+ * Core: @astryxdesign/core@0.7.1
  */
 
 export {};

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "source": "84e0e4d544e78ba4101a4c37d3d010235686a638",
+  "source": "a0964cb2f3d4d6f025e6a0c017324b7bef406823",
   "options": {
     "sourceSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "eventName": "pull_request"
@@ -8654,6 +8654,9 @@
     "apps/admin/src/components/astryx/AuthReentry.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/AutoSizeTextArea.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/AutoSizeTextArea.tsx": [10, 10, 10],
+    "apps/admin/src/components/astryx/BrowserRecoveryNotice.test.tsx": [
+      10, 10, 10
+    ],
     "apps/admin/src/components/astryx/BrowserRecoveryNotice.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/CommandPalette.css": [10, 10, 10],
     "apps/admin/src/components/astryx/ContentLibrary.test.tsx": [10, 10, 10],
@@ -8711,6 +8714,9 @@
     ],
     "apps/admin/src/components/astryx/Logout.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/Logout.tsx": [10, 10, 10],
+    "apps/admin/src/components/astryx/NewWriting.navigation.test.tsx": [
+      10, 10, 10
+    ],
     "apps/admin/src/components/astryx/NewWriting.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/NewWriting.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/NotFound.tsx": [10, 10, 10],
@@ -8726,6 +8732,7 @@
     "apps/admin/src/components/astryx/ProjectSections.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/ProjectSections.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/ProjectSettings.tsx": [10, 10, 10],
+    "apps/admin/src/components/astryx/ProjectWorkspace.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/PublicationIssues.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/PublicationIssues.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/PublicationProgress.test.tsx": [
@@ -8735,6 +8742,8 @@
     "apps/admin/src/components/astryx/RecordPanel.focus.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/RecordPanel.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/RecordPanel.tsx": [10, 10, 10],
+    "apps/admin/src/components/astryx/RecoveryUnlock.test.tsx": [10, 10, 10],
+    "apps/admin/src/components/astryx/RecoveryUnlock.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/ReviewChanges.test.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/ReviewChanges.tsx": [10, 10, 10],
     "apps/admin/src/components/astryx/RichTextField.test.tsx": [10, 10, 10],
@@ -8847,6 +8856,10 @@
     ],
     "apps/admin/src/components/workspace/Workspace.test.tsx": [10, 10, 10],
     "apps/admin/src/components/workspace/Workspace.tsx": [10, 10, 10],
+    "apps/admin/src/components/workspace/WorkspaceControls.test.tsx": [
+      10, 10, 10
+    ],
+    "apps/admin/src/components/workspace/WorkspaceControls.tsx": [10, 10, 10],
     "apps/admin/src/components/workspace/dev-kit-catalog.tsx": [10, 10, 10],
     "apps/admin/src/components/workspace/dev-openai-catalog.css": [10, 10, 10],
     "apps/admin/src/components/workspace/dev-openai-catalog.test.tsx": [
@@ -8857,6 +8870,12 @@
       10, 10, 10
     ],
     "apps/admin/src/components/workspace/dev-openai-fixture.ts": [10, 10, 10],
+    "apps/admin/src/components/workspace/dev-project-workspace.test.tsx": [
+      10, 10, 10
+    ],
+    "apps/admin/src/components/workspace/dev-project-workspace.tsx": [
+      10, 10, 10
+    ],
     "apps/admin/src/components/workspace/dev-table-loading-catalog.tsx": [
       10, 10, 10
     ],
@@ -8881,6 +8900,7 @@
     "apps/admin/src/editorial/draft-store.ts": [12, 12, 12],
     "apps/admin/src/editorial/media-store.ts": [12, 12, 12],
     "apps/admin/src/editorial/recovery-application-schema.ts": [12, 12, 12],
+    "apps/admin/src/editorial/recovery-artifact-r2.ts": [12, 12, 12],
     "apps/admin/src/editorial/recovery-coordinator.ts": [12, 12, 12],
     "apps/admin/src/editorial/recovery-eligibility.ts": [12, 12, 12],
     "apps/admin/src/editorial/recovery-historical-schema.json": [12, 12, 12],
@@ -8930,6 +8950,11 @@
     "apps/admin/src/lib/bounded-body.ts": [12, 12, 12],
     "apps/admin/src/lib/breakpoints.test.ts": [12, 12, 12],
     "apps/admin/src/lib/breakpoints.ts": [12, 12, 12],
+    "apps/admin/src/lib/browser-recovery-bundle.ts": [12, 12, 12],
+    "apps/admin/src/lib/browser-recovery-encryption.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/browser-recovery-encryption.ts": [12, 12, 12],
+    "apps/admin/src/lib/browser-recovery-session.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/browser-recovery-session.ts": [12, 12, 12],
     "apps/admin/src/lib/browser-recovery.test.ts": [12, 12, 12],
     "apps/admin/src/lib/browser-recovery.ts": [12, 12, 12],
     "apps/admin/src/lib/client-routes.ts": [12, 12, 12],
@@ -8995,6 +9020,8 @@
     "apps/admin/src/lib/editorial-source-equivalence.test.ts": [12, 12, 12],
     "apps/admin/src/lib/editorial-theme.test.ts": [12, 12, 12],
     "apps/admin/src/lib/editorial-visibility.ts": [12, 12, 12],
+    "apps/admin/src/lib/encrypted-browser-recovery.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/encrypted-browser-recovery.ts": [12, 12, 12],
     "apps/admin/src/lib/generated/ops.json": [12, 12, 12],
     "apps/admin/src/lib/generated/ops.ts": [12, 12, 12],
     "apps/admin/src/lib/generated/personal-context-source.json": [12, 12, 12],
@@ -9028,11 +9055,16 @@
     "apps/admin/src/lib/ops-view.test.ts": [12, 12, 12],
     "apps/admin/src/lib/ops-view.ts": [12, 12, 12],
     "apps/admin/src/lib/patterns.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-client.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-html.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-html.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-icons.mjs": [12, 12, 12],
     "apps/admin/src/lib/preview-media.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-media.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-owned-media.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-owned-media.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-public-assets.test.ts": [12, 12, 12],
+    "apps/admin/src/lib/preview-public-assets.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-routing.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-status.test.ts": [12, 12, 12],
     "apps/admin/src/lib/preview-status.ts": [12, 12, 12],
@@ -9137,6 +9169,7 @@
     "apps/admin/src/pages/preview/standalone.astro": [10, 14, 14],
     "apps/admin/src/styles/admin-interactions.css": [10, 10, 10],
     "apps/admin/src/styles/admin.css": [10, 10, 10],
+    "apps/admin/src/styles/astryx-family.test.ts": [10, 10, 10],
     "apps/admin/src/styles/color-scheme.test.tsx": [10, 10, 10],
     "apps/admin/src/styles/editor.css": [10, 10, 10],
     "apps/admin/src/styles/focus.css": [10, 10, 10],
@@ -9175,6 +9208,9 @@
     "apps/admin/test/e2e/admin-media.local.e2e.ts": [10, 10, 10],
     "apps/admin/test/e2e/admin-readonly.e2e.ts": [10, 10, 10],
     "apps/admin/test/e2e/admin-record-ui.local.e2e.ts": [10, 10, 10],
+    "apps/admin/test/e2e/admin-recovery-encryption.local.e2e.ts": [10, 10, 10],
+    "apps/admin/test/e2e/admin-recovery-lifecycle.local.e2e.ts": [10, 10, 10],
+    "apps/admin/test/e2e/admin-recovery-unlock.local.e2e.ts": [10, 10, 10],
     "apps/admin/test/editorial-worker.ts": [10, 10, 10],
     "apps/admin/test/editorial/direct-publisher.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/draft-store.test.ts": [10, 10, 10],
@@ -9184,6 +9220,7 @@
     "apps/admin/test/editorial/recovery-media-encryption.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/runtime-contract.test.ts": [10, 10, 10],
     "apps/admin/test/editorial/writing-create.test.ts": [10, 10, 10],
+    "apps/admin/test/recovery-key-fixture.ts": [10, 10, 10],
     "apps/admin/test/recovery-worker.ts": [10, 10, 10],
     "apps/admin/test/recovery.wrangler.jsonc": [10, 10, 10],
     "apps/admin/test/recovery/bindings.d.ts": [10, 10, 10],
@@ -9191,6 +9228,9 @@
     "apps/admin/test/recovery/eligibility.ts": [10, 10, 10],
     "apps/admin/test/recovery/pre-client-hash.sql": [10, 10, 10],
     "apps/admin/test/support/README.md": [0, 0, 0],
+    "apps/admin/test/support/browser-environment.ts": [10, 10, 10],
+    "apps/admin/test/support/browser-media.ts": [10, 10, 10],
+    "apps/admin/test/support/browser-recovery-key.ts": [10, 10, 10],
     "apps/admin/test/support/editorial-fixtures.ts": [10, 10, 10],
     "apps/admin/test/wrangler.jsonc": [13, 13, 13],
     "apps/admin/tsconfig.editorial.json": [10, 10, 10],
@@ -9396,6 +9436,7 @@
     "apps/www/src/scripts/admin-transitions.ts": [18, 18, 18],
     "apps/www/src/scripts/page-canvas.ts": [18, 18, 18],
     "apps/www/src/scripts/pointer-modality.ts": [18, 18, 18],
+    "apps/www/src/scripts/preview-client.js": [18, 18, 18],
     "apps/www/src/scripts/workflow-animation.ts": [18, 18, 18],
     "apps/www/src/scripts/workflow-motion.ts": [18, 18, 18],
     "apps/www/src/scripts/writing-ghost.ts": [18, 18, 18],
@@ -10309,6 +10350,7 @@
     "packages/types/src/public-copy.ts": [120, 120, 120],
     "packages/types/tsconfig.json": [120, 120, 120],
     "patches/@astryxdesign__core@0.4.6.patch": [121, 121, 121],
+    "patches/@astryxdesign__core@0.7.1.patch": [121, 121, 121],
     "pnpm-lock.yaml": [113, 113, 113],
     "pnpm-workspace.yaml": [113, 113, 113],
     "scripts/admin/admin-preview-env.mjs": [122, 122, 122],
@@ -10324,6 +10366,8 @@
     "scripts/admin/perf-measure.test.mjs": [122, 122, 122],
     "scripts/admin/perf-proxy.mjs": [122, 122, 122],
     "scripts/admin/perf-proxy.test.mjs": [122, 122, 122],
+    "scripts/admin/preview-public-assets.mjs": [123, 123, 123],
+    "scripts/admin/recovery-artifact-r2.test.mjs": [122, 122, 122],
     "scripts/admin/recovery-capture-v3.d.mts": [122, 122, 122],
     "scripts/admin/recovery-capture-v3.mjs": [123, 123, 123],
     "scripts/admin/recovery-capture-v3.test.mjs": [122, 122, 122],
@@ -10425,6 +10469,7 @@
     "scripts/dev/admin-local-owner.mjs": [122, 122, 122],
     "scripts/dev/admin-preview-identity.mjs": [130, 130, 130],
     "scripts/dev/dev-server-ports.mjs": [122, 122, 122],
+    "scripts/dev/dev-servers-child.mjs": [122, 122, 122],
     "scripts/dev/dev-servers.mjs": [122, 122, 122],
     "scripts/dev/editorial-public-assets.mjs": [123, 123, 123],
     "scripts/dev/editorial-updates.mjs": [123, 123, 123],
@@ -11457,6 +11502,17 @@
       }
     },
     {
+      "paths": ["patches/@astryxdesign__core@0.7.1.patch"],
+      "targets": {
+        "www": false,
+        "admin": true,
+        "ingest": false,
+        "newsletter": false,
+        "state": false,
+        "weekly_email": false
+      }
+    },
+    {
       "paths": [".gitignore", ".prettierignore"],
       "targets": {
         "www": false,
@@ -11583,6 +11639,7 @@
     ["packages/lib/src/cms/homepage.ts", true],
     ["packages/runtime-contract/src/index.ts", true],
     ["patches/@astryxdesign__core@0.4.6.patch", true],
+    ["patches/@astryxdesign__core@0.7.1.patch", true],
     ["scripts/ci/security-review.mjs", true],
     ["scripts/example.ts", true],
     ["tsconfig.json", true],

@@ -237,3 +237,20 @@ for (const name of ["ingest", "newsletter", "state", "weekly-email"]) {
     `the ${name} worker must use the reviewed Wrangler version`,
   );
 }
+
+// Neutral publishes an exact Core peer. Treat this family as a single
+// qualified migration instead of silently mixing its component/theme APIs.
+assert.equal(admin.dependencies["@astryxdesign/core"], "0.7.1");
+assert.equal(
+  admin.dependencies["@astryxdesign/theme-neutral"],
+  admin.dependencies["@astryxdesign/core"],
+);
+assert.equal(admin.devDependencies["@astryxdesign/cli"], "0.7.1");
+assert.equal(
+  rootManifest.pnpm.patchedDependencies["@astryxdesign/core@0.7.1"],
+  "patches/@astryxdesign__core@0.7.1.patch",
+);
+assert.ok(
+  readFileSync("patches/@astryxdesign__core@0.4.6.patch", "utf8").length > 0,
+  "retain the prior patch source for rollback",
+);

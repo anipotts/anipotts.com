@@ -1,8 +1,12 @@
+import {
+  Button,
+  IconButton,
+  TextInput,
+  Selector,
+} from "../workspace/WorkspaceControls";
 import React from "react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
-import { Button } from "@astryxdesign/core/Button";
-import { IconButton } from "@astryxdesign/core/IconButton";
 import { Heading } from "@astryxdesign/core/Heading";
 import {
   CaretDownIcon,
@@ -10,8 +14,6 @@ import {
   PlusIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { TextInput } from "@astryxdesign/core/TextInput";
-import { Selector } from "@astryxdesign/core/Selector";
 import { Text } from "@astryxdesign/core/Text";
 import { parseEditorialSource } from "@anipotts/content/editorial/source";
 import type { ProjectSectionEdit } from "../../lib/project-sections";

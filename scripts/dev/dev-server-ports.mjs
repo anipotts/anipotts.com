@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
+import { basename, join } from "node:path";
 
 // Local dev servers listen on loopback ports only. Each worktree gets a stable
 // www/admin pair derived from its path, so several worktrees run side by side
@@ -59,4 +60,38 @@ export async function freePortPair(worktreeRoot, isFree = isPortFree) {
 
 export function devUrl(port) {
   return `http://${DEV_HOST}:${port}`;
+}
+
+/** The exact argv used by the manager's selected-worktree child. */
+export function managedChildArgs(worktree, port) {
+  return [
+    join(worktree, "scripts/dev/dev-servers-child.mjs"),
+    "--port",
+    String(port),
+  ];
+}
+
+/** Shared by the manager, worker-slot accounting and the idle reaper. */
+export function isManagedProcessCommand(command, port, worktree) {
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) return false;
+  const firstSpace = command.indexOf(" ");
+  if (firstSpace < 0) return false;
+  const executable = basename(command.slice(0, firstSpace));
+  const args = command.slice(firstSpace + 1).trimStart();
+  const isNode = /^(?:node|nodejs)(?:\.exe)?$/.test(executable);
+  const childPath = worktree && managedChildArgs(worktree, port)[0];
+  const current = isNode && childPath && args.startsWith(`${childPath} `);
+  // Retain only real foreground CLI forms emitted by earlier manager versions.
+  const legacy =
+    (isNode &&
+      /^(?:\S*\/)?(?:pnpm(?:\.c?js)?)\s+exec\s+astro\s+dev(?:\s|$)/.test(
+        args,
+      )) ||
+    (isNode && /^(?:\S*\/)?astro(?:\.mjs)?\s+dev(?:\s|$)/.test(args)) ||
+    (/^pnpm(?:\.c?js)?$/.test(executable) &&
+      /^exec\s+astro\s+dev(?:\s|$)/.test(args)) ||
+    (executable === "astro" && /^dev(?:\s|$)/.test(args));
+  if (!current && !legacy) return false;
+  const ports = [...args.matchAll(/(?:^|\s)--port(?:=|\s+)(\d+)(?=\s|$)/g)];
+  return ports.length === 1 && Number(ports[0][1]) === port;
 }
