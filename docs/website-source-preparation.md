@@ -22,7 +22,10 @@ authored async behavior and sentinel failure. The initial static-import ordering
 negative control failed, motivating the explicit non-async module repair.
 A zero-context packaging experiment misapplied and was restored by a normal
 corrective commit; frozen installation and both installed router hashes match
-validated bytes. Eleven upstream patch-context whitespace warnings remain recorded.
+validated bytes. The initial11 upstream patch-context whitespace warnings were resolved by a
+standard full-content replacement hunk. Frozen installation and both installed
+router hashes remain byte-identical to validated719; all six focused router tests
+and working-tree-aware whitespace checking pass, without check exemptions.
 Chromium parent focus proof passes separately. Final native reports omit console
 fields, so they supply no independent console-cleanliness claim. Heavy and
 preview slots were released with owned listeners and browser targets closed.

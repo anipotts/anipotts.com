@@ -81,15 +81,22 @@ test("the exact Astro patch changes only its module barrier URL and non-async mo
   const added = patch
     .split("\n")
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  assert.equal(removed.length, 1);
-  assert.equal(added.length, 2);
+  // A replacement hunk retains the exact upstream bytes without tab-prefixed
+  // context lines being mistaken for whitespace errors in the patch artifact.
+  const before = removed.map((line) => line.slice(1)).join("\n");
+  const after = added.map((line) => line.slice(1)).join("\n");
+  const declaration = '\t\tconst newScript = document.createElement("script");';
+  const scheduling =
+    '\t\tif (type === "module" && !script.hasAttribute("async")) newScript.async = false;';
+  assert.equal(patch.match(/^@@/gm)?.length, 1);
+  assert.equal(before.split("data:application/javascript,").length - 1, 1);
+  assert.equal(before.split(declaration).length - 1, 1);
   assert.equal(
-    added[0].slice(1),
-    removed[0].slice(1).replace("data:application/javascript,", sentinel),
-  );
-  assert.equal(
-    added[1].trim(),
-    '+\t\tif (type === "module" && !script.hasAttribute("async")) newScript.async = false;'.trim(),
+    after,
+    before
+      .replace("data:application/javascript,", sentinel)
+      .replace(declaration, `${declaration}\n${scheduling}`),
+    "the entire hunk must preserve source order and bytes apart from the two intended changes",
   );
   assert.ok(
     runScriptsSource.includes(sentinel),

@@ -2,17 +2,28 @@ diff --git a/dist/transitions/router.js b/dist/transitions/router.js
 --- a/dist/transitions/router.js
 +++ b/dist/transitions/router.js
 @@ -107,12 +107,13 @@
- 	for (const script of document.getElementsByTagName("script")) {
- 		script.dataset.astroExec === undefined && script.getAttribute("type") === "module" && (needsWaitForInlineModuleScript = script.getAttribute("src") === null);
- 	}
+-	for (const script of document.getElementsByTagName("script")) {
+-		script.dataset.astroExec === undefined && script.getAttribute("type") === "module" && (needsWaitForInlineModuleScript = script.getAttribute("src") === null);
+-	}
 -	needsWaitForInlineModuleScript && document.body.insertAdjacentHTML("beforeend", `<script type="module" src="data:application/javascript,"/>`);
+-	for (const script of document.getElementsByTagName("script")) {
+-		if (script.dataset.astroExec === "") continue;
+-		const type = script.getAttribute("type");
+-		if (type && type !== "module" && type !== "text/javascript") continue;
+-		const newScript = document.createElement("script");
+-		newScript.innerHTML = script.innerHTML;
+-		for (const attr of script.attributes) {
+-			if (attr.name === "src") {
++	for (const script of document.getElementsByTagName("script")) {
++		script.dataset.astroExec === undefined && script.getAttribute("type") === "module" && (needsWaitForInlineModuleScript = script.getAttribute("src") === null);
++	}
 +	needsWaitForInlineModuleScript && document.body.insertAdjacentHTML("beforeend", `<script type="module" src="/_astro/astro-module-sentinel.js"/>`);
- 	for (const script of document.getElementsByTagName("script")) {
- 		if (script.dataset.astroExec === "") continue;
- 		const type = script.getAttribute("type");
- 		if (type && type !== "module" && type !== "text/javascript") continue;
- 		const newScript = document.createElement("script");
++	for (const script of document.getElementsByTagName("script")) {
++		if (script.dataset.astroExec === "") continue;
++		const type = script.getAttribute("type");
++		if (type && type !== "module" && type !== "text/javascript") continue;
++		const newScript = document.createElement("script");
 +		if (type === "module" && !script.hasAttribute("async")) newScript.async = false;
- 		newScript.innerHTML = script.innerHTML;
- 		for (const attr of script.attributes) {
- 			if (attr.name === "src") {
++		newScript.innerHTML = script.innerHTML;
++		for (const attr of script.attributes) {
++			if (attr.name === "src") {
