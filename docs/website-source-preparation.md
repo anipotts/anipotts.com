@@ -1,5 +1,44 @@
 # Website source preparation
 
+## October 22 recovery publication-wake and fresh-intent repairs
+
+Recovery source `d25e9bc1762f011c104325f7c89c51181872b9c1` adds two separately
+reviewed repairs to hosted-full-qualified cache checkpoint `38078286`
+([CI39734581817](https://github.com/anipotts/anipotts.com/actions/runs/39734581817)).
+Alarm repair `4a6f12eb` preserves a future durable wake while the source is fenced,
+without admitting a writer or publication. The synchronous open-path check has
+no await before writer admission; a failed alarm persistence still propagates
+for native retry. The old-runtime native control fails with
+`recovery_write_fenced` after a successful capture of a real accepted intent.
+The repaired case passes eight actual alarm deliveries, eviction, unchanged
+intent rows and published inventory, fenced saves, exact source completion and
+actual local preparation resumption. No network request occurs.
+
+The separate fresh-intent repair accepts the publisher's actual initial
+version zero. All numeric safe-integer and nonnegative checks, source hashes,
+history and publication references remain enforced. The old validator rejects
+this real state with `offline_recovery_intent`; the repaired offline roundtrip
+preserves zero exactly and rejects negative, fractional and string versions.
+Actual local workerd capture and suspended restore preserve a fresh accepted
+intent at zero, with no target alarm and fenced target writes. Exact completion
+lets only the source advance preparation; the restored target remains unchanged.
+
+Fresh affected checks pass for this exact runtime: 130 recovery Node cases,
+29 actual local recovery workerd/R2 cases, 64 ordinary direct-publication/draft
+workerd cases, strict generated editorial typing and the actual Admin production
+build (four Turbo tasks, three unchanged dependency cache hits). Both workerd
+configs use `remoteBindings: false`. The build retains its existing Shiki CSP,
+missing optional icon-directory and chunk-size warnings. Independent immutable
+source review is clear. Native commit hooks, formatting and diff checks pass.
+Detailed synthetic controls and qualification receipts remain in the existing
+cleanup receipt directory under `held-foundations`.
+
+The final protected head still needs fresh required hosted CI. This source work
+does not enroll a recovery cohort, apply remote migration0003, change bindings
+or custody, capture private records, activate restore, or qualify real Images
+EXIF/trim ordering. Media #540 is already released at `d539e382` through successful
+Admin-only deploy39733075733; its release proof and Footer #554 remain preserved.
+
 ## October 22 recovery build-cache input repair
 
 The Admin build now hashes `$TURBO_ROOT$/scripts/admin/**`, matching its test
