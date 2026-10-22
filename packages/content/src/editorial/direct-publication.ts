@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withRecoveryWriter } from "./recovery-fence.js";
 import { editorialRecordSchema, type EditorialRecord } from "./source.js";
 import {
   assertContentSchemaVersion,
@@ -127,76 +128,81 @@ export async function publishDirect(
   );
   const hash = await publicationSourceHash(value.source);
   const { kind, id } = value.record;
-  const results = await db.batch<Row>([
-    db
-      .prepare(
-        `INSERT INTO editorial_published_revisions
+  return withRecoveryWriter(db, "publication", async () => {
+    const results = await db.batch<Row>([
+      db
+        .prepare(
+          `INSERT INTO editorial_published_revisions
       (publication_id,record_kind,record_id,source,revision,source_sha256,published_at,expected_publication_id,expected_inventory_version,content_schema_version)
       SELECT ?,?,?,?,?,?,?,?,?,?
       WHERE NOT EXISTS (SELECT 1 FROM editorial_published_revisions WHERE publication_id = ?)
       AND (SELECT version FROM editorial_published_inventory WHERE singleton = 1) = ?
       AND (SELECT publication_id FROM editorial_published_active WHERE record_kind = ? AND record_id = ?) IS ?`,
-      )
-      .bind(
-        value.operationId,
-        kind,
-        id,
-        value.source,
-        value.revision,
-        hash,
-        value.publishedAt,
-        value.expectedPublicationId,
-        value.expectedInventoryVersion,
-        value.contentSchemaVersion,
-        value.operationId,
-        value.expectedInventoryVersion,
-        kind,
-        id,
-        value.expectedPublicationId,
-      ),
-    db
-      .prepare(
-        `INSERT INTO editorial_published_active (record_kind,record_id,publication_id)
+        )
+        .bind(
+          value.operationId,
+          kind,
+          id,
+          value.source,
+          value.revision,
+          hash,
+          value.publishedAt,
+          value.expectedPublicationId,
+          value.expectedInventoryVersion,
+          value.contentSchemaVersion,
+          value.operationId,
+          value.expectedInventoryVersion,
+          kind,
+          id,
+          value.expectedPublicationId,
+        ),
+      db
+        .prepare(
+          `INSERT INTO editorial_published_active (record_kind,record_id,publication_id)
       SELECT ?,?,? WHERE changes() = 1
       ON CONFLICT(record_kind,record_id) DO UPDATE SET publication_id = excluded.publication_id`,
-      )
-      .bind(kind, id, value.operationId),
-    db.prepare(
-      "UPDATE editorial_published_inventory SET version = version + 1 WHERE singleton = 1 AND changes() = 1",
-    ),
-    db
-      .prepare(
-        "SELECT * FROM editorial_published_revisions WHERE publication_id = ?",
-      )
-      .bind(value.operationId),
-  ]);
-  if (results.length !== 4 || results.some((result) => !result.success))
-    throw new Error("publication_transaction_failed");
-  const row = results[3]!.results[0];
-  if (!row) return { status: "conflict" };
-  if (
-    row.record_kind !== kind ||
-    row.content_schema_version !== value.contentSchemaVersion ||
-    row.record_id !== id ||
-    row.source !== value.source ||
-    row.revision !== value.revision ||
-    row.source_sha256 !== hash ||
-    row.expected_publication_id !== value.expectedPublicationId ||
-    row.expected_inventory_version !== value.expectedInventoryVersion
-  )
-    return { status: "idempotency_conflict" };
-  const changed = results[0]!.meta?.changes;
-  if (changed !== 0 && changed !== 1)
-    throw new Error("publication_transaction_unconfirmed");
-  if (
-    results[1]!.meta?.changes !== changed ||
-    results[2]!.meta?.changes !== changed
-  )
-    throw new Error("publication_pointer_unconfirmed");
-  return {
-    status: changed === 1 ? "published" : "replayed",
-    publication: await snapshot(row),
-  };
+        )
+        .bind(kind, id, value.operationId),
+      db.prepare(
+        "UPDATE editorial_published_inventory SET version = version + 1 WHERE singleton = 1 AND changes() = 1",
+      ),
+      db
+        .prepare(
+          "SELECT * FROM editorial_published_revisions WHERE publication_id = ?",
+        )
+        .bind(value.operationId),
+    ]);
+    if (results.length !== 4 || results.some((result) => !result.success))
+      throw new Error("publication_transaction_failed");
+    const changed = results[0]!.meta?.changes;
+    if (changed !== 0 && changed !== 1)
+      throw new Error("publication_transaction_unconfirmed");
+    if (
+      results[1]!.meta?.changes !== changed ||
+      results[2]!.meta?.changes !== changed
+    )
+      throw new Error("publication_pointer_unconfirmed");
+    const row = results[3]!.results[0];
+    if (!row) {
+      if (changed !== 0) throw new Error("publication_transaction_unconfirmed");
+      return { status: "conflict" };
+    }
+    if (
+      row.record_kind !== kind ||
+      row.content_schema_version !== value.contentSchemaVersion ||
+      row.record_id !== id ||
+      row.source !== value.source ||
+      row.revision !== value.revision ||
+      row.source_sha256 !== hash ||
+      row.expected_publication_id !== value.expectedPublicationId ||
+      row.expected_inventory_version !== value.expectedInventoryVersion
+    )
+      return { status: "idempotency_conflict" };
+    return {
+      status: changed === 1 ? "published" : "replayed",
+      publication: await snapshot(row),
+    };
+  });
 }
 export async function getPublished(
   db: Pick<PublicationDatabase, "prepare">,

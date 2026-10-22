@@ -363,7 +363,7 @@ function restoreSql(snapshot) {
   return stores;
 }
 
-test("offline fixture schema covers every canonical SQL table and exact named columns", () => {
+test("offline-v1 fixture schema covers its legacy SQL tables and exact named columns", () => {
   const stores = schemas();
   assert.throws(() => {
     RECOVERY_TABLES.editorial.drafts.source = "integer";

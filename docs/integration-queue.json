@@ -391,6 +391,29 @@
         "evidence": "https://github.com/anipotts/anipotts.com/actions/runs/39272399483 succeeded. Admin version ab08369b-bd13-4eb4-aeb0-f544384fb7b9 verified; eight private routes redirect to Access. www, ingest, newsletter, state and weekly_email skipped. Schema0044, no migration.",
         "at": "2026-10-19T14:54:04Z"
       }
+    },
+    {
+      "id": "pr-542",
+      "title": "Remove unused Drizzle CLI dependency",
+      "revision": "e4b4576ffea67b544a113138b35440efcccfa7a4",
+      "lane": "code",
+      "state": "approved",
+      "approvals": {
+        "code": {
+          "revision": "e4b4576ffea67b544a113138b35440efcccfa7a4",
+          "by": "Ani",
+          "evidence": "Owner chat 01a14ffb-519c-73b1-a63a-380f9d7274d0: Ani answered approve #542 for merge to the exact e4b4576f question on October 19, 2026.",
+          "at": "2026-10-19T15:14:01.799232+00:00"
+        }
+      },
+      "note": "Source integration complete. Release39275594601 succeeded with all six runtime targets and Production skipped; no migration. No runtime deploy was needed. One low upstream KaTeX advisory remains.",
+      "updatedAt": "2026-10-19T15:14:01.799232+00:00",
+      "release": {
+        "revision": "aa860b4b3aeee9b8c2a0a1beec1f075845fd91c3",
+        "reviewedRevision": "e4b4576ffea67b544a113138b35440efcccfa7a4",
+        "evidence": "Strict protection and active no-bypass ruleset reread before merge; exact required checks and CodeQL pass, no unresolved threads, merge tree equals approved tree.",
+        "at": "2026-10-19T15:10:25Z"
+      }
     }
   ]
 }
