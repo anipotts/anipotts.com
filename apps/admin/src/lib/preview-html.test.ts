@@ -1,10 +1,16 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { siteConfig } from "@anipotts/content/public/site";
+const previewSite = vi.hoisted(() => ({ url: "https://anipotts.com/" }));
 vi.mock("./editorial-content", () => ({
-  publicSiteUrl: "https://anipotts.com/",
+  get publicSiteUrl() {
+    return previewSite.url;
+  },
 }));
 import { previewResponse, renderPreviewResponse } from "./preview-html";
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  previewSite.url = "https://anipotts.com/";
+});
 
 it.each(["throw", "error-page", "body-error"])(
   "reports %s rendering failures without waiting for the frame timeout",
@@ -241,8 +247,9 @@ it("keeps an escaped late-failure request nonce exact without injecting a script
   expect(html).not.toContain("<script>bad()");
 });
 
-it("uses the public image origin in a contained DEV frame while embedding only its snapshot-owned image", async () => {
+it("uses the canonical public image origin despite the DEV public-site preview URL while embedding only its snapshot-owned image", async () => {
   vi.stubEnv("DEV", true);
+  previewSite.url = "http://127.0.0.1:4321/";
   const read = vi.fn(async (id: string) =>
     id === ownedID ? ownedFile() : null,
   );
@@ -272,6 +279,7 @@ it("uses the public image origin in a contained DEV frame while embedding only i
   expect(html).toContain(`data-preview-owned-src="${ownedID}"`);
   expect(html).toContain(`data-preview-owned-media="${ownedID}"`);
   expect(html).not.toContain('src="http://127.0.0.1:8917/images/');
+  expect(html).not.toContain('src="http://127.0.0.1:4321/images/');
   expect(read).toHaveBeenCalledTimes(2);
   expect(read.mock.calls.every(([id]) => id === ownedID)).toBe(true);
 });

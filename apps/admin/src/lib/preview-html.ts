@@ -3,6 +3,7 @@ import {
   type PreviewAssetReader,
 } from "./preview-public-assets";
 import { publicSiteUrl } from "./editorial-content";
+import { siteConfig } from "@anipotts/content/public/site";
 import { previewMediaUrl, previewMediaSrcset } from "./preview-media";
 import { referencedMediaIds } from "./editorial-media";
 import {
@@ -95,7 +96,7 @@ export async function previewResponse(
   if (response.headers.get("Content-Type")?.includes("text/html")) {
     const media = {
       requestUrl,
-      publicSiteUrl,
+      publicSiteUrl: assets ? siteConfig.url : publicSiteUrl,
       // Opaque frames cannot fetch retained images from Astro's DEV origin.
       // The contained path uses the same public image origin as production;
       // exact snapshot-owned images below remain embedded, never public.
