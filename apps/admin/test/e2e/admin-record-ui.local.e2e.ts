@@ -825,9 +825,18 @@ test(
       .getByRole("textbox", { name: "Source or demo link", exact: true })
       .click();
     await expect(selector).toHaveAttribute("aria-expanded", "false");
+    // Core returns focus to its combobox after native light dismissal.
+    await expect(selector).toBeFocused();
     await expect(
-      screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
-    ).toBeFocused();
+      screen.getByRole("button", { name: "Close properties", exact: true }),
+    ).toBeVisible();
+    const sourceField = screen.getByRole("textbox", {
+      name: "Source or demo link",
+      exact: true,
+    });
+    await sourceField.click();
+    await expect(sourceField).toBeFocused();
+    await expect(sourceField).toBeEnabled();
     await expect(
       screen.getByRole("textbox", { name: "Source or demo link", exact: true }),
     ).toBeVisible();
