@@ -73,6 +73,25 @@ function MenuTrigger({
       {...button}
       {...trigger}
       ref={ref}
+      onFocus={(event) => {
+        button.onFocus?.(event);
+        if (!event.defaultPrevented) trigger.onFocus(event);
+      }}
+      onPointerDown={(event) => {
+        button.onPointerDown?.(event);
+        if (!event.defaultPrevented) trigger.onPointerDown(event);
+      }}
+      onContextMenu={(event) => {
+        button.onContextMenu?.(event);
+        if (!event.defaultPrevented) trigger.onContextMenu(event);
+      }}
+      onClickCapture={(event) => {
+        button.onClickCapture?.(event);
+        if (!event.defaultPrevented) trigger.onClickCapture(event);
+      }}
+      onClick={(event) => {
+        if (!event.defaultPrevented) trigger.onClick(event);
+      }}
       onKeyDown={(event) => {
         button.onKeyDown?.(event);
         if (!event.defaultPrevented) trigger.onKeyDown?.(event);

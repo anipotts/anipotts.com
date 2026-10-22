@@ -267,3 +267,69 @@ it("guards an async action until its real completion and preserves disabled stat
   act(() => button.click());
   expect(action).toHaveBeenCalledOnce();
 });
+
+it("composes menu trigger callbacks, preserves refs and respects caller cancellation", async () => {
+  const ref = createRef<HTMLButtonElement>();
+  const focus = vi.fn();
+  const pointer = vi.fn((event: React.PointerEvent<HTMLButtonElement>) =>
+    event.preventDefault(),
+  );
+  const context = vi.fn((event: React.MouseEvent<HTMLButtonElement>) =>
+    event.preventDefault(),
+  );
+  const capture = vi.fn((event: React.MouseEvent<HTMLButtonElement>) =>
+    event.preventDefault(),
+  );
+  const open = vi.fn();
+  act(() =>
+    root.render(
+      <AdminUIProvider enabled>
+        <controls.DropdownMenu
+          alignment="end"
+          onOpenChange={open}
+          button={{
+            label: "Synthetic actions",
+            ref,
+            onFocus: focus,
+            onPointerDown: pointer,
+            onContextMenu: context,
+            onClickCapture: capture,
+          }}
+          items={[{ label: "Synthetic choice", onClick: vi.fn() }]}
+        />
+      </AdminUIProvider>,
+    ),
+  );
+  const trigger = ref.current!;
+  expect(trigger).toBe(host.querySelector("button"));
+  await act(async () => trigger.focus());
+  expect(focus).toHaveBeenCalledOnce();
+  for (const [type, callback] of [
+    ["pointerdown", pointer],
+    ["contextmenu", context],
+    ["click", capture],
+  ] as const) {
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true });
+    await act(async () => trigger.dispatchEvent(event));
+    expect(callback).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(open).not.toHaveBeenCalled();
+  }
+  await act(async () =>
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "ArrowDown",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(open).toHaveBeenCalledWith(true);
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  expect(
+    document
+      .getElementById(trigger.getAttribute("aria-controls")!)
+      ?.getAttribute("role"),
+  ).toBe("menu");
+});
