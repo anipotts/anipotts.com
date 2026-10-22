@@ -10,6 +10,7 @@
  *
  * Never targets anipotts-db. Remote writes need the exact --confirm-remote name. */
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -43,6 +44,16 @@ const publishedAt = option("--published-at", new Date().toISOString());
 if (/anipotts-db/u.test(database) || databaseId.startsWith("a8aadf73"))
   throw new Error("refusing the shared anipotts-db; content D1 only");
 if (remote && local) throw new Error("choose --local or --remote");
+// The live media writer must enroll against the publication database whose
+// capture fence covers this bucket. An arbitrary override cannot prove a pair.
+if (
+  remote &&
+  flag("--upload-media") &&
+  (database !== "anipotts-content" ||
+    databaseId !== "2679fc97-e251-46b7-ad01-db8b9fe04e8d" ||
+    bucket !== "anipotts-content-media")
+)
+  throw new Error("recovery_remote_binding_pair_unverified");
 
 const cli = join(
   dirname(
@@ -104,6 +115,29 @@ function requireRemoteConfirmation(name) {
     throw new Error(`remote writes need --confirm-remote ${name}`);
 }
 
+// The same durable enrollment as the publisher. On ambiguous CLI/provider
+// failure keep the writer row; automatic expiry would hide a late R2 write.
+function beginRecoveryWriter(kind) {
+  const installed = query(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='editorial_recovery_control'",
+  );
+  if (!installed.length) return null; // Legacy stores cannot pass capture.
+  const token = randomUUID();
+  query(
+    `INSERT INTO editorial_recovery_writers (token,generation,kind,state) SELECT '${token}',generation,'${kind}','active' FROM editorial_recovery_control WHERE singleton=1 AND phase='open'`,
+  );
+  if (
+    query(`SELECT token FROM editorial_recovery_writers WHERE token='${token}'`)
+      .length !== 1
+  )
+    throw new Error("recovery_write_fenced");
+  return token;
+}
+function completeRecoveryWriter(token) {
+  if (token)
+    query(`DELETE FROM editorial_recovery_writers WHERE token='${token}'`);
+}
+
 async function main() {
   const seed = await collectGitSeed(root);
   const summary = {
@@ -130,6 +164,7 @@ async function main() {
     requireRemoteConfirmation(bucket);
     if (seed.media.some((m) => !m.valid))
       throw new Error("referenced editorial media missing or corrupt");
+    const writer = beginRecoveryWriter("seed-media");
     for (const media of seed.media)
       wrangler([
         "r2",
@@ -146,6 +181,7 @@ async function main() {
             ? "image/png"
             : "image/webp",
       ]);
+    completeRecoveryWriter(writer);
     console.log(JSON.stringify({ uploaded: seed.media.length }));
     return 0;
   }
@@ -163,12 +199,14 @@ async function main() {
       "records reference editorial media; run --upload-media first, then pass --media-ready",
     );
   requireRemoteConfirmation(database);
+  const writer = beginRecoveryWriter("seed-content");
   const file = join(temporary, "seed.sql");
   writeFileSync(file, seedSql(seed.records, publishedAt));
   wrangler(["d1", "execute", database, ...target, "--yes", "--file", file]);
   const after = planSeed(read(), seed.records);
   if (after.action !== "noop")
     throw new Error(`seed did not converge: ${JSON.stringify(after)}`);
+  completeRecoveryWriter(writer);
   console.log(JSON.stringify({ applied: true, inventoryVersion: 1 }));
   return 0;
 }

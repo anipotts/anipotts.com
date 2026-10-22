@@ -1,3 +1,4 @@
+import { RecoveryCoordinator } from "./recovery-coordinator";
 import { MAX_HISTORY_PAGE_BYTES } from "../lib/editorial-response-bounds";
 import { DurableObject } from "cloudflare:workers";
 import { EditorialMediaStore } from "./media-store";
@@ -76,13 +77,16 @@ const maxHistoryPageSize = 100;
 
 /** One object per site/environment is the serialization boundary for its editor. */
 export class EditorialDraftStore extends DurableObject<unknown> {
+  #recovery: RecoveryCoordinator;
   async saveMedia(bytes: Uint8Array) {
-    return new EditorialMediaStore(this.ctx.storage).save(bytes);
+    return this.#recovery.writer("private-media", () =>
+      new EditorialMediaStore(this.ctx.storage).save(bytes),
+    );
   }
   async readMedia(id: string) {
     return new EditorialMediaStore(this.ctx.storage).read(id);
   }
-  private directPublisher() {
+  #directPublisher() {
     const bindings = this.env as {
       CONTENT_DB?: PublicationDatabase;
       CONTENT_MEDIA?: R2Bucket;
@@ -97,7 +101,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         bindings.EDITORIAL_ENABLED === "true" &&
         bindings.EDITORIAL_PUBLISH_ENABLED === "true" &&
         Boolean(bindings.CONTENT_MEDIA),
-      readDraft: (record) => this.read(editorialRecordPath(record)),
+      readDraft: (record) => this.#read(editorialRecordPath(record)),
       readMedia: (id) => this.readMedia(id),
       acknowledge: (receipt) => {
         this.ctx.storage.transactionSync(() => {
@@ -129,7 +133,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     });
   }
   /** Direct publishing is on only with every flag and binding it needs. */
-  private directEnabled() {
+  #directEnabled() {
     const values = this.env as Record<string, unknown>;
     return (
       values.EDITORIAL_ENABLED === "true" &&
@@ -139,9 +143,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     );
   }
   async startDirectPublication(input: StartDirectPublication) {
-    if (!this.directEnabled())
+    if (!this.#directEnabled())
       return { ok: false as const, code: "publisher_not_configured" as const };
-    return this.directPublisher().start(input);
+    return this.#recovery.writer("publication-start", () =>
+      this.#directPublisher().start(input),
+    );
   }
   async latestDirectPublication(
     record: EditorialRecord,
@@ -159,9 +165,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     id: string,
     expectedVersion: number,
   ) {
-    if (!this.directEnabled())
+    if (!this.#directEnabled())
       return { ok: false as const, code: "publisher_not_configured" as const };
-    return (await this.directPublisher().retry(record, id, expectedVersion))
+    return (await this.#recovery.writer("publication-retry", () =>
+      this.#directPublisher().retry(record, id, expectedVersion),
+    ))
       ? { ok: true as const }
       : { ok: false as const, code: "publication_conflict" as const };
   }
@@ -170,15 +178,22 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     id: string,
     expectedVersion: number,
   ) {
-    return (await new DirectPublisher(this.ctx.storage, null).cancel(
-      record,
-      id,
-      expectedVersion,
+    return (await this.#recovery.writer("publication-cancel", () =>
+      new DirectPublisher(this.ctx.storage, null).cancel(
+        record,
+        id,
+        expectedVersion,
+      ),
     ))
       ? { ok: true as const }
       : { ok: false as const, code: "publication_conflict" as const };
   }
   async alarm(): Promise<void> {
+    return this.#recovery.writer("publication-alarm", () =>
+      this.#publicationAlarm(),
+    );
+  }
+  async #publicationAlarm(): Promise<void> {
     // A binding regression must not consume the only durable wake. Native
     // alarm retries are finite; keep accepted work recoverable after repair.
     if (!(this.env as Record<string, unknown>).CONTENT_DB) {
@@ -198,10 +213,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         await this.ctx.storage.setAlarm(Date.now() + 60_000);
       return;
     }
-    await this.directPublisher().alarm();
+    await this.#directPublisher().alarm();
   }
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env);
+    this.#recovery = new RecoveryCoordinator(ctx.storage);
     // Alarms and RPC construct the object without the Worker fetch wrapper.
     reportRuntimeContract(env, "durable_object");
     ctx.storage.sql.exec(`
@@ -259,6 +275,16 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         legacyResult TEXT
       );
       CREATE INDEX IF NOT EXISTS save_requests_key ON save_requests (key);
+    `);
+    // Reconstruction cannot alter authored/control state under a durable fence.
+    if (
+      ctx.storage.sql
+        .exec<{ phase: string }>(
+          "SELECT phase FROM editorial_recovery_control WHERE singleton=1",
+        )
+        .one().phase === "open"
+    ) {
+      ctx.storage.sql.exec(`
       INSERT OR IGNORE INTO save_request_identities
         (id, key, payloadHash, outcome, revision, legacyResult)
       SELECT requests.id, requests.key, requests.payloadHash,
@@ -279,20 +305,30 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         AND identities.payloadHash = requests.payloadHash
         AND identities.outcome = 'conflict' AND identities.legacyResult IS NULL
         AND json_extract(requests.result, '$.ok') = 0;
-    `);
+      `);
+    }
     // Additive upgrade for objects created before clientHash existed. Their
     // rows keep a NULL clientHash and their original payloadHash semantics.
     const identityColumns = ctx.storage.sql
       .exec<{ name: string }>("PRAGMA table_info(save_request_identities)")
       .toArray();
-    if (!identityColumns.some((column) => column.name === "clientHash"))
+    if (!identityColumns.some((column) => column.name === "clientHash")) {
+      if (
+        ctx.storage.sql
+          .exec<{ phase: string }>(
+            "SELECT phase FROM editorial_recovery_control WHERE singleton=1",
+          )
+          .one().phase !== "open"
+      )
+        throw new Error("recovery_schema_drift");
       ctx.storage.sql.exec(
         "ALTER TABLE save_request_identities ADD COLUMN clientHash TEXT",
       );
+    }
   }
 
   async get(record: EditorialRecord): Promise<Draft | null> {
-    return this.read(editorialRecordPath(record));
+    return this.#read(editorialRecordPath(record));
   }
 
   /** Owner-only inventory. Draft source never enters a public content collection. */
@@ -314,18 +350,15 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   }
 
   async save(input: SaveDraft): Promise<SaveResult> {
-    return this.saveDraft(input, false);
+    return this.#recovery.writer("save", () => this.#saveDraft(input, false));
   }
 
   /** Only the owner API supplies a freshly verified, explicitly compared base. */
   async rebase(input: SaveDraft): Promise<SaveResult> {
-    return this.saveDraft(input, true);
+    return this.#recovery.writer("rebase", () => this.#saveDraft(input, true));
   }
 
-  private async saveDraft(
-    input: SaveDraft,
-    rebase: boolean,
-  ): Promise<SaveResult> {
+  async #saveDraft(input: SaveDraft, rebase: boolean): Promise<SaveResult> {
     let key: string;
     try {
       key = editorialRecordPath(input.record);
@@ -406,7 +439,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         const snapshot =
           identity.revision === null
             ? null
-            : this.readRevision(identity.key, identity.revision);
+            : this.#readRevision(identity.key, identity.revision);
         return snapshot
           ? { ok: true, draft: snapshot }
           : { ok: false, code: "save_reconciliation_required" };
@@ -430,7 +463,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
               ? "save_reconciliation_required"
               : "idempotency_key_reused",
         };
-      const current = this.read(key);
+      const current = this.#read(key);
       let result: SaveResult;
       if (
         (current?.revision ?? 0) !== input.expectedRevision ||
@@ -467,7 +500,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           updatedAt: Date.now(),
           discardedAt: null,
         };
-        this.write(draft);
+        this.#write(draft);
         result = { ok: true, draft };
       }
       this.ctx.storage.sql.exec(
@@ -560,23 +593,27 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     record: EditorialRecord,
     expectedRevision: number,
   ): Promise<Draft> {
-    return this.changeLifecycle(record, expectedRevision, true);
+    return this.#recovery.writer("discard", async () =>
+      this.#changeLifecycle(record, expectedRevision, true),
+    );
   }
 
   async restore(
     record: EditorialRecord,
     expectedRevision: number,
   ): Promise<Draft> {
-    return this.changeLifecycle(record, expectedRevision, false);
+    return this.#recovery.writer("restore", async () =>
+      this.#changeLifecycle(record, expectedRevision, false),
+    );
   }
 
-  private changeLifecycle(
+  #changeLifecycle(
     record: EditorialRecord,
     expectedRevision: number,
     discard: boolean,
   ): Draft {
     return this.ctx.storage.transactionSync(() => {
-      const current = this.read(editorialRecordPath(record));
+      const current = this.#read(editorialRecordPath(record));
       if (!current || current.revision !== expectedRevision)
         throw new Error("revision_conflict");
       const draft = {
@@ -585,12 +622,12 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         updatedAt: Date.now(),
         discardedAt: discard ? Date.now() : null,
       };
-      this.write(draft);
+      this.#write(draft);
       return draft;
     });
   }
 
-  private read(key: string): Draft | null {
+  #read(key: string): Draft | null {
     return (
       this.ctx.storage.sql
         .exec<Draft>("SELECT * FROM drafts WHERE key = ?", key)
@@ -598,7 +635,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     );
   }
 
-  private readRevision(key: string, revision: number): Draft | null {
+  #readRevision(key: string, revision: number): Draft | null {
     const row = this.ctx.storage.sql
       .exec<{ snapshot: string }>(
         "SELECT snapshot FROM revisions WHERE key = ? AND revision = ?",
@@ -609,7 +646,7 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     return row ? (JSON.parse(row.snapshot) as Draft) : null;
   }
 
-  private write(draft: Draft): void {
+  #write(draft: Draft): void {
     this.ctx.storage.sql.exec(
       "INSERT OR REPLACE INTO drafts (key, source, baseCommit, baseFileHash, revision, updatedAt, discardedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
       draft.key,

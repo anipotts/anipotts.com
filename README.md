@@ -30,11 +30,14 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Integrate and release the qualified browser-policy patch through exact-head protected checks. Full validation14/14, router tests6/6, controlled Chromium/WebKit ordering checks and public native13-pass/1-skip coverage pass.
-- [ ] Repair and qualify the Admin Core consolidation. Frozen installation and the candidate dependency audit pass with zero advisories; focused mounted tests exposed wrapper behavior gaps that must pass before release.
-- [ ] Refresh and qualify held [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery source. #540 has a clean local normal-main refresh; provider, custody and activation gates remain separate.
+- [ ] Create and integrate the qualified browser-policy PR through exact-head protected checks. Full validation14/14, router6/6 and public native13-pass/1-skip coverage pass; public description approval is pending.
+- [ ] Create and integrate the qualified Admin Core consolidation. Full validation14/14, native10 across documented runs and zero-advisory audit pass; the separate DEV touch-run failure remains explicit in its review draft.
+- [x] Integrate and deploy [#540](https://github.com/anipotts/anipotts.com/pull/540) as `d539e382`. Release39733075733 deployed Admin; www and all four workers were skipped, schema0044, no migration. Provider identity and eight Access probes pass. Images/provider processing activation remains held.
+- [ ] Run protected exact-head checks and integrate qualified recovery [#541](https://github.com/anipotts/anipotts.com/pull/541). Actual #540 main ancestry is normally merged;129 Node,27 local recovery workerd/R2 and94 ordinary writer/media cases pass on identical source. Custody, enrollment, capture and restore gates remain separate.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 - [ ] Resolve seven stale native worktree-card ownership errors; formatter and released authoring worktree archival remain queued. See the [cleanup checkpoint](docs/website-source-preparation.md).
+
+#554 is merged as `5615da43`; [release39728806591](https://github.com/anipotts/anipotts.com/actions/runs/39728806591) deployed the checked footer to www and Admin. All four workers were skipped, schema0044, no migration; exact public smoke and eight Admin Access probes pass.
 
 #551 is merged as `1936106c`; [release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758) deployed www and Admin. All four workers were skipped, schema0044, no migration. Exact public smoke and provider/Admin Access proof pass. #552 was consolidated and marked merged by GitHub.
 

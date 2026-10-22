@@ -64,3 +64,21 @@ experiments. It is a development script, not part of deployable app bundles.
 Backups and sync status live under ignored `.local/published-preview/`.
 The watcher keeps the last snapshot if production cannot be read and logs a
 failure rather than silently replacing content with Git seeds.
+
+## October 19 checkout recovery
+
+The owner found the canonical checkout missing its tracked source while a
+task-owned public Astro process remained. The surviving local status is preserved
+at `/Users/anipotts/.codex/worktrees/combined-public-review/anipotts-com.preserved-20261019`.
+The verified orphaned public process was stopped, the same canonical branch and
+path recreated at `f8e90810`, and fast-forwarded to released main `cf7b757b`.
+An offline frozen install and `pnpm review` restored both managed previews and the
+owned publication watcher. Status at 2026-10-19T15:01:49Z is clean, published
+v17 / 20 records, with no blockers. Content creation returns 200 and its unlock
+gate. The source restoration and published mirror use local writes and approved
+read-only production reads; no remote content write occurred.
+
+The Codex app declined attaching the restored checkout: "Cannot verify that this
+ownerless worktree belongs to this task." No UI attachment is claimed. The Git
+worktree, branch and managed preview remain in the established integration lane.
+No further ownership-tool retry or alternate preview lane was used.
