@@ -25,22 +25,22 @@ const { essayHref } = Astro.props;
     </p>
   </div>
   <div class="press-mention__links">
-    {
-      essayHref && (
-        <a class="site-action" href={essayHref} data-admin-motion-action>
-          <img
-            class="press-mention__link-mark"
-            src="/images/brand/business-insider-favicon.svg"
-            alt=""
-            width="16"
-            height="16"
-            decoding="async"
-          />
-          <span>read the story</span>
-          <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
-        </a>
-      )
-    }
+    {essayHref && <a
+      class="site-action"
+      href={essayHref}
+      data-admin-motion-action
+    >
+      <img
+        class="press-mention__link-mark"
+        src="/images/brand/business-insider-favicon.svg"
+        alt=""
+        width="16"
+        height="16"
+        decoding="async"
+      />
+      <span>read the story</span>
+      <Icon name="ph:arrow-bend-right-up" aria-hidden="true" />
+    </a>}
   </div>
 </aside>
 

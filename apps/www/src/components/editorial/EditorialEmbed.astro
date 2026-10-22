@@ -46,11 +46,9 @@ if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
       >
         <span>{youtube ? "load video" : "open interactive preview"}</span>
         <small>
-          {
-            youtube
-              ? "Loads a YouTube player when selected."
-              : "Loads a separate, sandboxed demo when selected."
-          }
+          {youtube
+            ? "Loads a YouTube player when selected."
+            : "Loads a separate, sandboxed demo when selected."}
         </small>
       </button>
     </div>
@@ -58,16 +56,21 @@ if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
       <iframe
         {src}
         {title}
-        sandbox={youtube
-          ? "allow-scripts allow-same-origin allow-presentation"
-          : "allow-scripts"}
-        allow={youtube
-          ? "encrypted-media; picture-in-picture; fullscreen"
-          : undefined}
-        referrerpolicy={youtube
-          ? "strict-origin-when-cross-origin"
-          : "no-referrer"}
-        allowfullscreen={youtube}></iframe>
+        sandbox={
+          youtube
+            ? "allow-scripts allow-same-origin allow-presentation"
+            : "allow-scripts"
+        }
+        allow={
+          youtube
+            ? "encrypted-media; picture-in-picture; fullscreen"
+            : undefined
+        }
+        referrerpolicy={
+          youtube ? "strict-origin-when-cross-origin" : "no-referrer"
+        }
+        allowfullscreen={youtube}
+      ></iframe>
     </template>
     <button type="button" class="editorial-media__unload" data-unload hidden>
       close {youtube ? "video" : "preview"}

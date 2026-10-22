@@ -15,30 +15,28 @@ if (!mark) throw new Error(`Unknown workflow provider: ${id}`);
   data-provider={id}
   title={mark.label}
 >
-  {
-    mark.image ? (
-      <>
+  {mark.image ? (
+    <>
+      <img
+        class:list={[id, { light: !!mark.darkImage }]}
+        src={mark.image}
+        width="36"
+        height="36"
+        alt={mark.label}
+      />
+      {mark.darkImage && (
         <img
-          class:list={[id, { light: !!mark.darkImage }]}
-          src={mark.image}
+          class:list={[id, "dark"]}
+          src={mark.darkImage}
           width="36"
           height="36"
           alt={mark.label}
         />
-        {mark.darkImage && (
-          <img
-            class:list={[id, "dark"]}
-            src={mark.darkImage}
-            width="36"
-            height="36"
-            alt={mark.label}
-          />
-        )}
-      </>
-    ) : (
-      <Icon name={mark.icon!} size={26} title={mark.label} />
-    )
-  }
+      )}
+    </>
+  ) : (
+    <Icon name={mark.icon!} size={26} title={mark.label} />
+  )}
 </span>
 <style>
   .provider-mark {

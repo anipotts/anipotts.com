@@ -30,10 +30,18 @@ See [local development](docs/local-development.md).
 
 ## Current work
 
-- [ ] Complete the held acceptance gates for draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) portable recovery. Both foundations pass full validation; #541 also qualifies bounded supplied-R2 artifacts with129 Node and27 native recovery cases. Provider activation and operational coverage, custody and restore remain open.
+- [ ] Repair and qualify [#551](https://github.com/anipotts/anipotts.com/pull/551), the combined Core/Neutral and Projects authoring candidate.
+- [ ] Qualify the local current-main refreshes of draft [#540](https://github.com/anipotts/anipotts.com/pull/540) media processing and [#541](https://github.com/anipotts/anipotts.com/pull/541) recovery. Their provider, operational activation, custody and restore gates remain open; historical source checks do not qualify these refreshed trees.
+- [ ] Complete integration of the runner update consolidated into #551; [#552](https://github.com/anipotts/anipotts.com/pull/552) remains open until that integration.
 - [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
 
-#542 is merged as `aa860b4b`; release 39275594601 passed with all six runtime targets skipped and no migration.
+#550 is merged as `07da221d`; www and Admin deployment and smoke checks passed. All four workers were skipped, with no migration.
+
+#553 is merged as `1efed957`; release39695194877 deployed www and Admin with the approved monogram geometry. All four worker targets were skipped.
+
+#549 is merged as `39204ca89`; release39298284295 deployed Admin and all four retained workers. www was skipped, schema0044, no migration. Provider identity and eight Admin Access probes pass; ingest/state service health remains separate.
+
+#542 is merged as `aa860b4b`; its successful release skipped all runtime targets and ran no migration.
 
 #539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
 

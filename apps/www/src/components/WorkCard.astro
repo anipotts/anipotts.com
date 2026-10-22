@@ -44,64 +44,59 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
   ]}
 >
   <AmbientFlow kind="work" seed={slug} variant={flowVariant} />
-  {
-    preview && (
-      <span class="work-card__media landscape-frame">
-        <span class="work-card__window">
-          {preview.kind === "video" ? (
-            <video
-              src={preview.src}
-              muted
-              playsinline
-              preload="metadata"
-              aria-label={preview.alt}
-            />
-          ) : shot ? (
-            <picture>
-              <source media={phoneMedia} srcset={shot.src} />
-              <img
-                src={shot.src}
-                srcset={shot.srcset}
-                sizes={shotSizes}
-                width={shot.width}
-                height={shot.height}
-                style={`aspect-ratio: ${shot.aspectRatio}`}
-                alt={preview.alt}
-                loading={priority ? "eager" : "lazy"}
-                fetchpriority={priority ? "high" : undefined}
-                decoding="async"
-              />
-            </picture>
-          ) : (
-            <img
-              src={preview.src}
-              alt={preview.alt}
-              loading={priority ? "eager" : "lazy"}
-              fetchpriority={priority ? "high" : undefined}
-              decoding="async"
-            />
-          )}
-        </span>
-      </span>
-    )
-  }
+  {preview && <span class="work-card__media landscape-frame">
+    <span class="work-card__window">
+      {preview.kind === "video" ? (
+        <video
+          src={preview.src}
+          muted
+          playsinline
+          preload="metadata"
+          aria-label={preview.alt}
+        />
+      ) : shot ? (
+        <picture>
+          <source media={phoneMedia} srcset={shot.src} />
+          <img
+            src={shot.src}
+            srcset={shot.srcset}
+            sizes={shotSizes}
+            width={shot.width}
+            height={shot.height}
+            style={`aspect-ratio: ${shot.aspectRatio}`}
+            alt={preview.alt}
+            loading={priority ? "eager" : "lazy"}
+            fetchpriority={priority ? "high" : undefined}
+            decoding="async"
+          />
+        </picture>
+      ) : (
+        <img
+          src={preview.src}
+          alt={preview.alt}
+          loading={priority ? "eager" : "lazy"}
+          fetchpriority={priority ? "high" : undefined}
+          decoding="async"
+        />
+      )}
+    </span>
+  </span>}
   <span class="work-card__body">
     <span class="work-card__header">
       <span class="card-title-group">
         <span class="work-card__name">{displayTitle}</span>
-        {
-          variant === "project" && (
-            <ProjectMeta status={d.status} year={d.year} inline />
-          )
-        }
+        {variant === "project" && (
+          <ProjectMeta status={d.status} year={d.year} inline />
+        )}
       </span>
       <CardAction
         label="view project"
         largeMark={["nyu-purity-test", "pgi-research-platform"].includes(slug)}
         logoSrc={identity.logo_src}
         icon={identity.icon}
-        adaptive={identity.logo_tone === "adaptive" ||
-          slug === "pgi-research-platform"}
+        adaptive={
+          identity.logo_tone === "adaptive" || slug === "pgi-research-platform"
+        }
       />
     </span>
     <span class="work-card__copy"
@@ -109,8 +104,7 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
         text={d.card_copy}
         compact={d.card_copy_compact}
         links={false}
-      /></span
-    >
+    /></span>
   </span>
 </a>
 

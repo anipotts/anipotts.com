@@ -36,17 +36,15 @@ if (
       playsinline
       preload="none"
     >
-      {
-        captions && (
-          <track
-            kind="captions"
-            src={mediaHref(captions.src)}
-            srclang={captions.language}
-            label={captions.label}
-            default
-          />
-        )
-      }
+      {captions && (
+        <track
+          kind="captions"
+          src={mediaHref(captions.src)}
+          srclang={captions.language}
+          label={captions.label}
+          default
+        />
+      )}
       <a href={mediaHref(src)}>watch {title}</a>
     </video>
   </div>
