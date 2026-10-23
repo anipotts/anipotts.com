@@ -35,6 +35,8 @@ const structuralEdges = new Set([
   // Approved outer workspace inset. Interior sections still use spacing.
   ".editorial-workspace-shell #astryx-app-shell-main border-top",
   ".editorial-workspace-shell #astryx-app-shell-main border-inline-start",
+  // The phone appbar's approved outer edge; content has no surrounding frame.
+  ".admin-phone-bar border-bottom",
   // October 2 table standard: restrained separators only inside the owned table.
   ".admin-data-table .openai-record-table tbody tr[data-record-id] border-bottom",
   // markers on a single element
