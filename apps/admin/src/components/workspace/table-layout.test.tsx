@@ -146,3 +146,25 @@ describe("shared table geometry", () => {
     ).toBe("1");
   });
 });
+
+describe("narrow table information", () => {
+  it("retains the state at every generated container width, while secondary facts yield", () => {
+    const rules = tableFitRules(columns, "narrow");
+    expect(rules).not.toMatch(/data-column="state"[^}]*display: none/);
+    expect(rules).toMatch(/data-column="summary"[^}]*display: none/);
+    expect(rules).toMatch(/data-column="updated"[^}]*display: none/);
+    expect(rules).toContain("min(144px, max(0px, 100cqw - 80px))");
+  });
+  it("keeps badge anchors stable across tables instead of proportionally squeezing them", () => {
+    const rules = tableFitRules(columns, "plain");
+    const selected = tableFitRules(columns, "selected", 44);
+    expect(rules).toContain("100cqw - 144px");
+    expect(selected).toContain("100cqw - 188px");
+    expect(selected).toContain("min(144px, max(0px, 100cqw - 124px))");
+    const status = tableFitRules(
+      columns.map((c) => ({ ...c, key: c.key === "state" ? "status" : c.key })),
+      "overview",
+    );
+    expect(status).not.toMatch(/data-column="status"[^}]*display: none/);
+  });
+});

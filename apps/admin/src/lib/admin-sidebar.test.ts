@@ -15,7 +15,7 @@ import {
 const storage = (values: Record<string, string>) => ({
   getItem: (key: string) => values[key] ?? null,
 });
-const inRailRange = (width: number) => width >= 641 && width <= 1279;
+const inRailRange = (width: number) => width >= 1024 && width <= 1279;
 
 /** Runs the serialized script the way the browser does, in a bare context. */
 function prepaint(
@@ -39,12 +39,12 @@ function prepaint(
 }
 
 describe("sidebar rail choice", () => {
-  it("uses the drawer on phones and the saved inline sidebar choice from 641px", () => {
-    expect(RAIL_QUERY).toBe("(min-width: 641px) and (max-width: 1279px)");
+  it("uses the drawer on phones and the saved inline sidebar choice from 1024px", () => {
+    expect(RAIL_QUERY).toBe("(min-width: 1024px) and (max-width: 1279px)");
     expect(sidebarRail(390, true, false)).toBe(false);
     expect(sidebarRail(640, true, false)).toBe(false);
-    expect(sidebarRail(641, null, true)).toBe(true);
-    expect(sidebarRail(768, true, true)).toBe(true);
+    expect(sidebarRail(641, null, true)).toBe(false);
+    expect(sidebarRail(768, true, true)).toBe(false);
     // Tablets honor an explicit expansion just like desktop.
     expect(sidebarRail(768, false, true)).toBe(false);
     expect(sidebarRail(1023, false, true)).toBe(false);

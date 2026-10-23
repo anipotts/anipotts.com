@@ -218,18 +218,23 @@ export function tableFrameStyle<T>(
   ) as CSSProperties;
 }
 
-/** Keep a semantic row. Secondary columns yield together with their headers,
- * never move under the title or widen the table beyond its container. */
+/** Keep semantic rows inside their container. State remains alongside the
+ * lead, with a stable shared width. Secondary facts yield before either.
+ * Fixed cells retain their declared room; the lead receives the remainder. */
 export function tableFitRules<T>(
   columns: readonly Column<T>[],
   scope: string,
   selectionWidth = 0,
 ): string {
   const at = `.openai-table-frame[data-table-scope="${scope}"]`;
+  const isState = (column: Column<T>) =>
+    column.key === "state" || column.key === "status";
   const size = (column: Column<T>, index: number) =>
-    index === 0 ? 240 : Math.max(72, column.width ?? column.min ?? 160);
-  const minimum = (column: Column<T>, index: number) =>
-    index === 0 ? 160 : size(column, index);
+    index === 0
+      ? 160
+      : isState(column)
+        ? Math.max(144, column.width ?? 0)
+        : Math.max(72, column.width ?? column.min ?? 160);
   const rank = (column: Column<T>) =>
     (column.hideBelow === "wide"
       ? 40
@@ -241,16 +246,23 @@ export function tableFitRules<T>(
   const remaining = columns.map((column, index) => ({ column, index }));
   const candidates = remaining
     .slice(1)
+    .filter(({ column }) => !isState(column))
     .sort((a, b) => rank(b.column) - rank(a.column) || b.index - a.index);
   const declarations = () => {
-    const total = remaining.reduce(
-      (sum, { column, index }) => sum + size(column, index),
-      0,
-    );
+    const fixed = remaining
+      .filter((item) => item.index !== 0)
+      .reduce(
+        (sum, { column, index }) => sum + size(column, index),
+        selectionWidth,
+      );
     return columns
       .map((column, index) => {
         const visible = remaining.some((item) => item.index === index);
-        return `${at} [data-column="${column.key}"] { display: ${visible ? "table-cell" : "none"} !important; width: calc((100cqw - ${selectionWidth}px) * ${size(column, index) / total}) !important; min-width: 0 !important; max-width: none !important; }`;
+        const width =
+          index === 0
+            ? `max(0px, 100cqw - ${fixed}px)`
+            : `min(${size(column, index)}px, max(0px, 100cqw - ${selectionWidth + 80}px))`;
+        return `${at} [data-column="${column.key}"] { display: ${visible ? "table-cell" : "none"} !important; width: ${width} !important; min-width: 0 !important; max-width: none !important; }`;
       })
       .join("\n");
   };
@@ -259,7 +271,7 @@ export function tableFitRules<T>(
     const need =
       selectionWidth +
       remaining.reduce(
-        (sum, { column, index }) => sum + minimum(column, index),
+        (sum, { column, index }) => sum + size(column, index),
         0,
       );
     remaining.splice(

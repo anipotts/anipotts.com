@@ -477,7 +477,7 @@ describe("the one admin document", () => {
 
   it("scrolls the document on phones under a sticky top bar and paints no bottom bar", () => {
     const compact = blocks(shell).filter((block) =>
-      block.preludes.includes("@media (max-width: 640px)"),
+      block.preludes.includes("@media (max-width: 1023px)"),
     );
     const declarations = (selector: string) =>
       Object.fromEntries(
@@ -508,7 +508,7 @@ describe("the one admin document", () => {
     const lock = blocks(shell).find((block) =>
       ownSelectors(block).includes("html:has(.editorial-workspace-shell)"),
     );
-    expect(lock?.preludes[0]).toBe("@media (min-width: 641px)");
+    expect(lock?.preludes[0]).toBe("@media (min-width: 1024px)");
     // Nothing is fixed to the bottom edge.
     expect(shell).not.toMatch(
       /inset-block-end|(?<!border-)bottom:|position:\s*fixed/,
@@ -523,7 +523,7 @@ describe("the one admin document", () => {
     );
     expect(gutters).toEqual([
       ".editorial-workspace-shell clamp(var(--spacing-4), 3vw, var(--spacing-12))",
-      "@media (max-width: 640px) .editorial-workspace-shell var(--spacing-3)",
+      "@media (max-width: 1023px) .editorial-workspace-shell var(--spacing-3)",
     ]);
     const inline = (selector: string) =>
       blocks(shell)

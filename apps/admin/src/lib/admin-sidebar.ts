@@ -7,12 +7,12 @@ export const SIDEBAR_STORAGE_KEYS = [
   "editorial:sidebar-collapsed",
 ] as const;
 
-/** Phones (640px and below) use the appbar and navigation drawer. From
- * 641px, the sidebar expands beside the content and keeps the saved choice.
+/** Smaller screens (1023px and below) use the appbar and navigation drawer. From
+ * 1024px, the sidebar expands beside the content and keeps the saved choice.
  * Without a choice, it starts as a rail until the full sidebar fits at 1280px. */
-export const COMPACT_MAX_WIDTH = BREAKPOINT_MIN.medium - 1;
+export const COMPACT_MAX_WIDTH = BREAKPOINT_MIN.large - 1;
 export const FULL_SIDEBAR_MIN_WIDTH = 1280;
-export const RAIL_QUERY = `(min-width: ${BREAKPOINT_MIN.medium}px) and (max-width: ${FULL_SIDEBAR_MIN_WIDTH - 1}px)`;
+export const RAIL_QUERY = `(min-width: ${BREAKPOINT_MIN.large}px) and (max-width: ${FULL_SIDEBAR_MIN_WIDTH - 1}px)`;
 export const COMPACT_QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
 
 export function savedSidebarCollapsed(storage: Pick<Storage, "getItem">) {
@@ -118,10 +118,10 @@ export function prepaintAdminSidebar() {
   // Keep in step with sidebarRail.
   const width = window.innerWidth;
   const rail =
-    width <= 640
+    width <= 1023
       ? false
       : (collapsed ??
-        window.matchMedia("(min-width: 641px) and (max-width: 1279px)")
+        window.matchMedia("(min-width: 1024px) and (max-width: 1279px)")
           .matches);
   document.documentElement.dataset.adminSidebar = rail ? "rail" : "full";
   // Groups the viewer closed, except the active page's group, which always

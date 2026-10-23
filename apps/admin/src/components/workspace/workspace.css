@@ -1239,3 +1239,24 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
   height: var(--spacing-2);
   border-radius: 50%;
 }
+
+/* Shared page heading: identity at the start, commands at the end, supporting
+   evidence beneath. Long headings wrap inside the same grid at every width. */
+.workspace-page-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  row-gap: var(--spacing-2);
+}
+.workspace-page-title:not(#\#) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.workspace-page-title > h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+.workspace-page-end {
+  max-width: 100%;
+}
