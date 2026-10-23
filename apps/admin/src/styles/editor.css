@@ -7,7 +7,7 @@
    scrolls while the measured command row supplies the formatting offset. */
 .editor-bar {
   position: sticky;
-  top: 0;
+  top: var(--admin-appbar-height, 0px);
   z-index: 20;
   align-items: center;
   column-gap: var(--spacing-2);

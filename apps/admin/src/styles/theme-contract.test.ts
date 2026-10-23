@@ -407,6 +407,14 @@ const accents = read("../themes/workspace-accents.css");
 const flat = (text: string) => text.replace(/\s+/g, " ");
 
 describe("the one admin document", () => {
+  it("keeps the record toolbar below the shared appbar at tablet widths", () => {
+    const editor = blocks(read("./editor.css"));
+    const bar = editor.find((block) => block.preludes.at(-1) === ".editor-bar");
+    expect(bar?.declarations).toContainEqual([
+      "top",
+      "var(--admin-appbar-height, 0px)",
+    ]);
+  });
   it("covers the screen, stays out of indexes and titles every page alike", () => {
     expect(document).toContain(
       'content="width=device-width, initial-scale=1, viewport-fit=cover"',

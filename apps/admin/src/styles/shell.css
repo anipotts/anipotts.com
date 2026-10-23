@@ -220,7 +220,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   }
   .admin-split-grid[data-panel-open="true"] > .admin-split-panel {
     position: sticky;
-    inset-block-start: var(--spacing-5);
+    inset-block-start: calc(var(--admin-appbar-height, 0px) + var(--spacing-5));
     /* SplitView measures the room below the panel's own top as main
        scrolls; before it does, main's height less the insets. */
     max-block-size: var(

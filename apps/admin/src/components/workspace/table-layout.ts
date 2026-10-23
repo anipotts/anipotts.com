@@ -220,7 +220,8 @@ export function tableFrameStyle<T>(
 
 /** Keep semantic rows inside their container. State remains alongside the
  * lead, with a stable shared width. Secondary facts yield before either.
- * Fixed cells retain their declared room; the lead receives the remainder. */
+ * Fixed cells retain their declared room; flexible details share spare room
+ * with the lead. */
 export function tableFitRules<T>(
   columns: readonly Column<T>[],
   scope: string,
@@ -249,6 +250,20 @@ export function tableFitRules<T>(
     .filter(({ column }) => !isState(column))
     .sort((a, b) => rank(b.column) - rank(a.column) || b.index - a.index);
   const declarations = () => {
+    const flexible = remaining.filter(
+      ({ column, index }) =>
+        index !== 0 &&
+        !isState(column) &&
+        column.width === undefined &&
+        (column.share ?? 0) > 0,
+    );
+    const shares = flexible.reduce((sum, { column }) => sum + column.share!, 0);
+    const normalization = Math.max(1, shares);
+    const base = remaining.reduce(
+      (sum, { column, index }) => sum + size(column, index),
+      selectionWidth,
+    );
+    const extra = `max(0px, 100cqw - ${base}px)`;
     const fixed = remaining
       .filter((item) => item.index !== 0)
       .reduce(
@@ -260,8 +275,12 @@ export function tableFitRules<T>(
         const visible = remaining.some((item) => item.index === index);
         const width =
           index === 0
-            ? `max(0px, 100cqw - ${fixed}px)`
-            : `min(${size(column, index)}px, max(0px, 100cqw - ${selectionWidth + 80}px))`;
+            ? flexible.length
+              ? `max(0px, 100cqw - ${fixed}px - ${extra} * ${shares / normalization})`
+              : `max(0px, 100cqw - ${fixed}px)`
+            : flexible.some((item) => item.index === index)
+              ? `calc(${size(column, index)}px + ${extra} * ${column.share! / normalization})`
+              : `min(${size(column, index)}px, max(0px, 100cqw - ${selectionWidth + 80}px))`;
         return `${at} [data-column="${column.key}"] { display: ${visible ? "table-cell" : "none"} !important; width: ${width} !important; min-width: 0 !important; max-width: none !important; }`;
       })
       .join("\n");

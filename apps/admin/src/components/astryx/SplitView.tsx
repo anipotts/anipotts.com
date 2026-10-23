@@ -10,6 +10,8 @@ import React, {
   type ReactNode,
 } from "react";
 
+import { COMPACT_MAX_WIDTH } from "../../lib/admin-sidebar";
+
 /**
  * A list and its open item side by side: a Data record, an alert, a job's
  * run history. Data and Observability pages put a list and a SplitPanel in
@@ -113,23 +115,27 @@ function useFitPanel(
     const fit = () => {
       frameId = 0;
       const gap = parseFloat(getComputedStyle(panel).insetBlockStart) || 0;
-      const view = scroller?.getBoundingClientRect() ?? {
+      const view = (window.innerWidth > COMPACT_MAX_WIDTH
+        ? scroller?.getBoundingClientRect()
+        : null) ?? {
         top: 0,
         bottom: window.innerHeight,
       };
       const bottom = Math.min(view.bottom, window.innerHeight);
+      const bottomGap =
+        parseFloat(getComputedStyle(panel.parentElement!).rowGap) || 0;
       const top = Math.max(panel.getBoundingClientRect().top, view.top + gap);
       panel.style.setProperty(
         "--admin-split-panel-room",
-        `${Math.max(Math.floor(bottom - top - gap), 160)}px`,
+        `${Math.max(Math.floor(bottom - top - bottomGap), 160)}px`,
       );
     };
     const schedule = () => {
       if (!frameId) frameId = requestAnimationFrame(fit);
     };
     fit();
-    const target: HTMLElement | Window = scroller ?? window;
-    target.addEventListener("scroll", schedule, { passive: true });
+    scroller?.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     const observer =
       typeof ResizeObserver === "undefined"
@@ -138,7 +144,8 @@ function useFitPanel(
     observer?.observe(node);
     return () => {
       if (frameId) cancelAnimationFrame(frameId);
-      target.removeEventListener("scroll", schedule);
+      scroller?.removeEventListener("scroll", schedule);
+      window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
       observer?.disconnect();
       panel.style.removeProperty("--admin-split-panel-room");
