@@ -36,20 +36,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
 .editorial-workspace-shell #astryx-app-shell-main {
-  --admin-panel-border: color-mix(
-    in srgb,
-    var(--color-text-primary) 15%,
-    transparent
-  );
   box-sizing: border-box;
   min-height: 0;
   padding-inline: var(--admin-gutter);
   overscroll-behavior: contain;
   background: var(--color-background-body);
-  /* This outer panel inherits the fine edge of the public card action.
-     Interior rows and sections continue to separate with spacing. */
-  border-top: 1px solid var(--admin-panel-border);
-  border-inline-start: 1px solid var(--admin-panel-border);
   transition:
     margin-block-start var(--duration-fast) ease-out,
     border-start-start-radius var(--duration-fast) ease-out;
@@ -136,9 +127,8 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 
 /* From 641px the sidebar and main are fixed panels that each scroll on
    their own (the sidebar's list in WorkspaceHeader.css), so the document
-   stays still and neither chains its scroll into the other. Beside the full
-   sidebar, main is a panel with one rounded corner under a strip of the
-   sidebar colour. --admin-main-block-size is main's height, for panels
+   stays still and neither chains its scroll into the other.
+   --admin-main-block-size is main's height, for panels
    that stick inside it (Split view, below). */
 @media (min-width: 641px) {
   html:has(.editorial-workspace-shell),
@@ -149,6 +139,22 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .editorial-workspace-shell {
     --admin-main-block-size: 100dvh;
   }
+}
+
+/* Phones and tablets use the full canvas, with no outer content frame. */
+@media (max-width: 1023px) {
+  .editorial-workspace-shell #astryx-app-shell-main {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .editorial-workspace-shell .astryx-app-shell-header {
+    border: 0;
+  }
+}
+
+/* Desktop retains the inset frame beside the sidebar. */
+@media (min-width: 1024px) {
   /* Frame the inset against the sidebar and top gutter. The content reaches
      the viewport at the bottom and end without a second perimeter. */
   .editorial-workspace-shell #astryx-app-shell-main {
@@ -316,6 +322,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
       var(--spacing-2);
     padding-inline: var(--admin-gutter);
     background: var(--color-background-body);
+    border-bottom: var(--border-width) solid var(--color-border);
   }
   .admin-phone-bar button:not(#\#) {
     height: var(--spacing-11);
