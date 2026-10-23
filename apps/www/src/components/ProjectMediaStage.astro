@@ -32,9 +32,23 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
       hidden={index !== 0}
     >
       {item.kind === "video" ? (
-        <video controls playsinline preload="metadata" aria-label={item.alt}>
-          <source src={item.src} />
-        </video>
+        <>
+          <video controls playsinline preload="metadata" aria-label={item.alt}>
+            <source src={item.src} />
+          </video>
+          <button
+            type="button"
+            class="project-media__expand-video"
+            data-media-enlarge
+            data-media-kind="video"
+            data-media-src={item.src}
+            data-media-alt={item.alt}
+            data-media-caption={item.caption ?? item.alt}
+            aria-label={`enlarge video: ${item.alt}`}
+          >
+            enlarge <Icon name="ph:arrow-bend-right-up" />
+          </button>
+        </>
       ) : (
         <a
           class="project-media__enlarge"
@@ -43,6 +57,7 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
           rel="noopener noreferrer"
           data-media-enlarge
           data-media-alt={item.alt}
+          data-media-caption={item.caption ?? item.alt}
           aria-label={`enlarge image: ${item.alt}`}
         >
           {shots[index] ? (
@@ -90,18 +105,15 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
       data-media-choice={index}
       data-media-caption={item.caption ?? item.alt}
     >
-      {item.caption ?? `view ${index + 1}`}
+      {`view ${index + 1}`}
     </button>)}
   </div>}
 
-  <figcaption data-media-figcaption>
-    {items[0]?.caption ?? items[0]?.alt}
-  </figcaption>
-
-  {items.some((item) => item.kind !== "video") && <dialog
+  <dialog
     class="image-viewer"
     data-image-viewer
-    aria-label="enlarged project image"
+    aria-label="enlarged project media"
+    aria-describedby={`${stageId}-caption`}
   >
     <div class="image-viewer__toolbar">
       <button type="button" data-image-zoom aria-pressed="false">
@@ -129,9 +141,22 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
       aria-label="image, scroll to inspect at actual size"
     >
       <img data-viewer-image alt="" />
+      <video
+        data-viewer-video
+        hidden
+        controls
+        playsinline
+        preload="none"
+        aria-label="expanded video"
+        aria-describedby={`${stageId}-caption`}
+      />
     </div>
-    <p class="image-viewer__description" data-image-description />
-  </dialog>}
+    <p
+      id={`${stageId}-caption`}
+      class="image-viewer__description"
+      data-image-description
+    />
+  </dialog>
 </figure>}
 
 <script>
@@ -264,12 +289,20 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     border-color: var(--paper-accent);
   }
 
-  figcaption {
-    max-width: 65ch;
-    color: var(--paper-muted);
+  .project-media__expand-video {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--control-icon-gap);
+    min-height: 44px;
+    padding: var(--card-ui-padding);
+    margin-block-start: var(--card-content-gap);
+    border: 1px solid var(--card-ui-border);
+    border-radius: var(--card-ui-radius);
+    color: inherit;
+    background: var(--card-ui-surface);
+    font: inherit;
     font-size: var(--control-size);
-    font-weight: var(--control-weight);
-    line-height: 1.55;
+    cursor: pointer;
   }
 
   .image-viewer {
@@ -333,7 +366,7 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     max-height: 72dvh;
   }
 
-  .image-viewer__canvas img {
+  .image-viewer__canvas :is(img, video) {
     display: block;
     width: auto;
     height: auto;
@@ -341,6 +374,11 @@ const stageId = `project-media-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
     max-height: 72dvh;
     margin-inline: auto;
     object-fit: contain;
+  }
+
+  .image-viewer__canvas [hidden],
+  .image-viewer__toolbar [hidden] {
+    display: none;
   }
 
   .image-viewer[data-zoomed="true"] .image-viewer__canvas img {

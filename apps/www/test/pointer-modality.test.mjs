@@ -112,7 +112,7 @@ test("touch on a hybrid device clears restored brand hover without consuming cli
   assert.equal(attributes.has("data-hover-continuity"), true);
 });
 
-test("touch press rings are absent and keyboard outlines remain defined", () => {
+test("touch press rings are absent and quiet keyboard feedback remains defined", () => {
   for (const name of ["WorkCard", "ExperienceFeatureCard", "Nav"]) {
     const source = readFileSync(
       new URL(`../src/components/${name}.astro`, import.meta.url),
@@ -124,7 +124,13 @@ test("touch press rings are absent and keyboard outlines remain defined", () => 
     new URL("../src/styles/global.css", import.meta.url),
     "utf8",
   );
-  assert.match(css, /:focus-visible\s*\{\s*outline: 2px solid var\(--focus\)/);
+  const focus = readFileSync(
+    new URL("../src/styles/focus.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(focus, /outline: none !important/);
+  assert.match(focus, /:focus-visible/);
+  assert.match(focus, /text-decoration: underline/);
   assert.match(
     css,
     /html\[data-touch-input\] :where\(a, button, summary\):focus-visible/,
