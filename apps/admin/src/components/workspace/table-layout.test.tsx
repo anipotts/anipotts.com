@@ -146,3 +146,46 @@ describe("shared table geometry", () => {
     ).toBe("1");
   });
 });
+
+describe("narrow table information", () => {
+  it("lets shared diagnostics expand on desktop while state stays fixed", () => {
+    const rules = tableFitRules(
+      [
+        { key: "title", header: "Incident", render: () => null },
+        { key: "state", header: "State", width: 144, render: () => null },
+        {
+          key: "detail",
+          header: "Detail",
+          share: 0.6,
+          min: 0,
+          render: () => null,
+        },
+      ],
+      "diagnostics",
+    );
+    expect(rules).toMatch(
+      /data-column="detail"[^}]*width: calc\(72px \+ max\(0px, 100cqw - 376px\) \* 0.6\)/,
+    );
+    expect(rules).toMatch(/data-column="state"[^}]*width: min\(144px/);
+    expect(rules).toMatch(/data-column="detail"[^}]*display: none/);
+  });
+  it("retains the state at every generated container width, while secondary facts yield", () => {
+    const rules = tableFitRules(columns, "narrow");
+    expect(rules).not.toMatch(/data-column="state"[^}]*display: none/);
+    expect(rules).toMatch(/data-column="summary"[^}]*display: none/);
+    expect(rules).toMatch(/data-column="updated"[^}]*display: none/);
+    expect(rules).toContain("min(144px, max(0px, 100cqw - 80px))");
+  });
+  it("keeps badge anchors stable across tables instead of proportionally squeezing them", () => {
+    const rules = tableFitRules(columns, "plain");
+    const selected = tableFitRules(columns, "selected", 44);
+    expect(rules).toContain("100cqw - 144px");
+    expect(selected).toContain("100cqw - 188px");
+    expect(selected).toContain("min(144px, max(0px, 100cqw - 124px))");
+    const status = tableFitRules(
+      columns.map((c) => ({ ...c, key: c.key === "state" ? "status" : c.key })),
+      "overview",
+    );
+    expect(status).not.toMatch(/data-column="status"[^}]*display: none/);
+  });
+});

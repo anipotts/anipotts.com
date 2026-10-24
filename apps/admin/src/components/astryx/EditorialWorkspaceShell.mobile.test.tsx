@@ -120,7 +120,7 @@ describe("responsive workspace navigation", () => {
     },
   );
 
-  it.each([390, 640])(
+  it.each([390, 640, 641, 768, 930, 1023])(
     "shares appbar search, theme and unified drawer at %ipx",
     (width) => {
       Object.defineProperty(window, "innerWidth", {
@@ -180,10 +180,10 @@ describe("responsive workspace navigation", () => {
       expect(menu.getAttribute("aria-expanded")).toBe("false");
     },
   );
-  it("crosses the inclusive 640/641 boundary without remounting main or leaving a drawer open", async () => {
+  it("crosses the inclusive 1023/1024 boundary without remounting main or leaving a drawer open", async () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
-      value: 640,
+      value: 1023,
     });
     render();
     const main = host.querySelector<HTMLElement>("#astryx-app-shell-main")!;
@@ -199,7 +199,7 @@ describe("responsive workspace navigation", () => {
     act(() => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
-        value: 641,
+        value: 1024,
       });
       window.dispatchEvent(new Event("resize"));
     });
@@ -215,7 +215,7 @@ describe("responsive workspace navigation", () => {
     act(() => {
       Object.defineProperty(window, "innerWidth", {
         configurable: true,
-        value: 640,
+        value: 1023,
       });
       window.dispatchEvent(new Event("resize"));
     });
@@ -253,7 +253,7 @@ describe("responsive workspace navigation", () => {
       expect(panel).toHaveBeenCalledTimes(mainCalls);
     },
   );
-  it.each([390, 640])(
+  it.each([390, 640, 641, 768, 930, 1023])(
     "never renders the collapsed rail at %ipx, even when a rail was saved",
     (width) => {
       localStorage.setItem("admin:sidebar-collapsed", "true");
@@ -270,7 +270,7 @@ describe("responsive workspace navigation", () => {
       localStorage.removeItem("admin:sidebar-collapsed");
     },
   );
-  it.each([641, 768, 930, 1023])(
+  it.each([1024, 1100, 1279])(
     "expands the inline sidebar at %ipx without opening a modal",
     (width) => {
       Object.defineProperty(window, "innerWidth", {
@@ -378,7 +378,7 @@ describe("responsive workspace navigation", () => {
     [1024, "false", "false"],
     [1440, "true", "true"],
     [1440, null, "false"],
-    [690, null, "true"],
+    [690, null, "false"],
     [690, "false", "false"],
     [640, "true", "false"],
   ])(
