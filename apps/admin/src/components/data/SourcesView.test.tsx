@@ -459,7 +459,7 @@ describe("Sources by connector", () => {
       ["unanswered", "No answer from ap-mini"],
       ["blocked", "Blocked by this browser"],
       ["offline", "Browser offline"],
-      ["timeout", "ap-mini unreachable"],
+      ["timeout", "Mini did not respond in time"],
     ] as const) {
       const reader = async () =>
         ({

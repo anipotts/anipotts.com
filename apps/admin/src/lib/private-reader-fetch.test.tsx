@@ -1223,7 +1223,7 @@ describe("private Data workspace", () => {
     await openWorkspace(makeSession(fetcher), fetcher);
     // ap-mini answered, so it was reached: the reader's own hop.
     expect(container.textContent).toContain("Reader unavailable");
-    expect(container.textContent).not.toContain("ap-mini unreachable");
+    expect(container.textContent).not.toContain("Mini did not respond in time");
     expect(container.textContent).not.toContain("No matching records");
   });
 
@@ -1233,7 +1233,7 @@ describe("private Data workspace", () => {
     });
     await openWorkspace(makeSession(fetcher), fetcher);
     expect(container.textContent).toContain("No answer from ap-mini");
-    expect(container.textContent).not.toContain("ap-mini unreachable");
+    expect(container.textContent).not.toContain("Mini did not respond in time");
   });
 
   it("persists no private data and reads only logout generation and intent metadata", async () => {

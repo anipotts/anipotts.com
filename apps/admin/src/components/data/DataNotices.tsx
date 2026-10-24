@@ -146,8 +146,8 @@ export function DataSessionControl({ session }: { session: DataSession }) {
 }
 
 /** A failed read's title: fixed copy that never repeats reader text. An
- * unavailable read names the hop that failed (lib/reader-reach.ts); only a
- * request that went out and got no reply says ap-mini is unreachable. */
+ * unavailable read names the hop that failed (lib/reader-reach.ts),
+ * distinguishing a missed deadline from an offline browser or reader error. */
 export function readNoticeTitle(
   result: Exclude<DataResult, { state: "ready" }>,
 ): string {

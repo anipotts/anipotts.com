@@ -34,11 +34,11 @@ describe("a failed Data read", () => {
     expect(retry(notice({ state: "invalid", message: "" }))).toBe(true);
   });
 
-  it("names the hop that failed, and ap-mini only when unreachable (A-26)", () => {
+  it("distinguishes a timeout from browser and reader failures (A-26)", () => {
     const title = (hop?: Failed["hop"]) =>
       notice({ state: "unavailable", message: "", ...(hop ? { hop } : {}) })
         .textContent;
-    expect(title("timeout")).toContain("ap-mini unreachable");
+    expect(title("timeout")).toContain("Mini did not respond in time");
     expect(title("unanswered")).toContain("No answer from ap-mini");
     expect(title("blocked")).toContain("Blocked by this browser");
     expect(title("offline")).toContain("Browser offline");
