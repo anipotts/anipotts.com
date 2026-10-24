@@ -1,18 +1,18 @@
 ---
 title: range media partners
 subtitle: artist research for the A&R team
-description: Client A&R work for Range Media Partners, supporting artist research and monitoring.
-year: current
+description: Past client A&R work for Range Media Partners, supporting artist research and monitoring.
+year: ""
 category: music
 role: A&R Client Work
-duration: Client work
+duration: ""
 status: wip
 kind: experience
 public_state: featured
 homepage_placement: none
-catalog_group: active
+catalog_group: past
 homepage_order: 70
-card_copy: researching artists and following their growth for the A&R team
+card_copy: artist research and monitoring for the A&R team
 detail_path: /work/range-media-partners
 identity:
   icon: waveform
@@ -20,4 +20,4 @@ sort_order: 70
 tags: [A&R, Research, Music]
 ---
 
-Client A&R research and artist monitoring for Range Media Partners.
+I worked on client A&R research and artist monitoring for Range Media Partners.

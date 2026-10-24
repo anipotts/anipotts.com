@@ -1,11 +1,11 @@
 ---
 title: paragon global investments
 subtitle: one place for the fund's research, resources, and members
-description: Built a Next.js and TypeScript research portal backed by Supabase for Paragon Global Investments, NYU's quant fund. Organized internal research so members could read and share fund material from mobile.
-year: "2025"
+description: Built a Next.js and Supabase member portal for Paragon, an intercollegiate student investment organization with an NYU chapter, and helped successor maintainers take it over.
+year: "Ended March 2026"
 category: quant
-role: Chief Tech Officer
-duration: "2025–present"
+role: CTO / Lead Engineer
+duration: "Ended March 2026"
 status: live
 kind: experience
 public_state: featured

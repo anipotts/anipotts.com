@@ -1,12 +1,17 @@
 ---
+import { workStatusLabel } from "../lib/work-status";
 interface Props {
   status: string;
   year: string;
   role?: string;
   inline?: boolean;
+  kind?: "experience" | "project";
+  catalogGroup?: "active" | "past" | "taken_down";
 }
-const { status, year, role, inline = false } = Astro.props;
-const label = status === "wip" ? "in progress" : status;
+const { status, year, role, inline = false, kind, catalogGroup } = Astro.props;
+const label = workStatusLabel({ kind, status, catalogGroup });
+const showStatus =
+  Boolean(label) && (!inline || kind === "experience" || status !== "live");
 const timeframe = year
   .trim()
   .replace(/\s*[-–—]\s*$/u, " – present")
@@ -16,16 +21,17 @@ const timeframe = year
 <span
   class:list={["project-meta-group", { "project-meta-group--inline": inline }]}
 >
-  <span class="project-meta-ui">
-    {(!inline || status !== "live") && <span class="status">
+  {(showStatus || timeframe) && <span class="project-meta-ui">
+    {showStatus && <span class="status">
       <span class="sr-only">Status: </span>
       {label}
       <span class="sr-only">.</span>
     </span>}
-    <span class="timeframe"
-      ><span class="sr-only">Timeframe: </span>{timeframe}</span
-    >
-  </span>
+    {timeframe && <span class="timeframe">
+      <span class="sr-only">Timeframe: </span>
+      {timeframe}
+    </span>}
+  </span>}
   {role && <span class="role">{role}</span>}
 </span>
 <style>
@@ -37,6 +43,7 @@ const timeframe = year
   }
   .project-meta-ui {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--control-group-gap);
     width: fit-content;
@@ -61,11 +68,11 @@ const timeframe = year
     align-items: center;
     gap: var(--control-icon-gap);
     font-weight: var(--status-weight);
-    white-space: nowrap;
+    white-space: normal;
   }
   .timeframe {
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
+    white-space: normal;
   }
   .role {
     font-size: var(--control-size);
