@@ -30,7 +30,6 @@ sections:
     view_all: /writing
     writing_slugs:
       - saturdays-are-for-claude-code
-      - i-built-a-monitor-for-my-claude-code-sessions
       - stop-ending-your-day-with-fix-the-bug
 section_order:
   - intro

@@ -2,9 +2,8 @@
    main region, the phone top bar and page chips, the wordmark and server-rendered
    prose. The sidebar and rail live in components/astryx/WorkspaceHeader.css,
    tables and lists in components/workspace/workspace.css, writing surfaces in
-   editor.css. Widths follow lib/breakpoints.ts: compact is 640px and below,
-   where there is no sidebar and the document scrolls; the sidebar starts at
-   641px. Media conditions cannot read custom properties, so the edge is
+   editor.css. Navigation uses the desktop boundary from lib/breakpoints.ts:
+   below 1024px there is no sidebar and the document scrolls. Media conditions cannot read custom properties, so the edge is
    written out. */
 
 /* One canvas: html, body, main and the phone top bar are the body colour,
@@ -36,20 +35,11 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   background: var(--color-workspace-sidebar, var(--color-background-body));
 }
 .editorial-workspace-shell #astryx-app-shell-main {
-  --admin-panel-border: color-mix(
-    in srgb,
-    var(--color-text-primary) 15%,
-    transparent
-  );
   box-sizing: border-box;
   min-height: 0;
   padding-inline: var(--admin-gutter);
   overscroll-behavior: contain;
   background: var(--color-background-body);
-  /* This outer panel inherits the fine edge of the public card action.
-     Interior rows and sections continue to separate with spacing. */
-  border-top: 1px solid var(--admin-panel-border);
-  border-inline-start: 1px solid var(--admin-panel-border);
   transition:
     margin-block-start var(--duration-fast) ease-out,
     border-start-start-radius var(--duration-fast) ease-out;
@@ -115,7 +105,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 }
 /* On a phone an issue's prose sits on the canvas: no card, border or inset
    narrowing the column. */
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
   .editorial-review-card:not(#\#) {
     padding: 0;
     border: 0;
@@ -134,13 +124,12 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   white-space: nowrap;
 }
 
-/* From 641px the sidebar and main are fixed panels that each scroll on
+/* From 1024px the sidebar and main are fixed panels that each scroll on
    their own (the sidebar's list in WorkspaceHeader.css), so the document
-   stays still and neither chains its scroll into the other. Beside the full
-   sidebar, main is a panel with one rounded corner under a strip of the
-   sidebar colour. --admin-main-block-size is main's height, for panels
+   stays still and neither chains its scroll into the other.
+   --admin-main-block-size is main's height, for panels
    that stick inside it (Split view, below). */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   html:has(.editorial-workspace-shell),
   body:has(.editorial-workspace-shell) {
     overflow: hidden;
@@ -149,6 +138,22 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   .editorial-workspace-shell {
     --admin-main-block-size: 100dvh;
   }
+}
+
+/* Phones and tablets use the full canvas, with no outer content frame. */
+@media (max-width: 1023px) {
+  .editorial-workspace-shell #astryx-app-shell-main {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .editorial-workspace-shell .astryx-app-shell-header {
+    border: 0;
+  }
+}
+
+/* Desktop retains the inset frame beside the sidebar. */
+@media (min-width: 1024px) {
   /* Frame the inset against the sidebar and top gutter. The content reaches
      the viewport at the bottom and end without a second perimeter. */
   .editorial-workspace-shell #astryx-app-shell-main {
@@ -215,7 +220,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
   }
   .admin-split-grid[data-panel-open="true"] > .admin-split-panel {
     position: sticky;
-    inset-block-start: var(--spacing-5);
+    inset-block-start: calc(var(--admin-appbar-height, 0px) + var(--spacing-5));
     /* SplitView measures the room below the panel's own top as main
        scrolls; before it does, main's height less the insets. */
     max-block-size: var(
@@ -258,7 +263,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
    the status bar returns to the top. AppShell's fill heights resolve to auto
    under an auto-height root. The top bar sticks under the status bar on the
    canvas, and the bottom safe area is content padding, never a painted bar. */
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
   .editorial-workspace-shell {
     --admin-gutter: var(--spacing-3);
     height: auto;
@@ -294,7 +299,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 .admin-phone-bar {
   display: none;
 }
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
   :root {
     --admin-appbar-height: var(
       --admin-phone-appbar-height,
@@ -316,6 +321,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
       var(--spacing-2);
     padding-inline: var(--admin-gutter);
     background: var(--color-background-body);
+    border-bottom: var(--border-width) solid var(--color-border);
   }
   .admin-phone-bar button:not(#\#) {
     height: var(--spacing-11);
@@ -334,7 +340,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
     padding-inline: var(--spacing-2);
   }
 }
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-shell .astryx-app-shell-header:has(.admin-phone-bar) {
     display: none;
   }
@@ -453,7 +459,7 @@ body [data-astryx-theme]:not([data-astryx-media]) {
 }
 
 /* On phones the navigation sheet continues the document and safe area. */
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
   .admin-navigation-drawer > div:not(#\#),
   .admin-navigation-drawer > div > div:first-child,
   .admin-navigation-drawer .admin-drawer-nav:not(#\#) {

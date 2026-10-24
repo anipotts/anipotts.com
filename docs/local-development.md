@@ -178,7 +178,7 @@ How the session is bounded:
   accept writes. Route handlers keep their own checks: editorial writes still
   need their CSRF token.
 - A `Local owner` laptop tile beside the sidebar wordmark marks every
-  Content, Data and Observability screen from 641px, in both themes. The
+  Content, Data and Observability screen from 1024px, in both themes. The
   one-row phone top bar holds no device tile.
 - Release builds compile the path out. Deploy jobs fail when the flag is set,
   and the Admin deploy scans its exact bundle with

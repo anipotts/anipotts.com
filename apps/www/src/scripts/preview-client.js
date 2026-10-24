@@ -4,7 +4,6 @@ export function mountProjectMedia() {
     stage.dataset.mounted = "true";
     const panels = [...stage.querySelectorAll("[data-media-panel]")];
     const choices = [...stage.querySelectorAll("[data-media-choice]")];
-    const caption = stage.querySelector("[data-media-figcaption]");
     choices.forEach((choice, index) => {
       choice.addEventListener("click", () => {
         panels.forEach((panel, panelIndex) => {
@@ -14,11 +13,11 @@ export function mountProjectMedia() {
         choices.forEach((candidate, choiceIndex) => {
           candidate.setAttribute("aria-pressed", String(choiceIndex === index));
         });
-        if (caption) caption.textContent = choice.dataset.mediaCaption ?? "";
       });
     });
     const dialog = stage.querySelector("[data-image-viewer]");
     const image = dialog?.querySelector("[data-viewer-image]");
+    const video = dialog?.querySelector("[data-viewer-video]");
     const zoom = dialog?.querySelector("[data-image-zoom]");
     const original = dialog?.querySelector("[data-image-original]");
     const description = dialog?.querySelector("[data-image-description]");
@@ -30,16 +29,30 @@ export function mountProjectMedia() {
           return;
         if (typeof dialog.showModal !== "function") return;
         event.preventDefault();
-        image.src = link.href;
+        const isVideo = link.dataset.mediaKind === "video";
+        const src = link.dataset.mediaSrc ?? link.href;
+        image.hidden = isVideo;
+        if (video) {
+          video.pause();
+          video.hidden = !isVideo;
+          if (isVideo) {
+            video.src = src;
+            link.closest("[data-media-panel]")?.querySelector("video")?.pause();
+          }
+        }
+        if (!isVideo) image.src = src;
         image.alt = link.dataset.mediaAlt ?? "";
-        original.href = link.href;
-        if (description) description.textContent = image.alt;
+        zoom.hidden = isVideo;
+        original.href = src;
+        if (description)
+          description.textContent = link.dataset.mediaCaption ?? image.alt;
         dialog.dataset.zoomed = "false";
         zoom.setAttribute("aria-pressed", "false");
         dialog.showModal();
         canvas.scrollTo(0, 0);
       });
     });
+    dialog.addEventListener("close", () => video?.pause());
     zoom.addEventListener("click", () => {
       const zoomed = dialog.dataset.zoomed !== "true";
       dialog.dataset.zoomed = String(zoomed);

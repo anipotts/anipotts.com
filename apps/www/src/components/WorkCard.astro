@@ -86,7 +86,13 @@ const shotSizes = "(max-width: 52rem) 100vw, 26rem";
       <span class="card-title-group">
         <span class="work-card__name">{displayTitle}</span>
         {variant === "project" && (
-          <ProjectMeta status={d.status} year={d.year} inline />
+          <ProjectMeta
+            status={d.status}
+            year={d.year}
+            kind={d.kind}
+            catalogGroup={d.catalog_group}
+            inline
+          />
         )}
       </span>
       <CardAction

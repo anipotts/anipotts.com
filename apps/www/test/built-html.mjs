@@ -69,6 +69,15 @@ function markup(html) {
   return out;
 }
 
+/** Assertion text only: skip raw-text bodies and collect text between tags. */
+export function readableText(html) {
+  return [...markup(html).matchAll(/(?:^|>)([^<]*)/g)]
+    .map(([, text]) => decode(text))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function startTags(html) {
   const tag =
     /<([a-zA-Z][\w:-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*\/?>/g;

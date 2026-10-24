@@ -73,6 +73,57 @@ test("a published project is discoverable from work", async ({
   ).toBeVisible();
 });
 
+test("current portfolio content distinguishes experience from retired projects", async ({
+  app,
+  screen,
+  browser,
+}) => {
+  await app.open("/work");
+  await screen.getByRole("link", { name: /claudemon/i }).click();
+  await expect(browser).toHaveURL("/work/claudemon");
+  await expect(
+    screen.getByRole("heading", { name: "claudemon", level: 1 }),
+  ).toBeVisible();
+  expect(await browser.evaluate(() => document.body.textContent)).toContain(
+    "public JSON API",
+  );
+
+  await screen
+    .getByRole("main")
+    .getByRole("link", { name: "work", exact: true })
+    .click();
+  await screen.getByRole("link", { name: /structured ai/i }).click();
+  await expect(browser).toHaveURL("/work/structured-ai");
+  await expect(
+    screen.getByRole("heading", { name: "structured ai", level: 1 }),
+  ).toBeVisible();
+  expect(
+    await browser.evaluate(
+      () => document.querySelector(".project-head .role")?.textContent,
+    ),
+  ).toBe("Full Stack Product Engineer");
+  expect(
+    await browser.evaluate(
+      () => document.querySelector(".project-head .status")?.textContent,
+    ),
+  ).toContain("past experience");
+  expect(
+    await browser.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await browser.evaluate(async () => {
+      const response = await fetch(
+        "/writing/i-built-a-monitor-for-my-claude-code-sessions",
+      );
+      return response.status;
+    }),
+  ).toBe(404);
+});
+
 test("the narrow-screen menu opens, navigates, and closes", async ({
   app,
   screen,
