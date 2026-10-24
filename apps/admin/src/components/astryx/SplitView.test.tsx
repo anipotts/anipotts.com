@@ -101,6 +101,9 @@ describe("SplitView", () => {
       wide,
     );
     expect(panel).toContain("position: sticky");
+    expect(panel).toContain(
+      "inset-block-start: calc(var(--admin-appbar-height, 0px) + var(--spacing-5))",
+    );
     expect(panel).toContain("overflow-y: auto");
     expect(panel).toContain("overscroll-behavior: contain");
     // The room below the panel's own top (measured), else main's height.
@@ -124,5 +127,75 @@ describe("SplitView", () => {
     expect(flat).toMatch(
       /\.editorial-workspace-shell\[data-sidebar-collapsed="false"\] \{ --admin-main-block-size: calc\(100dvh - var\(--spacing-3\)\);/,
     );
+  });
+
+  it("refits against the document below desktop and main after resizing, and disposes scroll listeners", () => {
+    vi.stubGlobal("innerWidth", 1023);
+    vi.stubGlobal("innerHeight", 800);
+    let panelTop = 300;
+    const scheduled: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      scheduled.push(callback);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal("getComputedStyle", () => ({
+      insetBlockStart: window.innerWidth <= 1023 ? "76px" : "20px",
+      rowGap: "20px",
+    }));
+    const rect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        return {
+          width: 1000,
+          top: this.tagName === "SECTION" ? panelTop : -200,
+          bottom: this.id === "astryx-app-shell-main" ? 700 : 1800,
+        } as DOMRect;
+      });
+    const main = document.createElement("main");
+    main.id = "astryx-app-shell-main";
+    document.body.append(main);
+    const root = createRoot(main);
+    act(() =>
+      root.render(
+        <SplitView list={<p>List</p>} panel={<SplitPanel>Body</SplitPanel>} />,
+      ),
+    );
+    const panel = main.querySelector<HTMLElement>(".admin-split-panel")!;
+    expect(panel.style.getPropertyValue("--admin-split-panel-room")).toBe(
+      "480px",
+    );
+    panelTop = 76;
+    window.dispatchEvent(new Event("scroll"));
+    scheduled.shift()!(0);
+    expect(panel.style.getPropertyValue("--admin-split-panel-room")).toBe(
+      "704px",
+    );
+    vi.stubGlobal("innerWidth", 1440);
+    panelTop = 20;
+    window.dispatchEvent(new Event("resize"));
+    scheduled.shift()!(0);
+    expect(panel.style.getPropertyValue("--admin-split-panel-room")).toBe(
+      "660px",
+    );
+    panelTop = 100;
+    main.dispatchEvent(new Event("scroll"));
+    scheduled.shift()!(0);
+    expect(panel.style.getPropertyValue("--admin-split-panel-room")).toBe(
+      "580px",
+    );
+    act(() => root.unmount());
+    window.dispatchEvent(new Event("scroll"));
+    main.dispatchEvent(new Event("scroll"));
+    expect(scheduled).toHaveLength(0);
+    main.remove();
+    rect.mockRestore();
   });
 });

@@ -344,3 +344,29 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The same state anchor across records, services and overview sections. */
+.admin-data-table
+  :is([data-column="state"], [data-column="status"])
+  .admin-table-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-9);
+}
+@media (max-width: 1023px) {
+  .admin-data-table[data-responsive="fit"] .workspace-row-link,
+  .admin-data-table[data-responsive="fit"] .workspace-row-text {
+    white-space: normal;
+  }
+  .admin-data-table[data-responsive="fit"] .workspace-row-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+  }
+  .admin-data-table[data-responsive="fit"] .workspace-row-title * {
+    white-space: normal;
+  }
+}

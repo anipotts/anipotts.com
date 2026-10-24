@@ -91,7 +91,7 @@ it("writes shared phone chrome and the unified drawer into server HTML", () => {
   expect(bar.querySelector('[aria-label="Search"]')).not.toBeNull();
   expect(bar.querySelector('[aria-label="Light theme"]')).not.toBeNull();
   expect(bar.querySelector(".admin-phone-identity")?.textContent).toBe(
-    "Content",
+    "[admin]",
   );
   expect(host.querySelector(".admin-phone-pages")).toBeNull();
   expect(host.querySelector("dialog.admin-navigation-drawer")).not.toBeNull();
@@ -143,7 +143,7 @@ it("keeps tooltips whole and beside the rail", () => {
 it("uses 44px touch targets with 4px rail insets only on coarse tablets", () => {
   const css = readFileSync(HEADER_CSS, "utf8");
   const start = css.lastIndexOf(
-    "@media (min-width: 641px) and (pointer: coarse)",
+    "@media (min-width: 1024px) and (pointer: coarse)",
   );
   expect(start).toBeGreaterThanOrEqual(0);
   // Inspect this complete media block, not unrelated rules later in the file.
