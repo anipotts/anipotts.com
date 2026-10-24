@@ -9,6 +9,57 @@ const ADMIN_WRITE_PROBES = ["/api/editorial/save", "/api/editorial/publish"];
 
 const ADMIN_PUBLIC_AUTH_ROUTES = ["/auth"];
 
+const PUBLIC_PAGE_ROUTES = PUBLIC_SMOKE_ROUTES.filter(
+  (path) => !/^\/(?:work|writing)\//u.test(path),
+);
+
+/** Parse the sitemap format emitted by www. Git defaults are build fixtures;
+ * the live CMS decides which detail routes exist, including CMS-only records. */
+export function publishedSmokeRoutes(xml, baseUrl) {
+  if (typeof xml !== "string" || xml.length > 2 * 1024 * 1024)
+    throw new Error("invalid published sitemap size");
+  const body = xml
+    .trim()
+    .match(
+      /^<\?xml version="1\.0" encoding="UTF-8"\?>\s*<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">([\s\S]*)<\/urlset>$/u,
+    )?.[1];
+  if (body === undefined) throw new Error("invalid published sitemap envelope");
+  const record =
+    /<url>\s*<loc>([^<]+)<\/loc>(?:\s*<lastmod>[^<]+<\/lastmod>)?\s*<priority>(?:0(?:\.\d+)?|1(?:\.0+)?)<\/priority>\s*<\/url>/gu;
+  const origin = new URL(baseUrl).origin;
+  const paths = new Set();
+  let end = 0;
+  for (const match of body.matchAll(record)) {
+    if (body.slice(end, match.index).trim())
+      throw new Error("invalid published sitemap record");
+    end = match.index + match[0].length;
+    const source = match[1];
+    const url = new URL(source);
+    const path = url.pathname;
+    if (
+      url.origin !== origin ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      (source !== url.href && !(path === "/" && source === origin)) ||
+      !(
+        PUBLIC_PAGE_ROUTES.includes(path) ||
+        /^\/(?:work|writing)\/[A-Za-z0-9_-][A-Za-z0-9._-]*$/u.test(path)
+      )
+    )
+      throw new Error("unsafe published sitemap URL");
+    if (paths.has(path) || paths.size >= 5000)
+      throw new Error("invalid published sitemap inventory");
+    paths.add(path);
+  }
+  if (body.slice(end).trim())
+    throw new Error("invalid published sitemap record");
+  for (const path of ["/", "/work", "/writing", "/systems", "/business"])
+    if (!paths.has(path)) throw new Error(`published sitemap missing ${path}`);
+  return [...new Set([...PUBLIC_PAGE_ROUTES, ...paths])];
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -196,13 +247,29 @@ export async function smokeRelease(options) {
   const checks = [];
 
   if (target === "www") {
-    for (const path of PUBLIC_SMOKE_ROUTES) {
+    const sitemap = await requestWithRetry(
+      `${baseUrl}/sitemap.xml`,
+      {},
+      {
+        attempts: 6,
+        delayMs: retryDelayMs,
+        fetchImpl,
+        accept: (candidate) => candidate.status === 200,
+      },
+    );
+    const paths = publishedSmokeRoutes(await sitemap.text(), baseUrl);
+    checks.push({
+      path: "/sitemap.xml",
+      status: sitemap.status,
+      published_inventory: true,
+    });
+    for (const path of [...paths, "/feed.xml", "/search-index.json"]) {
       const response = await requestWithRetry(
         `${baseUrl}${path}`,
         {},
         {
           attempts: 6,
-          delayMs: 10_000,
+          delayMs: retryDelayMs,
           fetchImpl,
           accept: (candidate) => candidate.status === 200,
         },
