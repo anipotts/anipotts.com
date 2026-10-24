@@ -275,6 +275,15 @@ function checkAsset(id, value, type) {
  * Hashes establish internal integrity, not authenticity, capture atomicity,
  * external custody, encryption or actual inventory completeness. */
 export function validateRecoverySnapshot(snapshot) {
+  return validateRecoveryGraph(snapshot);
+}
+
+/** Exact control/graph checks with separately verified media identities. No
+ * binary placeholders or synthetic image objects are accepted by this path. */
+export function validateRecoveryControl(snapshot, objects) {
+  return validateRecoveryGraph(snapshot, objects);
+}
+function validateRecoveryGraph(snapshot, objects) {
   if (Buffer.byteLength(canonical(snapshot)) > RECOVERY_LIMITS.bytes)
     fail("byte_limit");
   shape(snapshot, [
@@ -283,7 +292,7 @@ export function validateRecoverySnapshot(snapshot) {
     "contentSchemaVersion",
     "editorial",
     "content",
-    "publicMedia",
+    ...(objects === undefined ? ["publicMedia"] : []),
   ]);
   if (
     snapshot.schema !== RECOVERY_SCHEMA ||
@@ -342,68 +351,112 @@ export function validateRecoverySnapshot(snapshot) {
     publishedMedia = new Map(),
     relations = [];
   const kv = unique(array(snapshot.editorial.kv), (entry) => entry.key);
-  count += kv.size + array(snapshot.publicMedia).length;
-  if (count > RECOVERY_LIMITS.entries) fail("entry_limit");
-  for (const entry of kv.values()) {
-    shape(entry, ["key", "encoding", "value"]);
-    if (typeof entry.key !== "string") fail("kv_key");
-    if (/^media:[a-f0-9]{64}\.(?:jpg|png|webp)$/u.test(entry.key)) {
-      if (entry.encoding !== "json") fail("kv_schema");
-      const metadata = entry.value;
-      shape(metadata, ["id", "type", "size"]);
-      if (
-        metadata.id !== entry.key.slice(6) ||
-        !Number.isSafeInteger(metadata.size) ||
-        metadata.size < 1 ||
-        metadata.size > RECOVERY_LIMITS.mediaBytes
-      )
-        fail("media_metadata");
-      const chunks = [];
-      for (
-        let offset = 0;
-        offset < metadata.size;
-        offset += RECOVERY_LIMITS.chunkBytes
-      ) {
-        const chunk = ref(
-          kv,
-          `${entry.key}:${offset / RECOVERY_LIMITS.chunkBytes}`,
-        );
-        shape(chunk, ["key", "encoding", "value"]);
-        if (chunk.encoding !== "base64") fail("kv_schema");
-        const value = bytes(chunk.value);
+  if (objects === undefined) {
+    count += kv.size + array(snapshot.publicMedia).length;
+    if (count > RECOVERY_LIMITS.entries) fail("entry_limit");
+    for (const entry of kv.values()) {
+      shape(entry, ["key", "encoding", "value"]);
+      if (typeof entry.key !== "string") fail("kv_key");
+      if (/^media:[a-f0-9]{64}\.(?:jpg|png|webp)$/u.test(entry.key)) {
+        if (entry.encoding !== "json") fail("kv_schema");
+        const metadata = entry.value;
+        shape(metadata, ["id", "type", "size"]);
         if (
-          value.length !==
-          Math.min(RECOVERY_LIMITS.chunkBytes, metadata.size - offset)
+          metadata.id !== entry.key.slice(6) ||
+          !Number.isSafeInteger(metadata.size) ||
+          metadata.size < 1 ||
+          metadata.size > RECOVERY_LIMITS.mediaBytes
+        )
+          fail("media_metadata");
+        const chunks = [];
+        for (
+          let offset = 0;
+          offset < metadata.size;
+          offset += RECOVERY_LIMITS.chunkBytes
+        ) {
+          const chunk = ref(
+            kv,
+            `${entry.key}:${offset / RECOVERY_LIMITS.chunkBytes}`,
+          );
+          shape(chunk, ["key", "encoding", "value"]);
+          if (chunk.encoding !== "base64") fail("kv_schema");
+          const value = bytes(chunk.value);
+          if (
+            value.length !==
+            Math.min(RECOVERY_LIMITS.chunkBytes, metadata.size - offset)
+          )
+            fail("media_chunk");
+          chunks.push(value);
+        }
+        const value = Buffer.concat(chunks);
+        checkAsset(metadata.id, value, metadata.type);
+        privateMedia.set(metadata.id, value);
+      } else if (
+        /^media:[a-f0-9]{64}\.(?:jpg|png|webp):\d+$/u.test(entry.key)
+      ) {
+        const parent = entry.key.slice(0, entry.key.lastIndexOf(":"));
+        const metadata = ref(kv, parent).value;
+        const index = Number(entry.key.slice(entry.key.lastIndexOf(":") + 1));
+        if (
+          !Number.isSafeInteger(index) ||
+          entry.key !== `${parent}:${index}` ||
+          index >= Math.ceil(metadata.size / RECOVERY_LIMITS.chunkBytes)
         )
           fail("media_chunk");
-        chunks.push(value);
+      } else if (entry.key.startsWith("media-relation:")) {
+        relations.push(entry);
+      } else {
+        // Future relation/configuration keys cannot be silently dropped.
+        fail("unsupported_kv_schema");
       }
-      const value = Buffer.concat(chunks);
-      checkAsset(metadata.id, value, metadata.type);
-      privateMedia.set(metadata.id, value);
-    } else if (/^media:[a-f0-9]{64}\.(?:jpg|png|webp):\d+$/u.test(entry.key)) {
-      const parent = entry.key.slice(0, entry.key.lastIndexOf(":"));
-      const metadata = ref(kv, parent).value;
-      const index = Number(entry.key.slice(entry.key.lastIndexOf(":") + 1));
-      if (
-        !Number.isSafeInteger(index) ||
-        entry.key !== `${parent}:${index}` ||
-        index >= Math.ceil(metadata.size / RECOVERY_LIMITS.chunkBytes)
-      )
-        fail("media_chunk");
-    } else if (entry.key.startsWith("media-relation:")) {
-      relations.push(entry);
-    } else {
-      // Future relation/configuration keys cannot be silently dropped.
-      fail("unsupported_kv_schema");
     }
-  }
-  for (const object of snapshot.publicMedia) {
-    shape(object, ["key", "type", "base64"]);
-    if (publishedMedia.has(object.key)) fail("duplicate");
-    const value = bytes(object.base64);
-    checkAsset(object.key, value, object.type);
-    publishedMedia.set(object.key, value);
+    for (const object of snapshot.publicMedia) {
+      shape(object, ["key", "type", "base64"]);
+      if (publishedMedia.has(object.key)) fail("duplicate");
+      const value = bytes(object.base64);
+      checkAsset(object.key, value, object.type);
+      publishedMedia.set(object.key, value);
+    }
+  } else {
+    count +=
+      kv.size +
+      array(objects).filter((object) => object.plane === "public").length;
+    if (count > 5000) fail("entry_limit");
+    for (const object of objects) {
+      if (
+        !mediaId.test(object.id) ||
+        types[object.id.split(".")[1]] !== object.type ||
+        !Number.isSafeInteger(object.size) ||
+        object.size < 1 ||
+        object.size > RECOVERY_LIMITS.mediaBytes
+      )
+        fail("media_metadata");
+      const map =
+        object.plane === "private"
+          ? privateMedia
+          : object.plane === "public"
+            ? publishedMedia
+            : null;
+      if (!map || map.has(object.id)) fail("duplicate");
+      map.set(object.id, object);
+    }
+    for (const entry of kv.values()) {
+      shape(entry, ["key", "encoding", "value"]);
+      if (typeof entry.key !== "string" || entry.encoding !== "json")
+        fail("kv_schema");
+      if (/^media:[a-f0-9]{64}\.(?:jpg|png|webp)$/u.test(entry.key)) {
+        shape(entry.value, ["id", "type", "size"]);
+        const object = ref(privateMedia, entry.key.slice(6));
+        if (
+          entry.value.id !== object.id ||
+          entry.value.type !== object.type ||
+          entry.value.size !== object.size
+        )
+          fail("media_metadata");
+      } else if (entry.key.startsWith("media-relation:")) relations.push(entry);
+      else fail("unsupported_kv_schema");
+    }
+    for (const object of privateMedia.values()) ref(kv, `media:${object.id}`);
   }
   const privateReferences = new Set(),
     publicReferences = new Set();
@@ -686,7 +739,6 @@ export function validateRecoverySnapshot(snapshot) {
         row.leaseUntil,
         row.retryStartedAt,
       ].every((n) => n >= 0) ||
-      row.version < 1 ||
       ![0, 1].includes(row.superseded) ||
       [row.inventoryVersion, row.activatedAt, row.verifiedAt].some(
         (n) => n !== null && n < 0,

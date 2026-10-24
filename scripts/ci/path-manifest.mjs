@@ -406,6 +406,11 @@ export const PATH_RULES = Object.freeze(
       "target.admin-build-scripts",
       {
         exact: [
+          "scripts/admin/editorial-recovery-capture.mjs",
+          "scripts/admin/editorial-recovery.mjs",
+          "scripts/admin/recovery-capture-v3.mjs",
+          "scripts/admin/recovery-media-container.mjs",
+          "scripts/admin/recovery-media-encryption.mjs",
           "scripts/admin/preview-public-assets.mjs",
           "scripts/ci/admin-route-inventory.mjs",
           "scripts/dev/admin-local-owner-host.mjs",

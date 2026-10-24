@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "name": "isolated-editorial-recovery-test",
+  "main": "./recovery-worker.ts",
+  "compatibility_date": "2026-09-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "RECOVERY_APPLICATION_REVISION": "0517843d68a1ed47e6e76c8bcff34e9923a945ef",
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "RECOVERY_SOURCE", "class_name": "CaptureFixture" },
+      {
+        "name": "RECOVERY_LEGACY_SOURCE",
+        "class_name": "LegacyCaptureFixture",
+      },
+      { "name": "RECOVERY_TARGET", "class_name": "SuspendedRecoveryTarget" },
+      {
+        "name": "RECOVERY_INTERRUPTED_TARGET",
+        "class_name": "InterruptedRecoveryTarget",
+      },
+    ],
+  },
+  "d1_databases": [
+    {
+      "binding": "RECOVERY_SOURCE_DB",
+      "database_name": "synthetic-recovery-source",
+      "database_id": "00000000-0000-0000-0000-000000000002",
+    },
+    {
+      "binding": "RECOVERY_CONTENT_DB",
+      "database_name": "synthetic-recovery-target",
+      "database_id": "00000000-0000-0000-0000-000000000003",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECOVERY_ARTIFACTS",
+      "bucket_name": "synthetic-recovery-encrypted-artifacts",
+    },
+    {
+      "binding": "RECOVERY_SOURCE_MEDIA",
+      "bucket_name": "synthetic-recovery-source-media",
+    },
+    {
+      "binding": "RECOVERY_CONTENT_MEDIA",
+      "bucket_name": "synthetic-recovery-target-media",
+    },
+  ],
+  "migrations": [
+    {
+      "tag": "synthetic-recovery-v1",
+      "new_sqlite_classes": [
+        "CaptureFixture",
+        "LegacyCaptureFixture",
+        "SuspendedRecoveryTarget",
+        "InterruptedRecoveryTarget",
+      ],
+    },
+  ],
+}

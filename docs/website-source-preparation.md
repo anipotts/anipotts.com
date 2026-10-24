@@ -1,5 +1,112 @@
 # Website source preparation
 
+## October 22 recovery publication-wake and fresh-intent repairs
+
+Recovery source `d25e9bc1762f011c104325f7c89c51181872b9c1` adds two separately
+reviewed repairs to hosted-full-qualified cache checkpoint `38078286`
+([CI39734581817](https://github.com/anipotts/anipotts.com/actions/runs/39734581817)).
+Alarm repair `4a6f12eb` preserves a future durable wake while the source is fenced,
+without admitting a writer or publication. The synchronous open-path check has
+no await before writer admission; a failed alarm persistence still propagates
+for native retry. The old-runtime native control fails with
+`recovery_write_fenced` after a successful capture of a real accepted intent.
+The repaired case passes eight actual alarm deliveries, eviction, unchanged
+intent rows and published inventory, fenced saves, exact source completion and
+actual local preparation resumption. No network request occurs.
+
+The separate fresh-intent repair accepts the publisher's actual initial
+version zero. All numeric safe-integer and nonnegative checks, source hashes,
+history and publication references remain enforced. The old validator rejects
+this real state with `offline_recovery_intent`; the repaired offline roundtrip
+preserves zero exactly and rejects negative, fractional and string versions.
+Actual local workerd capture and suspended restore preserve a fresh accepted
+intent at zero, with no target alarm and fenced target writes. Exact completion
+lets only the source advance preparation; the restored target remains unchanged.
+
+Fresh affected checks pass for this exact runtime: 130 recovery Node cases,
+29 actual local recovery workerd/R2 cases, 64 ordinary direct-publication/draft
+workerd cases, strict generated editorial typing and the actual Admin production
+build (four Turbo tasks, three unchanged dependency cache hits). Both workerd
+configs use `remoteBindings: false`. The build retains its existing Shiki CSP,
+missing optional icon-directory and chunk-size warnings. Independent immutable
+source review is clear. Native commit hooks, formatting and diff checks pass.
+Detailed synthetic controls and qualification receipts remain in the existing
+cleanup receipt directory under `held-foundations`.
+
+The final protected head still needs fresh required hosted CI. This source work
+does not enroll a recovery cohort, apply remote migration0003, change bindings
+or custody, capture private records, activate restore, or qualify real Images
+EXIF/trim ordering. Media #540 is already released at `d539e382` through successful
+Admin-only deploy39733075733; its release proof and Footer #554 remain preserved.
+
+## October 22 recovery build-cache input repair
+
+The Admin build now hashes `$TURBO_ROOT$/scripts/admin/**`, matching its test
+and editorial typecheck boundaries. Runtime imports of the recovery helpers
+previously selected an Admin release but could reuse a bundle whose explicit
+Turbo inputs omitted those helpers. The actual installed Turbo dry-run
+regression reproduces the old identical build hash, then proves that changing
+each of five recovery helpers changes the fixed Admin build hash. App-source
+and unrelated-document controls pass; no build command executes. The disposable
+fixture always cleans up and is exercised by the existing workspace contract.
+Workspace checks, classifier replay, formatting and diff checks pass.
+
+Only Turbo configuration, tooling tests and this checkpoint change. Recovery and
+media runtime bytes remain identical to qualified `647ca355`; the prior focused
+and full source mappings remain applicable. The fresh required hosted CI must
+cover the new cache boundary before protected integration. No operational gate,
+remote migration, production binding, eligibility or custody setting changes.
+
+## October 22 actual media integration and recovery review checkpoint
+
+Media #540 merged as `d539e38267d78e34fdc3d6d82f05a1842871a88b` from checked
+`6cb87ed138bf5d9a1c9ee6346bce52e1f1f42a86`. Required Build, Security and CodeQL
+passed; all three review threads were resolved. The integration owner reread
+strict live protection and no-bypass controls immediately before merge.
+[Deployment39733075733](https://github.com/anipotts/anipotts.com/actions/runs/39733075733)
+succeeded for Admin only. www and all four workers were skipped, schema0044,
+no migration. Active Admin provider version
+`6407ec82-c8ff-4d65-b43d-e2ad4ee7141f` and eight Admin Access probes pass.
+The durable release receipt is in the existing cleanup receipts directory at
+`540/release-d539e382/release-receipt.json`. This deployment does not activate
+Images processing or operational recovery.
+
+Recovery normally merges actual main `d539e382` into qualified checkpoint
+`8d5bf0a0`, adding ancestry with no source-file delta. The maintained documentation
+is refreshed separately. Recovery runtime/fence and media implementation/test
+bytes remain identical to focused-qualified `41b9aa99`:129 recovery Node,
+27 actual local workerd/R2,94 ordinary writer/media/publication and6 local seed
+cases plus strict editorial typing pass. Earlier full runs remain mapped to
+recovery `1d50c94a` and media `ba6b6910`; no expensive full repeat is added solely
+for ancestry or documentation. Source identities, format/diff and native commit
+hooks are checked on the final tree. Recovery is ready for its protected exact-
+head CI and review gate; required hosted checks on the new head remain pending.
+
+The source release selects www/Admin, all four workers skipped, schema0044 and
+no remote migration0003. Operational cohort eligibility still always rejects;
+no Images/provider, binding, enrollment, destination/key custody, capture or
+restore activation is selected. The real Images implicit EXIF order/pixel proof
+and operational restore drill remain distinct held gates. Footer #554 and its
+verified release39728806591 remain preserved.
+
+## October 22 repaired-media recovery merge candidate
+
+Recovery `1d50c94a` normally merges repaired media checkpoint `6cb87ed1`,
+whose runtime matches full-qualified `ba6b6910`. The concurrent checked footer
+from main `5615da43` is retained. All recovery runtime/fence bytes and all repaired
+media implementation/test bytes retain their respective parent identities.
+Fresh focused checks pass at clean `41b9aa994eaecc20c610cdb6c6c27be9e5ca13e8`:
+all129 recovery Node,27 actual local workerd/R2 and94 selected ordinary writer/
+media/publication workerd cases, plus6 local SQLite seed cases and strict
+generated editorial typing. The selected ordinary files retain draft24,
+direct-publication40, media15, atomic-media12 and stream3 cases. Both local
+workerd configurations explicitly disable remote bindings. Parent byte identity,
+manifest replay and post-check source drift pass. Full qualification remains
+mapped to recovery `1d50c94a` plus media `ba6b6910`; the focused combination does
+not repeat or extend provider qualification. Production cohort rejection, remote0003, bindings,
+custody and activation remain unchanged. Actual #540 main-merge ancestry and
+protected exact-head checks are still required after #540 integration.
+
 ## October 22 media review repair and footer release checkpoint
 
 Released main is `5615da43b0ba06189112419713ed0f04c9499b21` (#554), normally
@@ -53,6 +160,18 @@ Recovery checkpoint `1d50c94a` separately passed full14/14,129 recovery Node,
 qualified media bytes. It remains preserved; after #540 integrates, normally
 merge actual main and qualify the affected changed media/recovery behavior.
 Earlier source and draft-guard statements below are dated checkpoints.
+
+## October 22 combined media and recovery qualification candidate
+
+Recovery `16f37382` normally merges qualified media checkpoint `e68cbf8b`,
+whose runtime matches full-validated `a128b79a`. All recovery implementation and
+fixture bytes remain unchanged; media source retains its qualified pure upload
+admission extraction and inactive processing primitive. DraftStore still wraps
+private-media saves with its recovery writer admission, and publication/media
+copy and seed operations keep their existing conditional content-DB fences.
+No processing caller, binding, remote migration0003 or production eligibility
+change is introduced. The combined tree is pending fresh full qualification;
+media-only receipts below do not substitute for combined recovery acceptance.
 
 ## October 22 fresh media qualification and next review checkpoints
 
@@ -115,6 +234,53 @@ activation remain held. Upload admission stays 10 MiB/16 MP; the whole-publicati
 media budget stays 10 MiB. No binding, endpoint, production config, remote
 migration, auth change or service activation is selected. The older dated queue
 entries and source receipts below remain historical.
+
+## October 22 recovery and authoring source reconciliation
+
+The inactive recovery refresh `a0964cb2` normally merges the checked #551
+source `fffc239a0d3fc7a9b3d0c2909db247ae329ab540`. Documentation keeps both
+recovery gates and the current #551 acceptance receipts. Classifier conflicts
+retain the scoped recovery build inputs and the preview asset build input;
+the deterministic release corpus is regenerated from those combined rules.
+The integration owner reports #551 and consolidated #552 merged as
+`1936106c934ba53a7edf6e0fc0defbffbf6b6ffb`; deployment39724851758
+remains under owner verification. Earlier pending-integration wording below is
+a dated checkpoint.
+
+Recovery implementation, local migration definitions and bindings are unchanged
+from the premerge recovery refresh. This is source reconciliation, not refreshed
+runtime, native, provider or release qualification. Keep #541 draft until the
+owner-scheduled compatibility checks and the operational gates below are met.
+
+## October 22 inactive recovery source refresh
+
+Draft #541 was refreshed locally from `f91f6b62426b9b9a6e5ac8fd63469d484ab589af`
+by normally merging released main `07da221d82aa4b0d6b7d4dabcc363103fdd3959a`.
+Only README and this history conflicted. Current-main dependency versions and
+formatter changes are retained; #551 remains a separate unreleased candidate.
+#550 is merged and deployed to www and Admin, with four workers skipped and no
+migration. The media refresh stays recoverable at `865211b8` on its own branch.
+
+This refresh adds no recovery implementation changes. It does not mean all
+branch code is dormant: DraftStore constructs durable recovery control/writer/
+capture tables and wraps save, rebase, lifecycle, media and publication/alarm
+mutations in local writer bookkeeping. Direct publication, published-media
+copies and seed operations also gain conditional D1 writer fencing. Unmigrated
+D1 remains writable through the existing unenrolled path but cannot capture;
+enrolled D1 uses durable admission and retains ambiguous failed external writes.
+The operational writer-cohort assertion still always rejects.
+
+Earlier Node/native/full validation receipts below apply only to their named
+revisions. No install, tests, build, browser, push, remote migration or provider
+operation accompanied this source refresh. Frozen dependency installation,
+focused Node codecs, actual local recovery and ordinary editorial workerd
+compatibility, content publication/seed regression, strict typing and affected
+build checks remain owner-scheduled before readiness.
+
+Keep #541 draft. Capture/restore activation, migration 0003, production artifact
+bindings, provider/destination selection, key custody, external copy, enrollment
+and a demonstrated operational restore drill remain held. The test-only cohort
+adapter and supplied local R2 fixtures do not enable production admission.
 
 ## October 22 release and cleanup checkpoint
 
@@ -515,6 +681,165 @@ Inactive #540 media and #541 recovery remain independently checked drafts.
 Their latest source/qualification receipts are in their PRs. A caller-supplied
 ciphertext artifact adapter is a separable source step underway for recovery;
 operational custody, provider setup, migrations and activation remain gated.
+
+## October 19 supplied-R2 artifact qualification
+
+Draft #541 now includes the inactive supplied-R2 artifact slice at
+`845c3bc2cccb1206c35197fa45a2a39a70ff000c`, based on qualified `0bf632ff`.
+The adapter stores ciphertext events with conditional claims, bounded 128-entry
+index shards and a final commit index. Fresh replay pins length, etag, version
+and SHA256; the v3 codec authenticates both passes before successful restore.
+Pending GET/body reads and PUT acknowledgments observe codec cancellation;
+late persisted ciphertext remains ambiguous and preserved.
+
+All 129 recovery Node cases and all 27 actual local Workerd/SQLite/D1/R2 cases
+pass. The three new native cases include actual 10MiB objects in both media
+planes with 4MiB-class controls, encrypted capture/reopen/suspended restore,
+metadata/hash readback, conditional collisions and held-body cancellation.
+Independent source and cancellation-delta reviews are clear. Full `pnpm validate`
+passes all 14 tasks, with 11 cache hits; strict editorial typing, formatting and
+source drift checks pass. The production owner fixture is absent in 344 built
+files. Exact-source logs:
+`/private/tmp/anipotts-recovery-artifact-{native,all,validation}.log`.
+A following documentation-only checkpoint records these results.
+
+Operational admission still always rejects. The third artifact bucket and RPC
+wrappers are local fixtures only. No production artifact route/binding, provider
+provisioning, destination/key custody, remote migration `0003`, enrollment,
+retention deletion or operational restore guarantee is enabled. The draft stays
+held for those explicit operational gates; green source checks do not complete
+them. Main remains `aa860b4b`; the canonical preview is the separate compatible
+dependency candidate `dbcd69a1` with the current v17/20-record local mirror.
+
+## October 19 final tooling integration and recovery proof
+
+### Final approved tooling integration
+
+The normal merge at `bc3a122618648a513ff10fa5fe1d0588f625bbba` incorporates
+approved main `aa860b4b`, including #542's independently qualified unused CLI,
+plain configuration and lock cleanup. All app, package, script, worker, Turbo,
+workflow, runtime configuration and migration source bytes remain identical to
+the full-qualified recovery source `ea91d5212f407f1f771476226db8c8720adc5881`.
+No foundation runtime changed. A fresh offline frozen installation, complete
+CI invariants and formatting pass on the final combination; static review passes
+33 sensitive paths and tracked-source drift is clean. Logs:
+`/private/tmp/anipotts-v3-main542-{install,checks}.log`.
+The full 14-task/native qualification above remains tied to its exact source;
+these affected tooling checks qualify the later dependency/documentation merge.
+Proposed targets remain www/Admin, with all workers skipped and no remote
+migration. Later checkpoint changes only record this evidence.
+
+#539 Admin release39272399483 and #542 source release39275594601 are complete.
+Their exact approvals and release receipts are preserved in the existing queue.
+The canonical preview is clean on `aa860b4b`, with the current published v17 /
+20-record mirror. Operational admission, production artifact/custody/provider
+setup, migration and restore acceptance remain gated.
+
+## October 19 refreshed recovery foundation on released main
+
+#539 is merged as `cf7b757b` and its Admin-only release
+[39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+succeeded after Ani's exact `f8e90810` approval. All five other targets were
+skipped; no migration ran, schema remains `0044`. Admin provider version
+`ab08369b-bd13-4eb4-aeb0-f544384fb7b9` and eight Access redirects pass.
+The existing integration queue records both approval scopes and release proof.
+
+The inactive recovery candidate normally merged that main at
+`ea91d5212f407f1f771476226db8c8720adc5881`; foundation runtime bytes were
+preserved. Fresh offline frozen installation and full `pnpm validate` pass all
+fourteen tasks: Admin 2,465 core / 79 Astro / 105 editorial workerd / 103 recovery
+Node / all 24 native recovery cases, plus three CSP checks and one existing skip.
+Unchanged tasks use normal Turbo cache. Static review passes 33 sensitive paths;
+the production bundle excludes local-owner markers across 344 files and source
+drift is clean. Logs: `/private/tmp/anipotts-v3-main539-{install,validation}.log`.
+
+Keep #541 draft. No operational cohort, artifact provider, key custody, external
+copy, migration or restore-drill activation is authorized or established.
+#542 is independently ready for review at `e4b4576f` with current-main full
+validation, passing hosted checks and no runtime deploy targets; approval remains
+pending. The canonical preview is restored on released main with current
+published v17 / 20 records. Its recovery and ownership observations are recorded
+in [the local preview guide](local-integration-preview.md).
+
+## October 19 main refresh after approved #539 release
+
+Integration owner remains chat `01a14ffb-519c-73b1-a63a-380f9d7274d0`, Codex on ap-pro.
+This current checkpoint supersedes the pending #539 approval/release statements
+in the preserved revision-specific packets below.
+
+Ani approved #539 at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69`.
+It merged as `cf7b757be2c0bfc72d9886a27599e615b7ec3b66`; the integration owner
+verified the merged tree is identical to the approved tree.
+[Release 39272399483](https://github.com/anipotts/anipotts.com/actions/runs/39272399483)
+succeeded for Admin only. The other five runtime targets were skipped; schema
+remains `0044`, with no migration. Provider readback verifies Admin version
+`ab08369b-bd13-4eb4-aeb0-f544384fb7b9`; all eight private-route probes return
+302 to Access, and the deployable bundle contains no local-owner marker in 344
+files. The public site remains on `79592009`, reporting healthy with D1
+connected. No deploy approvals remain pending. These are the integration owner's
+release receipts, separate from the source merge performed for #541 here.
+
+The #541 refresh normally merges this approved main into its previously pushed
+`7fc1589b97b85e05747628fbd20040ed6cbd6b12` checkpoint. Both histories are
+preserved. Only README and this packet need conflict resolution; no recovery
+runtime compatibility edit is required. Earlier full/source/native evidence
+applies to its named revisions. The refreshed combined tree remains unqualified
+until the owner schedules its checks; this worker runs no tests, build, preview
+or browser and does not push or update the PR.
+
+#540 and #541 remain inactive draft foundations. Operational recovery admission
+still always rejects; migration `0003` is unapplied. No production capture route,
+artifact provider, operational key custody, external copy or restore drill is
+established. The local browser key-file acceptance does not grant operational
+backup custody. The [offline recovery contract](design/admin-workspace/offline-recovery-contract.md)
+retains the qualified v3 evidence and those release gates. #542 remains a
+separate tooling draft undergoing refreshed owner qualification; it selects no
+runtime targets. No approval for #541 is inferred from the approved #539 release.
+
+## Preserved historical checkpoint packets
+
+The following dated packets retain their original source, checks, failed runs
+and decision provenance. Their pending approvals and candidate exclusions describe
+those checkpoints, rather than current release state. Use the current checkpoint
+and root README for active actions.
+
+## October 19 recovery v3 qualification and review queue (historical checkpoint before #539 merge)
+
+Owner chat: `01a14ffb-519c-73b1-a63a-380f9d7274d0`, Codex on ap-pro.
+This checkpoint supersedes the pending-release and recovery-format limitations
+in the older October 18 and earlier source packets below.
+
+- #538 merged as `795920090a594dbf347e2c7de35967e6d1ee76bb`.
+  [Release 39209913406](https://github.com/anipotts/anipotts.com/actions/runs/39209913406)
+  succeeded for all six approved targets; no migration was selected, schema
+  remains `0044`. State's producer status and Brands freshness remain separate
+  operational issues, rather than a claim that every service is healthy.
+- #539 is ready at `f8e90810c3e75fcd9e6982f2bd57c76bae1b6e69`.
+  Exact-head CI, Security Review, CodeQL and completed automated code/security
+  reviews passed, with all conversations resolved. Full local validation and
+  all 42 Chromium/WebKit browser cases passed. Ani's exact review is pending;
+  its proposed release affects Admin only. No merge/deploy is claimed.
+- #540 remains a draft inactive media-processing foundation. The current
+  `de4f9fcf` documentation head preserves its fully checked runtime.
+  Actual provider entitlement, resource qualification and activation remain open.
+- #541 adds an inactive encrypted v3 capture/restore path to the existing
+  coherent recovery foundation. It supports streamed 10 MiB objects in each
+  media plane and structured control data without the legacy base64 envelope
+  limitation. The legacy v1/v2 formats retain their original bounds.
+- #542 is a separate draft dependency cleanup at `e6aafc63`, with fully
+  qualified source `e9578615`. Removing the unused Drizzle CLI eliminates the
+  remaining moderate advisory. The lock audit has zero moderate/high/critical
+  advisories and one low upstream KaTeX advisory. No runtime targets are selected.
+  Refresh against later approved main before preparing exact-head review.
+
+Operational recovery admission still always rejects. Migration 0003 is unapplied;
+no production capture route, artifact provider, key custody, external copy or
+restore drill is established. Browser recovery's accepted local key file does
+not authorize operational backup custody. The full source/native evidence and
+remaining gates are in the [offline recovery contract](design/admin-workspace/offline-recovery-contract.md).
+Keep #540, #541 and #542 draft until their respective gates are met.
+
+## October 19 archive and lock-mapping repair (historical checkpoint)
 
 ## October 19 completed releases and media refresh
 

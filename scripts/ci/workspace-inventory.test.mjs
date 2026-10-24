@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import "./codex-action.test.mjs";
 import "./agent-guidance.test.mjs";
+import "./admin-build-cache.test.mjs";
 import "./check-changed-scope.test.mjs";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

@@ -363,7 +363,7 @@ function restoreSql(snapshot) {
   return stores;
 }
 
-test("offline fixture schema covers every canonical SQL table and exact named columns", () => {
+test("offline-v1 fixture schema covers its legacy SQL tables and exact named columns", () => {
   const stores = schemas();
   assert.throws(() => {
     RECOVERY_TABLES.editorial.drafts.source = "integer";
@@ -480,6 +480,48 @@ test("full supplied fixture restores 105 revisions, conflicts, exact retries, hi
     /unsupported_target/,
   );
   assert.equal(writes, 0);
+});
+
+test("fresh version-zero pending intents roundtrip exactly into a suspended target", () => {
+  const snapshot = fixture();
+  const row = snapshot.editorial.tables.direct_publication_intents[1];
+  Object.assign(row, {
+    phase: "validate",
+    version: 0,
+    attempts: 0,
+    failures: 0,
+    lease: null,
+    leaseUntil: 0,
+    blocked: null,
+    inventoryVersion: null,
+    publishedAt: null,
+    activatedAt: null,
+    verifiedAt: null,
+  });
+  const target = new OfflineRecoveryTarget();
+  const report = restoreOfflineRecovery(
+    exportOfflineRecovery(snapshot),
+    target,
+  );
+  assert.equal(report.mode, "isolated-suspended");
+  assert.deepEqual(target.read(), snapshot);
+  const stores = restoreSql(target.read());
+  try {
+    assert.equal(
+      stores.editorial
+        .prepare(
+          "SELECT version FROM direct_publication_intents WHERE id='synthetic.pending'",
+        )
+        .get().version,
+      0,
+    );
+  } finally {
+    Object.values(stores).forEach((db) => db.close());
+  }
+  for (const version of [-1, 0.5, "0"]) {
+    row.version = version;
+    assert.throws(() => exportOfflineRecovery(snapshot), /offline_recovery_/);
+  }
 });
 
 test("offline validation rejects missing store planes, historical/media/publication/retry references and unknown schemas before restore", () => {
