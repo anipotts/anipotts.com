@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { SECURITY_HEADERS } from "../../apps/www/src/lib/security-headers.ts";
-import { smokeRelease } from "./release-smoke.mjs";
+import { publishedSmokeRoutes, smokeRelease } from "./release-smoke.mjs";
 import { activeVersion, previousRelease } from "./worker-version.mjs";
 
 const expectedSha = "b".repeat(40);
@@ -30,6 +30,28 @@ const ASSET =
 const secured = (status, body, headers = {}) =>
   new Response(body, { status, headers: { ...SECURITY_HEADERS, ...headers } });
 
+const publishedPaths = [
+  "/",
+  "/work",
+  "/writing",
+  "/systems",
+  "/business",
+  "/work/cms-only-project",
+  "/writing/cms-only-article",
+];
+function sitemap(paths = publishedPaths) {
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    paths
+      .map(
+        (path) =>
+          `<url><loc>https://example.test${path === "/" ? "" : path}</loc><priority>0.7</priority></url>`,
+      )
+      .join("\n") +
+    "\n</urlset>"
+  );
+}
+
 /** A www release that serves the header set on pages, assets and redirects.
  *  `overrides` replaces the response for one pathname. */
 function wwwSite(health, overrides = {}) {
@@ -37,6 +59,8 @@ function wwwSite(health, overrides = {}) {
     const { pathname } = new URL(url);
     if (pathname === "/api/health") return response(200, health());
     if (overrides[pathname]) return overrides[pathname](init);
+    if (pathname === "/sitemap.xml")
+      return secured(200, sitemap(), { "content-type": "application/xml" });
     if (pathname === "/")
       return secured(200, `<script type="module" src="${ASSET}"></script>`, {
         "content-type": "text/html; charset=utf-8",
@@ -60,6 +84,98 @@ const publicReceipt = await smokeRelease({
 });
 assert.equal(publicReceipt.release_sha, expectedSha);
 assert.ok(publicReceipt.checks.length > 10);
+assert.ok(
+  publicReceipt.checks.some((check) => check.path === "/work/cms-only-project"),
+);
+assert.ok(
+  publicReceipt.checks.some(
+    (check) => check.path === "/writing/cms-only-article",
+  ),
+);
+assert.equal(
+  publicReceipt.checks.some((check) => check.path === "/work/claudemon"),
+  false,
+  "an unpublished Git seed is not a live publication",
+);
+
+const unpublishedSeed = await smokeRelease({
+  target: "www",
+  baseUrl: "https://example.test",
+  expectedSha,
+  expectedSchema,
+  retryDelayMs: 0,
+  fetchImpl: wwwSite(currentHealth, {
+    "/work/claudemon": () => {
+      throw new Error("must not request an unpublished seed route");
+    },
+  }),
+});
+assert.equal(unpublishedSeed.release_sha, expectedSha);
+await assert.rejects(
+  smokeRelease({
+    target: "www",
+    baseUrl: "https://example.test",
+    expectedSha,
+    expectedSchema,
+    retryDelayMs: 0,
+    fetchImpl: wwwSite(currentHealth, {
+      "/work/cms-only-project": () => response(404),
+    }),
+  }),
+  /cms-only-project: HTTP 404/,
+  "an advertised CMS-only page must still pass",
+);
+
+for (const invalid of [
+  "{}",
+  sitemap([]),
+  sitemap(publishedPaths.filter((path) => path !== "/work")),
+  sitemap([...publishedPaths, "/work/cms-only-project"]),
+  sitemap().replace(
+    "https://example.test/work/cms-only-project",
+    "https://external.test/work/foreign",
+  ),
+  sitemap().replace(
+    "https://example.test/work/cms-only-project",
+    "https://example.test/work/one?query=yes",
+  ),
+  sitemap().replace(
+    "https://example.test/work/cms-only-project",
+    "https://example.test/work/one/../two",
+  ),
+  sitemap().replace("</urlset>", "<url><loc>broken</loc></url></urlset>"),
+]) {
+  assert.throws(() => publishedSmokeRoutes(invalid, "https://example.test"));
+}
+let foreignRequests = 0;
+await assert.rejects(
+  smokeRelease({
+    target: "www",
+    baseUrl: "https://example.test",
+    expectedSha,
+    expectedSchema,
+    retryDelayMs: 0,
+    fetchImpl: async (url, init) => {
+      if (new URL(url).origin !== "https://example.test") foreignRequests++;
+      return wwwSite(currentHealth, {
+        "/sitemap.xml": () =>
+          secured(
+            200,
+            sitemap().replace(
+              "https://example.test/work/cms-only-project",
+              "https://external.test/work/foreign",
+            ),
+          ),
+      })(url, init);
+    },
+  }),
+  /unsafe published sitemap URL/,
+);
+assert.equal(
+  foreignRequests,
+  0,
+  "inventory cannot direct smoke to another origin",
+);
 assert.deepEqual(
   publicReceipt.checks.filter((check) => check.security_headers),
   [
@@ -267,7 +383,7 @@ const unversionedRollbackReceipt = await smokeRelease({
   baseUrl: "https://example.test",
   allowUnversioned: true,
   retryDelayMs: 0,
-  fetchImpl: async () => response(200, healthyDatabase),
+  fetchImpl: wwwSite(() => healthyDatabase),
 });
 assert.equal(unversionedRollbackReceipt.release_sha, "unversioned");
 assert.equal(unversionedRollbackReceipt.rollback_unversioned, true);
