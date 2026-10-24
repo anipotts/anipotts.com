@@ -109,7 +109,13 @@ const displayTitle =
         </p>
       </div>
 
-      <ProjectMeta status={d.status} year={d.year} role={d.role} />
+      <ProjectMeta
+        status={d.status}
+        year={d.year}
+        role={d.role}
+        kind={d.kind}
+        catalogGroup={d.catalog_group}
+      />
     </header>
 
     {d.preview_media && <section

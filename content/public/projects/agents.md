@@ -1,7 +1,7 @@
 ---
 title: agents
 subtitle: what i'm learning from building things with coding agents
-description: Reference repo built from hundreds of Claude Code sessions. Includes hooks, custom agents, MCP servers, plugin notes, and automation patterns that make agent work easier to debug.
+description: A practical handbook for working with coding agents, with guides for everyday work, building software and keeping useful context between chats.
 year: "2025–present"
 category: ai
 role: Creator
@@ -12,7 +12,7 @@ public_state: featured
 homepage_placement: work
 catalog_group: active
 homepage_order: 80
-card_copy: my notes on working with coding agents, written while i'm figuring things out
+card_copy: a practical handbook for working with coding agents
 detail_path: /work/agents
 identity:
   logo_src: /images/brand/agents-favicon.svg
@@ -20,5 +20,5 @@ identity:
 sort_order: 92
 link_repo: https://github.com/anipotts/agents
 link_live: https://agents.anipotts.com
-tags: [Python, Claude Code, Hooks, Agents, MCP, Plugins]
+tags: [Codex, Claude Code, Agents, Workflows]
 ---

@@ -1,11 +1,11 @@
 ---
 title: our bad habit
 subtitle: tools for finding artists and following their growth
-description: Built a scouting dashboard that pulled Chartmetric, YouTube, TikTok, and Instagram signals into one workflow. Added geo-based discovery for finding emerging artists in campaign markets.
-year: "2024"
+description: Built a Streamlit scouting dashboard using Chartmetric and YouTube data to help find emerging artists by audience growth, genre and location.
+year: "June 2024 - August 2024"
 category: music
 role: Data Engineering Intern
-duration: Summer 2024
+duration: "June 2024 - August 2024"
 status: live
 kind: experience
 public_state: featured

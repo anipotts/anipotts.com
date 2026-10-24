@@ -1,11 +1,11 @@
 ---
 title: quantercise
 subtitle: a quant practice app that started with my own interview prep
-description: Built from my own interview-prep workflow, Quantercise combines 400+ quant problems, instant grading, a browser-based Python editor, math rendering, progress tracking, and payments in one focused practice loop.
-year: "2024"
+description: A quant interview practice product I started in 2024. The existing customer site remains live while I develop a universal successor; its free beta has billing disabled and customer migration is still in progress.
+year: "2024 - present"
 category: product
 role: Founder and Engineer
-duration: Launched 2024
+duration: "2024 - present"
 status: live
 kind: project
 public_state: featured
@@ -19,16 +19,18 @@ identity:
   logo_alt: quantercise
 sort_order: 100
 link_live: https://quantercise.com
-tags: [Next.js, TypeScript, Postgres, Drizzle, Stripe, Python]
+tags: [React, TypeScript, Cloudflare Workers, D1, Drizzle, Stripe, Python]
 technical:
-  - title: Product Stack
-    content: Next.js and React power the practice interface, Postgres and Drizzle hold the problem system, and isolated serverless execution grades Python submissions.
-  - title: Problem Engine
-    content: Problems support 5 answer types. Numeric with tolerance, exact string matching, single-choice MCQ, multi-choice MCQ, and Python coding challenges. Answer specifications are stored server-side only to prevent cheating. The grading system runs entirely on Lambda with isolated execution contexts.
-  - title: Editor and Math Rendering
-    content: Monaco Editor powers the Python coding experience with syntax highlighting and autocomplete. KaTeX handles mathematical notation rendering across all problems. Both integrate cleanly with the Next.js App Router through client components.
-  - title: Gamification
-    content: Points system awards 10/20/30 for easy/medium/hard problems with first-attempt bonuses. Daily streak tracking with 24-hour grace period. Leaderboards support daily, weekly, and all-time periods. User stats track progress by difficulty level.
+  - title: Existing Customer Site
+    content: The current customer application uses Vite and React for the interface, a Hono API on Cloudflare Workers, and Cloudflare D1 with Drizzle for data. Stripe supports subscriptions and webhooks.
+  - title: Existing Practice Workflow
+    content: The customer application includes quant problems, server-side answer specifications, Python coding practice, math rendering and progress tracking.
+  - title: Existing Editor and Math Rendering
+    content: CodeMirror supports Python editing, and KaTeX renders mathematical notation in the practice interface.
+  - title: Successor Beta
+    content: The universal successor is available as a free beta with billing disabled. Full customer feature parity, migration and distribution remain in progress.
 ---
 
-Quantercise started as my own quant interview prep tool and turned into a full product: 400+ problems, real-time Python execution, math rendering, progress tracking, and payments.
+Quantercise is a quant interview practice product I started in 2024. The existing customer site remains live while I develop a universal successor.
+
+The successor beta is free, with billing disabled. Customer migration and full feature parity are still in progress. The technical details below describe the existing customer application separately from that beta.

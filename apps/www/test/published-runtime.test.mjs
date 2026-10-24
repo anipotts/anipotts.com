@@ -135,7 +135,9 @@ test("published project card overrides reach the homepage card", async () => {
       id: "agents",
       text: edit(source("projects", "agents"), {
         homepage_placement: "work",
-        homepage_order: -100,
+        // Keep the subject inside the limited homepage selection as the real
+        // project catalog grows; this test exercises authored card overrides.
+        homepage_order: 10000,
         card_title: "Sentinel card title",
         card_copy: "Sentinel wide copy",
         card_copy_compact: "Sentinel **compact** copy",
