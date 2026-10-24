@@ -2,14 +2,20 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { builtPages, dist } from "./built-html.mjs";
+import { builtPages, dist, readableText } from "./built-html.mjs";
 
 function pageText(path) {
-  return readFileSync(join(dist, path), "utf8")
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ");
+  return readableText(readFileSync(join(dist, path), "utf8"));
 }
+
+test("portfolio text extraction skips raw text and comments without rewriting markup", () => {
+  assert.equal(
+    readableText(
+      "<script>ignored <script>body</script><!-- hidden --><style>ignored</style><p>past <strong>experience</strong> &amp; work</p>",
+    ),
+    "past experience & work",
+  );
+});
 
 test("legacy ClaudeMon is absent from public pages and discovery", () => {
   const slug = "i-built-a-monitor-for-my-claude-code-sessions";
