@@ -298,8 +298,8 @@ const CONNECTION_NOTICES: Partial<
 };
 
 /** An unconnected state's notice. An unreachable reader names the hop that
- * failed (A-26): only a request that got no reply in time is "ap-mini
- * unreachable". */
+ * failed (A-26), distinguishing a missed deadline from browser and reader
+ * failures. */
 export function opsConnectionNotice(state: OpsStatusState) {
   const notice = CONNECTION_NOTICES[state.connection];
   if (!notice || state.connection !== "unreachable") return notice;

@@ -12,8 +12,8 @@
  *   and a refused or unresolved connection fail the same way, in Chromium
  *   and WebKit alike, so this names no cause on ap-mini.
  * - `timeout`: the request went out and nothing came back within the
- *   read's deadline. A block fails at once, so this is a real network
- *   failure, and the only case that says ap-mini is unreachable.
+ *   read's deadline. A slow query or transport delay can cause this;
+ *   the deadline alone does not establish that ap-mini is offline.
  * - `reader`: ap-mini's reader answered, with a server error.
  */
 export type ReaderHop =
@@ -25,7 +25,7 @@ export const READER_HOP_TITLES: Record<ReaderHop, string> = {
   offline: "Browser offline",
   blocked: "Blocked by this browser",
   unanswered: "No answer from ap-mini",
-  timeout: "ap-mini unreachable",
+  timeout: "Mini did not respond in time",
   reader: "Reader unavailable",
 };
 

@@ -59,8 +59,8 @@ describe("Data read boundary", () => {
         },
       );
       await vi.advanceTimersByTimeAsync(5000);
-      // A request that went out and got nothing back in time is the one
-      // failure that says ap-mini is unreachable (A-26).
+      // A missed reader deadline is distinct from browser/reader failures
+      // and does not establish that ap-mini is offline (A-26).
       expect(await pending).toMatchObject({
         state: "unavailable",
         hop: "timeout",

@@ -5,8 +5,7 @@ import {
   fetchReader,
 } from "./reader-reach";
 
-// A-26: a notice names the hop that failed. Only a request that went out and
-// got no reply in time may say ap-mini is unreachable.
+// A-26: notices distinguish a missed deadline from browser and reader failures.
 describe("which hop a reader read failed at", () => {
   afterEach(() => vi.unstubAllGlobals());
   const failing = (() =>
@@ -71,13 +70,14 @@ describe("which hop a reader read failed at", () => {
     ).rejects.toBe(aborted);
   });
 
-  it("keeps ap-mini unreachable for the deadline alone", () => {
+  it("reports a missed deadline without claiming the Mini is offline", () => {
     expect(new ReaderNoReplyError("timeout").hop).toBe("timeout");
-    expect(
-      Object.entries(READER_HOP_TITLES)
-        .filter(([, title]) => title.includes("unreachable"))
-        .map(([hop]) => hop),
-    ).toEqual(["timeout"]);
+    expect(READER_HOP_TITLES.timeout).toBe("Mini did not respond in time");
+    expect(new Set(Object.values(READER_HOP_TITLES)).size).toBe(
+      Object.keys(READER_HOP_TITLES).length,
+    );
+    for (const title of Object.values(READER_HOP_TITLES))
+      expect(title).not.toContain("unreachable");
     expect(READER_HOP_TITLES.unissued).not.toContain("ap-mini");
   });
 });

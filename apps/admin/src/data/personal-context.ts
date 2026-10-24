@@ -86,7 +86,7 @@ async function readWithDeadline(
   });
   // The deadline runs only while a request to ap-mini is out: a 401's
   // renewal is admin's own hop, under its own deadline, so a slow issuance
-  // never reads as ap-mini unreachable (A-26).
+  // never reads as a reader timeout (A-26).
   let timer: ReturnType<typeof setTimeout> | undefined;
   const arm = () => {
     timer = setTimeout(() => {

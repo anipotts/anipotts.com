@@ -504,8 +504,8 @@ export function createOpsStatusController(options: OpsStatusOptions) {
       else if (error instanceof PrivateReaderError && error.status === 503)
         set({ connection: "unavailable" });
       // No reply, or an unexpected answer: keep the last snapshot, marked as
-      // not current, with the hop that failed. Only a request that went out
-      // and got nothing back within the deadline is ap-mini unreachable.
+      // not current, with the hop that failed. A missed deadline does not
+      // establish that ap-mini is offline.
       else
         set({
           connection: "unreachable",
