@@ -1,3 +1,4 @@
+import { COMPACT_MAX_WIDTH } from "../../lib/admin-sidebar";
 import type { EncryptedBrowserRecovery } from "../../lib/encrypted-browser-recovery";
 import { recoverySession } from "../../lib/browser-recovery-session";
 import { projectRecordIdentity } from "../../lib/project-media";
@@ -375,7 +376,10 @@ function HomeEditorImpl({
         }
         if (lastEditingFocus.current?.isConnected)
           lastEditingFocus.current.focus({ preventScroll: true });
-        const surface = document.getElementById("astryx-app-shell-main");
+        const surface =
+          window.innerWidth <= COMPACT_MAX_WIDTH
+            ? null
+            : document.getElementById("astryx-app-shell-main");
         if (surface) surface.scrollTop = editScroll.current;
         else window.scrollTo({ top: editScroll.current, behavior: "instant" });
       });
@@ -562,9 +566,11 @@ function HomeEditorImpl({
     navigationGeneration.current += 1;
     const previous = workspaceState.current;
     if (previous.view === "edit" && next.view !== "edit") {
-      editScroll.current =
-        document.getElementById("astryx-app-shell-main")?.scrollTop ??
-        window.scrollY;
+      const surface =
+        window.innerWidth <= COMPACT_MAX_WIDTH
+          ? null
+          : document.getElementById("astryx-app-shell-main");
+      editScroll.current = surface?.scrollTop ?? window.scrollY;
     }
     flushLocal();
     workspaceState.current = next;
@@ -1952,13 +1958,7 @@ function HomeEditorImpl({
           ? {
               isPressed: tab === "preview",
               isDisabled: discarded,
-              onChange: (pressed) => {
-                if (pressed && tab === "edit")
-                  editScroll.current =
-                    document.getElementById("astryx-app-shell-main")
-                      ?.scrollTop ?? window.scrollY;
-                setTab(pressed ? "preview" : "edit");
-              },
+              onChange: (pressed) => setTab(pressed ? "preview" : "edit"),
             }
           : undefined
       }

@@ -1,12 +1,12 @@
 /* The sidebar and its rail (EditorialWorkspaceShell, UnifiedSidebar). The
-   sidebar exists from 641px (lib/admin-sidebar.ts); compact phones use the
+   sidebar exists from 1024px (lib/admin-sidebar.ts); smaller screens use the
    shared appbar and unified modal drawer in styles/shell.css instead. "AP Structural" is
    declared once, in styles/fonts.css.
 
    AppShell renders the inline sidebar on the server and removes it below its
    breakpoint after hydration. CSS hides it from the first paint, so the
    compact layout never depends on hydration. */
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
   .editorial-workspace-shell .astryx-app-shell-sidenav {
     display: none;
   }
@@ -16,7 +16,7 @@
    width prop and SideNav hardcodes its rail width, so the parent sets it;
    only the parent animates, on the 125ms theme token, and the icons stay
    still. The pane edge is space, never a rule, in either state. */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-shell .astryx-app-shell-sidenav {
     flex: 0 0 auto;
     min-width: 0;
@@ -40,14 +40,14 @@
 
 /* The sidebar's list scrolls on its own between the identity and the
    footer, and never chains into main or the document. */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-nav > :has(> .admin-unified-nav) {
     overscroll-behavior: contain;
   }
 }
 
 /* The rail changes width, never its row rhythm or icon centerline. */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-nav .approved-workspace-header {
     gap: var(--spacing-0-5);
   }
@@ -66,7 +66,7 @@
     box-sizing: border-box;
   }
 }
-@media (min-width: 641px) and (pointer: coarse) {
+@media (min-width: 1024px) and (pointer: coarse) {
   .editorial-workspace-nav .astryx-side-nav-item {
     height: var(--spacing-11);
     min-height: var(--spacing-11);
@@ -149,7 +149,7 @@
   white-space: nowrap;
 }
 /* The icon column is stationary while the rail animates its width. */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-nav .approved-workspace-header[data-collapsed="true"] {
     align-items: flex-start;
   }
@@ -193,7 +193,7 @@
   flex: none;
 }
 /* Symmetric rail targets. */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .astryx-app-shell-sidenav
     .editorial-workspace-nav
@@ -250,7 +250,7 @@
   position-area: block-start span-inline-end;
   margin: 0 0 var(--spacing-2) 0;
 }
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .astryx-app-shell-sidenav
     .editorial-workspace-nav
@@ -293,7 +293,7 @@
 .editorial-workspace-utilities .admin-theme-cycle svg {
   color: var(--color-text-secondary);
 }
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-nav
     .editorial-workspace-utilities[data-collapsed="true"] {
     align-self: flex-start;
@@ -317,7 +317,7 @@
    the prepaint script has already chosen the rail on the root element. Hold the
    rail's geometry from first paint, without animating, and keep the expanded
    controls out of sight until the shell renders the rail itself. */
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   :root[data-admin-sidebar="rail"]
     .editorial-workspace-shell[data-sidebar-ready="false"]
     .astryx-app-shell-sidenav {
@@ -349,9 +349,9 @@
   }
 }
 
-/* Touch tablets retain the 52px rail: 44px targets plus 4px on each side.
+/* Touch desktops retain the 52px rail: 44px targets plus 4px on each side.
    Desktop pointer geometry keeps its own rules. */
-@media (min-width: 641px) and (pointer: coarse) {
+@media (min-width: 1024px) and (pointer: coarse) {
   .editorial-workspace-shell[data-sidebar-collapsed="true"]
     .astryx-app-shell-sidenav
     .editorial-workspace-nav
@@ -416,7 +416,7 @@
   gap: var(--spacing-0-5);
   padding-inline-start: 0;
 }
-@media (min-width: 641px) {
+@media (min-width: 1024px) {
   .editorial-workspace-nav > :has(> .admin-unified-nav) {
     padding-block-start: var(--spacing-0-5);
     align-items: stretch;

@@ -18,7 +18,7 @@ describe("shared Data and Observability shell", () => {
     expect(
       host.querySelector('[data-workspace="observability"]'),
     ).not.toBeNull();
-    // The home link stays in the desktop sidebar; phones show workspace identity.
+    // The home link stays in the desktop sidebar; the appbar keeps one identity.
     const wordmarks = host.querySelectorAll<HTMLAnchorElement>(
       "a.admin-bracket-wordmark",
     );
@@ -26,7 +26,7 @@ describe("shared Data and Observability shell", () => {
       "[admin]",
     ]);
     expect(host.querySelector(".admin-phone-identity")?.textContent).toBe(
-      "Observability",
+      "[admin]",
     );
     expect(
       host.querySelector('.admin-phone-bar [aria-label="Open navigation"]'),
@@ -36,7 +36,7 @@ describe("shared Data and Observability shell", () => {
       expect(wordmark.getAttribute("aria-label")).toBe("Overview");
     }
     expect(host.querySelector(".admin-phone-identity")?.textContent).toBe(
-      "Observability",
+      "[admin]",
     );
     expect(
       host.querySelector('dialog[aria-label="Admin navigation"]'),

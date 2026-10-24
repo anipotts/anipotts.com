@@ -1,0 +1,45 @@
+/* Keyboard focus uses quiet surface feedback throughout the public site.
+   Pointer focus never paints a halo, including retained Astro navigation. */
+html :is(:focus, :focus-visible, :focus-within),
+html :is(:focus, :focus-visible, :focus-within)::before,
+html :is(:focus, :focus-visible, :focus-within)::after {
+  outline: none !important;
+}
+html :is(:focus, :focus-visible),
+html :is(:focus, :focus-visible)::before,
+html :is(:focus, :focus-visible)::after {
+  box-shadow: none !important;
+}
+html
+  :is(
+    button,
+    summary,
+    [role="tab"],
+    [role="menuitem"],
+    [role="option"]
+  ):focus-visible,
+html
+  :is(
+    .nav-link,
+    .wordmark,
+    .glyph,
+    .footer-wordmark,
+    .contact-email
+  ):focus-visible {
+  background-color: color-mix(in srgb, var(--ink) 9%, var(--bg)) !important;
+}
+html a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+html :is(input, textarea, select):focus {
+  border-color: var(--border-strong);
+}
+@media (forced-colors: active) {
+  html
+    :is(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+    forced-color-adjust: none;
+    background-color: Highlight !important;
+    color: HighlightText !important;
+  }
+}

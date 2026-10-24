@@ -42,6 +42,7 @@ import { AdminCommandPalette, type PaletteAction } from "./AdminCommandPalette";
 import type { AdminSearchResult } from "../../data/admin-search";
 import { provideSearchEntries } from "../../lib/admin-search-index";
 import {
+  COMPACT_MAX_WIDTH,
   COMPACT_QUERY,
   RAIL_QUERY,
   savedSidebarCollapsed,
@@ -154,14 +155,12 @@ function LocalOwnerTile() {
 
 /** Shared phone chrome stays outside the writing SDK boundary on every route. */
 function PhoneBar({
-  workspace,
   mode,
   changeTheme,
   openNavigation,
   navigationOpen,
   navigationId,
 }: {
-  workspace: Workspace | null;
   mode: ThemePreference;
   changeTheme: (mode: ThemePreference) => void;
   openNavigation: () => void;
@@ -209,7 +208,7 @@ function PhoneBar({
         onClick={openNavigation}
       />
       <span className="admin-phone-identity">
-        {workspace ? workspaces[workspace].label : "Overview"}
+        <AdminWordmark label="Admin" />
       </span>
       <Button
         label="Search"
@@ -373,7 +372,7 @@ export function EditorialWorkspaceShell({
     // temporary-navigation range. Native dialog owns focus restoration.
     const committed = () => setNavigationOpen(false);
     const resize = () => {
-      if (window.innerWidth > 640) committed();
+      if (window.innerWidth > COMPACT_MAX_WIDTH) committed();
     };
     resize();
     window.addEventListener("admin:workspace-navigation", committed);
@@ -542,13 +541,12 @@ export function EditorialWorkspaceShell({
         height="fill"
         variant={rail ? "section" : "wash"}
         contentPadding={0}
-        // The app's inclusive <=640 contract owns this boundary. Core's named
+        // The app's below-desktop contract owns this boundary. Core's named
         // breakpoints are strict (<640 for sm); the supported `none` option
         // prevents a second policy while our existing drawer owns navigation.
         mobileNav={{ breakpoint: "none", hasToggle: false, content: NO_DRAWER }}
         banner={
           <PhoneBar
-            workspace={workspace}
             mode={mode}
             changeTheme={changeTheme}
             openNavigation={() => setNavigationOpen(true)}

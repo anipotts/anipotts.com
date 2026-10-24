@@ -439,23 +439,38 @@ it("leaving review during session preparation never starts publication", async (
   );
 });
 
-it("restores the main panel scroll position when returning from preview", async () => {
-  host.id = "astryx-app-shell-main";
-  await mount();
-  host.scrollTop = 480;
-  const body = host.querySelector('textarea[aria-label="Test article body"]');
-  await click("Preview");
-  expect(host.textContent).toContain("Article preview");
-  host.scrollTop = 24;
-  await click("Preview");
-  await act(async () => {
-    await vi.waitFor(() => expect(host.scrollTop).toBe(480));
-  });
-  expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
-    body,
-  );
-  expect(window.scrollTo).not.toHaveBeenCalled();
-});
+it.each([390, 641, 768, 1023, 1024, 1280])(
+  "restores the active scroll owner's editing position after preview at %ipx",
+  async (width) => {
+    vi.stubGlobal("innerWidth", width);
+    const documentScrolls = width <= 1023;
+    host.id = "astryx-app-shell-main";
+    await mount();
+    host.scrollTop = documentScrolls ? 0 : 480;
+    vi.stubGlobal("scrollY", documentScrolls ? 480 : 900);
+    const body = host.querySelector('textarea[aria-label="Test article body"]');
+    await click("Preview");
+    expect(host.textContent).toContain("Article preview");
+    host.scrollTop = 24;
+    vi.stubGlobal("scrollY", 24);
+    await click("Preview");
+    await act(async () => {
+      await vi.waitFor(() => {
+        if (documentScrolls)
+          expect(window.scrollTo).toHaveBeenCalledWith({
+            top: 480,
+            behavior: "instant",
+          });
+        else expect(host.scrollTop).toBe(480);
+      });
+    });
+    expect(host.querySelector('textarea[aria-label="Test article body"]')).toBe(
+      body,
+    );
+    if (documentScrolls) expect(host.scrollTop).toBe(24);
+    else expect(window.scrollTo).not.toHaveBeenCalled();
+  },
+);
 
 async function editBody(value: string) {
   const body = host.querySelector(

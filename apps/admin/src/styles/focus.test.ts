@@ -10,7 +10,9 @@ it("shares one neutral keyboard focus policy through the one document", () => {
   expect(css).toContain("--focus-outline-width: 0");
   expect(css).toContain("--focus-outline-style: none");
   expect(css).toContain(":focus-visible");
-  expect(css).toContain("background-color: var(--color-accent-muted)");
+  expect(css).toContain("var(--color-text-primary) 9%");
+  expect(css).toContain("outline: none !important");
+  expect(css).toContain("box-shadow: none !important");
   expect(css).toContain("background-color: Highlight");
 });
 it("preserves validation boundaries while removing ordinary focus halos", () => {
