@@ -145,19 +145,19 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/openai": "4.0.95",
-    "@e2e-dev/web": "0.15.2",
-    "ai": "7.0.142",
-    "e2e": "0.21.2",
+    "@ai-sdk/openai": "4.0.105",
+    "@e2e-dev/web": "0.15.3",
+    "ai": "7.0.157",
+    "e2e": "0.21.3",
     "eslint": "^10.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "playwright": "1.64.1",
     "prettier": "^3.9.10",
-    "prettier-plugin-astro": "^1.1.1",
-    "turbo": "^2.11.8",
+    "prettier-plugin-astro": "^1.1.2",
+    "turbo": "^2.11.10",
     "typescript": "^5.7.0",
-    "wrangler": "4.151.1",
+    "wrangler": "4.156.0",
     "yaml": "2.8.3"
   }
 }
