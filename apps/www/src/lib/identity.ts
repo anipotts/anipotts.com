@@ -24,6 +24,9 @@ export const personIdentity = {
   "@id": personId,
   name: siteConfig.name,
   alternateName: ["anipotts", "anipottsbuilds"],
+  pronouns: "he/him",
+  description:
+    "Ani Potts is a software engineer and creator known as @anipottsbuilds. He builds AI agents and data intensive software systems.",
   url: siteConfig.url,
   sameAs: [
     siteLinks.github.href,

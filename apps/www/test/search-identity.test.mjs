@@ -50,12 +50,23 @@ test("sameAs contains only established public identity profiles", () => {
       "@id",
       "@type",
       "alternateName",
+      "description",
       "jobTitle",
       "name",
+      "pronouns",
       "sameAs",
       "url",
     ].sort(),
   );
+});
+
+test("homepage states the author's pronouns visibly and in its Person data", () => {
+  const person = structured.find(
+    (item) => item["@type"] === "ProfilePage",
+  ).mainEntity;
+  assert.equal(person.pronouns, "he/him");
+  assert.match(person.description, /Ani Potts.*@anipottsbuilds\. He builds/);
+  assert.match(html, /<p class="hero-pronouns[^>]*>he\/him<\/p>/);
 });
 
 test("selected profiles have accessible footer links and the current contact address", () => {
