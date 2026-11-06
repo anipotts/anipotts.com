@@ -46,7 +46,7 @@ export const siteLinks = {
   x: {
     label: "x",
     title: "X",
-    href: "https://x.com/anipottsbuilds",
+    href: "https://x.com/anipotts",
     icon: "ph:x-logo",
   },
   newsletter: {
