@@ -15,7 +15,7 @@ const structured = [
 const profiles = [
   "https://github.com/anipotts",
   "https://www.linkedin.com/in/anipotts",
-  "https://x.com/anipottsbuilds",
+  "https://x.com/anipotts",
   "https://www.instagram.com/anipottsbuilds/",
   "https://www.tiktok.com/@anipottsbuilds",
   "https://www.youtube.com/@anipottsbuilds",
