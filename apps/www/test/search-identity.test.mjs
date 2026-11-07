@@ -69,8 +69,7 @@ test("homepage keeps gender and pronouns in Person data without a visible row", 
   assert.equal(person.gender, "Male");
   assert.match(person.description, /Ani Potts.*@anipottsbuilds\. He builds/);
   assert.doesNotMatch(html, /hero-pronouns/);
-  const visibleMarkup = html.replace(/<script\b[^>]*>.*?<\/script>/gs, "");
-  assert.doesNotMatch(visibleMarkup, /he\/him/);
+  // Visible text is checked through the browser DOM in public-journeys.e2e.ts.
 });
 
 test("selected profiles have accessible footer links and the current contact address", () => {
