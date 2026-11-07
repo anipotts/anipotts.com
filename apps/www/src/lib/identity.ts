@@ -25,6 +25,7 @@ export const personIdentity = {
   name: siteConfig.name,
   alternateName: ["anipotts", "anipottsbuilds"],
   pronouns: "he/him",
+  gender: "Male",
   description:
     "Ani Potts is a software engineer and creator known as @anipottsbuilds. He builds AI agents and data intensive software systems.",
   url: siteConfig.url,
