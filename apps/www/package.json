@@ -22,10 +22,10 @@
     "@astrojs/cloudflare": "14.3.4",
     "@astrojs/rss": "^4.0.19",
     "@fontsource-variable/instrument-sans": "^5.3.0",
-    "astro": "7.4.0",
+    "astro": "7.4.7",
     "astro-icon": "^1.2.0",
     "zod": "^3.24.2",
-    "@astrojs/markdown-remark": "7.3.3",
+    "@astrojs/markdown-remark": "7.3.6",
     "rehype-sanitize": "6.0.0",
     "github-slugger": "^2.0.0"
   },
