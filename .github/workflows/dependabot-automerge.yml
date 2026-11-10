@@ -38,7 +38,7 @@ jobs:
             if (pr.labels.some(label => label.name === 'no-auto-merge')) { await hold(); return; }
             const routine = ['version-update:semver-patch', 'version-update:semver-minor'].includes(process.env.UPDATE_TYPE);
             const names = (process.env.DEPENDENCIES || '').split(',').map(x => x.trim()).filter(Boolean);
-            const native = names.some(x => /^(expo($|-)|@expo\/|react($|-)|@react-native)/.test(x));
+            const native = names.some(x => /^(expo($|-)|@expo\/|react-native($|-)|@react-native\/)/.test(x));
             if (!routine || !names.length || native) {
               await hold();
               core.notice('Major, unknown, or native-runtime update requires engineering review.');
