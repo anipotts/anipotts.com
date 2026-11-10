@@ -8,6 +8,7 @@ import { parse } from "yaml";
 const WORKFLOW_DIR = ".github/workflows";
 const ALLOWED_WORKFLOWS = [
   "ci.yml",
+  "dependabot-automerge.yml",
   "deploy.yml",
   "security-review.yml",
   "smoke.yml",
