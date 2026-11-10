@@ -26,7 +26,11 @@ from `dependabot/fetch-metadata`, confirms the live ruleset still requires stric
 `Build, lint, typecheck, test` with no visible bypass, and enables native squash
 auto-merge. It never checks out or runs PR code, adds no approval and no bypass,
 and holds majors, unknown update types and any PR labelled `no-auto-merge` for
-Ani's review. Production still waits at the Production environment approval.
+Ani's review. Production still waits at the Production environment approval. A merge armed
+by the workflow token does not start `deploy.yml` (GitHub does not run workflows
+for `GITHUB_TOKEN` pushes), so a merged dependency update ships with the next
+push to main or an explicit `workflow_dispatch`, as root dependency changes
+already do.
 An `inspect_auto_merge` result means auto-merge is armed: confirm it came from
 that workflow on a routine update, and remove it from anything else. Majors and
 held PRs keep the owner-review path: after Ani approves, refresh exact-head
