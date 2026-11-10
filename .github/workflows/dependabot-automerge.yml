@@ -8,6 +8,11 @@ permissions:
 jobs:
   enable:
     if: github.event.pull_request.user.login == 'dependabot[bot]' && !github.event.pull_request.draft
+    # One decision per PR at a time: a newer event (such as adding the hold
+    # label) cancels an older run before it can arm auto-merge.
+    concurrency:
+      group: dependabot-automerge-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       # No PR checkout, package install, or execution of dependency code with this token.
@@ -61,6 +66,20 @@ jobs:
             }
             const {data: fresh} = await github.rest.pulls.get({owner, repo, pull_number: number});
             if (fresh.head.sha !== pr.head.sha) throw new Error('PR head changed; wait for its new event.');
+            // Re-check the hold on the fresh read so a label added mid-run still wins.
+            if (fresh.state !== 'open' || fresh.draft || fresh.labels.some(label => label.name === 'no-auto-merge')) {
+              if (fresh.auto_merge) await github.graphql(`mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { pullRequest { number } } }`, {id: fresh.node_id});
+              return;
+            }
             if (fresh.auto_merge) return;
-            await github.graphql(`mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) { pullRequest { number } } }`, {id: fresh.node_id});
-            core.notice('GitHub will merge only after the strict required checks pass. No approval or bypass was added.');
+            try {
+              await github.graphql(`mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) { pullRequest { number } } }`, {id: fresh.node_id});
+              core.notice('GitHub will merge only after the strict required checks pass. No approval or bypass was added.');
+            } catch (error) {
+              // Auto-merge cannot be armed on a PR that already meets every rule
+              // (for example a hold released after CI passed). Merge it through the
+              // same protected path, pinned to the audited head.
+              if (!/clean status|is in clean status/i.test(String(error.message))) throw error;
+              await github.rest.pulls.merge({owner, repo, pull_number: number, merge_method: 'squash', sha: fresh.head.sha});
+              core.notice('All required checks had already passed; merged through the protected path at the audited head.');
+            }
