@@ -471,12 +471,30 @@ assert.match(
   "deploy-admin must require a successful release job",
 );
 
+// The one approved merge automation may hold write permissions, but only in
+// its audited shape: Dependabot-only, no PR checkout or package execution,
+// native auto-merge rather than a CLI merge, and no release approval ceremony.
+const automerge = readFileSync(
+  join(WORKFLOW_DIR, "dependabot-automerge.yml"),
+  "utf8",
+);
+assert.match(automerge, /pull_request_target:/);
+assert.match(
+  automerge,
+  /if: github\.event\.pull_request\.user\.login == 'dependabot\[bot\]'/,
+);
+assert.doesNotMatch(
+  automerge,
+  /actions\/checkout|pnpm (?:i|install)|npm (?:ci|install)|gh\s+pr\s+merge|\/approve-release|release-approved/,
+);
+assert.match(automerge, /enablePullRequestAutoMerge/);
 for (const file of workflowFiles) {
   const body = readFileSync(join(WORKFLOW_DIR, file), "utf8");
   assert.equal(
-    /gh\s+pr\s+merge|\/approve-release|release-approved|pull-requests:\s*write|contents:\s*write/.test(
-      body,
-    ),
+    file !== "dependabot-automerge.yml" &&
+      /gh\s+pr\s+merge|\/approve-release|release-approved|pull-requests:\s*write|contents:\s*write/.test(
+        body,
+      ),
     false,
     `${file} must not merge or recreate an approval ceremony`,
   );
