@@ -20,13 +20,17 @@ or comment. Store concise evidence and retry conditions in the existing task
 summary, not another PR registry. An upstream or base change may justify a retry;
 elapsed time alone does not justify repeating a known incompatibility.
 
-Every dependency PR requires Ani's explicit review before merging. Do not enable
-auto-merge or create a separate dependency-merge automation. An
-`inspect_auto_merge` result takes priority over pending or failing checks because
-an existing auto-merge request could execute as soon as they pass. Resolve that
-condition through the applicable controls; the inspector itself remains read-only.
-After owner approval, refresh exact-head checks and use the native protected merge
-path. Preserve the reviewed branch and evidence until integration is verified.
+Patch, minor and security updates from Dependabot merge themselves. On each
+Dependabot PR, `.github/workflows/dependabot-automerge.yml` reads the update type
+from `dependabot/fetch-metadata`, confirms the live ruleset still requires strict
+`Build, lint, typecheck, test` with no visible bypass, and enables native squash
+auto-merge. It never checks out or runs PR code, adds no approval and no bypass,
+and holds majors, unknown update types and any PR labelled `no-auto-merge` for
+Ani's review. Production still waits at the Production environment approval.
+An `inspect_auto_merge` result means auto-merge is armed: confirm it came from
+that workflow on a routine update, and remove it from anything else. Majors and
+held PRs keep the owner-review path: after Ani approves, refresh exact-head
+checks and use the native protected merge path. Preserve the reviewed branch and evidence until integration is verified.
 
 Execution is local to the Codex desktop host. It is not an always-on cloud worker:
 host sleep, app shutdown, authentication expiry, or a busy task can delay work.

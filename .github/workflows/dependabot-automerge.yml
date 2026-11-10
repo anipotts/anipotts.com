@@ -1,0 +1,66 @@
+name: Checked dependency auto-merge
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  enable:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      # No PR checkout, package install, or execution of dependency code with this token.
+      - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
+        id: metadata
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          DEPENDENCIES: ${{ steps.metadata.outputs.dependency-names }}
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const number = context.payload.pull_request.number;
+            const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (pr.state !== 'open' || pr.draft || pr.user.login !== 'dependabot[bot]' ||
+                pr.head.repo.full_name !== `${owner}/${repo}` ||
+                pr.head.sha !== context.payload.pull_request.head.sha) return;
+            const hold = async () => {
+              if (pr.auto_merge) await github.graphql(`mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { pullRequest { number } } }`, {id: pr.node_id});
+            };
+            if (pr.labels.some(label => label.name === 'no-auto-merge')) { await hold(); return; }
+            const routine = ['version-update:semver-patch', 'version-update:semver-minor'].includes(process.env.UPDATE_TYPE);
+            const names = (process.env.DEPENDENCIES || '').split(',').map(x => x.trim()).filter(Boolean);
+            const native = names.some(x => /^(expo($|-)|@expo\/|react($|-)|@react-native)/.test(x));
+            if (!routine || !names.length || native) {
+              await hold();
+              core.notice('Major, unknown, or native-runtime update requires engineering review.');
+              return;
+            }
+            const {data: repository} = await github.rest.repos.get({owner, repo});
+            if (pr.base.ref !== repository.default_branch || !repository.allow_auto_merge) {
+              throw new Error('Default branch or native auto-merge configuration is not ready.');
+            }
+            const rules = await github.paginate('GET /repos/{owner}/{repo}/rules/branches/{branch}', {owner, repo, branch: pr.base.ref, per_page: 100});
+            // Read live provider rules rather than trust a branch name or saved assertion.
+            const ids = [...new Set(rules.map(rule => rule.ruleset_id))];
+            const safe = [];
+            for (const ruleset_id of ids) {
+              const {data: ruleSet} = await github.request('GET /repos/{owner}/{repo}/rulesets/{ruleset_id}', {owner, repo, ruleset_id});
+              // GitHub omits bypass_actors for workflow tokens; native rules still enforce merges.
+              // Reject visible bypasses; no-bypass configuration is audited through owner controls.
+              if (ruleSet.enforcement === 'active' && (ruleSet.bypass_actors === undefined ||
+                  (Array.isArray(ruleSet.bypass_actors) && !ruleSet.bypass_actors.length))) safe.push(...ruleSet.rules);
+            }
+            if (!['pull_request', 'deletion', 'non_fast_forward'].every(type => safe.some(rule => rule.type === type)) ||
+                !safe.some(rule => rule.type === 'required_status_checks' && rule.parameters.strict_required_status_checks_policy &&
+                  rule.parameters.required_status_checks.some(check => check.context === 'Build, lint, typecheck, test' && check.integration_id === 15368))) {
+              throw new Error('Required strict CI or branch protection is missing or has visible bypass actors.');
+            }
+            const {data: fresh} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (fresh.head.sha !== pr.head.sha) throw new Error('PR head changed; wait for its new event.');
+            if (fresh.auto_merge) return;
+            await github.graphql(`mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) { pullRequest { number } } }`, {id: fresh.node_id});
+            core.notice('GitHub will merge only after the strict required checks pass. No approval or bypass was added.');
