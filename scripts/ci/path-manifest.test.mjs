@@ -912,11 +912,26 @@ function assertManifest(options) {
   ])
     assert.equal(isBroadChangeLine(line), broad, JSON.stringify(line));
 
-  // Every deploy.yml paths-ignore entry is a release-ignored rule, so the push
-  // workflow never skips a path the classifier would deploy.
+  // Deploy filters cover release-ignored paths and these four agent setup
+  // locations. Agent inputs can require CI without selecting a deploy target.
   const deploy = parse(
     readFileSync(join(ROOT, ".github/workflows/deploy.yml"), "utf8"),
   );
+  const agentInputs = new Map([
+    ["CLAUDE.md", ["CLAUDE.md"]],
+    ["AGENTS.md", ["AGENTS.md"]],
+    [".agents/**", [".agents/skills/example/SKILL.md"]],
+    [
+      ".claude/**",
+      [
+        ".claude/settings.json",
+        ".claude/launch.json",
+        ".claude/commands/example.md",
+        ".claude/agents/example.md",
+        ".claude/skills/example/SKILL.md",
+      ],
+    ],
+  ]);
   const ignoredRows = rulesOfKind("ignored");
   const carveOuts = ignoredRows.filter((rule) => !rule.ignored);
   for (const glob of deploy.on.push["paths-ignore"]) {
@@ -926,14 +941,34 @@ function assertManifest(options) {
     const exact = /^[^*?[\]{}!]+$/.test(glob) ? glob : undefined;
     assert.ok(prefix || exact, `paths-ignore ${glob}: use dir/** or a path`);
     assert.ok(
-      ignoredRows.some(
-        (rule) =>
-          rule.ignored &&
-          (prefix ? rule.prefix === prefix : rule.exact?.includes(exact)),
-      ),
-      `paths-ignore ${glob} must be a release-ignored rule`,
+      agentInputs.has(glob) ||
+        ignoredRows.some(
+          (rule) =>
+            rule.ignored &&
+            (prefix ? rule.prefix === prefix : rule.exact?.includes(exact)),
+        ),
+      `paths-ignore ${glob} must be release-ignored or a named agent location`,
     );
-    assert.equal(isReleaseIgnored(prefix ? `${prefix}a/b.txt` : exact), true);
+    if (agentInputs.has(glob)) {
+      const paths = [
+        ...agentInputs.get(glob),
+        ...tracked.filter((path) =>
+          prefix ? path.startsWith(prefix) : path === exact,
+        ),
+      ];
+      for (const status of STATUSES) {
+        const release = classifyRelease(
+          paths.map((path) => `${status}\t${path}`),
+          options,
+        );
+        assert.ok(
+          Object.values(release.deploy_targets).every((selected) => !selected),
+          `paths-ignore ${glob} must not hide a deployment`,
+        );
+      }
+    } else {
+      assert.equal(isReleaseIgnored(prefix ? `${prefix}a/b.txt` : exact), true);
+    }
     for (const rule of carveOuts) {
       const skipped = prefix ?? exact;
       assert.ok(
@@ -941,6 +976,34 @@ function assertManifest(options) {
         `paths-ignore ${glob} must not skip ${rule.prefix}`,
       );
     }
+  }
+
+  const entersProductionQueue = (paths) =>
+    paths.some(
+      (path) =>
+        !deploy.on.push["paths-ignore"].some((glob) =>
+          globToRegExp(glob).test(path),
+        ),
+    );
+  const agentPaths = [...agentInputs.values()].flat();
+  for (const paths of [...agentPaths.map((path) => [path]), agentPaths]) {
+    assert.equal(entersProductionQueue(paths), false, JSON.stringify(paths));
+  }
+  for (const [path, target] of [
+    ["apps/www/src/pages/index.astro", "www"],
+    ["apps/admin/src/pages/index.astro", "admin"],
+    ["content/public/writing/example.md", "www"],
+  ]) {
+    const paths = [...agentPaths, path];
+    assert.equal(entersProductionQueue(paths), true, JSON.stringify(paths));
+    assert.equal(
+      classifyRelease(
+        paths.map((path) => `M\t${path}`),
+        options,
+      ).deploy_targets[target],
+      true,
+      `${path} must still select its deployment when mixed with agent changes`,
+    );
   }
 
   // The CodeRabbit review paths sit on approval rules. Markdown under them is

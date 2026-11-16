@@ -9,9 +9,9 @@
 # Path-filtered deploys: each retained production job only runs when files
 # relevant to that target actually changed. Root dependency changes do not
 # fan out to every target; use workflow_dispatch for an explicit deploy when a
-# root-only change needs promotion. Documentation-only commits skip the workflow
-# through the explicit paths below. Canonical public Markdown remains deployable.
-# Workflow-only changes run detection but deploy nothing. No
+# root-only change needs promotion. Documentation and agent setup commits skip
+# the workflow through the explicit paths below. Canonical public Markdown remains
+# deployable. Workflow-only changes run detection but deploy nothing. No
 # untrusted input is interpolated into run: blocks anywhere here.
 
 name: Deploy
@@ -23,6 +23,10 @@ on:
       - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - "LICENSE"
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - ".agents/**"
+      - ".claude/**"
   workflow_dispatch:
     inputs:
       source_sha:
