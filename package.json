@@ -158,7 +158,7 @@
     "prettier-plugin-astro": "^1.1.2",
     "turbo": "^2.11.10",
     "typescript": "^5.7.0",
-    "wrangler": "4.158.0",
+    "wrangler": "4.161.0",
     "yaml": "2.8.3"
   }
 }
