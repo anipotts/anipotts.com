@@ -920,7 +920,13 @@ function assertManifest(options) {
   const agentInputs = new Map([
     ["CLAUDE.md", ["CLAUDE.md"]],
     ["AGENTS.md", ["AGENTS.md"]],
-    [".agents/**", [".agents/skills/example/SKILL.md"]],
+    [
+      ".agents/**",
+      [
+        ".agents/skills/example/SKILL.md",
+        ".agents/skills/example/scripts/check.mjs",
+      ],
+    ],
     [
       ".claude/**",
       [
@@ -929,6 +935,7 @@ function assertManifest(options) {
         ".claude/commands/example.md",
         ".claude/agents/example.md",
         ".claude/skills/example/SKILL.md",
+        ".claude/skills/example/scripts/check.mjs",
       ],
     ],
   ]);
