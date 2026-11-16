@@ -240,6 +240,11 @@ describes the native client. Use the existing human Access session; software rel
 authority does not authorize publishing prose. Preserve unrelated metadata and
 source, retain retry identities, and distinguish private save from live publication.
 
+Use shared `voice` for writing and `studio` for video work. Record content ideas
+and engagement opportunities in `~/Brand/content/ideas.md`; discovery stays
+read-only. Website drafts use `pnpm editorial` and the owner editorial workflow
+above. Sending and publication keep their existing approval requirements.
+
 Public content defaults, normalizers, validators, settings, and homepage summary
 helpers live in `@anipotts/content/public`. Canonical frontmatter schemas are
 shared by Astro and generation. www serves only published records from `anipotts-content`
