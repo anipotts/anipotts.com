@@ -24,11 +24,11 @@ import {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let host: HTMLDivElement;
 let root: Root;
-async function render(scope = "owner") {
+async function render(scope = "owner", legacyRecovery = true) {
   await act(async () => {
     root.render(
       <AdminUIProvider enabled mode="light">
-        <NewWriting recoveryScope={scope} />
+        <NewWriting legacyRecovery={legacyRecovery} recoveryScope={scope} />
       </AdminUIProvider>,
     );
   });
@@ -98,7 +98,11 @@ it.each(["writing", "work"] as const)(
     vi.stubGlobal("fetch", fetcher);
     const page = (
       <AdminUIProvider enabled mode="light">
-        <NewWriting recoveryScope="owner" recordKind={recordKind} />
+        <NewWriting
+          legacyRecovery
+          recoveryScope="owner"
+          recordKind={recordKind}
+        />
       </AdminUIProvider>
     );
     act(() => root.unmount());
@@ -498,7 +502,9 @@ it("keeps project recovery separate and creates with project identity", async ()
   await render();
   await type("Article retained");
   await act(async () =>
-    root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
+    root.render(
+      <NewWriting legacyRecovery recoveryScope="owner" recordKind="work" />,
+    ),
   );
   expect(titleField().value).toBe("");
   expect(host.textContent).toContain("Project address");
@@ -528,7 +534,9 @@ it("keeps project recovery separate and creates with project identity", async ()
   await render();
   expect(titleField().value).toBe("Article retained");
   await act(async () =>
-    root.render(<NewWriting recoveryScope="owner" recordKind="work" />),
+    root.render(
+      <NewWriting legacyRecovery recoveryScope="owner" recordKind="work" />,
+    ),
   );
   await act(async () => {
     await settleRecoveryFixture();
@@ -629,6 +637,7 @@ it.each(["writing", "work"] as const)(
     await act(async () =>
       root.render(
         <NewWriting
+          legacyRecovery
           recoveryScope="owner"
           recordKind={recordKind}
           onCreated={onCreated}
@@ -659,7 +668,9 @@ it("retains a custom address when title changes and Enter submits explicitly", a
   );
   vi.stubGlobal("fetch", fetcher);
   await act(async () =>
-    root.render(<NewWriting recoveryScope="owner" onCreated={onCreated} />),
+    root.render(
+      <NewWriting legacyRecovery recoveryScope="owner" onCreated={onCreated} />,
+    ),
   );
   await type("Original name");
   await act(async () =>
@@ -730,4 +741,15 @@ it("preserves encrypted-export exhaustion and offers the existing Create draft a
   await act(async () => lockProtectedSession("expired"));
   expect(titleField()).toBeNull();
   expect(host.textContent).not.toContain("Download encrypted recovery copies");
+});
+
+it("opens ordinary authoring without a key and leaves older browser copies untouched", async () => {
+  const key = "editorial-recovery:v3:legacy-example";
+  localStorage.setItem(key, "opaque existing encrypted copy");
+  await render("owner", false);
+  expect(titleField().disabled).toBe(false);
+  await type("A new server draft");
+  expect(host.textContent).not.toContain("browser recovery");
+  expect(localStorage.getItem(key)).toBe("opaque existing encrypted copy");
+  expect(localStorage.getItem(newWritingRecoveryKey("owner"))).toBeNull();
 });

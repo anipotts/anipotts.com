@@ -69,11 +69,11 @@ export type DirectPublisherDependencies = {
   db: PublicationDatabase;
   media: Pick<R2Bucket, "put" | "get"> | null;
   canActivate?: () => boolean;
-  readDraft(record: EditorialRecord): Draft | null;
+  readDraft(record: EditorialRecord): Draft | null | Promise<Draft | null>;
   readMedia(
     id: string,
   ): Promise<{ metadata: EditorialMedia; bytes: Uint8Array } | null>;
-  acknowledge(receipt: Receipt): void;
+  acknowledge(receipt: Receipt): void | Promise<void>;
   validateCandidate?: typeof validatePublishedCandidate;
   transport?: typeof fetch;
   now?: () => number;
@@ -251,7 +251,7 @@ export class DirectPublisher {
     const approved =
       actionOf(input) === "unpublish"
         ? this.hiddenRevision(input)
-        : this.draftRevision(input);
+        : await this.draftRevision(input);
     if (typeof approved !== "string") return { ok: false, ...approved };
     let problem: {
       code:
@@ -284,6 +284,10 @@ export class DirectPublisher {
     // Persist the wake before accepting intent. A crash leaves either an empty
     // harmless alarm, or approved work that can continue without its browser.
     await this.storage.setAlarm(this.now() + 1000);
+    const approvedNow =
+      actionOf(input) === "unpublish"
+        ? this.hiddenRevision(input)
+        : await this.draftRevision(input);
     const result = this.storage.transactionSync(() => {
       const previous = this.get(input.operationId);
       if (previous)
@@ -302,10 +306,7 @@ export class DirectPublisher {
           code: "publication_in_progress" as const,
           existingId: existing.id,
         };
-      const approved =
-        actionOf(input) === "unpublish"
-          ? this.hiddenRevision(input)
-          : this.draftRevision(input);
+      const approved = approvedNow;
       if (typeof approved !== "string")
         return { ok: false as const, code: approved.code };
       const createdAt = this.now();
@@ -386,8 +387,8 @@ export class DirectPublisher {
     return null;
   }
   /** The exact reviewed private draft, which must stay publicly visible. */
-  private draftRevision(input: StartDirectPublication) {
-    const draft = this.dependencies.readDraft(input.record);
+  private async draftRevision(input: StartDirectPublication) {
+    const draft = await this.dependencies.readDraft(input.record);
     if (
       !draft ||
       draft.discardedAt !== null ||
@@ -643,7 +644,7 @@ export class DirectPublisher {
     }
     // Acknowledgment is idempotent and monotonic by D1 inventory version. It
     // updates the private baseline only, never a newer authored source/revision.
-    this.dependencies.acknowledge(receipt);
+    await this.dependencies.acknowledge(receipt);
     const version = receipt.expectedInventoryVersion + 1;
     const current = await getPublished(this.dependencies.db, intent.record);
     if (current?.publicationId !== receipt.publicationId) {

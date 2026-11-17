@@ -283,9 +283,11 @@ function HomeEditorImpl({
   back = { href: "/content/pages", label: "Back to Pages" },
   publicUrl,
   autoFocus = false,
+  legacyRecovery = false,
 }: {
   /** Just created: writing continues in the field after the title. */
   autoFocus?: boolean;
+  legacyRecovery?: boolean;
   record: EditorialRecord;
   pageTitle?: string;
   homepageWritingOptions?: { slug: string; title: string; status: string }[];
@@ -311,6 +313,7 @@ function HomeEditorImpl({
   const toast = useToast();
   const sessionLocked = useRef(false);
   const [locked, setLocked] = useState(false);
+  const heldUnsaved = useRef<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [historyError, setHistoryError] = useState(false);
   const [comparedRevision, setComparedRevision] = useState<number | null>(null);
@@ -786,59 +789,65 @@ function HomeEditorImpl({
             }
           },
         );
-        recoveryStorageKey.current = data.recoveryScope
-          ? recoveryKey(data.recoveryScope, record)
-          : null;
-        try {
-          const key = recoveryStorageKey.current;
-          recoveryChannel.current?.close();
-          const channel = key
-            ? encryptedDraftRecovery(localStorage, key)
+        if (legacyRecovery) {
+          recoveryStorageKey.current = data.recoveryScope
+            ? recoveryKey(data.recoveryScope, record)
             : null;
-          recoveryChannel.current = channel;
-          const result = channel
-            ? await channel.read()
-            : { status: "unavailable" as const };
-          if (
-            cancelled ||
-            sessionLocked.current ||
-            recoveryChannel.current !== channel
-          )
-            return;
-          setRecoveryRead(result);
-          setRecoveryProblem(
-            result.status === "ready" || result.status === "missing"
-              ? null
-              : result.status,
-          );
-          if (result.status === "ready" && data.draft?.discardedAt && channel) {
-            // The author discarded this draft. Retire the recovery candidate
-            // instead of leaving it to resurface on a later reload, which would
-            // bring back content that was deliberately thrown away.
-            const problem = await channel.write(null);
-            if (cancelled || recoveryChannel.current !== channel) return;
-            setRecoveryProblem(problem);
-          }
-          if (result.status === "ready" && !data.draft?.discardedAt) {
-            const recovered = result.value;
-            if (recovered.source !== source || recovered.pending) {
-              recoveryAwaitingSave.current = true;
-              setRecoveredAwaitingSave(true);
-              editor.current.recover(recovered);
-              toast({
-                body: "Recovered your unsaved edits. Review them before saving.",
-                uniqueID: "draft-recovery",
-              });
-            } else if (channel) {
-              // Exact acknowledged content can retire this recovery candidate,
-              // while retaining legacy bytes behind a v2 acknowledgment marker.
+          try {
+            const key = recoveryStorageKey.current;
+            recoveryChannel.current?.close();
+            const channel = key
+              ? encryptedDraftRecovery(localStorage, key)
+              : null;
+            recoveryChannel.current = channel;
+            const result = channel
+              ? await channel.read()
+              : { status: "unavailable" as const };
+            if (
+              cancelled ||
+              sessionLocked.current ||
+              recoveryChannel.current !== channel
+            )
+              return;
+            setRecoveryRead(result);
+            setRecoveryProblem(
+              result.status === "ready" || result.status === "missing"
+                ? null
+                : result.status,
+            );
+            if (
+              result.status === "ready" &&
+              data.draft?.discardedAt &&
+              channel
+            ) {
+              // The author discarded this draft. Retire the recovery candidate
+              // instead of leaving it to resurface on a later reload, which would
+              // bring back content that was deliberately thrown away.
               const problem = await channel.write(null);
               if (cancelled || recoveryChannel.current !== channel) return;
               setRecoveryProblem(problem);
             }
+            if (result.status === "ready" && !data.draft?.discardedAt) {
+              const recovered = result.value;
+              if (recovered.source !== source || recovered.pending) {
+                recoveryAwaitingSave.current = true;
+                setRecoveredAwaitingSave(true);
+                editor.current.recover(recovered);
+                toast({
+                  body: "Recovered your unsaved edits. Review them before saving.",
+                  uniqueID: "draft-recovery",
+                });
+              } else if (channel) {
+                // Exact acknowledged content can retire this recovery candidate,
+                // while retaining legacy bytes behind a v2 acknowledgment marker.
+                const problem = await channel.write(null);
+                if (cancelled || recoveryChannel.current !== channel) return;
+                setRecoveryProblem(problem);
+              }
+            }
+          } catch {
+            setRecoveryProblem("unavailable");
           }
-        } catch {
-          setRecoveryProblem("unavailable");
         }
         setState(editor.current.state);
       })
@@ -850,7 +859,7 @@ function HomeEditorImpl({
       recoveryChannel.current?.close();
       navigationGeneration.current += 1;
     };
-  }, [loadAttempt]);
+  }, [loadAttempt, legacyRecovery]);
   useEffect(() => {
     if (!publication || ["live", "cancelled"].includes(publication.phase))
       return;
@@ -954,16 +963,18 @@ function HomeEditorImpl({
   }, [state?.source, titled, untitled, onTitleChange]);
   useEffect(
     () =>
-      recoverySession().capture(() => {
-        saveScheduler.current?.dispose();
-        flushLocal();
-        const controller = editor.current;
-        const channel = recoveryChannel.current;
-        return controller && channel
-          ? channel.sealFinal(controller.recovery())
-          : Promise.resolve();
-      }),
-    [],
+      legacyRecovery
+        ? recoverySession().capture(() => {
+            saveScheduler.current?.dispose();
+            flushLocal();
+            const controller = editor.current;
+            const channel = recoveryChannel.current;
+            return controller && channel
+              ? channel.sealFinal(controller.recovery())
+              : Promise.resolve();
+          })
+        : undefined,
+    [legacyRecovery],
   );
   useEffect(() => {
     const logout = (event: StorageEvent) => {
@@ -985,6 +996,10 @@ function HomeEditorImpl({
       const channel = recoveryChannel.current;
       if (preserveRecovery && recovery && channel)
         void channel.write(recovery).finally(() => channel.close());
+      heldUnsaved.current =
+        preserveRecovery && editor.current?.state.status !== "saved"
+          ? (editor.current?.state.source ?? null)
+          : null;
       editor.current?.dispose();
       editor.current = null;
       titleFlush.current = subtitleFlush.current = bodyFlush.current = null;
@@ -997,8 +1012,10 @@ function HomeEditorImpl({
       publishedDraft.current = null;
       publishRequest.current = null;
       unpublishRequest.current = null;
-      setState(null);
-      setSnapshot(null);
+      if (!preserveRecovery) {
+        setState(null);
+        setSnapshot(null);
+      }
       setReviewedBase(null);
       setReviewedDraft(null);
       setComparison(null);
@@ -1027,6 +1044,7 @@ function HomeEditorImpl({
       subtitleFlush.current?.();
       bodyFlush.current?.();
       if (
+        heldUnsaved.current !== null ||
         mediaPending.current ||
         bodyDirtyRef.current ||
         (editor.current && editor.current.state.status !== "saved")
@@ -1167,6 +1185,29 @@ function HomeEditorImpl({
           status="warning"
           title="Session ended. Sign in again to resume your saved draft."
         />
+        {state && (
+          <>
+            <p>
+              Your unsaved text is still in this tab. Download it before signing
+              in again.
+            </p>
+            <Button
+              label="Download current draft"
+              clickAction={() => {
+                const url = URL.createObjectURL(
+                  new Blob([state.source], {
+                    type: "text/markdown;charset=utf-8",
+                  }),
+                );
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `${record.id}-draft.md`;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            />
+          </>
+        )}
         <AuthReentry
           href={editorialReturnPath(location.pathname + location.search)}
         />
@@ -1286,6 +1327,10 @@ function HomeEditorImpl({
     /* Source remains editable and recoverable while malformed. */
   }
   const downloadRecovery = async () => {
+    if (!legacyRecovery) {
+      downloadSource();
+      return;
+    }
     try {
       if (
         protectedSessionIsLocked() ||
@@ -2273,7 +2318,11 @@ function HomeEditorImpl({
                       clickAction={compareSavedDraft}
                     />
                     <Button
-                      label="Download encrypted draft"
+                      label={
+                        legacyRecovery
+                          ? "Download encrypted draft"
+                          : "Download Markdown"
+                      }
                       size="sm"
                       isDisabled={recoveryProblem === "key-usage-limit"}
                       onClick={() => downloadRecovery()}
@@ -2289,7 +2338,11 @@ function HomeEditorImpl({
             <RecoveryBanner
               title={refusal.title}
               description={refusal.description}
-              actionLabel="Download encrypted draft"
+              actionLabel={
+                legacyRecovery
+                  ? "Download encrypted draft"
+                  : "Download Markdown"
+              }
               onRetry={
                 recoveryProblem === "key-usage-limit"
                   ? undefined
@@ -2311,7 +2364,11 @@ function HomeEditorImpl({
           ) : error ? (
             <RecoveryBanner
               title={error}
-              actionLabel="Download encrypted draft"
+              actionLabel={
+                legacyRecovery
+                  ? "Download encrypted draft"
+                  : "Download Markdown"
+              }
               onRetry={
                 recoveryProblem === "key-usage-limit"
                   ? undefined

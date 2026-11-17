@@ -77,6 +77,7 @@ function addressHints(input: HTMLInputElement | null) {
 }
 
 type NewWritingProps = {
+  legacyRecovery?: boolean;
   recoveryScope?: string;
   recordKind?: "writing" | "work";
   back?: { href: string; label: string };
@@ -101,6 +102,7 @@ export function NewWriting(props: NewWritingProps) {
  */
 function NewWritingForm({
   recoveryScope,
+  legacyRecovery = false,
   recordKind = "writing",
   back,
   onCreated,
@@ -181,13 +183,15 @@ function NewWritingForm({
   }, [restored, loggedOut]);
   useEffect(
     () =>
-      recoverySession().capture(() => {
-        const channel = recoveryChannel.current;
-        return channel && latestRecovery.current
-          ? channel.sealFinal(latestRecovery.current)
-          : Promise.resolve();
-      }),
-    [],
+      legacyRecovery
+        ? recoverySession().capture(() => {
+            const channel = recoveryChannel.current;
+            return channel && latestRecovery.current
+              ? channel.sealFinal(latestRecovery.current)
+              : Promise.resolve();
+          })
+        : undefined,
+    [legacyRecovery],
   );
   useEffect(() => {
     active.current = true;
@@ -212,8 +216,10 @@ function NewWritingForm({
       request.current = null;
       setLoggedOut(true);
       setRecoveryRead({ status: "missing" });
-      setTitle("");
-      setSlug("");
+      if (event instanceof CustomEvent && event.detail === "logout") {
+        setTitle("");
+        setSlug("");
+      }
       setError("");
     };
     const stopWatching = watchProtectedSession((reason) =>
@@ -225,6 +231,8 @@ function NewWritingForm({
       try {
         if (!active.current) {
           /* A locked document must never restore recovery into memory. */
+        } else if (!legacyRecovery) {
+          // Server saves are authoritative. Existing browser copies stay untouched.
         } else if (!recoveryKey) setRecoveryFailed(true);
         else {
           const channel = encryptedWritingRecovery(localStorage, recoveryKey);
@@ -258,7 +266,7 @@ function NewWritingForm({
       window.removeEventListener("storage", logout);
       window.removeEventListener(recoveryLogoutKey, logout);
     };
-  }, [recoveryKey]);
+  }, [recoveryKey, legacyRecovery]);
   useEffect(() => {
     if (!restored || !recoveryKey || !active.current) return;
     const channel = recoveryChannel.current;
@@ -295,6 +303,17 @@ function NewWritingForm({
       return;
     }
     if (leavePending.current) return;
+    if (!legacyRecovery) {
+      if (
+        recoveryUnsafe.current &&
+        !window.confirm(
+          "Leave without creating this draft? Your title has not been saved.",
+        )
+      )
+        return;
+      commitAdminNavigation(href);
+      return;
+    }
     if (!recoveryUnsafe.current) {
       commitAdminNavigation(href);
       return;

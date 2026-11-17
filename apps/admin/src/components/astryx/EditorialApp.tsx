@@ -409,8 +409,22 @@ export function EditorialApp({
               />
             )}
             {(newWriting || newProject) && !created && (
-              <RecoveryUnlock scope={recoveryScope}>
+              <RecoveryUnlock
+                scope={recoveryScope}
+                enabled={
+                  typeof window !== "undefined" &&
+                  new URLSearchParams(window.location.search).get(
+                    "legacyRecovery",
+                  ) === "1"
+                }
+              >
                 <NewWriting
+                  legacyRecovery={
+                    typeof window !== "undefined" &&
+                    new URLSearchParams(window.location.search).get(
+                      "legacyRecovery",
+                    ) === "1"
+                  }
                   recoveryScope={recoveryScope}
                   recordKind={newProject ? "work" : "writing"}
                   back={back}
@@ -437,7 +451,15 @@ export function EditorialApp({
               />
             )}
             {(editHome || openRecord) && (
-              <RecoveryUnlock scope={recoveryScope}>
+              <RecoveryUnlock
+                scope={recoveryScope}
+                enabled={
+                  typeof window !== "undefined" &&
+                  new URLSearchParams(window.location.search).get(
+                    "legacyRecovery",
+                  ) === "1"
+                }
+              >
                 <EditorLoadingBoundary
                   key={`${openRecord?.kind ?? "page"}:${openRecord?.id ?? "home"}`}
                 >
@@ -455,6 +477,12 @@ export function EditorialApp({
                     }
                   >
                     <HomeEditor
+                      legacyRecovery={
+                        typeof window !== "undefined" &&
+                        new URLSearchParams(window.location.search).get(
+                          "legacyRecovery",
+                        ) === "1"
+                      }
                       pageTitle={
                         openRecord?.kind === "writing" ||
                         openRecord?.kind === "work"
