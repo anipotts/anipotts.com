@@ -178,6 +178,7 @@ async function mount(
       <>
         {withIdentity && <WorkspaceMemory />}
         <HomeEditor
+          legacyRecovery
           record={{ kind: "writing", id: "test" }}
           localPreview={localPreview}
         />
@@ -727,6 +728,7 @@ it.each(["loading", "failed"])(
     await act(async () => {
       root.render(
         <HomeEditor
+          legacyRecovery
           record={{ kind: "writing", id: "test" }}
           localPreview={true}
         />,
@@ -759,6 +761,7 @@ it.each(["loading", "failed"])(
     await act(async () => {
       root.render(
         <HomeEditor
+          legacyRecovery
           record={{ kind: "writing", id: "test" }}
           localPreview={true}
         />,
@@ -1068,7 +1071,11 @@ it("holds project navigation and unload while media is pending", async () => {
   window.history.replaceState(null, "", "/content/projects/example");
   await act(async () =>
     root.render(
-      <HomeEditor record={{ kind: "work", id: "example" }} localPreview />,
+      <HomeEditor
+        legacyRecovery
+        record={{ kind: "work", id: "example" }}
+        localPreview
+      />,
     ),
   );
   expect(host.querySelector('[data-testid="project-media"]')).not.toBeNull();
@@ -1231,7 +1238,11 @@ it.each(["record", "history"] as const)(
     if (action === "record") {
       await act(async () =>
         root.render(
-          <HomeEditor record={{ kind: "writing", id: "test" }} localPreview />,
+          <HomeEditor
+            legacyRecovery
+            record={{ kind: "writing", id: "test" }}
+            localPreview
+          />,
         ),
       );
       await act(async () => {

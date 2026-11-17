@@ -73,6 +73,7 @@ async function mount(kind: "writing" | "work" = "writing", settle = true) {
     root.render(
       <Provider enabled mode="light">
         <NewWriting
+          legacyRecovery
           recoveryScope="owner"
           recordKind={kind}
           back={{
