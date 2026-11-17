@@ -152,8 +152,8 @@ export async function installOwnedPreviewMedia() {
     const id = payload.getAttribute("data-preview-owned-media");
     const type = payload.getAttribute("data-media-type");
     if (
-      !/^[a-f0-9]{64}\.(?:png|jpg|webp)$/.test(id ?? "") ||
-      !["image/png", "image/jpeg", "image/webp"].includes(type) ||
+      !/^[a-f0-9]{64}\.(?:png|jpg|webp|gif)$/.test(id ?? "") ||
+      !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(type) ||
       urls.has(id)
     )
       throw new Error("Invalid preview media payload");
@@ -203,7 +203,7 @@ export async function installOwnedPreviewMedia() {
       element.setAttribute(
         "srcset",
         srcset.replace(
-          /preview-owned:([a-f0-9]{64}\.(?:png|jpg|webp))/g,
+          /preview-owned:([a-f0-9]{64}\.(?:png|jpg|webp|gif))/g,
           (_, id) => {
             const url = urls.get(id);
             if (!url) throw new Error("Preview media missing");

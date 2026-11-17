@@ -270,11 +270,15 @@ export class D1DraftRepository {
         ? { ok: true, draft }
         : { ok: false, code: "save_reconciliation_required" };
     }
-    const legacyConflict = await this.conflict(input.record, input.requestId);
+    const legacyConflict = await this.stmt(
+      "SELECT key,source,expectedRevision FROM editorial_draft_conflicts WHERE store=? AND id=?",
+      input.requestId,
+    ).first<{ key: string; source: string; expectedRevision: number }>();
     if (legacyConflict)
       return {
         ok: false,
         code:
+          legacyConflict.key === key &&
           legacyConflict.source === input.source &&
           legacyConflict.expectedRevision === input.expectedRevision
             ? "save_reconciliation_required"

@@ -176,3 +176,29 @@ it("stores new immutable uploads in private R2 and reads legacy chunks without d
     env.CONTENT_DB.prepare("DELETE FROM editorial_draft_history").run(),
   ).rejects.toThrow();
 });
+
+it("rejects legacy conflict request IDs reused across records", async () => {
+  const instance = env.D1_EDITORIAL.getByName(crypto.randomUUID());
+  const request = input("same text", 0);
+  await runInDurableObject(instance, async (_, state) => {
+    state.storage.sql.exec(
+      "INSERT INTO conflicts VALUES (?,?,?,?,?)",
+      request.requestId,
+      "content/public/writing/other-record.md",
+      request.source,
+      request.expectedRevision,
+      100,
+    );
+  });
+  expect(await instance.save(request)).toEqual({
+    ok: false,
+    code: "idempotency_key_reused",
+  });
+  expect(await instance.get(record)).toBeNull();
+  expect(
+    await instance.save({
+      ...request,
+      record: { kind: "writing", id: "other-record" },
+    }),
+  ).toEqual({ ok: false, code: "save_reconciliation_required" });
+});

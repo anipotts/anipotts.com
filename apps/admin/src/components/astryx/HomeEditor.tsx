@@ -278,6 +278,7 @@ function HomeEditorImpl({
   record,
   localPreview = false,
   onTitleChange,
+  onReady,
   pageTitle,
   homepageWritingOptions = [],
   back = { href: "/content/pages", label: "Back to Pages" },
@@ -293,6 +294,7 @@ function HomeEditorImpl({
   homepageWritingOptions?: { slug: string; title: string; status: string }[];
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
+  onReady?: () => void;
   /** The editor bar's way back, usually the library the record came from. */
   back?: { href: string; label: string };
   /** The public URL of a site path, themed to match the admin. */
@@ -850,6 +852,7 @@ function HomeEditorImpl({
           }
         }
         setState(editor.current.state);
+        onReady?.();
       })
       .catch(() => {
         if (!cancelled) setError("Couldn’t load this draft.");
