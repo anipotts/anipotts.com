@@ -97,8 +97,8 @@ export function NewWriting(props: NewWritingProps) {
 /**
  * Create is the editor itself: a large title and, under it, the address it
  * derives with a pencil to change it. Create draft or Return explicitly
- * creates the private draft and opens it; every keystroke before that is
- * kept in browser recovery.
+ * creates the private draft and opens it. Until then, the title stays in
+ * this tab and navigation warns before abandoning it.
  */
 function NewWritingForm({
   recoveryScope,
@@ -169,6 +169,7 @@ function NewWritingForm({
     setLeaveError("");
   };
   const active = useRef(true);
+  const heldUnsaved = useRef(false);
   const createAbort = useRef<AbortController | null>(null);
   const [loggedOut, setLoggedOut] = useState(false);
   useEffect(() => {
@@ -198,6 +199,11 @@ function NewWritingForm({
     const logout = (event: Event) => {
       if (event instanceof StorageEvent && event.key !== recoveryLogoutKey)
         return;
+      const preserveInput =
+        event instanceof CustomEvent && event.detail !== "logout";
+      heldUnsaved.current =
+        preserveInput &&
+        Boolean(latestRecovery.current?.title || latestRecovery.current?.slug);
       active.current = false;
       const channel = recoveryChannel.current;
       if (
@@ -216,7 +222,7 @@ function NewWritingForm({
       request.current = null;
       setLoggedOut(true);
       setRecoveryRead({ status: "missing" });
-      if (event instanceof CustomEvent && event.detail === "logout") {
+      if (!preserveInput) {
         setTitle("");
         setSlug("");
       }
@@ -412,7 +418,10 @@ function NewWritingForm({
       void leaveDocumentRef.current(anchor.href);
     };
     const preventLoss = (event: BeforeUnloadEvent) => {
-      if (active.current && (pending.current || recoveryUnsafe.current)) {
+      if (
+        heldUnsaved.current ||
+        (active.current && (pending.current || recoveryUnsafe.current))
+      ) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -540,6 +549,31 @@ function NewWritingForm({
           status="warning"
           title="Session ended. Sign in again to resume."
         />
+        {(title || slug) && (
+          <>
+            <p>
+              Your unsaved title and address are still in this tab. Copy them or
+              download them before signing in again.
+            </p>
+            <p>Title: {title}</p>
+            <p>Address: {slug}</p>
+            <Button
+              label="Download current draft"
+              clickAction={() => {
+                const url = URL.createObjectURL(
+                  new Blob([JSON.stringify({ title, slug }, null, 2)], {
+                    type: "application/json",
+                  }),
+                );
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "unfinished-draft.json";
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            />
+          </>
+        )}
         <AuthReentry
           href={editorialReturnPath(location.pathname + location.search)}
         />

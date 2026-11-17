@@ -392,7 +392,7 @@ it("offers current-copy download when no recovery storage key was available", as
 });
 
 it.each(["expired", "logout"] as const)(
-  "removes current-copy download when creation session is %s",
+  "retains creation fields only for expiry, clearing them on %s logout",
   async (reason) => {
     await render();
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
@@ -407,9 +407,9 @@ it.each(["expired", "logout"] as const)(
     expect(host.textContent).not.toContain(
       "Download encrypted recovery copies",
     );
-    expect(host.textContent).not.toContain(
-      "Private creation fields before lock",
-    );
+    expect(
+      host.textContent?.includes("Private creation fields before lock"),
+    ).toBe(reason === "expired");
     expect(host.textContent).toContain("Session ended");
     vi.restoreAllMocks();
   },

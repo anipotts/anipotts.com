@@ -420,3 +420,35 @@ it("a pristine blank form remains leaveable when recovery storage is unavailable
   await act(async () => navigation.navigateAdmin("/content/writing"));
   expect(commit).toHaveBeenCalledOnce();
 });
+
+it.each(["writing", "work"] as const)(
+  "retains new %s fields for download on expiry, clearing on logout",
+  async (recordKind) => {
+    await act(async () =>
+      root.render(
+        <Provider enabled mode="light">
+          <NewWriting recordKind={recordKind} />
+        </Provider>,
+      ),
+    );
+    await title("My unfinished title");
+    await address("custom-address");
+    const { lockProtectedSession } =
+      await import("../../lib/protected-admin-json");
+    await act(async () => lockProtectedSession("expired"));
+    expect(host.textContent).toContain("Title: My unfinished title");
+    expect(host.textContent).toContain("Address: custom-address");
+    expect(host.textContent).toContain("Download current draft");
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+    await act(async () => lockProtectedSession("logout"));
+    expect(host.textContent).not.toContain("My unfinished title");
+    expect(host.textContent).not.toContain("custom-address");
+    expect(host.textContent).not.toContain("Download current draft");
+    const signedOutUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(signedOutUnload);
+    expect(signedOutUnload.defaultPrevented).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
