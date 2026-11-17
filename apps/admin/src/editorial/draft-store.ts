@@ -96,7 +96,10 @@ export class EditorialDraftStore extends DurableObject<unknown> {
           this.ctx.id.toString(),
         );
       }
-      if (!this.#d1Ready) this.#d1Ready = this.#d1.migrate();
+      if (!this.#d1Ready)
+        this.#d1Ready = this.#recovery.writer("d1-migration", () =>
+          this.#d1!.migrate(),
+        );
       try {
         await this.#d1Ready;
       } catch (error) {
