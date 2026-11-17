@@ -361,7 +361,18 @@ function HomeEditorImpl({
   const lastEditingFocus = useRef<HTMLElement | null>(null);
   const previousTab = useRef("edit");
   const fieldElements = useRef(new Map<string, HTMLElement>());
+  const [visitedFields, setVisitedFields] = useState<Set<string>>(
+    () => new Set(),
+  );
   const requestedEditingField = useRef<string | null>(null);
+  const fieldFocusFrame = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (fieldFocusFrame.current !== null)
+        cancelAnimationFrame(fieldFocusFrame.current);
+    },
+    [],
+  );
   useEffect(() => {
     if (tab === "edit" && previousTab.current !== "edit") {
       const frame = requestAnimationFrame(() => {
@@ -1329,6 +1340,20 @@ function HomeEditorImpl({
   } catch {
     /* Source remains editable and recoverable while malformed. */
   }
+  // Missing fields are normal while starting a draft. Validate after leaving
+  // that field, while retaining immediate feedback for malformed values.
+  const inlineFieldError = (key: string) => {
+    const message = fieldErrors.get(key);
+    return message === "This field is required." && !visitedFields.has(key)
+      ? undefined
+      : message;
+  };
+  const validationWarning =
+    !parseable ||
+    [...fieldErrors].some(
+      ([key, message]) =>
+        message !== "This field is required." || visitedFields.has(key),
+    );
   const downloadRecovery = async () => {
     if (!legacyRecovery) {
       downloadSource();
@@ -1960,6 +1985,42 @@ function HomeEditorImpl({
     return true;
   };
   const fieldKey = (field: { path: string[] }) => field.path.join(".");
+  const invalidInlineField = fields.find((field) =>
+    fieldErrors.has(fieldKey(field)),
+  );
+  const completeDraftDetails = () => {
+    if (!invalidInlineField) {
+      openPanel("properties");
+      return;
+    }
+    const key = fieldKey(invalidInlineField);
+    requestedEditingField.current = key;
+    openPanel(null);
+    if (tab !== "edit") {
+      setTab("edit");
+      return;
+    }
+    if (fieldFocusFrame.current !== null)
+      cancelAnimationFrame(fieldFocusFrame.current);
+    // Wait for blur validation and the button's native press handling to settle.
+    fieldFocusFrame.current = requestAnimationFrame(() => {
+      fieldFocusFrame.current = null;
+      if (sessionLocked.current || workspaceState.current.view !== "edit")
+        return;
+      if (requestedEditingField.current === key)
+        requestedEditingField.current = null;
+      const field = fieldElements.current.get(key);
+      const target =
+        field?.querySelector<HTMLElement>(
+          '[contenteditable="true"][role="textbox"]',
+        ) ??
+        field?.querySelector<HTMLElement>(
+          'textarea, input:not([type="hidden"])',
+        );
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+  };
   /** Return in a title moves to the next field's own input. */
   const focusAfter = (index: number) => {
     for (const field of fields.slice(index + 1)) {
@@ -2614,6 +2675,17 @@ function HomeEditorImpl({
                   <VStack
                     gap={2}
                     key={fieldKey(field)}
+                    onBlurCapture={(event) => {
+                      if (
+                        event.relatedTarget instanceof Node &&
+                        event.currentTarget.contains(event.relatedTarget)
+                      )
+                        return;
+                      const key = fieldKey(field);
+                      setVisitedFields((current) =>
+                        current.has(key) ? current : new Set([...current, key]),
+                      );
+                    }}
                     ref={(element) => {
                       if (element)
                         fieldElements.current.set(fieldKey(field), element);
@@ -2647,7 +2719,7 @@ function HomeEditorImpl({
                         label={field.label}
                         value={values[index] ?? ""}
                         disabled={!parseable || discarded}
-                        error={fieldErrors.get(fieldKey(field))}
+                        error={inlineFieldError(fieldKey(field))}
                         flushRef={titleFlush}
                         onDirty={markDirty}
                         onEnter={() => focusAfter(index)}
@@ -2671,10 +2743,10 @@ function HomeEditorImpl({
                         value={values[index] ?? ""}
                         isDisabled={!parseable || discarded}
                         status={
-                          fieldErrors.has("opening")
+                          inlineFieldError("opening")
                             ? {
                                 type: "error",
-                                message: fieldErrors.get("opening"),
+                                message: inlineFieldError("opening"),
                               }
                             : undefined
                         }
@@ -2702,7 +2774,7 @@ function HomeEditorImpl({
                         }
                         key={fieldKey(field)}
                         label={field.label}
-                        validationError={fieldErrors.get(fieldKey(field))}
+                        validationError={inlineFieldError(fieldKey(field))}
                         value={values[index] ?? ""}
                         disabled={!parseable || discarded}
                         onChange={(value) => {
@@ -2726,10 +2798,10 @@ function HomeEditorImpl({
                         key={fieldKey(field)}
                         label={field.label}
                         status={
-                          fieldErrors.has(fieldKey(field))
+                          inlineFieldError(fieldKey(field))
                             ? {
                                 type: "error",
-                                message: fieldErrors.get(fieldKey(field)),
+                                message: inlineFieldError(fieldKey(field)),
                               }
                             : undefined
                         }
@@ -2929,8 +3001,8 @@ function HomeEditorImpl({
           )}
           {!valid && (
             <Banner
-              role="alert"
-              status="warning"
+              role={validationWarning ? "alert" : "status"}
+              status={validationWarning ? "warning" : "info"}
               title={
                 parseable
                   ? "Complete the draft details"
@@ -2944,8 +3016,12 @@ function HomeEditorImpl({
                   />
                 ) : record.kind === "writing" || record.kind === "work" ? (
                   <Button
-                    label="Check properties"
-                    onClick={() => openPanel("properties")}
+                    label={
+                      invalidInlineField
+                        ? `${fieldErrors.get(fieldKey(invalidInlineField)) === "This field is required." ? "Add" : "Check"} ${invalidInlineField.label.toLowerCase()}`
+                        : "Check properties"
+                    }
+                    onClick={completeDraftDetails}
                   />
                 ) : undefined
               }

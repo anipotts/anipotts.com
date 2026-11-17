@@ -59,6 +59,42 @@ afterEach(() => {
   host.remove();
   vi.unstubAllGlobals();
 });
+
+it("keeps GIFs animated by offering crop only for the selected static image", async () => {
+  await act(async () =>
+    root.render(
+      <ArticleBody
+        value={
+          "![Animated](https://example.com/a.GIF?version=1)\n\n![Still](https://example.com/b.png)"
+        }
+        onChange={() => {}}
+      />,
+    ),
+  );
+  const select = (alt: string) =>
+    act(() => {
+      editor!.state.doc.descendants((node, pos) => {
+        if (node.type.name === "image" && node.attrs.alt === alt)
+          editor!.commands.setNodeSelection(pos);
+      });
+      editor!.view.dom.dispatchEvent(
+        new FocusEvent("focusin", { bubbles: true }),
+      );
+    });
+  const labels = () =>
+    Array.from(host.querySelectorAll("button")).map((node) =>
+      node.textContent?.trim(),
+    );
+  select("Animated");
+  expect(labels()).toContain("Replace image");
+  expect(labels()).toContain("Alt text");
+  expect(labels()).not.toContain("Crop image");
+  select("Still");
+  expect(labels()).toContain("Crop image");
+  select("Animated");
+  expect(labels()).not.toContain("Crop image");
+});
+
 it("keeps the update label for the image the panel opened on after the caret moves", async () => {
   await act(async () =>
     root.render(
