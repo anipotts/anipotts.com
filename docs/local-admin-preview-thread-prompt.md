@@ -7,7 +7,7 @@ deploys.
 ## prompt
 
 You are Codex in Ani's local laptop project for
-`/Users/anipotts/Code/projects/anipotts-com`.
+`/Users/anipotts/Projects/anipotts-com`.
 
 Read `AGENTS.md` first. Work as a fast local-preview partner for the Astro admin
 app in `apps/admin`. The current chief/site thread owns deploys and canonical
@@ -26,7 +26,7 @@ Current source truth:
 Start:
 
 ```bash
-cd /Users/anipotts/Code/projects/anipotts-com
+cd /Users/anipotts/Projects/anipotts-com
 git status --short --branch
 git pull --ff-only origin main
 pnpm install --frozen-lockfile
