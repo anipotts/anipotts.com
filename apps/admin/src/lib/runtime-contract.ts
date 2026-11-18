@@ -37,6 +37,7 @@ export const RUNTIME_CONTRACT = {
   CONTENT_MEDIA: { source: "r2", check: "getPut" },
   EDITORIAL: { source: "durable_objects", check: "getByName" },
   EDITORIAL_ENABLED: { source: "vars", check: "flag" },
+  EDITORIAL_D1_DRAFTS: { source: "vars", check: "flag" },
   EDITORIAL_PUBLISH_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_ENABLED: { source: "vars", check: "flag" },
   PRIVATE_READER_OPS_ENABLED: { source: "vars", check: "flag" },

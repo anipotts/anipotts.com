@@ -77,6 +77,7 @@ function addressHints(input: HTMLInputElement | null) {
 }
 
 type NewWritingProps = {
+  legacyRecovery?: boolean;
   recoveryScope?: string;
   recordKind?: "writing" | "work";
   back?: { href: string; label: string };
@@ -96,11 +97,12 @@ export function NewWriting(props: NewWritingProps) {
 /**
  * Create is the editor itself: a large title and, under it, the address it
  * derives with a pencil to change it. Create draft or Return explicitly
- * creates the private draft and opens it; every keystroke before that is
- * kept in browser recovery.
+ * creates the private draft and opens it. Until then, the title stays in
+ * this tab and navigation warns before abandoning it.
  */
 function NewWritingForm({
   recoveryScope,
+  legacyRecovery = false,
   recordKind = "writing",
   back,
   onCreated,
@@ -167,6 +169,7 @@ function NewWritingForm({
     setLeaveError("");
   };
   const active = useRef(true);
+  const heldUnsaved = useRef(false);
   const createAbort = useRef<AbortController | null>(null);
   const [loggedOut, setLoggedOut] = useState(false);
   useEffect(() => {
@@ -181,19 +184,26 @@ function NewWritingForm({
   }, [restored, loggedOut]);
   useEffect(
     () =>
-      recoverySession().capture(() => {
-        const channel = recoveryChannel.current;
-        return channel && latestRecovery.current
-          ? channel.sealFinal(latestRecovery.current)
-          : Promise.resolve();
-      }),
-    [],
+      legacyRecovery
+        ? recoverySession().capture(() => {
+            const channel = recoveryChannel.current;
+            return channel && latestRecovery.current
+              ? channel.sealFinal(latestRecovery.current)
+              : Promise.resolve();
+          })
+        : undefined,
+    [legacyRecovery],
   );
   useEffect(() => {
     active.current = true;
     const logout = (event: Event) => {
       if (event instanceof StorageEvent && event.key !== recoveryLogoutKey)
         return;
+      const preserveInput =
+        event instanceof CustomEvent && event.detail !== "logout";
+      heldUnsaved.current =
+        preserveInput &&
+        Boolean(latestRecovery.current?.title || latestRecovery.current?.slug);
       active.current = false;
       const channel = recoveryChannel.current;
       if (
@@ -212,8 +222,10 @@ function NewWritingForm({
       request.current = null;
       setLoggedOut(true);
       setRecoveryRead({ status: "missing" });
-      setTitle("");
-      setSlug("");
+      if (!preserveInput) {
+        setTitle("");
+        setSlug("");
+      }
       setError("");
     };
     const stopWatching = watchProtectedSession((reason) =>
@@ -225,6 +237,8 @@ function NewWritingForm({
       try {
         if (!active.current) {
           /* A locked document must never restore recovery into memory. */
+        } else if (!legacyRecovery) {
+          // Server saves are authoritative. Existing browser copies stay untouched.
         } else if (!recoveryKey) setRecoveryFailed(true);
         else {
           const channel = encryptedWritingRecovery(localStorage, recoveryKey);
@@ -258,7 +272,7 @@ function NewWritingForm({
       window.removeEventListener("storage", logout);
       window.removeEventListener(recoveryLogoutKey, logout);
     };
-  }, [recoveryKey]);
+  }, [recoveryKey, legacyRecovery]);
   useEffect(() => {
     if (!restored || !recoveryKey || !active.current) return;
     const channel = recoveryChannel.current;
@@ -295,6 +309,17 @@ function NewWritingForm({
       return;
     }
     if (leavePending.current) return;
+    if (!legacyRecovery) {
+      if (
+        recoveryUnsafe.current &&
+        !window.confirm(
+          "Leave without creating this draft? Your title has not been saved.",
+        )
+      )
+        return;
+      commitAdminNavigation(href);
+      return;
+    }
     if (!recoveryUnsafe.current) {
       commitAdminNavigation(href);
       return;
@@ -393,7 +418,10 @@ function NewWritingForm({
       void leaveDocumentRef.current(anchor.href);
     };
     const preventLoss = (event: BeforeUnloadEvent) => {
-      if (active.current && (pending.current || recoveryUnsafe.current)) {
+      if (
+        heldUnsaved.current ||
+        (active.current && (pending.current || recoveryUnsafe.current))
+      ) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -521,6 +549,31 @@ function NewWritingForm({
           status="warning"
           title="Session ended. Sign in again to resume."
         />
+        {(title || slug) && (
+          <>
+            <p>
+              Your unsaved title and address are still in this tab. Copy them or
+              download them before signing in again.
+            </p>
+            <p>Title: {title}</p>
+            <p>Address: {slug}</p>
+            <Button
+              label="Download current draft"
+              clickAction={() => {
+                const url = URL.createObjectURL(
+                  new Blob([JSON.stringify({ title, slug }, null, 2)], {
+                    type: "application/json",
+                  }),
+                );
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "unfinished-draft.json";
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            />
+          </>
+        )}
         <AuthReentry
           href={editorialReturnPath(location.pathname + location.search)}
         />

@@ -1,7 +1,8 @@
+import { D1DraftRepository } from "./d1-drafts";
 import { RecoveryCoordinator } from "./recovery-coordinator";
 import { MAX_HISTORY_PAGE_BYTES } from "../lib/editorial-response-bounds";
 import { DurableObject } from "cloudflare:workers";
-import { EditorialMediaStore } from "./media-store";
+import { EditorialMediaStore, R2EditorialMediaStore } from "./media-store";
 import { gitBlobSha1, sha256Hex } from "../lib/crypto";
 import { GIT_SHA } from "../lib/patterns";
 import { DirectPublisher } from "./direct-publisher";
@@ -78,13 +79,59 @@ const maxHistoryPageSize = 100;
 /** One object per site/environment is the serialization boundary for its editor. */
 export class EditorialDraftStore extends DurableObject<unknown> {
   #recovery: RecoveryCoordinator;
+  #d1: D1DraftRepository | null = null;
+  #d1Ready: Promise<void> | null = null;
+  #d1Queue: Promise<unknown> = Promise.resolve();
+  #d1Enabled() {
+    return (this.env as Record<string, unknown>).EDITORIAL_D1_DRAFTS === "true";
+  }
+  #d1Call<T>(work: (store: D1DraftRepository) => Promise<T>): Promise<T> {
+    const operation = this.#d1Queue.then(async () => {
+      if (!this.#d1) {
+        const db = (this.env as { CONTENT_DB?: D1Database }).CONTENT_DB;
+        if (!db) throw new Error("content_database_unavailable");
+        this.#d1 = new D1DraftRepository(
+          db,
+          this.ctx.storage,
+          this.ctx.id.toString(),
+        );
+      }
+      if (!this.#d1Ready)
+        this.#d1Ready = this.#recovery.writer("d1-migration", () =>
+          this.#d1!.migrate(),
+        );
+      try {
+        await this.#d1Ready;
+      } catch (error) {
+        this.#d1Ready = null;
+        throw error;
+      }
+      return work(this.#d1);
+    });
+    this.#d1Queue = operation.catch(() => {});
+    return operation;
+  }
+  async draftStorageStatus() {
+    if (!this.#d1Enabled()) return { backend: "legacy" };
+    return this.#d1Call(async (store) => ({
+      backend: "d1",
+      migration: await store.status(),
+    }));
+  }
+  #mediaStore() {
+    const legacy = new EditorialMediaStore(this.ctx.storage);
+    if (!this.#d1Enabled()) return legacy;
+    const bucket = (this.env as { CONTENT_MEDIA?: R2Bucket }).CONTENT_MEDIA;
+    if (!bucket) throw new Error("media_store_unavailable");
+    return new R2EditorialMediaStore(bucket, legacy);
+  }
   async saveMedia(bytes: Uint8Array) {
     return this.#recovery.writer("private-media", () =>
-      new EditorialMediaStore(this.ctx.storage).save(bytes),
+      this.#mediaStore().save(bytes),
     );
   }
   async readMedia(id: string) {
-    return new EditorialMediaStore(this.ctx.storage).read(id);
+    return this.#mediaStore().read(id);
   }
   #directPublisher() {
     const bindings = this.env as {
@@ -101,9 +148,18 @@ export class EditorialDraftStore extends DurableObject<unknown> {
         bindings.EDITORIAL_ENABLED === "true" &&
         bindings.EDITORIAL_PUBLISH_ENABLED === "true" &&
         Boolean(bindings.CONTENT_MEDIA),
-      readDraft: (record) => this.#read(editorialRecordPath(record)),
+      readDraft: (record) => this.get(record),
       readMedia: (id) => this.readMedia(id),
-      acknowledge: (receipt) => {
+      acknowledge: async (receipt) => {
+        if (this.#d1Enabled())
+          await this.#d1Call((store) =>
+            store.updateBase(
+              receipt.record,
+              receipt.source,
+              receipt.publicationId,
+              receipt.expectedInventoryVersion + 1,
+            ),
+          );
         this.ctx.storage.transactionSync(() => {
           const key = editorialRecordPath(receipt.record);
           const version = receipt.expectedInventoryVersion + 1;
@@ -336,11 +392,14 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   }
 
   async get(record: EditorialRecord): Promise<Draft | null> {
+    if (this.#d1Enabled()) return this.#d1Call((store) => store.get(record));
     return this.#read(editorialRecordPath(record));
   }
 
   /** Owner-only inventory. Draft source never enters a public content collection. */
   async listWritingDrafts(): Promise<Draft[]> {
+    if (this.#d1Enabled())
+      return this.#d1Call((store) => store.list("writing"));
     return this.ctx.storage.sql
       .exec<Draft>(
         "SELECT * FROM drafts WHERE key LIKE 'content/public/writing/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
@@ -350,6 +409,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
 
   /** Owner-only inventory of private projects, including records absent from Git. */
   async listProjectDrafts(): Promise<Draft[]> {
+    if (this.#d1Enabled())
+      return this.#d1Call((store) => store.list("projects"));
     return this.ctx.storage.sql
       .exec<Draft>(
         "SELECT * FROM drafts WHERE key LIKE 'content/public/projects/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
@@ -358,12 +419,20 @@ export class EditorialDraftStore extends DurableObject<unknown> {
   }
 
   async save(input: SaveDraft): Promise<SaveResult> {
-    return this.#recovery.writer("save", () => this.#saveDraft(input, false));
+    return this.#recovery.writer("save", () =>
+      this.#d1Enabled()
+        ? this.#d1Call((store) => store.save(input))
+        : this.#saveDraft(input, false),
+    );
   }
 
   /** Only the owner API supplies a freshly verified, explicitly compared base. */
   async rebase(input: SaveDraft): Promise<SaveResult> {
-    return this.#recovery.writer("rebase", () => this.#saveDraft(input, true));
+    return this.#recovery.writer("rebase", () =>
+      this.#d1Enabled()
+        ? this.#d1Call((store) => store.save(input, true))
+        : this.#saveDraft(input, true),
+    );
   }
 
   async #saveDraft(input: SaveDraft, rebase: boolean): Promise<SaveResult> {
@@ -548,6 +617,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     record: EditorialRecord,
     options: HistoryPageOptions = {},
   ): Promise<HistoryPage> {
+    if (this.#d1Enabled())
+      return this.#d1Call((store) => store.historyPage(record, options));
     const key = editorialRecordPath(record);
     const limit = options.limit ?? maxHistoryPageSize;
     const beforeRevision = options.beforeRevision ?? Number.MAX_SAFE_INTEGER;
@@ -586,6 +657,8 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     record: EditorialRecord,
     id: string,
   ): Promise<{ source: string; expectedRevision: number } | null> {
+    if (this.#d1Enabled())
+      return this.#d1Call((store) => store.conflict(record, id));
     return (
       this.ctx.storage.sql
         .exec<{ source: string; expectedRevision: number }>(
@@ -602,7 +675,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     expectedRevision: number,
   ): Promise<Draft> {
     return this.#recovery.writer("discard", async () =>
-      this.#changeLifecycle(record, expectedRevision, true),
+      this.#d1Enabled()
+        ? this.#d1Call((store) =>
+            store.lifecycle(record, expectedRevision, true),
+          )
+        : this.#changeLifecycle(record, expectedRevision, true),
     );
   }
 
@@ -611,7 +688,11 @@ export class EditorialDraftStore extends DurableObject<unknown> {
     expectedRevision: number,
   ): Promise<Draft> {
     return this.#recovery.writer("restore", async () =>
-      this.#changeLifecycle(record, expectedRevision, false),
+      this.#d1Enabled()
+        ? this.#d1Call((store) =>
+            store.lifecycle(record, expectedRevision, false),
+          )
+        : this.#changeLifecycle(record, expectedRevision, false),
     );
   }
 

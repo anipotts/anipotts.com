@@ -1,5 +1,15 @@
 # anipotts.com
 
+## Editorial storage simplification
+
+Private drafts and immutable revision history move to CONTENT_DB; new private
+media uses R2; existing Cloudflare Access sign-in is sufficient for ordinary
+authoring. Legacy drafts, history and encrypted browser copies remain preserved.
+
+Implementation and release evidence: [#591](https://github.com/anipotts/anipotts.com/pull/591).
+The [owner editorial workflow](docs/agent-editorial-workflow.md) records D1
+migration, private R2 uploads, old-copy rescue and rollback boundaries.
+
 Ani's public website and private admin, both built with Astro and deployed to Cloudflare Workers.
 
 ## Development

@@ -4,7 +4,7 @@ import {
   type PublicContentContext,
 } from "./published-runtime";
 import { publishedWriting, visibleProjects, publicPage } from "./content";
-export const publicMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
+export const publicMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp|gif)$/u;
 
 /** Resolve references from the active public projection, never private history
  * or an overridden Git record. Parse Markdown before inspecting image URLs. */

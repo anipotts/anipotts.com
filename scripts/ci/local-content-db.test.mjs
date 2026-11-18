@@ -11,21 +11,27 @@ import {
 
 test("the plan migrates and seeds only what a local database lacks", () => {
   assert.deepEqual(bootstrapPlan(undefined, null), {
-    migrations: ["0001", "0002"],
+    migrations: ["0001", "0002", "0004"],
     seed: true,
   });
   assert.deepEqual(bootstrapPlan({ inventory: 1, schema_version: 0 }, 3), {
-    migrations: ["0002"],
+    migrations: ["0002", "0004"],
     seed: false,
   });
-  assert.deepEqual(bootstrapPlan({ inventory: 1, schema_version: 1 }, 0), {
-    migrations: [],
-    seed: true,
-  });
-  assert.deepEqual(bootstrapPlan({ inventory: 1, schema_version: 1 }, 1), {
-    migrations: [],
-    seed: false,
-  });
+  assert.deepEqual(
+    bootstrapPlan({ inventory: 1, schema_version: 1, private_drafts: 1 }, 0),
+    {
+      migrations: [],
+      seed: true,
+    },
+  );
+  assert.deepEqual(
+    bootstrapPlan({ inventory: 1, schema_version: 1, private_drafts: 1 }, 1),
+    {
+      migrations: [],
+      seed: false,
+    },
+  );
 });
 
 test("wrangler arguments are always local and never remote", () => {
@@ -66,9 +72,9 @@ test("a fresh local database is migrated and seeded, all locally", () => {
     run,
     log: (line) => lines.push(line),
   });
-  assert.deepEqual(plan, { migrations: ["0001", "0002"], seed: true });
-  // probe, two migrations, then the two seed steps
-  assert.equal(calls.length, 5);
+  assert.deepEqual(plan, { migrations: ["0001", "0002", "0004"], seed: true });
+  // probe, three migrations, then the two seed steps
+  assert.equal(calls.length, 6);
   for (const args of calls) {
     assert.ok(args.includes("--local"), args.join(" "));
     assert.equal(args.includes("--remote"), false, args.join(" "));
@@ -82,7 +88,7 @@ test("a fresh local database is migrated and seeded, all locally", () => {
 
 test("a ready local database is only probed", () => {
   const { calls, run } = recorder({
-    [PROBE_SQL]: [{ inventory: 1, schema_version: 1 }],
+    [PROBE_SQL]: [{ inventory: 1, schema_version: 1, private_drafts: 1 }],
     [VERSION_SQL]: [{ version: 1 }],
   });
   const lines = [];

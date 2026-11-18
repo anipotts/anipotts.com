@@ -48,6 +48,7 @@ const mime = {
   jpg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
+  gif: "image/gif",
 } as const;
 function assertActive(signal?: AbortSignal) {
   if (signal?.aborted) throw new OwnedPreviewMediaUnavailable("aborted");

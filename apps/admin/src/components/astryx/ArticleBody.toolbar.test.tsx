@@ -211,3 +211,79 @@ it("preserves advanced Markdown through the source fallback", async () => {
   );
   expect(changed).not.toHaveBeenCalled();
 });
+
+it("keeps source edits focused until the author explicitly returns to rich text", async () => {
+  function ControlledSource() {
+    const [value, setValue] = React.useState(
+      "<details>Advanced formatting</details>",
+    );
+    return (
+      <ArticleBody
+        value={value}
+        onChange={(next) => {
+          changed(next);
+          setValue(next);
+        }}
+      />
+    );
+  }
+  await act(async () => root.render(<ControlledSource />));
+  const textarea = host.querySelector<HTMLTextAreaElement>("textarea")!;
+  textarea.focus();
+  Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    "value",
+  )!.set!.call(textarea, "Plain text");
+  textarea.setSelectionRange(3, 3);
+  act(() => textarea.dispatchEvent(new Event("input", { bubbles: true })));
+  expect(host.querySelector("textarea")).toBe(textarea);
+  expect(document.activeElement).toBe(textarea);
+  expect(textarea.selectionStart).toBe(3);
+  expect(changed).toHaveBeenCalledWith("Plain text");
+  changed.mockClear();
+  act(() => control("Use rich text").click());
+  expect(host.querySelector("textarea")).toBeNull();
+  expect(editor!.getText()).toBe("Plain text");
+  expect(document.activeElement).toBe(editor!.view.dom);
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it("keeps unsupported source exact and chooses the appropriate mode on restore", async () => {
+  const source = "<details>Keep this exact HTML.</details>";
+  await render(source);
+  expect(host.textContent).not.toContain("Use rich text");
+  expect(host.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+    source,
+  );
+  await render("Restored article", 1);
+  expect(host.querySelector("textarea")).toBeNull();
+  expect(editor!.getText()).toBe("Restored article");
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it("counts visible prose while typing without flushing buffered changes", async () => {
+  await render(
+    "## A heading\n\nHello **world**.\n\n![Several words of image description](https://example.com/a.png)",
+  );
+  expect(host.querySelector(".article-word-count")?.textContent).toBe(
+    "4 words",
+  );
+  act(() => editor!.commands.insertContent("Extra "));
+  expect(host.querySelector(".article-word-count")?.textContent).toBe(
+    "5 words",
+  );
+  expect(dirty).toHaveBeenCalled();
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it("opens an image followed by blank lines without rewriting its source", async () => {
+  const source =
+    "![weekly usage fills](/images/editorial/" +
+    "a".repeat(64) +
+    ".gif)\n\n\n\n";
+  await render(source);
+  expect(host.querySelector("textarea")).toBeNull();
+  expect(host.querySelector('img[alt="weekly usage fills"]')).not.toBeNull();
+  act(() => flushRef.current?.());
+  expect(changed).not.toHaveBeenCalled();
+});

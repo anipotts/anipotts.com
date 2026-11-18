@@ -178,6 +178,12 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/api/editorial/storage",
+    file: "apps/admin/src/pages/api/editorial/storage.ts",
+    nav: false,
+    smoke: false,
+  },
+  {
     route: "/api/editorial/media",
     file: "apps/admin/src/pages/api/editorial/media.ts",
     nav: false,

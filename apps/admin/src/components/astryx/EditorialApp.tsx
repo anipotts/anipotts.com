@@ -211,6 +211,8 @@ export function EditorialApp({
 }: EditorialAppProps) {
   const sessionLocked = useRef(protectedSessionIsLocked());
   const [locked, setLocked] = useState(protectedSessionIsLocked);
+  const editorReady = useRef(false);
+  const [retainEditor, setRetainEditor] = useState(false);
   const stopRoutes = useRef<(() => void) | null>(null);
   const stopInventory = useRef<(() => void) | null>(null);
   // A library page holds every library's records, so moving between
@@ -296,7 +298,7 @@ export function EditorialApp({
   } | null>(null);
   useEffect(
     () =>
-      watchProtectedSession(() => {
+      watchProtectedSession((reason) => {
         sessionLocked.current = true;
         stopRoutes.current?.();
         stopRoutes.current = null;
@@ -304,12 +306,17 @@ export function EditorialApp({
         stopInventory.current = null;
         setInventoryView(createInventoryView(undefined, []));
         setShown(null);
-        setCreated(null);
+        const keepEditor =
+          reason !== "logout" &&
+          (editorReady.current ||
+            Boolean((newWriting || newProject) && !created));
+        setRetainEditor(keepEditor);
+        if (!keepEditor) setCreated(null);
         setLibraryBack(null);
         setLocked(true);
         document.title = "Content | Admin";
       }),
-    [],
+    [newWriting, newProject, created],
   );
   const openRecord = editorRecord ?? created ?? undefined;
   const recordKind =
@@ -342,7 +349,7 @@ export function EditorialApp({
     setMode(next);
     saveTheme(next);
   }
-  if (locked)
+  if (locked && !retainEditor)
     return (
       <Theme theme={theme} mode={mode}>
         <VStack gap={3}>
@@ -409,8 +416,22 @@ export function EditorialApp({
               />
             )}
             {(newWriting || newProject) && !created && (
-              <RecoveryUnlock scope={recoveryScope}>
+              <RecoveryUnlock
+                scope={recoveryScope}
+                enabled={
+                  typeof window !== "undefined" &&
+                  new URLSearchParams(window.location.search).get(
+                    "legacyRecovery",
+                  ) === "1"
+                }
+              >
                 <NewWriting
+                  legacyRecovery={
+                    typeof window !== "undefined" &&
+                    new URLSearchParams(window.location.search).get(
+                      "legacyRecovery",
+                    ) === "1"
+                  }
                   recoveryScope={recoveryScope}
                   recordKind={newProject ? "work" : "writing"}
                   back={back}
@@ -437,7 +458,15 @@ export function EditorialApp({
               />
             )}
             {(editHome || openRecord) && (
-              <RecoveryUnlock scope={recoveryScope}>
+              <RecoveryUnlock
+                scope={recoveryScope}
+                enabled={
+                  typeof window !== "undefined" &&
+                  new URLSearchParams(window.location.search).get(
+                    "legacyRecovery",
+                  ) === "1"
+                }
+              >
                 <EditorLoadingBoundary
                   key={`${openRecord?.kind ?? "page"}:${openRecord?.id ?? "home"}`}
                 >
@@ -455,6 +484,15 @@ export function EditorialApp({
                     }
                   >
                     <HomeEditor
+                      onReady={() => {
+                        editorReady.current = true;
+                      }}
+                      legacyRecovery={
+                        typeof window !== "undefined" &&
+                        new URLSearchParams(window.location.search).get(
+                          "legacyRecovery",
+                        ) === "1"
+                      }
                       pageTitle={
                         openRecord?.kind === "writing" ||
                         openRecord?.kind === "work"

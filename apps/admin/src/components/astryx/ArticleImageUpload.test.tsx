@@ -40,7 +40,7 @@ afterEach(() => {
 });
 it.each([
   ["image_too_large", "Choose a smaller crop or image."],
-  ["unsupported_image", "Choose a valid JPEG, PNG or WebP image."],
+  ["unsupported_image", "Choose a valid JPEG, PNG, WebP or GIF image."],
   ["unknown_provider_error", "Couldn’t save the image. Try again."],
 ])(
   "explains server image refusal %s without displaying provider details",

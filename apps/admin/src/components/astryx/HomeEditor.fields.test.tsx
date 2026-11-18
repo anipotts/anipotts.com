@@ -386,3 +386,51 @@ it("shows shared defaults without changing source and saves a settings edit in t
   expect(saved).toContain("custom: retained");
   expect(saved).toContain("Synthetic body.");
 });
+
+it("waits to flag an untouched subtitle and sends its draft prompt to the inline field", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      jsonResponse(
+        JSON.stringify(snapshot(newWritingSource("A fresh article"))),
+      ),
+    ),
+  );
+  window.history.replaceState(null, "", "/content/writing/test");
+  await act(async () =>
+    root.render(
+      <AdminUIProvider enabled mode="light">
+        <HomeEditor record={{ kind: "writing", id: "test" }} />
+      </AdminUIProvider>,
+    ),
+  );
+  const subtitle = host.querySelector(
+    '[contenteditable][aria-label="Subtitle"]',
+  ) as HTMLElement;
+  expect(subtitle).not.toBeNull();
+  subtitle.scrollIntoView = vi.fn();
+  expect(subtitle.getAttribute("aria-invalid")).toBe("false");
+  expect(host.textContent).not.toContain("This field is required.");
+  const add = [...host.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Add subtitle"),
+  );
+  expect(add).toBeTruthy();
+  await act(async () => {
+    add!.click();
+    // Chrome/SDK press handling may restore the button after its callback.
+    add!.focus();
+  });
+  await act(async () => {
+    await vi.waitFor(() => expect(document.activeElement).toBe(subtitle));
+  });
+  expect(
+    document.body.querySelector('[role="dialog"][aria-label="Properties"]'),
+  ).toBeNull();
+  await act(async () =>
+    subtitle.dispatchEvent(
+      new FocusEvent("focusout", { bubbles: true, relatedTarget: add! }),
+    ),
+  );
+  expect(subtitle.getAttribute("aria-invalid")).toBe("true");
+  expect(host.textContent).toContain("This field is required.");
+});

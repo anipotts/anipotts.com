@@ -7,7 +7,9 @@
 #   - open-pull-requests-limit caps the queue so a quiet week doesn't pile up.
 #
 # Dependency PRs follow the normal protected CI and Security Review path.
-# Every candidate waits for Ani's exact-head review; auto-merge stays disabled.
+# Patch, minor and security updates auto-merge through
+# .github/workflows/dependabot-automerge.yml once the strict required checks
+# pass on the exact head. Majors and unknown update types wait for Ani.
 
 version: 2
 updates:
@@ -25,6 +27,10 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # The Astryx family ships an exact Core peer and a pnpm patch pinned to
+      # core@0.7.1, so it moves only as one qualified migration, not a routine
+      # bump. Without this, every weekly group fails the compatibility test.
+      - dependency-name: "@astryxdesign/*"
     groups:
       react-family:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]

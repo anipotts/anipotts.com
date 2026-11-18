@@ -71,7 +71,7 @@ export async function uploadEditorialImage(
       );
     if (result.error === "unsupported_image")
       throw new ImageInputError(
-        "This image could not be read. Choose a valid JPEG, PNG or WebP image.",
+        "This image could not be read. Choose a valid JPEG, PNG, WebP or GIF image.",
       );
     throw new ImageInputError("Couldn’t save the image. Try again.");
   }
@@ -136,7 +136,7 @@ export function ArticleImageUpload({
         if (controller.signal.aborted) return;
         setFile(new File([blob], "original-image", { type: blob.type }));
         setOriginal(existingSrc);
-        setCropping(startCropping);
+        setCropping(startCropping && blob.type !== "image/gif");
       })
       .catch((error) => {
         if (!controller.signal.aborted)
@@ -204,7 +204,7 @@ export function ArticleImageUpload({
         label="Upload image"
         value={file}
         mode="dropzone"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         maxSize={10 * 1024 * 1024}
         isDisabled={disabled || busy || cropping}
         isLoading={busy}
@@ -218,7 +218,7 @@ export function ArticleImageUpload({
           if (selected) void upload(selected);
         }}
       />
-      {file && original && !cropping && (
+      {file && file.type !== "image/gif" && original && !cropping && (
         <Button
           label="Crop image"
           variant="secondary"

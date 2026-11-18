@@ -278,19 +278,23 @@ function HomeEditorImpl({
   record,
   localPreview = false,
   onTitleChange,
+  onReady,
   pageTitle,
   homepageWritingOptions = [],
   back = { href: "/content/pages", label: "Back to Pages" },
   publicUrl,
   autoFocus = false,
+  legacyRecovery = false,
 }: {
   /** Just created: writing continues in the field after the title. */
   autoFocus?: boolean;
+  legacyRecovery?: boolean;
   record: EditorialRecord;
   pageTitle?: string;
   homepageWritingOptions?: { slug: string; title: string; status: string }[];
   localPreview?: boolean;
   onTitleChange?: (title: string) => void;
+  onReady?: () => void;
   /** The editor bar's way back, usually the library the record came from. */
   back?: { href: string; label: string };
   /** The public URL of a site path, themed to match the admin. */
@@ -311,6 +315,7 @@ function HomeEditorImpl({
   const toast = useToast();
   const sessionLocked = useRef(false);
   const [locked, setLocked] = useState(false);
+  const heldUnsaved = useRef<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [historyError, setHistoryError] = useState(false);
   const [comparedRevision, setComparedRevision] = useState<number | null>(null);
@@ -356,7 +361,18 @@ function HomeEditorImpl({
   const lastEditingFocus = useRef<HTMLElement | null>(null);
   const previousTab = useRef("edit");
   const fieldElements = useRef(new Map<string, HTMLElement>());
+  const [visitedFields, setVisitedFields] = useState<Set<string>>(
+    () => new Set(),
+  );
   const requestedEditingField = useRef<string | null>(null);
+  const fieldFocusFrame = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (fieldFocusFrame.current !== null)
+        cancelAnimationFrame(fieldFocusFrame.current);
+    },
+    [],
+  );
   useEffect(() => {
     if (tab === "edit" && previousTab.current !== "edit") {
       const frame = requestAnimationFrame(() => {
@@ -786,61 +802,68 @@ function HomeEditorImpl({
             }
           },
         );
-        recoveryStorageKey.current = data.recoveryScope
-          ? recoveryKey(data.recoveryScope, record)
-          : null;
-        try {
-          const key = recoveryStorageKey.current;
-          recoveryChannel.current?.close();
-          const channel = key
-            ? encryptedDraftRecovery(localStorage, key)
+        if (legacyRecovery) {
+          recoveryStorageKey.current = data.recoveryScope
+            ? recoveryKey(data.recoveryScope, record)
             : null;
-          recoveryChannel.current = channel;
-          const result = channel
-            ? await channel.read()
-            : { status: "unavailable" as const };
-          if (
-            cancelled ||
-            sessionLocked.current ||
-            recoveryChannel.current !== channel
-          )
-            return;
-          setRecoveryRead(result);
-          setRecoveryProblem(
-            result.status === "ready" || result.status === "missing"
-              ? null
-              : result.status,
-          );
-          if (result.status === "ready" && data.draft?.discardedAt && channel) {
-            // The author discarded this draft. Retire the recovery candidate
-            // instead of leaving it to resurface on a later reload, which would
-            // bring back content that was deliberately thrown away.
-            const problem = await channel.write(null);
-            if (cancelled || recoveryChannel.current !== channel) return;
-            setRecoveryProblem(problem);
-          }
-          if (result.status === "ready" && !data.draft?.discardedAt) {
-            const recovered = result.value;
-            if (recovered.source !== source || recovered.pending) {
-              recoveryAwaitingSave.current = true;
-              setRecoveredAwaitingSave(true);
-              editor.current.recover(recovered);
-              toast({
-                body: "Recovered your unsaved edits. Review them before saving.",
-                uniqueID: "draft-recovery",
-              });
-            } else if (channel) {
-              // Exact acknowledged content can retire this recovery candidate,
-              // while retaining legacy bytes behind a v2 acknowledgment marker.
+          try {
+            const key = recoveryStorageKey.current;
+            recoveryChannel.current?.close();
+            const channel = key
+              ? encryptedDraftRecovery(localStorage, key)
+              : null;
+            recoveryChannel.current = channel;
+            const result = channel
+              ? await channel.read()
+              : { status: "unavailable" as const };
+            if (
+              cancelled ||
+              sessionLocked.current ||
+              recoveryChannel.current !== channel
+            )
+              return;
+            setRecoveryRead(result);
+            setRecoveryProblem(
+              result.status === "ready" || result.status === "missing"
+                ? null
+                : result.status,
+            );
+            if (
+              result.status === "ready" &&
+              data.draft?.discardedAt &&
+              channel
+            ) {
+              // The author discarded this draft. Retire the recovery candidate
+              // instead of leaving it to resurface on a later reload, which would
+              // bring back content that was deliberately thrown away.
               const problem = await channel.write(null);
               if (cancelled || recoveryChannel.current !== channel) return;
               setRecoveryProblem(problem);
             }
+            if (result.status === "ready" && !data.draft?.discardedAt) {
+              const recovered = result.value;
+              if (recovered.source !== source || recovered.pending) {
+                recoveryAwaitingSave.current = true;
+                setRecoveredAwaitingSave(true);
+                editor.current.recover(recovered);
+                toast({
+                  body: "Recovered your unsaved edits. Review them before saving.",
+                  uniqueID: "draft-recovery",
+                });
+              } else if (channel) {
+                // Exact acknowledged content can retire this recovery candidate,
+                // while retaining legacy bytes behind a v2 acknowledgment marker.
+                const problem = await channel.write(null);
+                if (cancelled || recoveryChannel.current !== channel) return;
+                setRecoveryProblem(problem);
+              }
+            }
+          } catch {
+            setRecoveryProblem("unavailable");
           }
-        } catch {
-          setRecoveryProblem("unavailable");
         }
         setState(editor.current.state);
+        onReady?.();
       })
       .catch(() => {
         if (!cancelled) setError("Couldn’t load this draft.");
@@ -850,7 +873,7 @@ function HomeEditorImpl({
       recoveryChannel.current?.close();
       navigationGeneration.current += 1;
     };
-  }, [loadAttempt]);
+  }, [loadAttempt, legacyRecovery]);
   useEffect(() => {
     if (!publication || ["live", "cancelled"].includes(publication.phase))
       return;
@@ -954,16 +977,18 @@ function HomeEditorImpl({
   }, [state?.source, titled, untitled, onTitleChange]);
   useEffect(
     () =>
-      recoverySession().capture(() => {
-        saveScheduler.current?.dispose();
-        flushLocal();
-        const controller = editor.current;
-        const channel = recoveryChannel.current;
-        return controller && channel
-          ? channel.sealFinal(controller.recovery())
-          : Promise.resolve();
-      }),
-    [],
+      legacyRecovery
+        ? recoverySession().capture(() => {
+            saveScheduler.current?.dispose();
+            flushLocal();
+            const controller = editor.current;
+            const channel = recoveryChannel.current;
+            return controller && channel
+              ? channel.sealFinal(controller.recovery())
+              : Promise.resolve();
+          })
+        : undefined,
+    [legacyRecovery],
   );
   useEffect(() => {
     const logout = (event: StorageEvent) => {
@@ -985,6 +1010,10 @@ function HomeEditorImpl({
       const channel = recoveryChannel.current;
       if (preserveRecovery && recovery && channel)
         void channel.write(recovery).finally(() => channel.close());
+      heldUnsaved.current =
+        preserveRecovery && editor.current?.state.status !== "saved"
+          ? (editor.current?.state.source ?? null)
+          : null;
       editor.current?.dispose();
       editor.current = null;
       titleFlush.current = subtitleFlush.current = bodyFlush.current = null;
@@ -997,8 +1026,10 @@ function HomeEditorImpl({
       publishedDraft.current = null;
       publishRequest.current = null;
       unpublishRequest.current = null;
-      setState(null);
-      setSnapshot(null);
+      if (!preserveRecovery) {
+        setState(null);
+        setSnapshot(null);
+      }
       setReviewedBase(null);
       setReviewedDraft(null);
       setComparison(null);
@@ -1027,6 +1058,7 @@ function HomeEditorImpl({
       subtitleFlush.current?.();
       bodyFlush.current?.();
       if (
+        heldUnsaved.current !== null ||
         mediaPending.current ||
         bodyDirtyRef.current ||
         (editor.current && editor.current.state.status !== "saved")
@@ -1167,6 +1199,29 @@ function HomeEditorImpl({
           status="warning"
           title="Session ended. Sign in again to resume your saved draft."
         />
+        {state && (
+          <>
+            <p>
+              Your unsaved text is still in this tab. Download it before signing
+              in again.
+            </p>
+            <Button
+              label="Download current draft"
+              clickAction={() => {
+                const url = URL.createObjectURL(
+                  new Blob([state.source], {
+                    type: "text/markdown;charset=utf-8",
+                  }),
+                );
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `${record.id}-draft.md`;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            />
+          </>
+        )}
         <AuthReentry
           href={editorialReturnPath(location.pathname + location.search)}
         />
@@ -1285,7 +1340,25 @@ function HomeEditorImpl({
   } catch {
     /* Source remains editable and recoverable while malformed. */
   }
+  // Missing fields are normal while starting a draft. Validate after leaving
+  // that field, while retaining immediate feedback for malformed values.
+  const inlineFieldError = (key: string) => {
+    const message = fieldErrors.get(key);
+    return message === "This field is required." && !visitedFields.has(key)
+      ? undefined
+      : message;
+  };
+  const validationWarning =
+    !parseable ||
+    [...fieldErrors].some(
+      ([key, message]) =>
+        message !== "This field is required." || visitedFields.has(key),
+    );
   const downloadRecovery = async () => {
+    if (!legacyRecovery) {
+      downloadSource();
+      return;
+    }
     try {
       if (
         protectedSessionIsLocked() ||
@@ -1912,6 +1985,42 @@ function HomeEditorImpl({
     return true;
   };
   const fieldKey = (field: { path: string[] }) => field.path.join(".");
+  const invalidInlineField = fields.find((field) =>
+    fieldErrors.has(fieldKey(field)),
+  );
+  const completeDraftDetails = () => {
+    if (!invalidInlineField) {
+      openPanel("properties");
+      return;
+    }
+    const key = fieldKey(invalidInlineField);
+    requestedEditingField.current = key;
+    openPanel(null);
+    if (tab !== "edit") {
+      setTab("edit");
+      return;
+    }
+    if (fieldFocusFrame.current !== null)
+      cancelAnimationFrame(fieldFocusFrame.current);
+    // Wait for blur validation and the button's native press handling to settle.
+    fieldFocusFrame.current = requestAnimationFrame(() => {
+      fieldFocusFrame.current = null;
+      if (sessionLocked.current || workspaceState.current.view !== "edit")
+        return;
+      if (requestedEditingField.current === key)
+        requestedEditingField.current = null;
+      const field = fieldElements.current.get(key);
+      const target =
+        field?.querySelector<HTMLElement>(
+          '[contenteditable="true"][role="textbox"]',
+        ) ??
+        field?.querySelector<HTMLElement>(
+          'textarea, input:not([type="hidden"])',
+        );
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+  };
   /** Return in a title moves to the next field's own input. */
   const focusAfter = (index: number) => {
     for (const field of fields.slice(index + 1)) {
@@ -2273,7 +2382,11 @@ function HomeEditorImpl({
                       clickAction={compareSavedDraft}
                     />
                     <Button
-                      label="Download encrypted draft"
+                      label={
+                        legacyRecovery
+                          ? "Download encrypted draft"
+                          : "Download Markdown"
+                      }
                       size="sm"
                       isDisabled={recoveryProblem === "key-usage-limit"}
                       onClick={() => downloadRecovery()}
@@ -2289,7 +2402,11 @@ function HomeEditorImpl({
             <RecoveryBanner
               title={refusal.title}
               description={refusal.description}
-              actionLabel="Download encrypted draft"
+              actionLabel={
+                legacyRecovery
+                  ? "Download encrypted draft"
+                  : "Download Markdown"
+              }
               onRetry={
                 recoveryProblem === "key-usage-limit"
                   ? undefined
@@ -2311,7 +2428,11 @@ function HomeEditorImpl({
           ) : error ? (
             <RecoveryBanner
               title={error}
-              actionLabel="Download encrypted draft"
+              actionLabel={
+                legacyRecovery
+                  ? "Download encrypted draft"
+                  : "Download Markdown"
+              }
               onRetry={
                 recoveryProblem === "key-usage-limit"
                   ? undefined
@@ -2554,6 +2675,17 @@ function HomeEditorImpl({
                   <VStack
                     gap={2}
                     key={fieldKey(field)}
+                    onBlurCapture={(event) => {
+                      if (
+                        event.relatedTarget instanceof Node &&
+                        event.currentTarget.contains(event.relatedTarget)
+                      )
+                        return;
+                      const key = fieldKey(field);
+                      setVisitedFields((current) =>
+                        current.has(key) ? current : new Set([...current, key]),
+                      );
+                    }}
                     ref={(element) => {
                       if (element)
                         fieldElements.current.set(fieldKey(field), element);
@@ -2587,7 +2719,7 @@ function HomeEditorImpl({
                         label={field.label}
                         value={values[index] ?? ""}
                         disabled={!parseable || discarded}
-                        error={fieldErrors.get(fieldKey(field))}
+                        error={inlineFieldError(fieldKey(field))}
                         flushRef={titleFlush}
                         onDirty={markDirty}
                         onEnter={() => focusAfter(index)}
@@ -2611,10 +2743,10 @@ function HomeEditorImpl({
                         value={values[index] ?? ""}
                         isDisabled={!parseable || discarded}
                         status={
-                          fieldErrors.has("opening")
+                          inlineFieldError("opening")
                             ? {
                                 type: "error",
-                                message: fieldErrors.get("opening"),
+                                message: inlineFieldError("opening"),
                               }
                             : undefined
                         }
@@ -2642,7 +2774,7 @@ function HomeEditorImpl({
                         }
                         key={fieldKey(field)}
                         label={field.label}
-                        validationError={fieldErrors.get(fieldKey(field))}
+                        validationError={inlineFieldError(fieldKey(field))}
                         value={values[index] ?? ""}
                         disabled={!parseable || discarded}
                         onChange={(value) => {
@@ -2666,10 +2798,10 @@ function HomeEditorImpl({
                         key={fieldKey(field)}
                         label={field.label}
                         status={
-                          fieldErrors.has(fieldKey(field))
+                          inlineFieldError(fieldKey(field))
                             ? {
                                 type: "error",
-                                message: fieldErrors.get(fieldKey(field)),
+                                message: inlineFieldError(fieldKey(field)),
                               }
                             : undefined
                         }
@@ -2869,8 +3001,8 @@ function HomeEditorImpl({
           )}
           {!valid && (
             <Banner
-              role="alert"
-              status="warning"
+              role={validationWarning ? "alert" : "status"}
+              status={validationWarning ? "warning" : "info"}
               title={
                 parseable
                   ? "Complete the draft details"
@@ -2884,8 +3016,12 @@ function HomeEditorImpl({
                   />
                 ) : record.kind === "writing" || record.kind === "work" ? (
                   <Button
-                    label="Check properties"
-                    onClick={() => openPanel("properties")}
+                    label={
+                      invalidInlineField
+                        ? `${fieldErrors.get(fieldKey(invalidInlineField)) === "This field is required." ? "Add" : "Check"} ${invalidInlineField.label.toLowerCase()}`
+                        : "Check properties"
+                    }
+                    onClick={completeDraftDetails}
                   />
                 ) : undefined
               }

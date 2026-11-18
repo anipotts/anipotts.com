@@ -17,6 +17,17 @@ const contractMigration = readFileSync(
   ),
   "utf8",
 );
+const privateDraftMigration = readFileSync(
+  new URL(
+    "../../apps/admin/migrations/content-publication/0004_private_drafts.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const privateDraftRepository = readFileSync(
+  new URL("../../apps/admin/src/editorial/d1-drafts.ts", import.meta.url),
+  "utf8",
+);
 const repository = readFileSync(
   new URL(
     "../../packages/content/src/editorial/direct-publication.ts",
@@ -52,10 +63,28 @@ assert.equal(
   ),
   "additive migration must match repository contract schema",
 );
+const privateSchemaBlock = privateDraftRepository
+  .split("export const D1_DRAFT_SCHEMA = [")[1]
+  .split("] as const;")[0];
+assert.equal(
+  normalize(privateDraftMigration),
+  normalize(
+    [...privateSchemaBlock.matchAll(/`([^`]+)`/g)]
+      .map((match) => match[1])
+      .join(";\n") + ";",
+  ),
+  "private draft migration must match the repository schema",
+);
 const empty = new DatabaseSync(":memory:");
 try {
   empty.exec(migration);
   empty.exec(contractMigration);
+  empty.exec(privateDraftMigration);
+  empty.exec(privateDraftMigration);
+  assert.equal(
+    empty.prepare("SELECT count(*) n FROM editorial_draft_history").get().n,
+    0,
+  );
   assert.equal(
     empty.prepare("SELECT version FROM editorial_published_inventory").get()
       .version,

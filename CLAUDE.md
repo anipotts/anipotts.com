@@ -31,13 +31,16 @@ deploy proof.
 Primary workflows are intentionally limited to:
 
 - `ci.yml`
+- `dependabot-automerge.yml`
 - `security-review.yml`
 - `deploy.yml`
 - `smoke.yml`
 
-Do not add separate Dependabot automerge, external review, production
-promotion, or broad deploy workflows. Dependency updates should pass through
-the same PR checks and scoped deploy logic as other changes.
+`dependabot-automerge.yml` is the one approved merge automation: it arms
+native auto-merge only for routine (patch, minor or security) Dependabot updates
+after the same strict PR checks, and holds majors for Ani. Do not add external
+review, production promotion, or broad deploy workflows. Dependency updates pass
+through the same PR checks and scoped deploy logic as other changes.
 `apps/labs` is archived and is not a deploy target.
 
 ## current standing authority
@@ -236,6 +239,11 @@ For coding-agent draft editing and reviewed publication, follow
 describes the native client. Use the existing human Access session; software release
 authority does not authorize publishing prose. Preserve unrelated metadata and
 source, retain retry identities, and distinguish private save from live publication.
+
+Use shared `voice` for writing and `studio` for video work. Record content ideas
+and engagement opportunities in `~/Brand/content/ideas.md`; discovery stays
+read-only. Website drafts use `pnpm editorial` and the owner editorial workflow
+above. Sending and publication keep their existing approval requirements.
 
 Public content defaults, normalizers, validators, settings, and homepage summary
 helpers live in `@anipotts/content/public`. Canonical frontmatter schemas are
