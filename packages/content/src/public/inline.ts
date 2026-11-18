@@ -102,7 +102,44 @@ export function inlineImageClass(title?: string) {
       .map((part) => `inline-image-${part}`) ?? []),
   ].join(" ");
 }
-export function inlineHtml(value: string, links = true): string {
+function mergeAdjacentLogoLinks(parts: InlineNode[]): InlineNode[] {
+  const merged: InlineNode[] = [];
+  for (const part of parts) {
+    const last = merged.at(-1);
+    const space =
+      last?.type === "text" && /^[ \t]+$/u.test(last.text) ? last : undefined;
+    const previous = space ? merged.at(-2) : last;
+    const logo =
+      part.type === "a" && part.children.length === 1
+        ? part.children[0]
+        : undefined;
+
+    if (
+      part.type === "a" &&
+      logo?.type === "image" &&
+      !logo.alt.trim() &&
+      previous?.type === "a" &&
+      part.href === previous.href &&
+      plainText(previous.children).trim()
+    ) {
+      if (space) {
+        merged.pop();
+        previous.children.push(space);
+      }
+      previous.children.push(logo);
+      continue;
+    }
+
+    merged.push(part);
+  }
+  return merged;
+}
+
+export function inlineHtml(
+  value: string,
+  links = true,
+  { mergeLogoLinks = false } = {},
+): string {
   const render = (parts: InlineNode[]): string =>
     parts
       .map((part) => {
@@ -119,27 +156,30 @@ export function inlineHtml(value: string, links = true): string {
       })
       .join("");
   // Keep each logo with the next word, especially the compact YC batch badge.
-  return render(parseInline(value)).replace(
+  const parts = parseInline(value);
+  return render(mergeLogoLinks ? mergeAdjacentLogoLinks(parts) : parts).replace(
     /(<img [^>]*>)([\p{L}\p{N}][^\s<]*)/gu,
     '<span class="inline-image-run">$1$2</span>',
   );
 }
+function plainText(parts: InlineNode[]): string {
+  return parts
+    .map((part) =>
+      part.type === "text"
+        ? part.text
+        : part.type === "break"
+          ? " "
+          : part.type === "image"
+            ? part.alt
+              ? `${part.alt} `
+              : ""
+            : plainText(part.children),
+    )
+    .join("");
+}
+
 export function inlinePlainText(value: string): string {
-  const plain = (parts: InlineNode[]): string =>
-    parts
-      .map((part) =>
-        part.type === "text"
-          ? part.text
-          : part.type === "break"
-            ? " "
-            : part.type === "image"
-              ? part.alt
-                ? `${part.alt} `
-                : ""
-              : plain(part.children),
-      )
-      .join("");
-  return plain(parseInline(value)).replace(/\s+/g, " ").trim();
+  return plainText(parseInline(value)).replace(/\s+/g, " ").trim();
 }
 export function escapeInlineText(value: string) {
   return value.replace(/([\\`*_\[\]<>~])/g, "\\$1");

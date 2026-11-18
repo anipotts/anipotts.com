@@ -14,6 +14,32 @@ describe("inline editorial text", () => {
     expect(inlineHtml(text)).toContain("bad habits</a>");
     expect(inlinePlainText(text)).toBe("Our bad habits");
   });
+  it("combines adjacent decorative logo links with the preceding named link", () => {
+    const value =
+      "[our bad habit](https://ourbadhabit.com/) [![](/images/brand/bad-habit-favicon.png)](https://ourbadhabit.com/), an [atlantic records](https://www.atlanticrecords.com/)[![](/images/brand/atlantic-records-logo-cropped.png)](https://www.atlanticrecords.com/) venture.";
+    const html = inlineHtml(value, true, { mergeLogoLinks: true });
+    expect(html.match(/<a href=/g)).toHaveLength(2);
+    expect(html).toMatch(/>our bad habit <img [^>]+alt=""[^>]*><\/a>, an /);
+    expect(html).toMatch(
+      />atlantic records<img [^>]+alt=""[^>]*><\/a> venture/,
+    );
+    expect(inlineHtml(value).match(/<a href=/g)).toHaveLength(4);
+  });
+  it("keeps separate links with distinct labels or destinations", () => {
+    const named = "[studio](https://example.com/)";
+    const separateLinks = [
+      "[contact](https://example.com/)",
+      "[![album](/album.png)](https://example.com/)",
+      "[![](/logo.png)](https://example.org/)",
+      "and [![](/logo.png)](https://example.com/)",
+    ];
+    for (const link of separateLinks) {
+      const value = `${named} ${link}`;
+      expect(inlineHtml(value, true, { mergeLogoLinks: true })).toBe(
+        inlineHtml(value),
+      );
+    }
+  });
   it("renders bold, underline, italic, links and images while keeping metadata plain", () => {
     const value =
       "**Build** *carefully* with <u>time</u> ([![YC](/images/yc.ico)F25](https://ycombinator.com)).";

@@ -3,11 +3,15 @@ import { inlineHtml } from "@anipotts/content/public/inline";
 interface Props {
   text: string;
   links?: boolean;
+  mergeLogoLinks?: boolean;
 }
-const { text, links = true } = Astro.props;
+const { text, links = true, mergeLogoLinks } = Astro.props;
 ---
 
-<span class="inline-copy" set:html={inlineHtml(text, links)} />
+<span
+  class="inline-copy"
+  set:html={inlineHtml(text, links, { mergeLogoLinks })}
+/>
 <style is:global>
   .inline-copy {
     overflow-wrap: anywhere;
