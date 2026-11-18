@@ -1,15 +1,5 @@
 # anipotts.com
 
-## Editorial storage simplification
-
-Private drafts and immutable revision history move to CONTENT_DB; new private
-media uses R2; existing Cloudflare Access sign-in is sufficient for ordinary
-authoring. Legacy drafts, history and encrypted browser copies remain preserved.
-
-Implementation and release evidence: [#591](https://github.com/anipotts/anipotts.com/pull/591).
-The [owner editorial workflow](docs/agent-editorial-workflow.md) records D1
-migration, private R2 uploads, old-copy rescue and rollback boundaries.
-
 Ani's public website and private admin, both built with Astro and deployed to Cloudflare Workers.
 
 ## Development
@@ -38,37 +28,18 @@ See [local development](docs/local-development.md).
 - `pnpm content:check` rejects drift without changing files. Generated files are never independently edited.
 - Private drafts and read-only operational data remain separate from published content.
 
-## Current work
+## Production
 
-- [ ] Create and integrate the qualified browser-policy PR through exact-head protected checks. Full validation14/14, router6/6 and public native13-pass/1-skip coverage pass; public description approval is pending.
-- [ ] Create and integrate the qualified Admin Core consolidation. Full validation14/14, native10 across documented runs and zero-advisory audit pass; the separate DEV touch-run failure remains explicit in its review draft.
-- [x] Integrate and deploy [#540](https://github.com/anipotts/anipotts.com/pull/540) as `d539e382`. Release39733075733 deployed Admin; www and all four workers were skipped, schema0044, no migration. Provider identity and eight Access probes pass. Images/provider processing activation remains held.
-- [ ] Run protected exact-head checks and integrate qualified recovery [#541](https://github.com/anipotts/anipotts.com/pull/541). Actual #540 main ancestry is normally merged;129 Node,27 local recovery workerd/R2 and94 ordinary writer/media cases pass on identical source. Custody, enrollment, capture and restore gates remain separate.
-- [ ] Resolve named live acceptance/provider gates in the [current completeness audit](docs/website-completeness-audit.md).
-- [ ] Resolve seven stale native worktree-card ownership errors; formatter and released authoring worktree archival remain queued. See the [cleanup checkpoint](docs/website-source-preparation.md).
-
-#554 is merged as `5615da43`; [release39728806591](https://github.com/anipotts/anipotts.com/actions/runs/39728806591) deployed the checked footer to www and Admin. All four workers were skipped, schema0044, no migration; exact public smoke and eight Admin Access probes pass.
-
-#551 is merged as `1936106c`; [release39724851758](https://github.com/anipotts/anipotts.com/actions/runs/39724851758) deployed www and Admin. All four workers were skipped, schema0044, no migration. Exact public smoke and provider/Admin Access proof pass. #552 was consolidated and marked merged by GitHub.
-
-#550 is merged as `07da221d`; [release 39702328879](https://github.com/anipotts/anipotts.com/actions/runs/39702328879) deployed www and Admin. All four workers were skipped; schema 0044, no migration.
-
-#553 is merged as `1efed957`; [release 39695194877](https://github.com/anipotts/anipotts.com/actions/runs/39695194877) deployed www and Admin with approved brand geometry/motion. All four workers were skipped.
-
-#549 is merged as `39204ca89`; [release39298284295](https://github.com/anipotts/anipotts.com/actions/runs/39298284295) deployed Admin and all four retained workers. www was skipped, schema0044, no migration. Provider versions and eight Admin Access probes pass. Ingest/state service-health gaps and the intentionally retired weekly route remain separate.
-
-#542 is merged as `aa860b4b`; its successful release skipped all runtime targets.
-
-#539 is merged and deployed to Admin as `cf7b757b`. Provider/schema and eight Access-boundary probes pass; the other five targets were skipped and no migration ran.
-
-#538 is merged and deployed as `79592009` to all six targets. Exact-release public smoke, provider identity and admin Access boundary checks pass; no migration.
-
-#529/#530/#531 are merged and deployed. #532 is merged; its successful release
-selected no runtime targets because it changes browser tooling and documentation.
-
-The [source preparation checkpoint](docs/website-source-preparation.md) records
-PR containment, verification and remaining work. Earlier receipts stay in that
-record and the [integration queue](docs/integration-queue.json).
+- [Deploy runs](https://github.com/anipotts/anipotts.com/actions/workflows/deploy.yml)
+  record the release SHA and which targets deployed.
+- Private drafts and revision history are stored in D1. New private uploads
+  use R2. Existing Cloudflare Access sign-in covers ordinary authoring.
+  The [owner editorial workflow](docs/agent-editorial-workflow.md) covers
+  authoring, legacy draft recovery and rollback.
+- [Open pull requests](https://github.com/anipotts/anipotts.com/pulls) track
+  active code changes. The [integration queue](docs/integration-queue.json)
+  and [source preparation checkpoint](docs/website-source-preparation.md)
+  retain earlier decisions and release evidence.
 
 Public routes are `/`, `/work`, `/work/[slug]`, `/writing`, `/writing/[slug]`, `/systems`, `/links`, and the newsletter routes.
 Permanent compatibility redirects live in `apps/www/src/middleware.ts`.
