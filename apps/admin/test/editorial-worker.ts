@@ -26,3 +26,14 @@ export default {
     return new Response(null, { status: 404 });
   },
 };
+
+export class D1EditorialDraftStore extends EditorialDraftStore {
+  constructor(ctx: DurableObjectState, env: object) {
+    super(ctx, {
+      ...env,
+      EDITORIAL_D1_DRAFTS: "true",
+      EDITORIAL_ENABLED: "true",
+      EDITORIAL_PUBLISH_ENABLED: "true",
+    });
+  }
+}

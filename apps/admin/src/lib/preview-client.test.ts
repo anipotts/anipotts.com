@@ -143,3 +143,22 @@ it.each([
     expect(root.dataset.theme).toBe(expected);
   },
 );
+
+it("resolves owned animated GIF source and srcset to private Blob URLs", async () => {
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static createObjectURL = () => "blob:animated-gif";
+      static revokeObjectURL = () => {};
+    },
+  );
+  const gif = "b".repeat(64) + ".gif";
+  document.body.innerHTML = `<img loading="lazy" data-preview-owned-src="${gif}" data-preview-owned-srcset="preview-owned:${gif} 1x"><script type="application/octet-stream" data-preview-owned-media="${gif}" data-media-type="image/gif">R0lGODlh</script>`;
+  await installOwnedPreviewMedia();
+  expect(document.querySelector("img")?.getAttribute("src")).toBe(
+    "blob:animated-gif",
+  );
+  expect(document.querySelector("img")?.getAttribute("srcset")).toBe(
+    "blob:animated-gif 1x",
+  );
+});

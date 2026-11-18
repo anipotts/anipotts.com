@@ -33,7 +33,9 @@ export const GET: APIRoute = async ({ params, locals, request }) => {
         ? "image/jpeg"
         : id.endsWith(".png")
           ? "image/png"
-          : "image/webp",
+          : id.endsWith(".gif")
+            ? "image/gif"
+            : "image/webp",
       "Content-Length": String(object.size),
     },
   });

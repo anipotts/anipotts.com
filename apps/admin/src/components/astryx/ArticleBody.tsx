@@ -49,6 +49,8 @@ import { editorialImagePreviewUri } from "../../lib/editorial-media";
 
 const imageSelection = (selection: Selection): selection is NodeSelection =>
   selection instanceof NodeSelection && selection.node.type.name === "image";
+const countWords = (text: string) =>
+  text.trim() ? text.trim().split(/\s+/u).length : 0;
 
 const insertionSource = createStaticSource([
   { id: "paragraph", label: "Paragraph" },
@@ -76,9 +78,40 @@ export function ArticleBody({
   flushRef?: RefObject<(() => void) | null>;
   onDirty?: () => void;
 }) {
-  return needsMarkdownEditor(value) ? (
+  const advancedFormatting = needsMarkdownEditor(value);
+  const [sourceMode, setSourceMode] = useState(advancedFormatting);
+  const [focusVisual, setFocusVisual] = useState(false);
+  const modeReset = useRef(resetGeneration);
+  useEffect(() => {
+    // A restore or record change may choose a different editing mode. Ordinary
+    // source edits keep the textarea mounted until the author switches modes.
+    if (modeReset.current !== resetGeneration) {
+      modeReset.current = resetGeneration;
+      setSourceMode(advancedFormatting);
+      setFocusVisual(false);
+    } else if (advancedFormatting) setSourceMode(true);
+  }, [advancedFormatting, resetGeneration]);
+  return advancedFormatting || sourceMode ? (
     <VStack gap={3}>
-      <Banner status="info" title="This article includes advanced formatting" />
+      <Banner
+        status="info"
+        title={
+          advancedFormatting
+            ? "This article includes advanced formatting"
+            : "Editing article source"
+        }
+      />
+      {!advancedFormatting && (
+        <Button
+          label="Use rich text"
+          variant="ghost"
+          isDisabled={disabled}
+          onClick={() => {
+            setFocusVisual(true);
+            setSourceMode(false);
+          }}
+        />
+      )}
       <TextArea
         label="Article body"
         value={value}
@@ -95,6 +128,7 @@ export function ArticleBody({
       resetGeneration={resetGeneration}
       flushRef={flushRef}
       onDirty={onDirty}
+      focusOnMount={focusVisual}
     />
   );
 }
@@ -106,6 +140,7 @@ function VisualArticleBody({
   resetGeneration = 0,
   flushRef,
   onDirty,
+  focusOnMount = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -113,6 +148,7 @@ function VisualArticleBody({
   resetGeneration?: number;
   flushRef?: RefObject<(() => void) | null>;
   onDirty?: () => void;
+  focusOnMount?: boolean;
 }) {
   const id = useId();
   const panelSelection = useRef(new EditorSelectionBookmark());
@@ -244,6 +280,8 @@ function VisualArticleBody({
       editor
         ? {
             image: imageSelection(editor.state.selection),
+            imageSrc: String(editor.getAttributes("image").src ?? ""),
+            wordCount: countWords(editor.getText({ blockSeparator: " " })),
             bold: editor.isActive("bold"),
             italic: editor.isActive("italic"),
             heading: editor.isActive("heading", { level: 2 }),
@@ -258,6 +296,12 @@ function VisualArticleBody({
         : null,
   });
   const selectedImage = toolbarState?.image ?? false;
+  const wordCount =
+    toolbarState?.wordCount ??
+    countWords(editor?.getText({ blockSeparator: " " }) ?? "");
+  useEffect(() => {
+    if (focusOnMount) editor?.view.focus();
+  }, [editor, focusOnMount]);
   useEffect(() => {
     if (!flushRef || !editor) return;
     const flush = () => {
@@ -542,13 +586,15 @@ function VisualArticleBody({
               variant="ghost"
               onClick={() => open("image", "replace")}
             />
-            <Button
-              label="Crop image"
-              size="sm"
-              variant="ghost"
-              isDisabled={disabled}
-              onClick={() => open("image", "crop")}
-            />
+            {!/\.gif(?:[?#]|$)/iu.test(toolbarState?.imageSrc ?? "") && (
+              <Button
+                label="Crop image"
+                size="sm"
+                variant="ghost"
+                isDisabled={disabled}
+                onClick={() => open("image", "crop")}
+              />
+            )}
             <Button
               label="Alt text"
               size="sm"
@@ -735,7 +781,7 @@ function VisualArticleBody({
         <EditorContent editor={editor} />
       </VStack>
       <Text className="article-word-count" color="secondary" type="supporting">
-        {value.trim() ? value.trim().split(/\s+/u).length : 0} words
+        {wordCount} {wordCount === 1 ? "word" : "words"}
       </Text>
     </Field>
   );

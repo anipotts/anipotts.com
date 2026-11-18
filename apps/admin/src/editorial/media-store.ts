@@ -5,10 +5,10 @@ export const MAX_MEDIA_PIXELS = 16 * 1024 * 1024;
 export const MAX_MEDIA_DIMENSION = 16_384;
 export const EDITORIAL_MEDIA_CHUNK_BYTES = 64 * 1024;
 const chunkSize = EDITORIAL_MEDIA_CHUNK_BYTES;
-const identity = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
+const identity = /^[a-f0-9]{64}\.(?:jpg|png|webp|gif)$/u;
 export type EditorialMedia = {
   id: string;
-  type: "image/jpeg" | "image/png" | "image/webp";
+  type: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
   size: number;
 };
 
@@ -27,6 +27,48 @@ const ascii = (bytes: Uint8Array, offset: number, length: number) =>
 function imageHeader(bytes: Uint8Array): ImageHeader | null {
   if (bytes.length < 12) return null;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (["GIF87a", "GIF89a"].includes(ascii(bytes, 0, 6))) {
+    const width = view.getUint16(6, true),
+      height = view.getUint16(8, true);
+    let offset = 13 + (bytes[10]! & 128 ? 3 * 2 ** ((bytes[10]! & 7) + 1) : 0),
+      frames = 0;
+    const blocks = () => {
+      while (offset < bytes.length) {
+        const length = bytes[offset++]!;
+        if (!length) return true;
+        offset += length;
+        if (offset > bytes.length) return false;
+      }
+      return false;
+    };
+    while (offset < bytes.length) {
+      const marker = bytes[offset++]!;
+      if (marker === 0x3b)
+        return frames > 0 && offset === bytes.length
+          ? { type: "image/gif", width, height }
+          : null;
+      if (marker === 0x21) {
+        if (offset >= bytes.length) return null;
+        offset++;
+        if (!blocks()) return null;
+      } else if (marker === 0x2c) {
+        if (offset + 9 > bytes.length) return null;
+        const left = view.getUint16(offset, true),
+          top = view.getUint16(offset + 2, true),
+          w = view.getUint16(offset + 4, true),
+          h = view.getUint16(offset + 6, true),
+          flags = bytes[offset + 8]!;
+        if (!w || !h || left + w > width || top + h > height) return null;
+        offset += 9 + (flags & 128 ? 3 * 2 ** ((flags & 7) + 1) : 0);
+        if (offset >= bytes.length || bytes[offset]! < 2 || bytes[offset]! > 8)
+          return null;
+        offset++;
+        if (!blocks()) return null;
+        frames++;
+      } else return null;
+    }
+    return null;
+  }
   if (
     bytes[0] === 0xff &&
     bytes[1] === 0xd8 &&
@@ -286,5 +328,40 @@ export class EditorialMediaStore {
     if (!id.startsWith(createHash("sha256").update(bytes).digest("hex")))
       throw new Error("media_corrupt");
     return { metadata, bytes };
+  }
+}
+
+export class R2EditorialMediaStore {
+  constructor(
+    private bucket: R2Bucket,
+    private legacy: EditorialMediaStore,
+  ) {}
+  async save(bytes: Uint8Array) {
+    const admission = inspectEditorialMediaAdmission(bytes);
+    if (!admission.ok) return admission;
+    await this.bucket.put(`editorial-private/${admission.media.id}`, bytes, {
+      httpMetadata: { contentType: admission.media.type },
+    });
+    return { ok: true as const, media: admission.media };
+  }
+  async read(
+    id: string,
+  ): Promise<{ metadata: EditorialMedia; bytes: Uint8Array } | null> {
+    if (!identity.test(id)) return null;
+    const object = await this.bucket.get(`editorial-private/${id}`);
+    if (object) {
+      if (object.size > MAX_MEDIA_BYTES) throw new Error("media_corrupt");
+      const bytes = new Uint8Array(await object.arrayBuffer()),
+        admission = inspectEditorialMediaAdmission(bytes);
+      if (!admission.ok || admission.media.id !== id)
+        throw new Error("media_corrupt");
+      return { metadata: admission.media, bytes };
+    }
+    const old = await this.legacy.read(id);
+    if (!old) return null;
+    await this.bucket.put(`editorial-private/${id}`, old.bytes, {
+      httpMetadata: { contentType: old.metadata.type },
+    });
+    return old;
   }
 }

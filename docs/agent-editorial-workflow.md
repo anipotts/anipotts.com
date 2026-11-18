@@ -1,5 +1,40 @@
 # Coding agents and the production editor
 
+## Authoring storage
+
+Sign in with the existing Cloudflare Access owner account, then write in Content.
+Ordinary editing needs no recovery key or local key file. Autosave, history,
+conflict comparison and the owner CLI all use the same D1 draft revisions.
+Private media is stored in R2 and stays private until a reviewed publication.
+GIF uploads retain their animation; crop controls are for static images.
+
+The existing named object serializes saves and coordinates accepted publications;
+it no longer owns the authoritative draft text. On first use it copies all legacy
+drafts, exact history snapshots, conflicts and retry receipts into CONTENT_DB.
+Every imported value and row count is verified before authoring opens. Original
+rows and media chunks remain intact. Private R2 keys use `editorial-private/`;
+only referenced, published media is copied to a public content-addressed key.
+
+`GET /api/editorial/storage` returns owner-only migration counts and backend status.
+A missing schema or mismatched import fails closed; do not overwrite a conflict.
+The approved additive schema is `migrations/content-publication/0004_private_drafts.sql`
+under `apps/admin`. Apply it to `anipotts-content` before deploying the D1-enabled
+Admin. Published snapshots and their active pointers are unchanged by this migration.
+
+The open tab holds unsaved text during connection failure. Session expiry stops
+writes and offers a Markdown download before reentry. A crash before a successful
+save may lose the latest input. Existing encrypted browser copies and key files
+are retained, never automatically deleted or imported. If an older unsaved copy
+is needed, deliberately open that record with `?legacyRecovery=1` and its original
+key, compare it, and explicitly save the recovered version to D1. This is a legacy
+rescue tool, not a requirement for new writing.
+
+Rollback after new D1 saves must keep the D1 reader enabled; use a forward fix or
+a compatible prior build. Do not deploy a legacy-only draft writer over newer D1
+revisions. D1 Time Travel and the existing System-owned D1 exports cover the new
+private tables. Older paired DO/content capture adapters remain a historical
+format and are not a complete backup of new D1 drafts.
+
 Coding agents can use the existing owner editorial API or operate the editor
 through a browser MCP session. Production Admin remains the normal authoring
 environment. Draft saves are private. Publication changes the live website and

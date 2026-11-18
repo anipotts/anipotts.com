@@ -6,6 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
     "bindings": [
+      { "name": "D1_EDITORIAL", "class_name": "D1EditorialDraftStore" },
       { "name": "EDITORIAL", "class_name": "EditorialDraftStore" },
       { "name": "DIRECT_EDITORIAL", "class_name": "DirectEditorialDraftStore" },
       {
@@ -31,6 +32,7 @@
     {
       "tag": "editorial-v1",
       "new_sqlite_classes": [
+        "D1EditorialDraftStore",
         "EditorialDraftStore",
         "DirectEditorialDraftStore",
         "DisabledEditorialDraftStore",

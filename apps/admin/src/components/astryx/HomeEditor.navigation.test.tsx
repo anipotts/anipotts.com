@@ -178,6 +178,7 @@ async function mount(
       <>
         {withIdentity && <WorkspaceMemory />}
         <HomeEditor
+          legacyRecovery
           record={{ kind: "writing", id: "test" }}
           localPreview={localPreview}
         />
@@ -727,6 +728,7 @@ it.each(["loading", "failed"])(
     await act(async () => {
       root.render(
         <HomeEditor
+          legacyRecovery
           record={{ kind: "writing", id: "test" }}
           localPreview={true}
         />,
@@ -759,6 +761,7 @@ it.each(["loading", "failed"])(
     await act(async () => {
       root.render(
         <HomeEditor
+          legacyRecovery
           record={{ kind: "writing", id: "test" }}
           localPreview={true}
         />,
@@ -1068,7 +1071,11 @@ it("holds project navigation and unload while media is pending", async () => {
   window.history.replaceState(null, "", "/content/projects/example");
   await act(async () =>
     root.render(
-      <HomeEditor record={{ kind: "work", id: "example" }} localPreview />,
+      <HomeEditor
+        legacyRecovery
+        record={{ kind: "work", id: "example" }}
+        localPreview
+      />,
     ),
   );
   expect(host.querySelector('[data-testid="project-media"]')).not.toBeNull();
@@ -1231,7 +1238,11 @@ it.each(["record", "history"] as const)(
     if (action === "record") {
       await act(async () =>
         root.render(
-          <HomeEditor record={{ kind: "writing", id: "test" }} localPreview />,
+          <HomeEditor
+            legacyRecovery
+            record={{ kind: "writing", id: "test" }}
+            localPreview
+          />,
         ),
       );
       await act(async () => {
@@ -1268,3 +1279,44 @@ it.each(["record", "history"] as const)(
     );
   },
 );
+
+it("retains the loaded editor through shell expiry and clears it on explicit logout", async () => {
+  window.history.replaceState(null, "", "/content/writing/test");
+  await act(async () =>
+    root.render(
+      <EditorialApp
+        title="Writing"
+        area="content"
+        localPreview
+        siteUrl="https://anipotts.com/"
+        editorRecord={{ kind: "writing", id: "test" }}
+      />,
+    ),
+  );
+  await act(async () => {
+    await vi.waitFor(() =>
+      expect(
+        host.querySelector('textarea[aria-label="Test article body"]'),
+      ).not.toBeNull(),
+    );
+  });
+  const body = host.querySelector(
+    'textarea[aria-label="Test article body"]',
+  ) as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(body, "personal unsaved text");
+    body.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const session = await import("../../lib/protected-admin-json");
+  await act(async () => session.lockProtectedSession("expired"));
+  expect(host.textContent).toContain("Download current draft");
+  const unload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+  await act(async () => session.lockProtectedSession("logout"));
+  expect(host.textContent).not.toContain("Download current draft");
+  expect(host.textContent).toContain("Session ended");
+});

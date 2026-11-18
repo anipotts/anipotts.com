@@ -26,6 +26,7 @@ ACCESS_POLICY_AUD = "ca3ea64cba714dee7d50eae63f62b18d6c2aeeecc0fc16ec0335ed0aa86
 # EDITORIAL_PUBLISH_ENABLED = "false" and redeploy; accepted work stays
 # durable, activations wait, and receipts still reconcile.
 EDITORIAL_ENABLED = "true"
+EDITORIAL_D1_DRAFTS = "true"
 EDITORIAL_PUBLISH_ENABLED = "true"
 # Private reader credential issuance for the tailnet reader on ap-mini.
 PRIVATE_READER_ENABLED = "true"

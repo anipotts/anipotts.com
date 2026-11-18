@@ -55,12 +55,14 @@ function inventory(scope: string) {
 export function RecoveryUnlock({
   scope,
   children,
+  enabled = true,
 }: {
   scope?: string;
   children: ReactNode;
+  enabled?: boolean;
 }) {
   const [session] = useState(() =>
-    typeof window === "undefined" ? null : recoverySession(),
+    typeof window === "undefined" || !enabled ? null : recoverySession(),
   );
   const state = useSyncExternalStore(
     session?.subscribe ?? (() => () => {}),
@@ -90,13 +92,13 @@ export function RecoveryUnlock({
     };
   }, []);
   useEffect(() => {
-    if (state.status === "unlocked") revoke();
+    if (!enabled || state.status === "unlocked") revoke();
   }, [state.status]);
   const [expected, setExpected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stored =
-    hydrated && scope
+    enabled && hydrated && scope
       ? inventory(scope)
       : { keys: new Set<string>(), legacy: false };
   const admitted = () =>
@@ -171,7 +173,7 @@ export function RecoveryUnlock({
       }
     }
   }
-  if (state.status === "unlocked")
+  if (!enabled || state.status === "unlocked")
     return (
       <>
         {stored.legacy && (

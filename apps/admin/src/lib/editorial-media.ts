@@ -1,6 +1,6 @@
 import { safeInlineUrl } from "@anipotts/content/public/inline";
 
-export const editorialMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp)$/u;
+export const editorialMediaId = /^[a-f0-9]{64}\.(?:jpg|png|webp|gif)$/u;
 export const editorialMediaPrefix = "/images/editorial/";
 export const MAX_PUBLICATION_MEDIA_BYTES = 10 * 1024 * 1024;
 export const MAX_PUBLICATION_IMAGES = 10;
@@ -10,7 +10,7 @@ export function referencedMediaIds(source: string): string[] {
     ...new Set(
       Array.from(
         source.matchAll(
-          /\/images\/editorial\/([a-f0-9]{64}\.(?:jpg|png|webp))/gu,
+          /\/images\/editorial\/([a-f0-9]{64}\.(?:jpg|png|webp|gif))/gu,
         ),
         (match) => match[1]!,
       ),

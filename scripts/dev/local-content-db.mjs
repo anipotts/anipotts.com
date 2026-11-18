@@ -24,7 +24,8 @@ export const CONTENT_DATABASE_ID = "2679fc97-e251-46b7-ad01-db8b9fe04e8d";
 
 export const PROBE_SQL =
   "SELECT (SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'editorial_published_inventory') AS inventory, " +
-  "(SELECT count(*) FROM pragma_table_info('editorial_published_revisions') WHERE name = 'content_schema_version') AS schema_version";
+  "(SELECT count(*) FROM pragma_table_info('editorial_published_revisions') WHERE name = 'content_schema_version') AS schema_version, " +
+  "(SELECT count(*) FROM sqlite_master WHERE type='table' AND name='editorial_drafts') AS private_drafts";
 export const VERSION_SQL =
   "SELECT version FROM editorial_published_inventory WHERE singleton = 1";
 
@@ -33,6 +34,7 @@ export function bootstrapPlan(probe, version) {
   const migrations = [];
   if (!probe?.inventory) migrations.push("0001", "0002");
   else if (!probe.schema_version) migrations.push("0002");
+  if (!probe?.private_drafts) migrations.push("0004");
   const seed = migrations.includes("0001") || !(Number(version) > 0);
   return { migrations, seed };
 }

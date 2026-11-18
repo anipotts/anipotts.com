@@ -183,7 +183,7 @@ async function expectRecoveryRetired() {
 }
 async function mount(ready = "Compare before saving again") {
   await act(async () => {
-    root.render(<HomeEditor record={record} />);
+    root.render(<HomeEditor legacyRecovery record={record} />);
   });
   await click("Publish");
   await act(async () => {
@@ -196,7 +196,7 @@ async function mount(ready = "Compare before saving again") {
 async function mountClean() {
   localStorage.clear();
   await act(async () => {
-    root.render(<HomeEditor record={record} />);
+    root.render(<HomeEditor legacyRecovery record={record} />);
   });
   await act(async () => {
     await vi.waitFor(() => expect(body()).not.toBeNull(), { timeout: 2000 });
@@ -742,7 +742,7 @@ it("reloads a refused draft into the saved draft with the edits ready to review"
   answerSave = () => undefined;
   root = createRoot(host);
   await act(async () => {
-    root.render(<HomeEditor record={record} />);
+    root.render(<HomeEditor legacyRecovery record={record} />);
   });
   await act(async () => {
     await settleRecoveryFixture();
