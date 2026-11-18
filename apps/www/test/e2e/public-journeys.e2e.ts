@@ -1,6 +1,19 @@
 import { test } from "@e2e-dev/web";
 import { expect } from "e2e";
 
+test("homepage omits visible pronouns while retaining identity metadata", async ({
+  app,
+  browser,
+}) => {
+  await app.open("/");
+  expect(await browser.evaluate(() => document.body.innerText)).not.toContain(
+    "he/him",
+  );
+  expect(
+    await browser.evaluate(() => document.querySelector(".hero-pronouns")),
+  ).toBeNull();
+});
+
 // Run against the built public Worker with a seeded local D1. The runner's
 // public config supplies the loopback base URL and desktop/mobile projects.
 test("primary navigation reaches the public catalogs", async ({
