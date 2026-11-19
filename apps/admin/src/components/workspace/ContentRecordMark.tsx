@@ -29,16 +29,16 @@ export function ContentRecordMark({
 }) {
   const id = record.id ?? record.href.split("?")[0].split("/").at(-1);
   const identity = record.projectIdentity;
-  const artwork = identity
-    ? (ownedProjectArtwork(identity.logo_src) ??
-      projectMediaPreview(identity.logo_src, siteUrl))
-    : projectMark(id);
+  const configuredArtwork =
+    ownedProjectArtwork(identity?.logo_src) ??
+    projectMediaPreview(identity?.logo_src, siteUrl);
+  const artwork = configuredArtwork ?? projectMark(id);
   if (artwork)
     return (
       <BrandTile
         id={id}
         artwork={artwork}
-        artworkTone={identity?.logo_tone}
+        artworkTone={configuredArtwork ? identity?.logo_tone : undefined}
         className={className}
       />
     );

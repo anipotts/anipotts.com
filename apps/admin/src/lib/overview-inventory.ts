@@ -7,9 +7,11 @@ export type OverviewContentSnapshot = {
   contentInventory: EditorialInventoryStatus;
   contentActivity: Array<{
     id: string;
+    recordId?: string;
     title: string;
     href: string;
     collection: string;
+    projectIdentity?: CatalogRecord["projectIdentity"];
     updated: NonNullable<CatalogRecord["updated"]>;
   }>;
   activityTruncated: boolean;

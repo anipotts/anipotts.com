@@ -10,14 +10,18 @@ import habit from "../../../apps/www/public/images/brand/bad-habit-favicon.png?u
 import paragon from "../../../apps/www/public/images/brand/paragon-favicon.png?url&no-inline";
 import quantercise from "../../../apps/www/public/images/brand/quantercise-legacy-icon.png?url&no-inline";
 import structured from "../../../apps/www/public/images/brand/structured-ai-favicon.png?url&no-inline";
+import claudemon from "../../../apps/www/public/images/brand/claudemon-favicon.svg?url&no-inline";
+import rangeMedia from "../../../apps/www/public/images/brand/range-media-partners-favicon.png?url&no-inline";
 const PROJECT_MARKS: Readonly<Record<string, string>> = {
   agents,
   chainedchat,
+  claudemon,
   "imessage-mcp": npm,
   "quantercise-extension": chrome,
   "nyu-purity-test": nyu,
   "habittracker-obh": habit,
   "pgi-research-platform": paragon,
+  "range-media-partners": rangeMedia,
   quantercise,
   "structured-ai": structured,
 };

@@ -1,4 +1,11 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowRightIcon,
   BrowserIcon,
@@ -9,6 +16,7 @@ import {
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
 import { Metric } from "../workspace/Metric";
+import { ContentRecordMark } from "../workspace/ContentRecordMark";
 import {
   CELL_WIDTHS,
   DataTable,
@@ -27,6 +35,14 @@ import {
 } from "./content-activity";
 
 const periods = ["today", "week", "month"] as const;
+
+export function PageRouteMark() {
+  return (
+    <span className="overview-page-kind" aria-hidden="true">
+      /
+    </span>
+  );
+}
 
 export function ContentActivityTable({
   rows,
@@ -59,6 +75,19 @@ export function ContentActivityTable({
             return (
               <RowTitle
                 icon={icon}
+                mark={
+                  label === "Project" ? (
+                    <ContentRecordMark
+                      record={{
+                        id: item.recordId,
+                        href: item.href,
+                        projectIdentity: item.projectIdentity,
+                      }}
+                    />
+                  ) : label === "Page" ? (
+                    <PageRouteMark />
+                  ) : undefined
+                }
                 kind={label}
                 title={item.title}
                 href={item.href}
@@ -96,10 +125,18 @@ export function ContentActivity({
   const input = useRef<HTMLInputElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
   const surface = useRef<HTMLElement>(null);
+  const returnFocus = useRef(false);
   const [open, setOpen] = useState(false);
   const [problem, setProblem] = useState(false);
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState(initialActivityQuery);
+  useLayoutEffect(() => {
+    if (open) input.current?.focus();
+    else if (returnFocus.current) {
+      launcher.current?.focus();
+      returnFocus.current = false;
+    }
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const dismiss = (event: PointerEvent) => {
@@ -140,10 +177,10 @@ export function ContentActivity({
       onKeyDown={(event) => {
         if (open && event.key === "Escape" && !event.nativeEvent.isComposing) {
           event.preventDefault();
+          returnFocus.current = true;
           setOpen(false);
           setProblem(false);
           setDraft("");
-          requestAnimationFrame(() => launcher.current?.focus());
         }
       }}
     >
@@ -182,10 +219,7 @@ export function ContentActivity({
           ref={launcher}
           className="overview-activity-launcher"
           aria-expanded={false}
-          onClick={() => {
-            setOpen(true);
-            requestAnimationFrame(() => input.current?.focus());
-          }}
+          onClick={() => setOpen(true)}
         >
           <span aria-hidden="true">[...]</span> Ask about content activity
         </button>

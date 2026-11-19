@@ -1,4 +1,5 @@
 import { dayKey } from "../workspace/format";
+import type { CatalogRecord } from "../astryx/EditorialApp";
 
 export type ActivityPeriod = "today" | "week" | "month" | "lastWeek";
 type ActivityScope = "all" | "home" | "writing" | "projects" | "pages";
@@ -31,9 +32,11 @@ export const scopeLabels: Record<ActivityScope, string> = {
 
 export type ActivityRecord = {
   id: string;
+  recordId?: string;
   title: string;
   href: string;
   collection?: string;
+  projectIdentity?: CatalogRecord["projectIdentity"];
   updated: { at: string };
 };
 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>ClaudeMon</title>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#dfa47a"/>
+  <path d="M43 21a15.56 15.56 0 1 0 0 22" fill="none" stroke="#25231f" stroke-width="8" stroke-linecap="round"/>
+</svg>

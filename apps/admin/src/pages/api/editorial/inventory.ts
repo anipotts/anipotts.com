@@ -19,10 +19,21 @@ export const GET: APIRoute = async ({ locals, url }) => {
       loadEditorialInventory(runtimeEnv(), inventoryFixture(url), "metadata"),
     );
     const records = recentlyUpdated(inventory.records);
-    const dated = records.flatMap(({ collection, id, title, href, updated }) =>
-      updated
-        ? [{ id: `${collection}:${id}`, title, href, collection, updated }]
-        : [],
+    const dated = records.flatMap(
+      ({ collection, id, title, href, updated, projectIdentity }) =>
+        updated
+          ? [
+              {
+                id: href,
+                recordId: id,
+                title,
+                href,
+                collection,
+                updated,
+                projectIdentity,
+              },
+            ]
+          : [],
     );
     return privateJson({
       content: records
@@ -32,6 +43,8 @@ export const GET: APIRoute = async ({ locals, url }) => {
             title,
             href,
             status,
+            id,
+            projectIdentity,
             collection,
             section,
             changesPending,
@@ -40,6 +53,8 @@ export const GET: APIRoute = async ({ locals, url }) => {
             title,
             href,
             status,
+            id,
+            projectIdentity,
             collection,
             section,
             changesPending,

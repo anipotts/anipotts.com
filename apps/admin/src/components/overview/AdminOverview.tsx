@@ -55,7 +55,7 @@ import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
 import { recordColumns } from "../data/RecordsView";
 import type { EditorialInventoryStatus } from "../../lib/editorial-inventory-projection";
-import { ContentActivity } from "./ContentActivity";
+import { ContentActivity, PageRouteMark } from "./ContentActivity";
 import type { ActivityRecord } from "./content-activity";
 import { parseItems, parseRecord } from "../data/data-model";
 import {
@@ -307,6 +307,8 @@ export function RecentContentTable({
                 mark={
                   type === "Project" ? (
                     <ContentRecordMark record={item} />
+                  ) : type === "Page" ? (
+                    <PageRouteMark />
                   ) : undefined
                 }
                 kind={type}
