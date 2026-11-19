@@ -7,6 +7,8 @@ contract; it does not impose an OS resource limit or alter global tool settings.
 ## parallel work and runtime budget
 
 Keep independent coding and investigation parallel, with explicit file ownership.
+Keep ordinary Git worktrees in the owning checkout’s ignored `.worktrees/`
+directory. Use the client’s supported location for app-managed worktrees.
 Worktrees provide isolation; an idle checkout does not need a running server.
 
 On this host, the default budget across all repo agents is:

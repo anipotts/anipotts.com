@@ -17,6 +17,7 @@ yarn-error.log*
 .claude/plans
 .claude/memories
 .claude/worktrees/
+/.worktrees/
 .claude/skills/typefully
 apps/www/test-results
 apps/www/playwright-report
