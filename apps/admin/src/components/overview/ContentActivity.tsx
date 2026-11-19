@@ -78,6 +78,7 @@ export function ContentActivityTable({
                 mark={
                   label === "Project" ? (
                     <ContentRecordMark
+                      preferOfficialArtwork
                       record={{
                         id: item.recordId,
                         href: item.href,

@@ -306,7 +306,7 @@ export function RecentContentTable({
                 icon={glyph}
                 mark={
                   type === "Project" ? (
-                    <ContentRecordMark record={item} />
+                    <ContentRecordMark record={item} preferOfficialArtwork />
                   ) : type === "Page" ? (
                     <PageRouteMark />
                   ) : undefined
