@@ -7,7 +7,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ArrowRightIcon,
   BrowserIcon,
   BriefcaseIcon,
   EnvelopeSimpleIcon,
@@ -15,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Text } from "@astryxdesign/core/Text";
+import { BracketQueryControls } from "../workspace/BracketQueryControls";
 import { Metric } from "../workspace/Metric";
 import { ContentRecordMark } from "../workspace/ContentRecordMark";
 import {
@@ -124,7 +124,6 @@ export function ContentActivity({
 }) {
   const resultsId = useId();
   const input = useRef<HTMLInputElement>(null);
-  const launcher = useRef<HTMLButtonElement>(null);
   const surface = useRef<HTMLElement>(null);
   const returnFocus = useRef(false);
   const [open, setOpen] = useState(false);
@@ -134,7 +133,9 @@ export function ContentActivity({
   useLayoutEffect(() => {
     if (open) input.current?.focus();
     else if (returnFocus.current) {
-      launcher.current?.focus();
+      surface.current
+        ?.querySelector<HTMLButtonElement>(".workspace-bracket-query-launcher")
+        ?.focus();
       returnFocus.current = false;
     }
   }, [open]);
@@ -185,46 +186,26 @@ export function ContentActivity({
         }
       }}
     >
-      {open ? (
-        <form
-          className="overview-activity-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const next = activityQuery(draft, query);
-            setProblem(!next);
-            if (next) {
-              setQuery(next);
-              setDraft("");
-            }
-          }}
-        >
-          <input
-            ref={input}
-            aria-label="Ask about content activity"
-            aria-controls={resultsId}
-            placeholder="Ask about content activity"
-            value={draft}
-            maxLength={240}
-            onChange={(event) => {
-              setDraft(event.currentTarget.value);
-              setProblem(false);
-            }}
-          />
-          <button type="submit" aria-label="Apply query" title="Apply query">
-            <ArrowRightIcon aria-hidden="true" />
-          </button>
-        </form>
-      ) : (
-        <button
-          type="button"
-          ref={launcher}
-          className="overview-activity-launcher"
-          aria-expanded={false}
-          onClick={() => setOpen(true)}
-        >
-          <span aria-hidden="true">[...]</span> Ask about content activity
-        </button>
-      )}
+      <BracketQueryControls
+        label="Ask about content activity"
+        open={open}
+        value={draft}
+        resultId={resultsId}
+        inputRef={input}
+        onOpen={() => setOpen(true)}
+        onChange={(value) => {
+          setDraft(value.slice(0, 240));
+          setProblem(false);
+        }}
+        onSubmit={() => {
+          const next = activityQuery(draft, query);
+          setProblem(!next);
+          if (next) {
+            setQuery(next);
+            setDraft("");
+          }
+        }}
+      />
       {open && (
         <VStack id={resultsId} gap={3} aria-label="Activity results">
           {problem && (
