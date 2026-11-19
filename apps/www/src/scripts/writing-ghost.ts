@@ -26,7 +26,7 @@ const rootSelector =
 
 /** Root and body selectors rewritten for a shadow host, which stands in
  * for both. */
-export function hostScoped(css: string) {
+function hostScoped(css: string) {
   return css.replace(rootSelector, (_, lead: string, rest: string) =>
     rest ? `${lead}:host(${rest})` : `${lead}:host`,
   );
@@ -289,7 +289,7 @@ export function captureGhost(main: HTMLElement, hidden: string[]): Ghost {
 
 // Wave artwork and text captured from the live pages as plain data.
 const px = (v: number) => `${Math.round(v * 100) / 100}px`;
-export const boxStyle = (b: {
+const boxStyle = (b: {
   x: number;
   y: number;
   width: number;
@@ -339,7 +339,7 @@ export function captureArt(host: Element | null | undefined, columns: number) {
   );
   return { box, group, layers, contours } satisfies wave.ArtShape;
 }
-export function artSvg(art: wave.Art) {
+function artSvg(art: wave.Art) {
   const make = <K extends "svg" | "g" | "path">(name: K) =>
     document.createElementNS("http://www.w3.org/2000/svg", name);
   const svg = make("svg");
@@ -376,7 +376,7 @@ export function captureText(
     };
   });
 }
-export function morphLayer(plan: wave.MorphPlan) {
+function morphLayer(plan: wave.MorphPlan) {
   const { svg, group, paths } = artSvg({
     box: wave.MORPH_BOX,
     group: plan.group[0],
