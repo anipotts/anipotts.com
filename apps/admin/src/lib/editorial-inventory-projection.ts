@@ -1,7 +1,6 @@
 import { projectRecordIdentity } from "./project-media";
 import { libraryPath } from "./content-library-state";
 import { editorialRecordSummary } from "./editorial-record-summary";
-import { gitBlobSha1 } from "./crypto";
 import {
   editorialRecordPath,
   editorialRecordSchema,
@@ -9,8 +8,17 @@ import {
   validateEditorialSource,
   type EditorialRecord,
 } from "@anipotts/content/editorial/source";
+import {
+  inventoryDraftMetadata,
+  type InventoryDraftMetadata,
+} from "../editorial/draft-inventory-metadata";
 import type { Draft } from "../editorial/draft-store";
 import type { CatalogRecord } from "../components/astryx/EditorialApp";
+
+export {
+  inventoryDraftMetadata,
+  type InventoryDraftMetadata,
+} from "../editorial/draft-inventory-metadata";
 
 export type InventoryEntry = {
   collection: string;
@@ -46,16 +54,6 @@ export type EditorialInventoryStatus = {
   drafts: "ready" | "partial" | "unavailable";
 };
 
-export type InventoryDraftMetadata = Pick<
-  Draft,
-  "key" | "revision" | "updatedAt" | "discardedAt"
-> & {
-  title?: string;
-  summary?: string;
-  visibility?: string;
-  projectIdentity?: CatalogRecord["projectIdentity"];
-  changesPending: boolean;
-};
 const sections: Record<string, string> = {
   home: "home",
   projects: "work",
@@ -112,40 +110,8 @@ export function latestPublishedUpdate(
     source: status !== undefined && !LIVE_STATES.has(status) ? "hidden" : "cms",
   };
 }
-function metadata(source: string): Record<string, unknown> {
-  try {
-    return parseEditorialSource(source).data as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
-}
-function draftRecord(key: string): EditorialRecord | null {
-  const match =
-    /^content\/public\/(pages|projects|writing)\/([^/]+)\.md$/u.exec(key);
-  if (!match) return null;
-  return inventoryIdentity({ collection: match[1]!, id: match[2]! });
-}
-
-/** Calculate the exact current-source comparison inside the private store.
- * Only table and palette fields leave that store for the overview. */
-export function inventoryDraftMetadata(draft: Draft): InventoryDraftMetadata {
-  const record = draftRecord(draft.key);
-  const data = metadata(draft.source);
-  return {
-    key: draft.key,
-    revision: draft.revision,
-    updatedAt: draft.updatedAt,
-    discardedAt: draft.discardedAt,
-    title: text(data.title),
-    summary: record ? editorialRecordSummary(record, data) : undefined,
-    visibility: text(record?.kind === "work" ? data.public_state : data.status),
-    projectIdentity:
-      record?.kind === "work" ? projectRecordIdentity(data) : undefined,
-    changesPending: gitBlobSha1(draft.source) !== draft.baseFileHash,
-  };
 }
 function comparable(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();

@@ -12,7 +12,7 @@ import type {
   StartDirectPublication,
 } from "../lib/editorial-publication-status";
 import { reportRuntimeContract } from "../lib/runtime-contract";
-import { inventoryDraftMetadata } from "../lib/editorial-inventory-projection";
+import { inventoryDraftMetadata } from "./draft-inventory-metadata";
 import type { EditorialDirectory } from "@anipotts/content/editorial/layout";
 import {
   editorialRecordPath,
