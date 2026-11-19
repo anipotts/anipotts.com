@@ -3,7 +3,6 @@
   "workspaces": {
     ".": {
       "entry": [
-        "scripts/sync-yaml-to-d1.sh",
         "scripts/backfill-brands-emails.ts",
         "scripts/mini/commit-publisher.ts",
       ],
