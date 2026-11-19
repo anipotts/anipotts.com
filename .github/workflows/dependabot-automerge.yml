@@ -39,7 +39,7 @@ jobs:
             const routine = ['version-update:semver-patch', 'version-update:semver-minor'].includes(process.env.UPDATE_TYPE);
             const names = (process.env.DEPENDENCIES || '').split(',').map(x => x.trim()).filter(Boolean);
             const runtimeSensitive = names.some(name =>
-              /^(?:expo(?:$|-)|@expo\/|react-native(?:$|-)|@react-native\/|astro$|@astrojs\/|@cloudflare\/|wrangler$|workerd$|miniflare$|@types\/node$|actions\/setup-node$|pnpm\/action-setup$|cloudflare\/wrangler-action$)/.test(name));
+              /^(?:expo(?:$|-)|@expo\/|react-native(?:$|-)|@react-native\/|astro$|@astrojs\/|@cloudflare\/|@tiptap\/|wrangler$|workerd$|miniflare$|@types\/node$|actions\/setup-node$|pnpm\/action-setup$|cloudflare\/wrangler-action$)/.test(name));
             if (!routine || !names.length || runtimeSensitive) {
               await hold();
               core.notice('Major, unknown, or runtime-sensitive update requires engineering review.');
