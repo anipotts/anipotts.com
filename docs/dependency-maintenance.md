@@ -20,13 +20,15 @@ or comment. Store concise evidence and retry conditions in the existing task
 summary, not another PR registry. An upstream or base change may justify a retry;
 elapsed time alone does not justify repeating a known incompatibility.
 
-Patch, minor and security updates from Dependabot merge themselves. On each
+Eligible patch and minor updates from Dependabot auto-merge, including security fixes in those ranges. On each
 Dependabot PR, `.github/workflows/dependabot-automerge.yml` reads the update type
 from `dependabot/fetch-metadata`, confirms the live ruleset still requires strict
 `Build, lint, typecheck, test` with no visible bypass, and enables native squash
 auto-merge. It never checks out or runs PR code, adds no approval and no bypass,
-and holds majors, unknown update types and any PR labelled `no-auto-merge` for
-Ani's review. Production still waits at the Production environment approval. A merge armed
+and holds majors, unknown update types, runtime-sensitive packages and any PR
+labelled `no-auto-merge` for Ani's review. Dependabot checks daily with native
+automatic rebasing enabled. Each refreshed head goes through strict CI again.
+Dependabot stops refreshing PRs after 30 days, and failed checks still block merge. Production still waits at the Production environment approval. A merge armed
 by the workflow token does not start `deploy.yml` (GitHub does not run workflows
 for `GITHUB_TOKEN` pushes), so a merged dependency update ships with the next
 push to main or an explicit `workflow_dispatch`, as root dependency changes
