@@ -117,6 +117,10 @@ console.log("dependency maintenance classification passed");
 const { readFileSync } = await import("node:fs");
 const { parse } = await import("yaml");
 const configuration = parse(readFileSync(".github/dependabot.yml", "utf8"));
+for (const update of configuration.updates) {
+  assert.equal(update.schedule.interval, "daily");
+  assert.equal(update["rebase-strategy"], "auto");
+}
 const npm = configuration.updates.find(
   (update) => update["package-ecosystem"] === "npm",
 );

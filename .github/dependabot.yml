@@ -1,25 +1,24 @@
 # Dependabot config: minimize PR noise and batch scheduled updates.
 #
 # Strategy:
-#   - npm: weekly Monday morning, compatibility families first. Security updates still
-#     open immediately (dependabot doesn't honor `schedule` for security).
-#   - github-actions: monthly, low traffic.
+#   - Check daily so Dependabot can refresh eligible open branches on its
+#     own schedule. Security updates can still open immediately.
 #   - open-pull-requests-limit caps the queue so a quiet week doesn't pile up.
 #
 # Dependency PRs follow the normal protected CI and Security Review path.
 # Patch, minor and security updates auto-merge through
 # .github/workflows/dependabot-automerge.yml once the strict required checks
-# pass on the exact head. Majors and unknown update types wait for Ani.
+# pass on the exact head. Major, runtime-sensitive and unknown updates stay manual.
 
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
       time: "06:00"
       timezone: "America/New_York"
+    rebase-strategy: "auto"
     open-pull-requests-limit: 5
     versioning-strategy: "increase"
     # Node declarations follow the deployed/check runtime; major upgrades need
@@ -57,7 +56,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "daily"
+    rebase-strategy: "auto"
     open-pull-requests-limit: 3
     commit-message:
       prefix: "ci"
