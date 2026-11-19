@@ -17,6 +17,6 @@ test("find a project from its library", async ({
 
   await expect(browser).toHaveURL(/\/content\/projects\/chainedchat(?:\?.*)?$/);
   await expect(
-    screen.getByRole("heading", { name: "Unlock browser recovery", level: 1 }),
+    screen.getByRole("textbox", { name: "Title", exact: true }),
   ).toBeVisible();
 });

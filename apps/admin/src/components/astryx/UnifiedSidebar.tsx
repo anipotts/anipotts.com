@@ -17,7 +17,7 @@ import {
   ClockCounterClockwiseIcon,
   EnvelopeSimpleIcon,
   HeartbeatIcon,
-  PencilSimpleIcon,
+  ArticleIcon,
   PulseIcon,
   RowsIcon,
   SquaresFourIcon,
@@ -75,7 +75,7 @@ export const sidebarGroups: ReadonlyArray<{
         id: "writing",
         label: "Writing",
         href: "/content/writing",
-        icon: PencilSimpleIcon,
+        icon: ArticleIcon,
       },
       {
         id: "work",

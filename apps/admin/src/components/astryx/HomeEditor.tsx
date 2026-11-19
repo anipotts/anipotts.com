@@ -1696,6 +1696,17 @@ function HomeEditorImpl({
                               snapshot.base.publicationId
                             ? "There are no changes to publish."
                             : null;
+  const reviewFeedback = publishedCurrent
+    ? publishUnavailable
+    : error && !preflightIssues.length
+      ? error
+      : publishing
+        ? "Submitting the reviewed revision…"
+        : publication &&
+            !verifiedPublication(publication) &&
+            (publicationActive || publication.publicationId)
+          ? publicationProgress(publication, publicationStale).message
+          : publishUnavailable;
   // Visibility on the website follows the public base, not the private draft.
   // A record that was never public has nothing to take down.
   const onWebsite = Boolean(snapshot.base.publicationId);
@@ -2072,17 +2083,22 @@ function HomeEditorImpl({
           : undefined
       }
       publish={{
-        label: publishedCurrent
-          ? "Published"
-          : hiddenFromSite
-            ? "Publish again"
-            : "Publish",
+        label:
+          tab === "publish"
+            ? "Review open"
+            : publishedCurrent
+              ? "Published"
+              : hiddenFromSite
+                ? "Publish again"
+                : "Publish",
         isPublished: publishedCurrent,
         isLoading: reviewLoading && tab === "publish",
-        isDisabled: !valid || discarded || publishedCurrent || uploadPending,
+        isDisabled:
+          tab !== "publish" &&
+          (!valid || discarded || publishedCurrent || uploadPending),
         onClick: () => {
           setConfirmingUnpublish(false);
-          setTab("publish");
+          setTab(tab === "publish" ? "edit" : "publish");
         },
       }}
       properties={
@@ -3228,7 +3244,13 @@ function HomeEditorImpl({
             title="Review changes"
             onClose={() => setTab("edit")}
           >
-            <VStack gap={4} className="editor-review">
+            <VStack
+              gap={4}
+              className="editor-review"
+              tabIndex={0}
+              role="region"
+              aria-label="Review details"
+            >
               {verifiedPublication(publication) && (
                 <Text
                   role="status"
@@ -3257,26 +3279,18 @@ function HomeEditorImpl({
                 />
               )}
 
-              {error &&
-                (preflightIssues.length ? (
-                  <PublicationIssues
-                    issues={preflightIssues}
-                    onEdit={editPublicationIssue}
-                    recordTitle={(issue) =>
-                      issue.record?.kind === record.kind &&
-                      issue.record.id === record.id
-                        ? barTitle
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <Banner
-                    role="alert"
-                    status="warning"
-                    title="Publication was not started"
-                    description={error}
-                  />
-                ))}
+              {error && preflightIssues.length > 0 && (
+                <PublicationIssues
+                  issues={preflightIssues}
+                  onEdit={editPublicationIssue}
+                  recordTitle={(issue) =>
+                    issue.record?.kind === record.kind &&
+                    issue.record.id === record.id
+                      ? barTitle
+                      : undefined
+                  }
+                />
+              )}
               {reviewLoading && <AdminSkeleton kind="preview" />}
               {!reviewedDraft && !reviewLoading && !untouched && (
                 <Button
@@ -3305,15 +3319,21 @@ function HomeEditorImpl({
                   }
                 />
               )}
-              {publishUnavailable && (
+            </VStack>
+            <VStack gap={2} className="editor-review-footer">
+              <div
+                className="editor-review-feedback"
+                role="status"
+                aria-live="polite"
+              >
                 <Text
                   type="supporting"
                   color="secondary"
                   id={`${reviewHeadingId}-availability`}
                 >
-                  {publishUnavailable}
+                  {reviewFeedback}
                 </Text>
-              )}
+              </div>
               <HStack gap={2} wrap="wrap" className="editor-review-actions">
                 <Button
                   size="sm"
@@ -3330,7 +3350,7 @@ function HomeEditorImpl({
                   }
                   isDisabled={Boolean(publishUnavailable)}
                   aria-describedby={
-                    publishUnavailable
+                    reviewFeedback
                       ? `${reviewHeadingId}-availability`
                       : undefined
                   }

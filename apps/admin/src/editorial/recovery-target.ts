@@ -80,6 +80,14 @@ export class SuspendedRecoveryTarget extends EditorialDraftStore {
     this.#ready();
     return super.listProjectDrafts();
   }
+  override async listPageDrafts() {
+    this.#ready();
+    return super.listPageDrafts();
+  }
+  override async listDraftInventoryMetadata() {
+    this.#ready();
+    return super.listDraftInventoryMetadata();
+  }
   override async history(...args: Parameters<EditorialDraftStore["history"]>) {
     this.#ready();
     return super.history(...args);

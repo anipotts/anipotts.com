@@ -1,5 +1,11 @@
 import { AuthReentry } from "../astryx/AuthReentry";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { StateNotice } from "../workspace/Workspace";
 import {
   protectedSessionIsLocked,
@@ -7,6 +13,7 @@ import {
 } from "../../lib/protected-admin-json";
 import { workspaceReturnPath } from "../../lib/workspace-navigation";
 import { AdminOverview } from "../overview/AdminOverview";
+import { useOverviewInventory } from "../../lib/use-overview-inventory";
 import { DataWorkspace, type DataNavigate } from "./DataWorkspace";
 import { HealthView } from "./HealthView";
 import { KnowledgeView } from "./KnowledgeView";
@@ -58,6 +65,7 @@ function scrollTop() {
 export function PrivateShell({
   initialPath,
   content,
+  contentInventoryUrl,
   dataEnabled,
   healthEnabled = false,
   knowledgeEnabled = false,
@@ -70,6 +78,7 @@ export function PrivateShell({
   initialPath: string;
   /** The overview's recent Content; present only when `/` rendered this. */
   content?: CatalogRecord[];
+  contentInventoryUrl?: string;
   dataEnabled: boolean;
   /** Health's own reader mode is on (PRIVATE_READER_HEALTH_ENABLED). */
   healthEnabled?: boolean;
@@ -82,7 +91,12 @@ export function PrivateShell({
   fetch?: typeof fetch;
 } & OpsViewProps) {
   const [locked, setLocked] = useState(protectedSessionIsLocked);
+  const inventory = useOverviewInventory(
+    locked ? undefined : contentInventoryUrl,
+    fetcher,
+  );
   const inactive = useRef(locked);
+  const surface = useRef<HTMLDivElement>(null);
   const stopRoutes = useRef<(() => void) | null>(null);
   useEffect(
     () =>
@@ -94,7 +108,7 @@ export function PrivateShell({
       }),
     [],
   );
-  const overview = content !== undefined;
+  const overview = content !== undefined || contentInventoryUrl !== undefined;
   const resolve = useCallback(
     (url: URL) => shellRoute(url, { overview }),
     [overview],
@@ -108,6 +122,15 @@ export function PrivateShell({
         source: null,
       },
   );
+  const previousView = useRef(route.view);
+  useLayoutEffect(() => {
+    if (previousView.current === route.view) return;
+    previousView.current = route.view;
+    const heading = surface.current?.querySelector<HTMLElement>("h1");
+    if (!heading) return;
+    if (!heading.hasAttribute("tabindex")) heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }, [route.view]);
   useEffect(() => {
     if (inactive.current || protectedSessionIsLocked()) return;
     const show = (url: URL, top: boolean) => {
@@ -164,10 +187,20 @@ export function PrivateShell({
   }
   return (
     <FixtureOriginContext.Provider value={ops.fixtureOrigin ?? SAMPLE_ORIGIN}>
-      <div onClick={onClientLinkClick}>
+      <div ref={surface} onClick={onClientLinkClick}>
         {route.view === "overview" ? (
           <AdminOverview
-            content={content ?? []}
+            content={inventory.snapshot?.content ?? content ?? []}
+            contentInventory={inventory.snapshot?.contentInventory}
+            contentActivity={
+              contentInventoryUrl
+                ? (inventory.snapshot?.contentActivity ?? [])
+                : undefined
+            }
+            activityTruncated={inventory.snapshot?.activityTruncated}
+            contentLoading={inventory.loading}
+            contentFailed={inventory.failed}
+            retryContent={contentInventoryUrl ? inventory.retry : undefined}
             dataEnabled={dataEnabled}
             dataFixture={dataFixture}
             session={session}

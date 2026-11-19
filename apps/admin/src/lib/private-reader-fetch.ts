@@ -9,7 +9,7 @@ import {
   PersonalContextHttpError,
   readPersonalContextResponse,
 } from "../data/personal-context-http";
-import { ENTITY_ID } from "./data-routes";
+import { dataSource, ENTITY_ID } from "./data-routes";
 import { discardBody } from "./response-body";
 import { fetchReader } from "./reader-reach";
 import { PRIVATE_READER_AUDIENCE } from "./generated/private-reader";
@@ -126,7 +126,7 @@ const ALLOWED_PARAMS: Record<ReaderMode, Record<string, readonly string[]>> = {
   json: {
     [PRIVATE_READER_ROUTES.status]: [],
     [PRIVATE_READER_ROUTES.sources]: ["limit", "offset"],
-    [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset", "kind"],
+    [PRIVATE_READER_ROUTES.search]: ["q", "limit", "offset", "kind", "source"],
     [PRIVATE_READER_ROUTES.record]: ["body_offset", "body_limit"],
     [PRIVATE_READER_ROUTES.activity]: ["after", "limit"],
     [PRIVATE_READER_ROUTES.health]: ["days"],
@@ -181,14 +181,17 @@ export function privateReaderPath(request: DataRead): string {
         throw new Error("Invalid query");
       if (request.kind !== undefined && !b.kind.test(request.kind))
         throw new Error("Invalid kind");
+      if (request.source !== undefined && !dataSource(request.source))
+        throw new Error("Invalid source");
       path = PRIVATE_READER_ROUTES.search;
       params.set("q", request.q);
       params.set(
         "limit",
-        bounded(DATA_LIMIT, b.dataLimit.max, b.dataLimit.min),
+        bounded(request.limit ?? DATA_LIMIT, b.dataLimit.max, b.dataLimit.min),
       );
       params.set("offset", bounded(request.offset, b.offsetMax));
       if (request.kind !== undefined) params.set("kind", request.kind);
+      if (request.source !== undefined) params.set("source", request.source);
       break;
     case "get":
       if (typeof request.id !== "string" || !b.recordId.test(request.id))
@@ -243,6 +246,8 @@ function readerUrl(path: string, mode: ReaderMode): string {
   if (
     keys.some((key) => !allowed.includes(key)) ||
     new Set(keys).size !== keys.length ||
+    (url.searchParams.has("source") &&
+      !dataSource(url.searchParams.get("source"))) ||
     (REQUIRED_PARAMS[route] ?? []).some((key) => !url.searchParams.has(key))
   )
     throw new PrivateReaderError(400, "malformed");

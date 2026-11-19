@@ -229,6 +229,39 @@ review, session, concurrency and source-preservation obligations as the CLI.
 
 ## Verification
 
+For an Admin release, verify the exact deployed revision and schema from an
+existing owner session:
+
+```bash
+pnpm editorial readiness --release "$release_sha" --schema "$schema_version"
+```
+
+The readiness report checks the published inventory and private draft D1
+tables independently. It reads metadata only and does not trigger a legacy
+draft import. A successful storage probe confirms read availability. Check
+backup freshness and restore separately. The CI provider and anonymous
+boundary checks continue to run without owner credentials.
+
+The release workflow builds selected apps from the exact main checkout in a
+job without Production credentials. It records the release/tree, schema,
+Node version, lockfile, and SHA-256 for each app bundle. The corresponding
+Production job downloads that artifact from the same workflow run and
+checks every identity field and its digest before deployment. Missing,
+expired, or mismatched artifacts stop the job. Rerun the release build for
+the same approved checkout to regenerate expired evidence. Existing
+migration and rollback checks still apply. [GitHub artifact handling](https://github.com/actions/download-artifact)
+
+Record the latest `content.d1-export` success on mini, the checked archive age
+and checksum, and which copy was checked. Verify the D1 SQL export in an
+isolated database with integrity and schema checks. Exercise the encrypted
+capture and suspended media restore with `pnpm --filter @anipotts/admin
+test:recovery` against disposable storage. Record elapsed time and the
+recovered draft/history, publication, conflict, and media coverage for each
+drill. Use the [recovery contract](design/admin-workspace/offline-recovery-contract.md)
+for operational provider, media, custody, and enrollment requirements.
+The nightly D1 copy is one recovery layer. The one-hour recovery point
+requires independent evidence for every store used by the editor.
+
 ```bash
 node --test scripts/editorial/client.test.mjs
 node scripts/editorial/editorial.mjs --help

@@ -51,8 +51,9 @@ describe("Data routes", () => {
   it("keeps a source filter only in the reader's id shape", () => {
     expect(dataSource("synthetic-contacts")).toBe("synthetic-contacts");
     expect(dataSource("apple.voice_memos")).toBe("apple.voice_memos");
+    expect(dataSource("apple:voice-memos")).toBe("apple:voice-memos");
     expect(dataSource("a/b")).toBeNull();
-    expect(dataSource("x".repeat(81))).toBeNull();
+    expect(dataSource("x".repeat(121))).toBeNull();
     expect(dataRecordsHref({ kind: "contact", source: "claude" })).toBe(
       "/data/records?kind=contact&source=claude",
     );

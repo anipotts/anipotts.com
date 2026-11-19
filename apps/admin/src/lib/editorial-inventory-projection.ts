@@ -41,6 +41,21 @@ export type ProjectedRecord = CatalogRecord & {
     reviewOnly: boolean;
   };
 };
+export type EditorialInventoryStatus = {
+  published: "ready" | "unavailable";
+  drafts: "ready" | "partial" | "unavailable";
+};
+
+export type InventoryDraftMetadata = Pick<
+  Draft,
+  "key" | "revision" | "updatedAt" | "discardedAt"
+> & {
+  title?: string;
+  summary?: string;
+  visibility?: string;
+  projectIdentity?: CatalogRecord["projectIdentity"];
+  changesPending: boolean;
+};
 const sections: Record<string, string> = {
   home: "home",
   projects: "work",
@@ -106,6 +121,31 @@ function metadata(source: string): Record<string, unknown> {
 }
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+function draftRecord(key: string): EditorialRecord | null {
+  const match =
+    /^content\/public\/(pages|projects|writing)\/([^/]+)\.md$/u.exec(key);
+  if (!match) return null;
+  return inventoryIdentity({ collection: match[1]!, id: match[2]! });
+}
+
+/** Calculate the exact current-source comparison inside the private store.
+ * Only table and palette fields leave that store for the overview. */
+export function inventoryDraftMetadata(draft: Draft): InventoryDraftMetadata {
+  const record = draftRecord(draft.key);
+  const data = metadata(draft.source);
+  return {
+    key: draft.key,
+    revision: draft.revision,
+    updatedAt: draft.updatedAt,
+    discardedAt: draft.discardedAt,
+    title: text(data.title),
+    summary: record ? editorialRecordSummary(record, data) : undefined,
+    visibility: text(record?.kind === "work" ? data.public_state : data.status),
+    projectIdentity:
+      record?.kind === "work" ? projectRecordIdentity(data) : undefined,
+    changesPending: gitBlobSha1(draft.source) !== draft.baseFileHash,
+  };
 }
 function comparable(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
@@ -220,11 +260,11 @@ export function inventoryChangedFields(
 /** Project current snapshots only. Never serialize private source into list/search props. */
 export function projectEditorialInventory(
   entries: InventoryEntry[],
-  drafts: Draft[],
+  drafts: Array<Draft | InventoryDraftMetadata>,
   updated: (collection: string, id: string) => CatalogRecord["updated"] = () =>
     undefined,
 ): ProjectedRecord[] {
-  const privateByPath = new Map<string, Draft>();
+  const privateByPath = new Map<string, Draft | InventoryDraftMetadata>();
   for (const draft of drafts) {
     if (draft.discardedAt !== null) continue;
     const previous = privateByPath.get(draft.key);
@@ -236,11 +276,10 @@ export function projectEditorialInventory(
     const identity = inventoryIdentity(entry);
     if (!identity) return;
     const draft = privateByPath.get(editorialRecordPath(identity));
-    const data = draft ? metadata(draft.source) : {};
+    const privateMetadata =
+      draft && ("source" in draft ? inventoryDraftMetadata(draft) : draft);
     const privateUpdatedAt = draft ? timestamp(draft.updatedAt) : undefined;
-    const changesPending = Boolean(
-      draft && gitBlobSha1(draft.source) !== draft.baseFileHash,
-    );
+    const changesPending = privateMetadata?.changesPending ?? false;
     const status = isPrivateOnly
       ? "draft"
       : entry.published === null
@@ -265,8 +304,7 @@ export function projectEditorialInventory(
           updated(entry.collection, entry.id),
           status,
         );
-    const rawVisibility =
-      entry.collection === "projects" ? data.public_state : data.status;
+    const rawVisibility = privateMetadata?.visibility;
     const visibilityValues =
       entry.collection === "projects"
         ? ["featured", "listed", "hidden"]
@@ -280,7 +318,11 @@ export function projectEditorialInventory(
       collection: entry.collection,
       id: entry.id,
       ...(entry.collection === "projects"
-        ? { projectIdentity: projectRecordIdentity(draft ? data : entry.data) }
+        ? {
+            projectIdentity: draft
+              ? privateMetadata?.projectIdentity
+              : projectRecordIdentity(entry.data),
+          }
         : {}),
       ...(entry.collection === "writing" &&
       entry.published === true &&
@@ -288,9 +330,9 @@ export function projectEditorialInventory(
       !isPrivateOnly
         ? { publishedSlug: text(entry.data.slug) ?? entry.id }
         : {}),
-      title: text(data.title) ?? text(entry.data.title) ?? entry.id,
+      title: privateMetadata?.title ?? text(entry.data.title) ?? entry.id,
       summary:
-        editorialRecordSummary(identity, data) ??
+        privateMetadata?.summary ??
         editorialRecordSummary(identity, entry.data) ??
         "",
       section: sections[entry.collection],
@@ -302,7 +344,7 @@ export function projectEditorialInventory(
           : publishedUpdated,
       publishedUpdated,
       changesPending,
-      ...(!isPrivateOnly && draft && changesPending
+      ...(!isPrivateOnly && draft && "source" in draft && changesPending
         ? { changedFields: inventoryChangedFields(entry, draft.source) }
         : {}),
       ...(draft ? { privateRevision: draft.revision, privateUpdatedAt } : {}),
@@ -377,7 +419,10 @@ export function editorialInventoryGroups(
     },
   ];
 }
-export function editorialInventorySearch(records: ProjectedRecord[]) {
+export function editorialInventorySearch(
+  records: ProjectedRecord[],
+  status?: EditorialInventoryStatus,
+) {
   return records.map((record) => ({
     id: `content:${record.collection}:${record.id}`,
     label: record.title,
@@ -392,7 +437,12 @@ export function editorialInventorySearch(records: ProjectedRecord[]) {
     source: record.privateRevision
       ? "private and published content inventory"
       : "content inventory",
-    freshness: "current",
+    freshness:
+      record.collection !== "newsletterDrafts" &&
+      (status?.published === "unavailable" ||
+        (status?.drafts !== undefined && status.drafts !== "ready"))
+        ? "partial"
+        : "current",
     href: record.href,
     ...(record.projectIdentity
       ? { projectIdentity: record.projectIdentity }
@@ -412,18 +462,24 @@ export async function readInventoryDrafts(
   storage: {
     listWritingDrafts(): Promise<Draft[]>;
     listProjectDrafts?(): Promise<Draft[]>;
+    listPageDrafts?(): Promise<Draft[]>;
     get(record: EditorialRecord): Promise<Draft | null>;
   },
 ) {
   const drafts: Draft[] = [];
   let unavailable = false;
   const identities = entries
-    .filter((entry) => entry.collection !== "writing")
     .map(inventoryIdentity)
-    .filter((entry): entry is EditorialRecord => entry !== null);
+    .filter(
+      (entry): entry is EditorialRecord =>
+        entry !== null &&
+        ((entry.kind === "page" && !storage.listPageDrafts) ||
+          (entry.kind === "work" && !storage.listProjectDrafts)),
+    );
   const reads: Array<() => Promise<Draft[]>> = [
     () => storage.listWritingDrafts(),
     ...(storage.listProjectDrafts ? [() => storage.listProjectDrafts!()] : []),
+    ...(storage.listPageDrafts ? [() => storage.listPageDrafts!()] : []),
     ...identities.map((identity) => async () => {
       const draft = await storage.get(identity);
       return draft ? [draft] : [];

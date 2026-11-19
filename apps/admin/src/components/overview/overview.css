@@ -40,3 +40,102 @@
     min-block-size: 44px;
   }
 }
+
+.overview-activity {
+  padding: var(--spacing-4);
+  border-radius: var(--radius-container);
+  background: var(--color-background-surface);
+}
+.overview-activity-launcher,
+.overview-activity-form {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-block-size: var(--spacing-11);
+  border-radius: var(--radius-inner);
+}
+.overview-activity-launcher {
+  width: 100%;
+  padding-inline: var(--spacing-2);
+  text-align: start;
+  font: inherit;
+}
+.overview-activity-launcher:hover {
+  background: var(--color-accent-muted);
+}
+.overview-activity-launcher > span {
+  color: var(--color-text-accent);
+}
+.overview-activity-form {
+  position: relative;
+  padding-inline: var(--spacing-3);
+}
+.overview-activity-form::before,
+.overview-activity-form::after {
+  position: absolute;
+  top: var(--spacing-2);
+  bottom: var(--spacing-2);
+  width: var(--spacing-1);
+  background: var(--color-text-accent);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 2px,
+    2px 2px,
+    2px calc(100% - 2px),
+    100% calc(100% - 2px),
+    100% 100%,
+    0 100%
+  );
+  content: "";
+  pointer-events: none;
+}
+.overview-activity-form::before {
+  inset-inline-start: 0;
+}
+.overview-activity-form::after {
+  inset-inline-end: 0;
+  transform: scaleX(-1);
+}
+.overview-activity-form > input {
+  width: 100%;
+  min-width: 0;
+  min-block-size: var(--spacing-11);
+  padding: var(--spacing-1);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.overview-activity-form > button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-inline-size: var(--spacing-11);
+  min-block-size: var(--spacing-11);
+  border-radius: var(--radius-inner);
+}
+.overview-activity-form > button:hover {
+  background: var(--color-accent-muted);
+}
+.overview-activity-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  gap: var(--spacing-2);
+  padding: 0;
+  list-style: none;
+}
+.overview-activity-metrics > li {
+  min-width: 0;
+  align-items: center;
+  justify-content: end;
+  padding: var(--spacing-1);
+}
+.overview-activity-metrics .workspace-metric-label {
+  min-block-size: var(--spacing-11);
+  display: flex;
+  align-items: center;
+  padding-inline: var(--spacing-2);
+}
+.overview-activity-metrics .workspace-figure {
+  font-size: var(--font-size-xl);
+}

@@ -1,6 +1,6 @@
 import { PersonalContextHttpError } from "./personal-context-http";
 import { applyActivityPage, emptyActivity } from "../lib/data-activity";
-import { READER_KINDS, type ReaderKind } from "../lib/data-routes";
+import { dataSource, READER_KINDS, type ReaderKind } from "../lib/data-routes";
 import {
   IssuanceTimeoutError,
   ReaderNoReplyError,
@@ -20,6 +20,8 @@ export type DataRead =
       method: "search";
       q: string;
       kind?: ReaderKind;
+      source?: string;
+      limit?: number;
       offset?: number;
     }
   | { method: "timeline"; entity_id?: string; offset?: number }
@@ -42,6 +44,8 @@ export type DataResult =
        * (lib/reader-reach.ts). `unissued` is a renewal admin could not
        * issue in time. */
       hop?: ReaderHop;
+      /** An older owner reader rejected the new, locally validated parameter. */
+      unsupported?: "source-filter";
     };
 export type DataTransport = {
   protocol?: "personal_context_data_v1" | "personal_context_observability_v1";
@@ -187,6 +191,13 @@ function validResponse(
       return (
         Array.isArray(data.items) &&
         data.items.every(isObject) &&
+        (request.method !== "search" ||
+          (data.items.length <= (request.limit ?? DATA_READ_DEFAULTS.limit) &&
+            (request.source === undefined ||
+              (data.source === request.source &&
+                data.items.every(
+                  (item) => item.source_id === request.source,
+                ))))) &&
         isCursor(data.total) &&
         (data.next_offset === null ||
           (isCursor(data.next_offset) &&
@@ -218,7 +229,14 @@ export function dataReadPath(request: DataRead): string {
           throw new Error("Invalid kind");
         params.set("kind", request.kind);
       }
-      params.set("limit", String(DATA_READ_DEFAULTS.limit));
+      if (request.source !== undefined) {
+        if (!dataSource(request.source)) throw new Error("Invalid source");
+        params.set("source", request.source);
+      }
+      const limit = request.limit ?? DATA_READ_DEFAULTS.limit;
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
+        throw new Error("Invalid limit");
+      params.set("limit", String(limit));
       params.set("offset", String(integer(request.offset)));
       break;
     case "timeline":
@@ -425,6 +443,11 @@ export async function readPersonalContext(
         return {
           state: "invalid",
           message: "The source rejected this read request.",
+          ...(transport.protocol === "personal_context_data_v1" &&
+          request.method === "search" &&
+          request.source !== undefined
+            ? { unsupported: "source-filter" as const }
+            : {}),
         };
     }
     if (error instanceof IssuanceTimeoutError)

@@ -208,10 +208,10 @@ it("keeps one editor bar and opens review as a nonmodal sibling with one Publish
   expect(sheet.contains(publish[0]!)).toBe(true);
   expect(publish[0]!.hasAttribute("aria-describedby")).toBe(false);
   expect(publish[0]!.hasAttribute("title")).toBe(false);
-  // The bar keeps its own Publish, which opened this sheet.
+  // The open review has a distinct entry point.
   expect(
     [...bar.querySelectorAll("button")].some(
-      (button) => button.textContent?.trim() === "Publish",
+      (button) => button.textContent?.trim() === "Review open",
     ),
   ).toBe(true);
   expect(host.textContent).not.toContain(

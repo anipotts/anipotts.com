@@ -852,46 +852,68 @@ html[data-theme="light"] .editor-rendered-value .inline-image-white {
   }
 }
 
-/* Publishing review is a sibling region, not a modal overlay. */
-.editorial-workspace-shell
-  .editorial-content.writing-content:has(.publishing-review-panel) {
-  max-width: none;
+.review-media {
+  display: inline-flex;
+  max-width: 100%;
+  flex-direction: column;
+  vertical-align: top;
 }
-.editor-workspace {
-  container-type: inline-size;
+.review-media img {
+  max-width: 100%;
+  max-height: 10rem;
+  object-fit: contain;
+  object-position: left;
 }
-.record-workspace-layout[data-review-open] {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-.publishing-review-panel {
-  min-width: 0;
-  width: 100%;
-  order: -1;
-  padding: var(--spacing-4);
-  background: var(--color-background-surface);
-  border-radius: var(--radius-container);
+.review-media small,
+.review-link-destination {
+  color: var(--color-text-secondary);
   overflow-wrap: anywhere;
 }
-@container (min-width: 56rem) {
-  .record-workspace-layout[data-review-open] {
-    grid-template-columns: minmax(28rem, 1fr) minmax(24rem, 32rem);
-  }
-  .record-workspace-layout[data-review-open] > .record-workspace-main {
-    max-width: none;
-  }
+
+/* A nonmodal top-layer panel preserves the editor's measure and scroll. */
+.publishing-review-panel {
+  position: fixed;
+  inset: var(--spacing-3) var(--spacing-3) var(--spacing-3) auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(34rem, calc(100% - 2 * var(--spacing-3)));
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: var(--spacing-4);
+  border: 0;
+  border-radius: var(--radius-container);
+  color: var(--color-text-primary);
+  background: var(--color-background-surface);
+  box-shadow: var(
+    --shadow-overlay,
+    0 8px 36px color-mix(in srgb, var(--color-text-primary) 20%, transparent)
+  );
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.publishing-review-panel > .editor-review {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.editor-review-footer {
+  flex: none;
+  max-height: 45%;
+  overflow-y: auto;
+}
+.editor-review-feedback {
+  min-height: 1.5em;
+}
+@media (max-width: 640px) {
   .publishing-review-panel {
-    order: 0;
-    position: sticky;
-    top: calc(
-      var(--admin-appbar-height, 0px) +
-        var(--editor-bar-height, var(--spacing-11)) + var(--spacing-4)
-    );
-    max-height: calc(
-      100dvh - var(--admin-appbar-height, 0px) -
-        var(--editor-bar-height, var(--spacing-11)) - var(--spacing-12)
-    );
-    overflow-y: auto;
+    inset: max(env(safe-area-inset-top), var(--spacing-2)) 0 0;
+    width: 100%;
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
   }
 }
 .editor-published-state {

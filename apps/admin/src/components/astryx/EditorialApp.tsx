@@ -50,6 +50,7 @@ import {
 import { editorialFields } from "../../lib/editorial-fields";
 import { AdminSkeleton, EditorLoadingBoundary } from "./AdminFeedback";
 import type { AdminSearchResult } from "../../data/admin-search";
+import type { EditorialInventoryStatus } from "../../lib/editorial-inventory-projection";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -131,6 +132,7 @@ export type EditorialAppProps = {
   librarySearch?: string;
   review?: Review;
   inventoryError?: boolean;
+  inventoryStatus?: EditorialInventoryStatus;
   newWriting?: boolean;
   newProject?: boolean;
   recoveryScope?: string;
@@ -204,6 +206,7 @@ export function EditorialApp({
   newProject,
   recoveryScope,
   inventoryError,
+  inventoryStatus,
   homepageWritingOptions,
   editorRecord,
   hideHeader = false,
@@ -223,6 +226,24 @@ export function EditorialApp({
     area: pageArea,
     selectedGroup: pageGroup,
   };
+  const checkingContent = area === "content";
+  const publicationUnavailable =
+    checkingContent && inventoryStatus?.published === "unavailable";
+  const draftsUnavailable = Boolean(
+    checkingContent &&
+    (inventoryError ||
+      (inventoryStatus?.drafts && inventoryStatus.drafts !== "ready")),
+  );
+  const inventoryWarning =
+    publicationUnavailable && draftsUnavailable
+      ? "Published content and private drafts couldn’t be loaded"
+      : publicationUnavailable
+        ? "Published content couldn’t be loaded"
+        : draftsUnavailable
+          ? inventoryStatus?.drafts === "partial" && !inventoryError
+            ? "Some private drafts couldn’t be loaded"
+            : "Private drafts couldn’t be loaded"
+          : null;
   useEffect(() => {
     if (!groups || sessionLocked.current) return;
     const show = (url: URL) => {
@@ -397,10 +418,10 @@ export function EditorialApp({
               !newWriting &&
               !newProject &&
               children && <WorkspacePage title={title} />}
-            {inventoryError && (
+            {inventoryWarning && (
               <InlineNotice
                 tone="warning"
-                title="Private drafts couldn’t be loaded"
+                title={inventoryWarning}
                 action={
                   <IconButton
                     label="Reload"
@@ -453,7 +474,8 @@ export function EditorialApp({
                 groups={inventoryView.groups ?? groups}
                 selectedGroup={selectedGroup}
                 initialSearch={librarySearch}
-                inventoryError={inventoryError}
+                inventoryError={publicationUnavailable || draftsUnavailable}
+                draftInventoryError={draftsUnavailable}
                 area={area}
               />
             )}

@@ -104,6 +104,12 @@ jobs:
       deployment_disposition: ${{ steps.release.outputs.deployment_disposition }}
       deployed_www_sha: ${{ steps.release.outputs.deployed_www_sha }}
       www_disposition: ${{ steps.release.outputs.www_disposition }}
+      www_artifact_id: ${{ steps.www_artifact.outputs.artifact-id }}
+      www_artifact_digest: ${{ steps.www_bundle.outputs.digest }}
+      admin_artifact_id: ${{ steps.admin_artifact.outputs.artifact-id }}
+      admin_artifact_digest: ${{ steps.admin_bundle.outputs.digest }}
+    env:
+      PUBLIC_RELEASE_SHA: ${{ github.sha }}
     steps:
       - name: Refuse the local owner build flag
         run: |
@@ -172,6 +178,99 @@ jobs:
       - name: Record held promotion
         if: steps.gates.outputs.production_enabled != 'true'
         run: echo "production promotion is disabled by release policy"
+
+      - name: Select app artifacts
+        id: apps
+        env:
+          PRODUCTION: ${{ steps.gates.outputs.production_enabled }}
+          ADMIN_ENABLED: ${{ steps.gates.outputs.admin_enabled }}
+          AUTO_WWW: ${{ steps.release.outputs.www }}
+          AUTO_ADMIN: ${{ steps.release.outputs.admin }}
+          MANUAL_WWW: ${{ inputs.www }}
+          MANUAL_ADMIN: ${{ inputs.admin }}
+        run: |
+          if [ "$PRODUCTION" = true ]; then
+            if { [ "$GITHUB_EVENT_NAME" = push ] && [ "$AUTO_WWW" = true ]; } ||
+               { [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$MANUAL_WWW" = true ]; }; then
+              echo "www=true" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "$ADMIN_ENABLED" = true ] && {
+               { [ "$GITHUB_EVENT_NAME" = push ] && [ "$AUTO_ADMIN" = true ]; } ||
+               { [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$MANUAL_ADMIN" = true ]; }; }; then
+              echo "admin=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - uses: pnpm/action-setup@v6
+        if: steps.apps.outputs.www == 'true' || steps.apps.outputs.admin == 'true'
+        with:
+          version: "10.5.2"
+
+      - name: Install app build dependencies
+        if: steps.apps.outputs.www == 'true' || steps.apps.outputs.admin == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build www (Astro)
+        if: steps.apps.outputs.www == 'true'
+        run: pnpm turbo build --filter=@anipotts/www
+        env:
+          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ steps.release.outputs.database_schema_version }}
+
+      - name: Build admin
+        if: steps.apps.outputs.admin == 'true'
+        run: pnpm turbo build --filter=@anipotts/admin
+        env:
+          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ steps.release.outputs.database_schema_version }}
+
+      - name: Verify the admin bundle excludes the local owner
+        if: steps.apps.outputs.admin == 'true'
+        run: node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist
+
+      - name: Verify app builds preserved the release source
+        if: steps.apps.outputs.www == 'true' || steps.apps.outputs.admin == 'true'
+        run: node scripts/ci/check-build-drift.mjs
+
+      - name: Pack verified www build
+        if: steps.apps.outputs.www == 'true'
+        id: www_bundle
+        env:
+          SCHEMA: ${{ steps.release.outputs.database_schema_version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/app-release"
+          node scripts/ci/app-release-artifact.mjs pack www "$GITHUB_SHA" "$SCHEMA" "$RUNNER_TEMP/app-release" >> "$GITHUB_OUTPUT"
+
+      - name: Pack verified admin build
+        if: steps.apps.outputs.admin == 'true'
+        id: admin_bundle
+        env:
+          SCHEMA: ${{ steps.release.outputs.database_schema_version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/app-release"
+          node scripts/ci/app-release-artifact.mjs pack admin "$GITHUB_SHA" "$SCHEMA" "$RUNNER_TEMP/app-release" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        id: www_artifact
+        if: steps.apps.outputs.www == 'true'
+        with:
+          name: www-release-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/app-release/www.tar.gz
+            ${{ runner.temp }}/app-release/www.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+      - uses: actions/upload-artifact@v7
+        id: admin_artifact
+        if: steps.apps.outputs.admin == 'true'
+        with:
+          name: admin-release-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/app-release/admin.tar.gz
+            ${{ runner.temp }}/app-release/admin.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
 
   production-gate:
     name: Approve production and apply eligible migrations
@@ -292,11 +391,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build www (Astro)
-        run: pnpm turbo build --filter=@anipotts/www
+      - name: Require a verified www artifact
         env:
-          PUBLIC_RELEASE_SHA: ${{ github.sha }}
-          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
+          ARTIFACT_ID: ${{ needs.release.outputs.www_artifact_id }}
+        run: test -n "$ARTIFACT_ID"
+
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.release.outputs.www_artifact_id }}
+          path: ${{ runner.temp }}/app-release
+
+      - name: Verify the exact www build
+        env:
+          SCHEMA: ${{ needs.release.outputs.database_schema_version }}
+          ARTIFACT_DIGEST: ${{ needs.release.outputs.www_artifact_digest }}
+        run: node scripts/ci/app-release-artifact.mjs verify www "$GITHUB_SHA" "$SCHEMA" "$RUNNER_TEMP/app-release" "$ARTIFACT_DIGEST"
 
       # apps/www is Astro (@astrojs/cloudflare). `astro build` emits the Worker
       # to dist/server and its assets to dist/client, and wrangler deploy finds
@@ -396,11 +505,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build admin
-        run: pnpm turbo build --filter=@anipotts/admin
+      - name: Require a verified admin artifact
         env:
-          PUBLIC_RELEASE_SHA: ${{ github.sha }}
-          PUBLIC_RELEASE_SCHEMA_VERSION: ${{ needs.release.outputs.database_schema_version }}
+          ARTIFACT_ID: ${{ needs.release.outputs.admin_artifact_id }}
+        run: test -n "$ARTIFACT_ID"
+
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.release.outputs.admin_artifact_id }}
+          path: ${{ runner.temp }}/app-release
+
+      - name: Verify the exact admin build
+        env:
+          SCHEMA: ${{ needs.release.outputs.database_schema_version }}
+          ARTIFACT_DIGEST: ${{ needs.release.outputs.admin_artifact_digest }}
+        run: node scripts/ci/app-release-artifact.mjs verify admin "$GITHUB_SHA" "$SCHEMA" "$RUNNER_TEMP/app-release" "$ARTIFACT_DIGEST"
 
       # The deployed Worker and assets must not carry the local owner path.
       - name: Verify the admin bundle excludes the local owner
@@ -754,7 +873,9 @@ jobs:
             echo "- migration risk: \`${{ needs.release.outputs.migration_risk }}\`"
             echo "- schema version: \`${{ needs.release.outputs.database_schema_version }}\`"
             echo "- www: \`${{ needs.deploy-www.result }}\`"
+            echo "- www build digest: \`${{ needs.release.outputs.www_artifact_digest }}\`"
             echo "- admin: \`${{ needs.deploy-admin.result }}\`"
+            echo "- admin build digest: \`${{ needs.release.outputs.admin_artifact_digest }}\`"
             echo "- ingest: \`${{ needs.deploy-ingest.result }}\`"
             echo "- weekly email: \`${{ needs.deploy-weekly-email.result }}\`"
             echo "- state: \`${{ needs.deploy-state.result }}\`"

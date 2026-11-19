@@ -16,13 +16,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function review(before: string, after: string, rich = true) {
+function review(
+  before: string,
+  after: string,
+  rich = true,
+  label = "Subtitle",
+) {
   const html = renderToStaticMarkup(
     <ReviewChanges
       destination="anipotts.com/"
       before={before}
       after={after}
-      changes={[{ label: "Subtitle", before, after, rich }]}
+      changes={[{ label, before, after, rich }]}
     />,
   );
   return new DOMParser().parseFromString(html, "text/html");
@@ -65,7 +70,7 @@ describe("rich field review", () => {
     expect(doc.querySelector('[data-side="after"] em a')?.textContent).toBe(
       "new",
     );
-    expect(doc.body.textContent).not.toContain("https://after.example/");
+    expect(doc.body.textContent).toContain("https://after.example/");
   });
   it("renders image replacements and rejects executable author HTML", () => {
     const doc = review(
@@ -79,6 +84,22 @@ describe("rich field review", () => {
       doc.querySelector('[data-side="after"] img')?.getAttribute("src"),
     ).toBe("/images/new.png");
     expect(doc.querySelector("script, [src^='javascript:']")).toBeNull();
+  });
+  it("shows changed article anchors, image sources and alt text with private previews", () => {
+    const gif = `/images/editorial/${"a".repeat(64)}.gif`;
+    const doc = review(
+      "[Details](/work#old) ![Previous](/images/before.gif)",
+      `[Details](/work#new) ![Current](${gif})`,
+      false,
+      "Article body",
+    );
+    const after = doc.querySelector('[data-side="after"] .editor-diff-text')!;
+    expect(after.textContent).toContain("/work#new");
+    expect(after.textContent).toContain(`Source: ${gif}`);
+    expect(after.textContent).toContain("Alt text: Current");
+    expect(after.querySelector("img")?.getAttribute("src")).toBe(
+      `/api/editorial/media?id=${"a".repeat(64)}.gif`,
+    );
   });
   it("shows page sections in complete before/after order", () => {
     const sections = {

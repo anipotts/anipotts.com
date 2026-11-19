@@ -13,6 +13,7 @@ import {
 import { sha256Hex, gitBlobSha1 } from "../lib/crypto";
 import { GIT_SHA } from "../lib/patterns";
 import { MAX_HISTORY_PAGE_BYTES } from "../lib/editorial-response-bounds";
+import type { EditorialDirectory } from "@anipotts/content/editorial/layout";
 
 /** Private authoring tables share CONTENT_DB with published snapshots. The
  * existing named object serializes calls; D1 batches commit source, immutable
@@ -167,13 +168,14 @@ export class D1DraftRepository {
       key,
     ).first<Draft>();
   }
-  async list(kind: "writing" | "projects") {
-    return (
-      await this.stmt(
-        `SELECT ${columns} FROM editorial_drafts WHERE store=? AND key LIKE ? AND discardedAt IS NULL ORDER BY updatedAt DESC`,
-        `content/public/${kind}/%`,
-      ).all<Draft>()
-    ).results;
+  async list(kind?: EditorialDirectory) {
+    const prefix = kind ? `content/public/${kind}/%` : "content/public/%";
+    const result = await this.stmt(
+      `SELECT ${columns} FROM editorial_drafts WHERE store=? AND key LIKE ? AND discardedAt IS NULL ORDER BY updatedAt DESC`,
+      prefix,
+    ).all<Draft>();
+    if (!result.success) throw new Error("draft_inventory_unavailable");
+    return result.results;
   }
   private async revision(key: string, revision: number) {
     const row = await this.stmt(

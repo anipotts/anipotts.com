@@ -22,7 +22,7 @@ import {
   EnvelopeSimpleIcon,
   FileTextIcon,
   KeyReturnIcon,
-  PencilSimpleIcon,
+  ArticleIcon,
   XIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -61,7 +61,7 @@ const DESTINATION_GLYPHS = new Map<string, Icon>([
 ]);
 const KIND_GLYPHS: Readonly<Record<string, Icon>> = {
   pages: BrowserIcon,
-  writing: PencilSimpleIcon,
+  writing: ArticleIcon,
   projects: BriefcaseIcon,
   newsletter: EnvelopeSimpleIcon,
 };

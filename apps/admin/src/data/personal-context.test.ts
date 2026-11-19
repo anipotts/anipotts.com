@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { dataReadPath, readPersonalContext } from "./personal-context";
+import { PersonalContextHttpError } from "./personal-context-http";
 
 describe("Data read boundary", () => {
   it("rejects mismatched or malformed body continuation metadata", async () => {
@@ -272,6 +273,55 @@ describe("System versioned owner reader", () => {
     protocol: "personal_context_data_v1" as const,
     scope: "owner" as const,
     read: async () => value,
+  });
+  it("accepts exact source pages and identifies only a versioned 400 for fallback", async () => {
+    const request = {
+      method: "search" as const,
+      q: "",
+      limit: 1,
+      source: "synthetic:contacts",
+    };
+    const data = {
+      source: request.source,
+      items: [{ source_id: request.source }],
+      total: 1,
+      next_offset: null,
+    };
+    expect(dataReadPath(request)).toBe(
+      "/api/search?q=&source=synthetic%3Acontacts&limit=1&offset=0",
+    );
+    expect(
+      await readPersonalContext(request, transport({ ...envelope, data })),
+    ).toMatchObject({ state: "ready" });
+    for (const bad of [
+      { ...data, source: undefined },
+      { ...data, items: [{ source_id: "other" }] },
+      { ...data, items: [data.items[0], data.items[0]] },
+    ]) {
+      const result = await readPersonalContext(
+        request,
+        transport({ ...envelope, data: bad }),
+      );
+      expect(result.state).toBe("invalid");
+      expect(result).not.toHaveProperty("unsupported");
+    }
+
+    const failure = (status: number) => ({
+      ...transport(envelope),
+      read: async () => {
+        throw new PersonalContextHttpError(status);
+      },
+    });
+    expect(await readPersonalContext(request, failure(400))).toMatchObject({
+      state: "invalid",
+      unsupported: "source-filter",
+    });
+    expect(await readPersonalContext(request, failure(403))).toMatchObject({
+      state: "denied",
+    });
+    expect(await readPersonalContext(request, failure(503))).not.toHaveProperty(
+      "unsupported",
+    );
   });
   it("accepts the actual status envelope without inventing ingestion or wiki health", async () => {
     const result = await readPersonalContext(

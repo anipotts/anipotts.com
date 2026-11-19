@@ -11,13 +11,20 @@ import {
 import { Heading } from "@astryxdesign/core/Heading";
 import { ToggleButton } from "./WritingControls";
 import { CodeIcon } from "@phosphor-icons/react";
-import { inlineHtml, safeInlineUrl } from "@anipotts/content/public/inline";
+import {
+  inlineHtml,
+  inlineImageClass,
+  parseInline,
+  type InlineNode,
+  safeInlineUrl,
+} from "@anipotts/content/public/inline";
 import {
   reviewDiff,
   type ReviewDiffHunk,
   type ReviewDiffLine,
 } from "../../lib/review-diff";
 
+import { editorialImagePreview } from "../../lib/editorial-media";
 import { SaveStatus, type SaveStatusProps } from "./SaveStatus";
 
 type Change = {
@@ -96,6 +103,41 @@ function PresentationValue({ value }: { value: string }) {
   );
 }
 
+function ReviewInline({ parts }: { parts: InlineNode[] }) {
+  return parts.map((part, index) => {
+    if (part.type === "text") return part.text;
+    if (part.type === "break") return <br key={index} />;
+    if (part.type === "image")
+      return (
+        <span key={index} className="review-media">
+          <img
+            className={inlineImageClass(part.title)}
+            src={editorialImagePreview(part.src)}
+            alt={part.alt}
+            loading="lazy"
+          />
+          <small>Source: {part.src}</small>
+          <small>Alt text: {part.alt || "(empty)"}</small>
+        </span>
+      );
+    if (part.type === "a")
+      return (
+        <React.Fragment key={index}>
+          <a href={part.href}>
+            <ReviewInline parts={part.children} />
+          </a>
+          <small className="review-link-destination"> ({part.href})</small>
+        </React.Fragment>
+      );
+    const Tag = part.type;
+    return (
+      <Tag key={index}>
+        <ReviewInline parts={part.children} />
+      </Tag>
+    );
+  });
+}
+
 function RenderedChange({
   label,
   before,
@@ -139,7 +181,9 @@ function RenderedChange({
                 {presentation ? (
                   <PresentationValue value={value} />
                 ) : (
-                  <p dangerouslySetInnerHTML={{ __html: inlineHtml(value) }} />
+                  <p>
+                    <ReviewInline parts={parseInline(value)} />
+                  </p>
                 )}
               </div>
             </div>
@@ -157,6 +201,7 @@ function DiffLine({
   row,
   source,
   showFinalEnding,
+  article,
 }: {
   line: ReviewDiffLine;
   side: "before" | "after";
@@ -164,6 +209,7 @@ function DiffLine({
   row: number;
   source: boolean;
   showFinalEnding: boolean;
+  article?: boolean;
 }) {
   const endingLabel = line.endingChanged
     ? line.ending === "\r\n"
@@ -206,14 +252,18 @@ function DiffLine({
           type={source ? "code" : "body"}
           className="editor-diff-text"
         >
-          {line.parts.map((part, index) =>
-            part.kind === "removed" ? (
-              <del key={index}>{part.text}</del>
-            ) : part.kind === "added" ? (
-              <ins key={index}>{part.text}</ins>
-            ) : (
-              <React.Fragment key={index}>{part.text}</React.Fragment>
-            ),
+          {article && /!?\[[^\]]*\]\(/u.test(line.text) ? (
+            <ReviewInline parts={parseInline(line.text)} />
+          ) : (
+            line.parts.map((part, index) =>
+              part.kind === "removed" ? (
+                <del key={index}>{part.text}</del>
+              ) : part.kind === "added" ? (
+                <ins key={index}>{part.text}</ins>
+              ) : (
+                <React.Fragment key={index}>{part.text}</React.Fragment>
+              ),
+            )
           )}
         </Text>
         {endingLabel && (
@@ -230,10 +280,12 @@ function DiffHunk({
   hunk,
   source,
   showFinalEnding,
+  article,
 }: {
   hunk: ReviewDiffHunk;
   source: boolean;
   showFinalEnding: boolean;
+  article?: boolean;
 }) {
   return (
     <Grid
@@ -258,6 +310,7 @@ function DiffHunk({
                   : "added"
             }
             source={source}
+            article={article}
             showFinalEnding={showFinalEnding}
           />
         )),
@@ -342,6 +395,7 @@ function FieldDiff({
                 key={index}
                 hunk={hunk}
                 source={comparison.source}
+                article={!source && label === "Article body"}
                 showFinalEnding={source}
               />
             );
@@ -355,6 +409,7 @@ function FieldDiff({
                   after: hunk.after.slice(0, 3),
                 }}
                 source={comparison.source}
+                article={!source && label === "Article body"}
                 showFinalEnding={source}
               />
               <Button
@@ -371,6 +426,7 @@ function FieldDiff({
                   after: hunk.after.slice(-3),
                 }}
                 source={comparison.source}
+                article={!source && label === "Article body"}
                 showFinalEnding={source}
               />
             </React.Fragment>

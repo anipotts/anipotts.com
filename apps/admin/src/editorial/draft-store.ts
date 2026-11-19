@@ -12,6 +12,8 @@ import type {
   StartDirectPublication,
 } from "../lib/editorial-publication-status";
 import { reportRuntimeContract } from "../lib/runtime-contract";
+import { inventoryDraftMetadata } from "../lib/editorial-inventory-projection";
+import type { EditorialDirectory } from "@anipotts/content/editorial/layout";
 import {
   editorialRecordPath,
   MAX_SOURCE_BYTES,
@@ -398,22 +400,29 @@ export class EditorialDraftStore extends DurableObject<unknown> {
 
   /** Owner-only inventory. Draft source never enters a public content collection. */
   async listWritingDrafts(): Promise<Draft[]> {
-    if (this.#d1Enabled())
-      return this.#d1Call((store) => store.list("writing"));
-    return this.ctx.storage.sql
-      .exec<Draft>(
-        "SELECT * FROM drafts WHERE key LIKE 'content/public/writing/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
-      )
-      .toArray();
+    return this.#listDrafts("writing");
   }
 
   /** Owner-only inventory of private projects, including records absent from Git. */
   async listProjectDrafts(): Promise<Draft[]> {
-    if (this.#d1Enabled())
-      return this.#d1Call((store) => store.list("projects"));
+    return this.#listDrafts("projects");
+  }
+
+  async listPageDrafts(): Promise<Draft[]> {
+    return this.#listDrafts("pages");
+  }
+
+  /** Overview does not need source or field-level diffs over RPC. */
+  async listDraftInventoryMetadata() {
+    return (await this.#listDrafts()).map(inventoryDraftMetadata);
+  }
+
+  async #listDrafts(kind?: EditorialDirectory): Promise<Draft[]> {
+    if (this.#d1Enabled()) return this.#d1Call((store) => store.list(kind));
     return this.ctx.storage.sql
       .exec<Draft>(
-        "SELECT * FROM drafts WHERE key LIKE 'content/public/projects/%' AND discardedAt IS NULL ORDER BY updatedAt DESC",
+        "SELECT * FROM drafts WHERE key LIKE ? AND discardedAt IS NULL ORDER BY updatedAt DESC",
+        kind ? `content/public/${kind}/%` : "content/public/%",
       )
       .toArray();
   }
