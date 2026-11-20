@@ -388,8 +388,10 @@ jobs:
           node-version: "24.19.0"
           cache: "pnpm"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Prepare canonical content inventory
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm content:generate
 
       - name: Require a verified www artifact
         env:
@@ -502,8 +504,10 @@ jobs:
           node-version: "24.19.0"
           cache: "pnpm"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Prepare canonical content inventory
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm content:generate
 
       - name: Require a verified admin artifact
         env:
