@@ -3,6 +3,8 @@ import {
   PendingChangesIndicator,
 } from "../workspace/Workspace";
 import { contentDecision, decisionHref } from "../../lib/content-decision";
+import { recentlyUpdated } from "../../lib/editorial-recent-records";
+export { recentlyUpdated } from "../../lib/editorial-recent-records";
 import React, { memo, useEffect, useState } from "react";
 import type { CatalogRecord, CatalogGroup } from "./EditorialApp";
 import { Button } from "./WritingControls";
@@ -70,17 +72,6 @@ export function matchingRecords(
       `${record.title} ${record.summary ?? ""} ${recordSlug(record)}`
         .toLocaleLowerCase()
         .includes(text),
-  );
-}
-
-export function recentlyUpdated(records: CatalogRecord[]): CatalogRecord[] {
-  const latest = (record: CatalogRecord): number =>
-    Date.parse(record.updated?.at ?? "") || 0;
-  return [...records].sort(
-    (a, b) =>
-      latest(b) - latest(a) ||
-      a.title.localeCompare(b.title) ||
-      a.href.localeCompare(b.href),
   );
 }
 
@@ -214,6 +205,7 @@ export function ContentLibrary({
   selectedGroup,
   initialSearch = "",
   inventoryError = false,
+  draftInventoryError = inventoryError,
   siteUrl,
   area = "content",
   title,
@@ -222,6 +214,7 @@ export function ContentLibrary({
   selectedGroup?: string;
   initialSearch?: string;
   inventoryError?: boolean;
+  draftInventoryError?: boolean;
   siteUrl?: string;
   area?: "content" | "newsletter";
   /** The page's H1. Defaults to the library's name. */
@@ -301,7 +294,10 @@ export function ContentLibrary({
     );
   const { q: query, status } = state;
   const decisions = new Map(
-    group.records.map((item) => [item, contentDecision(item, !inventoryError)]),
+    group.records.map((item) => [
+      item,
+      contentDecision(item, !draftInventoryError),
+    ]),
   );
   // Needs attention only reorders when records differ in what they need.
   const attentionSorts =
@@ -433,8 +429,11 @@ export function ContentLibrary({
   return (
     <WorkspacePage
       title={heading}
-      count={group.records.length}
+      count={inventoryError ? undefined : group.records.length}
       countNoun={noun}
+      meta={
+        group.name === "newsletter" ? "Read-only repository drafts" : undefined
+      }
       actions={actions}
     >
       <VStack gap={5} className="editorial-library">

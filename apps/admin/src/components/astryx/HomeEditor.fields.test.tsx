@@ -82,8 +82,11 @@ beforeEach(async () => {
   root = createRoot(host);
   await unlockRecoveryFixture();
 });
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount());
+  // Tiptap schedules destruction 1 ms after unmount. Let its plugins release
+  // their DOM listeners while the host, browser globals and mocks still exist.
+  await new Promise<void>((resolve) => setTimeout(resolve, 1));
   host.remove();
   localStorage.clear();
   vi.unstubAllGlobals();

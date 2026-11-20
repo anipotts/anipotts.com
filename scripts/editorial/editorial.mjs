@@ -12,6 +12,8 @@ Session: ANIPOTTS_EDITORIAL_ACCESS_TOKEN (existing human cloudflared token), or
 ANIPOTTS_EDITORIAL_OWNER_COOKIE, exactly CF_Authorization=<owner session>.
 Never pass credentials as command arguments.
 
+node scripts/editorial/editorial.mjs readiness --release <sha> --schema <version>
+
 node scripts/editorial/editorial.mjs <command> --kind <page|writing|work> --id <id>
   read                                      Print snapshot metadata only
   export --out <file>                        Export draft (or public base) source
@@ -28,6 +30,7 @@ Review/export files contain private source. New files use mode 0600 and never ov
 See docs/agent-editorial-workflow.md before any publication.`;
 
 const allowed = {
+  readiness: ["release", "schema"],
   read: ["kind", "id"],
   export: ["kind", "id", "out"],
   history: ["kind", "id", "out", "before"],
@@ -122,7 +125,17 @@ export async function main(
     fetch,
   });
   let result;
-  if (command === "publish") {
+  if (command === "readiness") {
+    const release = required(args, "release");
+    const schema = required(args, "schema");
+    if (!/^[a-f0-9]{40}$/u.test(release) || !/^\d{4}$/u.test(schema))
+      throw new Error("invalid_release_identity");
+    result = await client.readiness();
+    if (result.release_sha !== release || result.schema_version !== schema)
+      throw new Error("editorial_release_identity_mismatch");
+    if (result.published !== "ready" || result.drafts !== "ready")
+      throw new Error("editorial_storage_unavailable");
+  } else if (command === "publish") {
     let review;
     try {
       review = JSON.parse(await inputFile(required(args, "review")));

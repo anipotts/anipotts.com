@@ -9,8 +9,8 @@ import {
   BrowserIcon,
   BriefcaseIcon,
   EnvelopeSimpleIcon,
+  ArticleIcon,
   LinkBreakIcon,
-  PencilSimpleIcon,
   PencilSimpleLineIcon,
   PlugsIcon,
   ShieldWarningIcon,
@@ -54,6 +54,9 @@ import {
 import { useDataSession } from "../data/useDataSession";
 import { ReadNotice, SessionNotice } from "../data/DataNotices";
 import { recordColumns } from "../data/RecordsView";
+import type { EditorialInventoryStatus } from "../../lib/editorial-inventory-projection";
+import { ContentActivity, PageRouteMark } from "./ContentActivity";
+import type { ActivityRecord } from "./content-activity";
 import { parseItems, parseRecord } from "../data/data-model";
 import {
   SourceNamesContext,
@@ -68,7 +71,7 @@ function contentType(record: CatalogRecord): [Icon, string] {
     ? [BriefcaseIcon, "Project"]
     : record.collection === "writing" ||
         record.href.startsWith("/content/writing/")
-      ? [PencilSimpleIcon, "Writing"]
+      ? [ArticleIcon, "Writing"]
       : record.href.startsWith("/newsletter/") ||
           record.href.startsWith("/content/newsletter/")
         ? [EnvelopeSimpleIcon, "Newsletter"]
@@ -303,7 +306,9 @@ export function RecentContentTable({
                 icon={glyph}
                 mark={
                   type === "Project" ? (
-                    <ContentRecordMark record={item} />
+                    <ContentRecordMark record={item} preferOfficialArtwork />
+                  ) : type === "Page" ? (
+                    <PageRouteMark />
                   ) : undefined
                 }
                 kind={type}
@@ -338,14 +343,45 @@ export function RecentContentTable({
   );
 }
 
-function RecentContent({ records }: { records: CatalogRecord[] }) {
+function RecentContent({
+  records,
+  inventory,
+  loading,
+  failed,
+  retry,
+}: {
+  records: CatalogRecord[];
+  inventory?: EditorialInventoryStatus;
+  loading?: boolean;
+  failed?: boolean;
+  retry?: () => void;
+}) {
+  const issues = [
+    failed
+      ? "Content inventory couldn’t be loaded"
+      : inventory?.published === "unavailable"
+        ? "Published content couldn’t be loaded"
+        : null,
+    inventory?.drafts === "partial"
+      ? "Some private drafts couldn’t be loaded"
+      : inventory?.drafts === "unavailable"
+        ? "Private drafts couldn’t be loaded"
+        : null,
+  ].filter(Boolean);
   return (
     <WorkspaceSection title="Recent content" href="/content/pages">
-      {records.length ? (
-        <RecentContentTable records={records} />
-      ) : (
-        <StateNotice kind="empty" title="No content yet" />
+      {issues.length > 0 && (
+        <StateNotice
+          kind="error"
+          title={issues.join(". ")}
+          action={retry && <Button label="Retry" onClick={retry} />}
+        />
       )}
+      {records.length > 0 || loading ? (
+        <RecentContentTable records={records} loading={loading} />
+      ) : issues.length === 0 ? (
+        <StateNotice kind="empty" title="No content yet" />
+      ) : null}
     </WorkspaceSection>
   );
 }
@@ -381,7 +417,12 @@ function RecentRecords({
     if (!session.reader) return;
     const current = read.current;
     void current
-      .run(session.reader, { method: "search", q: "", offset: 0 })
+      .run(session.reader, {
+        method: "search",
+        q: "",
+        offset: 0,
+        limit: RECENT,
+      })
       .then(
         (next) => next && setLoaded({ reader: session.reader, result: next }),
       );
@@ -438,6 +479,12 @@ function RecentRecords({
  */
 export function AdminOverview({
   content,
+  contentInventory,
+  contentActivity,
+  activityTruncated,
+  contentLoading,
+  contentFailed,
+  retryContent,
   dataEnabled,
   dataFixture,
   session,
@@ -445,6 +492,12 @@ export function AdminOverview({
   ...ops
 }: {
   content: CatalogRecord[];
+  contentInventory?: EditorialInventoryStatus;
+  contentActivity?: ActivityRecord[];
+  activityTruncated?: boolean;
+  contentLoading?: boolean;
+  contentFailed?: boolean;
+  retryContent?: () => void;
   dataEnabled: boolean;
   dataFixture?: DataFixture;
   session?: PrivateReaderSession;
@@ -466,7 +519,27 @@ export function AdminOverview({
       >
         <VStack gap={8}>
           <FiringAlerts {...ops} />
-          <RecentContent records={content} />
+          {contentActivity !== undefined && (
+            <ContentActivity
+              records={contentActivity}
+              now={ops.renderedAt ?? Date.now()}
+              loading={contentLoading}
+              incomplete={
+                activityTruncated ||
+                contentFailed ||
+                (contentInventory &&
+                  (contentInventory.published !== "ready" ||
+                    contentInventory.drafts !== "ready"))
+              }
+            />
+          )}
+          <RecentContent
+            records={content}
+            inventory={contentInventory}
+            loading={contentLoading}
+            failed={contentFailed}
+            retry={retryContent}
+          />
           <RecentRecords
             enabled={dataEnabled}
             fixture={dataFixture}

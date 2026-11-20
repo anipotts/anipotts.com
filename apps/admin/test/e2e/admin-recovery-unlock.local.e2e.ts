@@ -30,7 +30,7 @@ async function localNewWriting({ app, browser, screen }: Fixtures) {
     writes++;
     await route.fulfill({ status: 503, json: { error: "synthetic_no_write" } });
   });
-  await app.open("/content/new");
+  await app.open("/content/new?legacyRecovery=1");
   expect(
     await browser.evaluate(
       () =>

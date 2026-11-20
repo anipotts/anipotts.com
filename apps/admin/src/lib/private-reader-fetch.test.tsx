@@ -232,6 +232,14 @@ describe("private reader contract", () => {
     expect(
       privateReaderPath({ method: "search", q: "Fixture", offset: 30 }),
     ).toBe("/v1/data/search?q=Fixture&limit=30&offset=30");
+    expect(
+      privateReaderPath({
+        method: "search",
+        q: "",
+        source: "fixture:notes",
+        limit: 5,
+      }),
+    ).toBe("/v1/data/search?q=&limit=5&offset=0&source=fixture%3Anotes");
     expect(privateReaderPath({ method: "get", id: recordId })).toBe(
       `/v1/data/records/${recordId}?body_offset=0&body_limit=32000`,
     );
@@ -545,6 +553,7 @@ describe("System reader bounds", () => {
       "/v1/data/sources?limit=30&limit=31&offset=0",
       "/v1/data/search?limit=30&offset=0",
       "/v1/data/search?q=&limit=30&offset=0&scope=data:read",
+      "/v1/data/search?q=&limit=30&offset=0&source=bad%2Fvalue",
       `/v1/data/records/${recordId}?body_offset=0`,
       "/v1/observability/activity?after=0&limit=100&device=pro",
       "/v1/data/status#x",
@@ -1023,13 +1032,15 @@ describe("private Data workspace", () => {
     };
     const { fetcher, calls } = network((url) =>
       url.pathname === PRIVATE_READER_ROUTES.search
-        ? json(
-            envelope({
-              items: [fixtureRecord, other],
-              total: 2,
-              next_offset: null,
-            }),
-          )
+        ? url.searchParams.has("source")
+          ? json({ error: "invalid_request" }, 400)
+          : json(
+              envelope({
+                items: [fixtureRecord, other],
+                total: 2,
+                next_offset: null,
+              }),
+            )
         : json(fixtures[url.pathname]),
     );
     await openWorkspace(
@@ -1039,8 +1050,15 @@ describe("private Data workspace", () => {
     );
     expect(container.textContent).toContain("Synthetic note");
     expect(container.textContent).not.toContain("Other note");
-    // The reader has no source filter: the list filters what it returns.
-    expect(calls.at(-1)?.url.search).toBe("?q=&limit=30&offset=0");
+    // An older reader rejects the scoped request, so the list scans its pages.
+    expect(
+      calls
+        .filter((call) => call.url.pathname === PRIVATE_READER_ROUTES.search)
+        .map((call) => call.url.search),
+    ).toEqual([
+      "?q=&limit=30&offset=0&source=synthetic",
+      "?q=&limit=30&offset=0",
+    ]);
     const entries = window.history.length;
     await click("Source: Synthetic");
     await settle();
@@ -1076,7 +1094,19 @@ describe("private Data workspace", () => {
   });
 
   it("lists sources, each opening Records filtered to it, and one reset clears", async () => {
-    const { fetcher, calls } = network();
+    const { fetcher, calls } = network((url) =>
+      url.pathname === PRIVATE_READER_ROUTES.search &&
+      url.searchParams.has("source")
+        ? json(
+            envelope({
+              source: url.searchParams.get("source"),
+              items: [],
+              total: 0,
+              next_offset: null,
+            }),
+          )
+        : json(fixtures[url.pathname]),
+    );
     await openWorkspace(makeSession(fetcher), fetcher, "/data/sources");
     expect(h1()).toBe("Sources");
     expect(

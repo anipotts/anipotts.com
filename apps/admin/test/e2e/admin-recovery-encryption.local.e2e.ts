@@ -21,7 +21,7 @@ async function localEnginePage({ app, browser }: Fixtures) {
       json: { error: "synthetic_encryption_no_mutation" },
     });
   });
-  await app.open("/content/new");
+  await app.open("/content/new?legacyRecovery=1");
   return { mutations: () => mutations };
 }
 
@@ -756,7 +756,7 @@ test(
           : "synthetic-custom-article-address";
         const snapshotKey = `synthetic-recovery-navigation:${project ? "project" : "article"}`;
         try {
-          await app.open(path);
+          await app.open(`${path}?legacyRecovery=1`);
           await unlockSyntheticBrowserRecovery(browser);
           const field = screen.getByRole("textbox", {
             name: "Title",
@@ -886,7 +886,7 @@ test(
             .toBe(true);
           // A real pagehide drops the key. Re-import through the actual input,
           // then verify the UI restores the exact title and custom address.
-          await app.open(path);
+          await app.open(`${path}?legacyRecovery=1`);
           await unlockSyntheticBrowserRecovery(browser);
           await expect(field).toHaveValue(title);
           await screen

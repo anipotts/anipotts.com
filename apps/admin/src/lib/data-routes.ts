@@ -67,11 +67,11 @@ export function entityKind(
 export const ENTITY_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 
 /** A reader source id, as the reader's bounds allow one in a URL. */
-const SOURCE_ID = /^[A-Za-z0-9_.-]{1,80}$/;
+const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/;
 const RECORD_ID = /^rec-[0-9a-f]{32}$/;
 
 export function dataSource(value: string | null | undefined): string | null {
-  return value && SOURCE_ID.test(value) ? value : null;
+  return typeof value === "string" && SOURCE_ID.test(value) ? value : null;
 }
 
 /** The list filters a Records URL carries. */

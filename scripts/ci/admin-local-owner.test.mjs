@@ -99,19 +99,31 @@ test("every release job refuses the flag and admin scans its exact bundle", () =
     assert.match(job.steps[0].run, /exit 1/);
   }
   const admin = deploy.jobs["deploy-admin"].steps;
-  const build = admin.findIndex((step) => step.name === "Build admin");
+  const verify = admin.findIndex(
+    (step) => step.name === "Verify the exact admin build",
+  );
   const scan = admin.findIndex(
     (step) => step.name === "Verify the admin bundle excludes the local owner",
   );
   const release = admin.findIndex(
     (step) => step.name === "Deploy to Cloudflare Workers",
   );
-  assert.ok(build >= 0 && build < scan && scan < release);
+  assert.ok(verify >= 0 && verify < scan && scan < release);
   assert.equal(
     admin[scan].run,
     "node scripts/ci/admin-local-owner-leak.mjs --expect absent apps/admin/dist",
   );
-  assert.equal(admin[build].env.ADMIN_LOCAL_OWNER, undefined);
+  const releaseSteps = deploy.jobs.release.steps;
+  const build = releaseSteps.findIndex((step) => step.name === "Build admin");
+  const pack = releaseSteps.findIndex(
+    (step) => step.name === "Pack verified admin build",
+  );
+  const prepackScan = releaseSteps.findIndex(
+    (step) => step.name === "Verify the admin bundle excludes the local owner",
+  );
+  assert.ok(build >= 0 && build < prepackScan && prepackScan < pack);
+  assert.equal(releaseSteps[build].env.ADMIN_LOCAL_OWNER, undefined);
+  assert.equal(deploy.jobs.release.environment, undefined);
 
   const ci = readFileSync(".github/workflows/ci.yml", "utf8");
   assert.ok(

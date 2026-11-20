@@ -40,3 +40,44 @@
     min-block-size: 44px;
   }
 }
+
+.overview-activity {
+  padding: var(--spacing-4);
+  border-radius: var(--radius-container);
+  background: var(--color-background-surface);
+}
+.overview-activity-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-2);
+  padding: 0;
+  list-style: none;
+}
+.overview-activity-metrics > li {
+  min-width: 0;
+  align-items: center;
+  justify-content: end;
+  padding: var(--spacing-1);
+}
+.overview-activity-metrics .workspace-metric-label {
+  min-block-size: var(--spacing-11);
+  display: flex;
+  align-items: center;
+  padding-inline: var(--spacing-1);
+  max-inline-size: 100%;
+}
+.overview-activity-metrics .workspace-figure {
+  font-size: var(--font-size-xl);
+}
+.overview-page-kind {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--spacing-5);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+@media (min-width: 37rem) {
+  .overview-activity-metrics:has(> li:nth-child(4)) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

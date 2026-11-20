@@ -4,7 +4,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { VStack } from "@astryxdesign/core/VStack";
-import { XIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { nextDataOffset, type DataResult } from "../../data/personal-context";
 import {
   DataReadSession,
@@ -391,12 +391,13 @@ export function RecordsToolbar({
   );
 }
 
-/** Fill a source-filtered page from at most this many reads. The reader
- * searches by kind, not by source, so the filter applies to what it returns. */
+/** Bound compatibility scanning when an older reader rejects source filters. */
 const SOURCE_PAGE_READS = 5;
 const SOURCE_PAGE_FILL = 10;
 
 type List = {
+  key: string;
+  reader: DataReader;
   items: DataRecord[];
   /** The reader's total for the search; unknown while a source filter
    * applies and more pages remain. */
@@ -404,15 +405,6 @@ type List = {
   next: number | null;
   failure: Failure | null;
 };
-
-function pageAfter(result: DataResult, offset: number): number | null {
-  if (result.state !== "ready") return null;
-  try {
-    return nextDataOffset(result.data.next_offset, offset);
-  } catch {
-    return null;
-  }
-}
 
 /** Keys an element listens to that Escape belongs to instead. */
 const OWNS_ESCAPE =
@@ -441,7 +433,10 @@ export function RecordsExplorer({
   const { id, kind, source } = route;
   const detailId = useId();
   const [search, setSearch] = useState({ q: "", n: 0 });
-  const [list, setList] = useState<List | null>(null);
+  const key = `${kind}|${source}|${search.n}`;
+  const [resultList, setList] = useState<List | null>(null);
+  const list =
+    resultList?.key === key && resultList.reader === reader ? resultList : null;
   const names = useSourceNames(reader);
   // The records this session has listed are what the palette finds under
   // Data. They go with the list: a locked or ended session remounts it.
@@ -481,7 +476,8 @@ export function RecordsExplorer({
   const listSession = useRef(new DataReadSession());
   const detailSession = useRef(new DataReadSession());
   const reads = useRef(0);
-  const loaded = useRef<string | null>(null);
+  const loaded = useRef<{ key: string; reader: DataReader } | null>(null);
+  const legacyReader = useRef<DataReader | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLElement>(null);
   const focusRow = useRef<number | null>(null);
@@ -489,53 +485,110 @@ export function RecordsExplorer({
   const shown = useRef(id);
 
   async function load(append: boolean) {
+    if (append && (list?.next == null || busy)) return;
+    if (!append) {
+      focusRow.current = null;
+      // The local source filter can change without changing the reader request.
+      listSession.current.invalidate();
+    }
     const token = ++reads.current;
     const start = append ? (list?.next ?? 0) : 0;
     setBusy(true);
     const found: DataRecord[] = [];
     let offset: number | null = start;
-    let total: number | null = null;
+    let total = append ? (list?.total ?? null) : null;
     let pages = 0;
+    let failure: Failure | null = null;
+    let sourceOnReader = source !== null && legacyReader.current !== reader;
+    let keepExisting = append;
     do {
       const result: DataResult | null = await listSession.current.run(reader, {
         method: "search",
         q: search.q,
         offset,
         ...(DATA_KINDS[kind].reader ? { kind: DATA_KINDS[kind].reader } : {}),
+        ...(sourceOnReader && source ? { source } : {}),
       });
       if (!result || token !== reads.current) return;
       if (result.state !== "ready") {
-        setBusy(false);
-        setList((previous) =>
-          append && previous
-            ? { ...previous, failure: result }
-            : { items: [], total: null, next: null, failure: result },
-        );
-        return;
+        if (
+          sourceOnReader &&
+          result.state === "invalid" &&
+          result.unsupported === "source-filter"
+        ) {
+          legacyReader.current = reader;
+          sourceOnReader = false;
+          // A filtered offset cannot continue in an unfiltered result set.
+          keepExisting = false;
+          found.length = 0;
+          offset = 0;
+          total = null;
+          pages = 0;
+          if (focusRow.current !== null) focusRow.current = 0;
+          continue;
+        }
+        failure = result;
+        break;
       }
       const items = parseItems(result.data, parseRecord);
+      if (
+        sourceOnReader &&
+        (result.data.source !== source ||
+          items.some((item) => item.source !== source))
+      ) {
+        failure = {
+          state: "invalid",
+          message: "The reader did not apply the requested source.",
+        };
+        break;
+      }
       found.push(
         ...(source ? items.filter((item) => item.source === source) : items),
       );
       total = typeof result.data.total === "number" ? result.data.total : null;
-      offset = pageAfter(result, offset ?? 0);
+      try {
+        offset = nextDataOffset(result.data.next_offset, offset);
+      } catch {
+        failure = {
+          state: "invalid",
+          message: "The reader returned an invalid continuation.",
+        };
+        // Repeat this page after retry. Existing results are deduplicated below.
+        break;
+      }
       pages += 1;
     } while (
       source &&
+      !sourceOnReader &&
       offset !== null &&
       found.length < SOURCE_PAGE_FILL &&
       pages < SOURCE_PAGE_READS
     );
     setBusy(false);
     setList((previous) => {
-      const base = append && previous ? previous.items : [];
+      const base =
+        keepExisting && previous?.key === key && previous.reader === reader
+          ? previous.items
+          : [];
       const seen = new Set(base.map((item) => item.id));
-      const items = [...base, ...found.filter((item) => !seen.has(item.id))];
+      const items = [...base];
+      for (const item of found) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        items.push(item);
+      }
       return {
+        key,
+        reader,
         items,
-        total: source ? (offset === null ? items.length : null) : total,
+        total:
+          source && !sourceOnReader
+            ? offset === null
+              ? items.length
+              : null
+            : total,
         next: offset,
-        failure: null,
+        failure,
       };
     });
   }
@@ -580,14 +633,17 @@ export function RecordsExplorer({
 
   // The list, whenever it is shown and its query or filters change.
   const listShown = !id || split;
-  const key = `${kind}|${source}|${search.n}`;
   useEffect(() => {
-    if (!listShown || loaded.current === key) return;
-    loaded.current = key;
+    if (
+      !listShown ||
+      (loaded.current?.key === key && loaded.current.reader === reader)
+    )
+      return;
+    loaded.current = { key, reader };
     void load(false);
     // `key` stands for the query and filters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, listShown]);
+  }, [key, listShown, reader]);
 
   // The record, whenever the route names one.
   useEffect(() => {
@@ -681,6 +737,11 @@ export function RecordsExplorer({
     // Keep the header and width fixed before and after rows arrive.
     tiersOnly: false,
   });
+  const continueSearch = () => {
+    if (busy) return;
+    focusRow.current = list?.items.length ?? 0;
+    void load(true);
+  };
 
   return (
     <SourceNamesContext value={names}>
@@ -700,10 +761,7 @@ export function RecordsExplorer({
             {!list ? (
               <LoadingSkeleton label="records" columns={columns} footer />
             ) : list.failure && !list.items.length ? (
-              <ReadNotice
-                result={list.failure}
-                onRetry={() => void load(false)}
-              />
+              <ReadNotice result={list.failure} onRetry={continueSearch} />
             ) : list.items.length ? (
               <VStack gap={3} aria-busy={busy}>
                 <DataTable
@@ -728,18 +786,30 @@ export function RecordsExplorer({
                 {list.next !== null && (
                   <HStack>
                     <Button
-                      label="Load more"
+                      label={list.failure ? "Retry more records" : "Load more"}
                       size="sm"
                       variant="secondary"
                       isLoading={busy}
-                      onClick={() => {
-                        focusRow.current = list.items.length;
-                        void load(true);
-                      }}
+                      onClick={continueSearch}
                     />
                   </HStack>
                 )}
               </VStack>
+            ) : list.next !== null ? (
+              <InlineNotice
+                tone="info"
+                title="More records to search"
+                icon={MagnifyingGlassIcon}
+                action={
+                  <Button
+                    label="Load more"
+                    size="sm"
+                    variant="secondary"
+                    isLoading={busy}
+                    onClick={continueSearch}
+                  />
+                }
+              />
             ) : (
               <StateNotice
                 kind="empty"

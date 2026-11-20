@@ -99,6 +99,21 @@ it("honors a removed logo and rejects invalid paths instead of restoring a stale
   expect(projectMark("chainedchat")).toContain("chainedchat-logo.png");
 });
 
+it("can use a known official mark for an activity row with only a fallback glyph", () => {
+  const record = {
+    href: "/content/projects/range-media-partners",
+    projectIdentity: { icon: "waveform" as const },
+  };
+  expect(
+    renderToStaticMarkup(<ContentRecordMark record={record} />),
+  ).not.toContain("<img");
+  expect(
+    renderToStaticMarkup(
+      <ContentRecordMark record={record} preferOfficialArtwork />,
+    ),
+  ).toContain("range-media-partners-favicon.png");
+});
+
 it("resolves other saved public assets against the worktree origin, while private previews stay relative", () => {
   const siteUrl = "http://127.0.0.1:4500/";
   const html = renderToStaticMarkup(

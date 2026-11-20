@@ -55,10 +55,10 @@ export function createFixtureReader(fixture: DataFixture): DataReader {
     observedAt: new Date().toISOString(),
     data,
   });
-  const page = (items: unknown[], offset = 0) => ({
-    items: items.slice(offset, offset + PAGE),
+  const page = (items: unknown[], offset = 0, limit = PAGE) => ({
+    items: items.slice(offset, offset + limit),
     total: items.length,
-    next_offset: offset + PAGE < items.length ? offset + PAGE : null,
+    next_offset: offset + limit < items.length ? offset + limit : null,
   });
   return async (request: DataRead) => {
     switch (request.method) {
@@ -70,6 +70,9 @@ export function createFixtureReader(fixture: DataFixture): DataReader {
         const q = request.q.trim().toLowerCase();
         const matches = fixture.records
           .filter((record) => !request.kind || record.kind === request.kind)
+          .filter(
+            (record) => !request.source || record.source_id === request.source,
+          )
           .filter(
             (record) =>
               !q || `${record.title} ${record.body}`.toLowerCase().includes(q),
@@ -85,7 +88,10 @@ export function createFixtureReader(fixture: DataFixture): DataReader {
               String(b.observed_at).localeCompare(String(a.observed_at)),
           )
           .map(({ body: _body, revisions: _revisions, ...item }) => item);
-        return ready(page(matches, request.offset));
+        return ready({
+          ...page(matches, request.offset, request.limit),
+          ...(request.source !== undefined ? { source: request.source } : {}),
+        });
       }
       case "get": {
         const record = fixture.records.find(

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Draft } from "../editorial/draft-store";
 import {
   inventoryChangedFields,
+  inventoryDraftMetadata,
   inventoryIdentity,
   editorialInventoryGroups,
   editorialInventorySearch,
@@ -554,6 +555,67 @@ it("uses the same validated editor identities for every editable page family", (
   expect(
     inventoryIdentity({ collection: "workPage", id: "not-a-page" }),
   ).toBeNull();
+});
+
+it("keeps exact pending-work metadata without exposing a draft body or base hash", () => {
+  const source =
+    "---\ntitle: Private title\nsummary: Private summary\n---\nExact body marker";
+  const digest = createHash("sha1")
+    .update(`blob ${Buffer.byteLength(source)}\0`)
+    .update(source)
+    .digest("hex");
+  const privateMetadata = inventoryDraftMetadata(
+    draft({ source, baseFileHash: digest }),
+  );
+  expect(privateMetadata).toMatchObject({
+    title: "Private title",
+    summary: "Private summary",
+    changesPending: false,
+  });
+  expect(JSON.stringify(privateMetadata)).not.toContain("Exact body marker");
+  expect(JSON.stringify(privateMetadata)).not.toContain(digest);
+  expect(
+    inventoryDraftMetadata(
+      draft({
+        source: source.replace("Exact body marker", "Changed body"),
+        baseFileHash: digest,
+      }),
+    ).changesPending,
+  ).toBe(true);
+  const [record] = projectEditorialInventory(entries, [privateMetadata]);
+  expect(record).toMatchObject({
+    title: "Private title",
+    status: "published",
+    changesPending: false,
+  });
+});
+
+it("uses three collection reads and no per-record reads for a large inventory", async () => {
+  const page = draft({ key: "content/public/pages/home.md" });
+  const project = draft({ key: "content/public/projects/project.md" });
+  const storage = {
+    listWritingDrafts: vi.fn(async () => [draft()]),
+    listProjectDrafts: vi.fn(async () => [project]),
+    listPageDrafts: vi.fn(async () => [page]),
+    get: vi.fn(),
+  };
+  const largeInventory = [
+    ...entries,
+    ...Array.from({ length: 600 }, (_, index) => ({
+      collection: "projects",
+      id: `project-${index}`,
+      data: {},
+    })),
+  ];
+  const result = await readInventoryDrafts(largeInventory, storage);
+  expect(result).toEqual({
+    drafts: [draft(), project, page],
+    unavailable: false,
+  });
+  expect(storage.listWritingDrafts).toHaveBeenCalledTimes(1);
+  expect(storage.listProjectDrafts).toHaveBeenCalledTimes(1);
+  expect(storage.listPageDrafts).toHaveBeenCalledTimes(1);
+  expect(storage.get).not.toHaveBeenCalled();
 });
 
 it("lists private-only projects and routes them back to the project editor", async () => {

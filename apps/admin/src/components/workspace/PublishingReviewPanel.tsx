@@ -28,6 +28,11 @@ export function PublishingReviewPanel({
     const fallback = workspace?.querySelector<HTMLElement>(
       ".document-title textarea, .document-title input, .record-workspace-main textarea:not(:disabled), .record-workspace-main button:not(:disabled)",
     );
+    const element = panel.current;
+    if (element?.showPopover) {
+      element.popover = "manual";
+      element.showPopover();
+    }
     heading.current?.focus({ preventScroll: true });
     return () => {
       const active = document.activeElement;

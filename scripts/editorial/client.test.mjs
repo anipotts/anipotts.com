@@ -59,6 +59,45 @@ function transport(handler) {
   return { client, calls };
 }
 
+test("release readiness checks exact identity and both stores with one owner read", async () => {
+  const release = "b".repeat(40);
+  const schema = "0044";
+  const argv = ["readiness", "--release", release, "--schema", schema];
+  const output = [];
+  const ready = {
+    release_sha: release,
+    schema_version: schema,
+    published: "ready",
+    drafts: "ready",
+  };
+  const env = { ANIPOTTS_EDITORIAL_OWNER_COOKIE: ownerSession };
+  const check = (state) =>
+    main(argv, {
+      env,
+      output: (line) => output.push(JSON.parse(line)),
+      fetch: async (url, request) => {
+        assert.equal(url, ORIGIN + "/api/editorial/readiness");
+        assert.equal(request.method, "GET");
+        assert.equal(request.redirect, "manual");
+        return json({ ...ready, ...state, private_extra: "never print" });
+      },
+    });
+  await check({});
+  assert.deepEqual(output, [ready]);
+  await assert.rejects(
+    check({ schema_version: "0043" }),
+    /editorial_release_identity_mismatch/,
+  );
+  await assert.rejects(
+    check({ drafts: "unavailable" }),
+    /editorial_storage_unavailable/,
+  );
+  await assert.rejects(
+    check({ published: "unknown" }),
+    /invalid_readiness_response/,
+  );
+});
+
 test("requires only an explicit owner session cookie, never service-token headers", () => {
   for (const invalid of [
     undefined,

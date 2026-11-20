@@ -106,6 +106,7 @@ export async function verifyEditorialBoundary(fetchImpl = fetch) {
     "/content",
     "/content/home/home",
     "/api/editorial/record",
+    "/api/editorial/readiness",
     "/preview/home?revision=1",
     "/inbox",
     "/proof",

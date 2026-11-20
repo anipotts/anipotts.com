@@ -22,23 +22,31 @@ export function ContentRecordMark({
   record,
   className,
   siteUrl = publicSiteUrl,
+  preferOfficialArtwork = false,
 }: {
   record: Pick<CatalogRecord, "id" | "href" | "projectIdentity">;
   className?: string;
   siteUrl?: string;
+  /** Activity uses known provider marks when a project only stores a glyph. */
+  preferOfficialArtwork?: boolean;
 }) {
   const id = record.id ?? record.href.split("?")[0].split("/").at(-1);
   const identity = record.projectIdentity;
-  const artwork = identity
-    ? (ownedProjectArtwork(identity.logo_src) ??
-      projectMediaPreview(identity.logo_src, siteUrl))
-    : projectMark(id);
+  const configuredArtwork =
+    ownedProjectArtwork(identity?.logo_src) ??
+    projectMediaPreview(identity?.logo_src, siteUrl);
+  const artwork =
+    configuredArtwork ??
+    (!identity ||
+    (preferOfficialArtwork && identity.icon && identity.logo_src === undefined)
+      ? projectMark(id)
+      : null);
   if (artwork)
     return (
       <BrandTile
         id={id}
         artwork={artwork}
-        artworkTone={identity?.logo_tone}
+        artworkTone={configuredArtwork ? identity?.logo_tone : undefined}
         className={className}
       />
     );

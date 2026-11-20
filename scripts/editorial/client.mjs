@@ -232,6 +232,22 @@ export function createEditorialClient({
     checkedSnapshot((await request("record", record)).body);
   return {
     read,
+    async readiness() {
+      const result = (await request("readiness")).body;
+      if (
+        !/^[a-f0-9]{40}$/u.test(result?.release_sha ?? "") ||
+        !/^\d{4}$/u.test(result?.schema_version ?? "") ||
+        !["ready", "unavailable"].includes(result?.published) ||
+        !["ready", "unavailable"].includes(result?.drafts)
+      )
+        fail("invalid_readiness_response");
+      return {
+        release_sha: result.release_sha,
+        schema_version: result.schema_version,
+        published: result.published,
+        drafts: result.drafts,
+      };
+    },
     async history(record, beforeRevision) {
       const parameters =
         beforeRevision === undefined

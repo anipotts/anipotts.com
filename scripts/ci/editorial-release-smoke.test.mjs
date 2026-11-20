@@ -63,7 +63,7 @@ test("owner smoke accepts only the configured Access denial", async () => {
           }),
       )
     ).length,
-    8,
+    9,
   );
   for (const response of [
     new Response("private page"),

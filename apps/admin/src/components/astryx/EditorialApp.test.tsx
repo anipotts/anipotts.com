@@ -263,6 +263,28 @@ it.each([[records], [[]]])(
     } else expect(html).toContain("Records unavailable");
   },
 );
+
+it("reports published inventory errors independently of healthy private drafts", () => {
+  const html = renderToStaticMarkup(
+    <EditorialApp
+      title="Writing"
+      area="content"
+      localPreview
+      siteUrl="https://anipotts.com"
+      inventoryStatus={{ published: "unavailable", drafts: "ready" }}
+      groups={[
+        {
+          name: "writing",
+          href: "/content/writing",
+          records,
+        },
+      ]}
+    />,
+  );
+  expect(html).toContain("Published content couldn’t be loaded");
+  expect(html).not.toContain("Draft status unavailable");
+  expect(html).toContain("agent notes");
+});
 it("sentence-cases generated metadata labels without changing authored values", () => {
   const html = renderToStaticMarkup(
     <EditorialApp

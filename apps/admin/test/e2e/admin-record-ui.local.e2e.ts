@@ -1,4 +1,3 @@
-import { unlockSyntheticBrowserRecovery } from "../support/browser-recovery-key";
 import { test, type Browser } from "@e2e-dev/web";
 import { expect, type TestFixtures } from "e2e";
 
@@ -21,7 +20,6 @@ async function syntheticArticle({ app, browser, screen }: Fixtures) {
     },
   );
   await app.open("/content/new");
-  await unlockSyntheticBrowserRecovery(browser);
   expect(
     await browser.evaluate(
       () =>
@@ -187,6 +185,14 @@ test(
       .getByRole("button", { name: "Close source", exact: true })
       .click();
 
+    const editorWidth = () =>
+      browser.evaluate(
+        () =>
+          document
+            .querySelector(".record-workspace-main")!
+            .getBoundingClientRect().width,
+      );
+    const closedWidth = await editorWidth();
     // Publish opens the existing review. Activation is a separate control that
     // this test never presses, and the network guard would refuse its mutation.
     await screen.getByRole("button", { name: "Publish", exact: true }).click();
@@ -204,6 +210,17 @@ test(
     await expect(
       review.getByRole("region", { name: "Link type", exact: true }),
     ).toContainText("demo");
+    expect(await editorWidth()).toBe(closedWidth);
+    expect(
+      await browser.evaluate(() => {
+        const action = document
+          .querySelector(".editor-review-footer .editor-publish-action")
+          ?.getBoundingClientRect();
+        return Boolean(
+          action && action.top >= 0 && action.bottom <= window.innerHeight,
+        );
+      }),
+    ).toBe(true);
     await app.screenshot("synthetic-article-proof-link-review");
     await screen
       .getByRole("button", { name: "Close review changes", exact: true })
@@ -358,7 +375,6 @@ test(
     });
     try {
       await browser.reload();
-      await unlockSyntheticBrowserRecovery(browser);
       await expect.poll(() => reads).toBe(1);
       const loading = screen.getByRole("status", {
         name: "Loading editor",
@@ -398,7 +414,6 @@ test(
         }),
       );
       await browser.reload();
-      await unlockSyntheticBrowserRecovery(browser);
       await expect(
         screen.getByRole("textbox", { name: "Title", exact: true }),
       ).toHaveValue(article.title, { timeout: 20_000 });
@@ -412,7 +427,6 @@ test(
       );
       deny = true;
       await browser.reload();
-      await unlockSyntheticBrowserRecovery(browser);
       await expect(
         screen.getByRole("heading", { name: "Session ended", exact: true }),
       ).toBeVisible({ timeout: 20_000 });
@@ -968,7 +982,6 @@ async function syntheticProject({ app, browser, screen }: Fixtures) {
     return route.continue();
   });
   await app.open("/content/new-project");
-  await unlockSyntheticBrowserRecovery(browser);
   const title = `Synthetic project workspace ${await browser.evaluate(() => crypto.randomUUID())}`;
   const titleField = screen.getByRole("textbox", {
     name: "Title",
@@ -1304,7 +1317,6 @@ test(
       type: "image/png",
     });
     await browser.reload();
-    await unlockSyntheticBrowserRecovery(browser);
     await expect(
       screen.getByRole("textbox", { name: "Title", exact: true }),
     ).toHaveValue(project.title, { timeout: 20_000 });
@@ -1461,9 +1473,6 @@ test(
     expect(linkEvidence.links[0]?.origin).toBe(linkEvidence.origin);
     expect(linkEvidence.links[0]?.pathname).toBe(project.path);
     await listed.click();
-    // A real library navigation creates a fresh document. Honor the same
-    // recovery-key file boundary used by the existing reload acceptance.
-    await unlockSyntheticBrowserRecovery(browser);
     await expect(
       screen.getByRole("textbox", { name: "Title", exact: true }),
     ).toHaveValue(project.title);
@@ -1471,7 +1480,7 @@ test(
 );
 
 test(
-  "Projects shared kit recovers an interrupted private edit and saves it only after explicit recovery acknowledgment",
+  "Projects retain a failed private edit in the current tab and retry the save",
   { timeout: 120_000 },
   async (fixtures) => {
     const { browser, screen } = fixtures;
@@ -1488,23 +1497,13 @@ test(
     await expect(
       screen.getByRole("status", { name: "Draft save status", exact: true }),
     ).toContainText("Save failed");
-    const offDialog = await browser.onDialog("accept");
-    try {
-      await browser.reload();
-    } finally {
-      await offDialog();
-    }
-    await unlockSyntheticBrowserRecovery(browser);
-    await expect(
-      screen.getByText("Recovered edits are ready to review", { exact: true }),
-    ).toBeVisible({ timeout: 20_000 });
     await expect(title).toHaveValue(recovered);
     const beforeSave = await readSyntheticProject(browser, project.path);
     expect(beforeSave.source).toBe(original.source);
     expect(beforeSave.revision).toBe(original.revision);
     project.refuseSaves(false);
     await screen
-      .getByRole("button", { name: "Save recovered edits", exact: true })
+      .getByRole("button", { name: "Retry save", exact: true })
       .click();
     await expect
       .poll(
@@ -1513,7 +1512,6 @@ test(
       )
       .toContain(recovered);
     await browser.reload();
-    await unlockSyntheticBrowserRecovery(browser);
     await expect(title).toHaveValue(recovered, { timeout: 20_000 });
     expect(
       (await readSyntheticProject(browser, project.path)).hasPublication,

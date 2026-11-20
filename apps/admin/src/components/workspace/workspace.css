@@ -1260,3 +1260,46 @@ html[data-astryx-theme] .workspace-table .workspace-row-link:focus-visible {
 .workspace-page-end {
   max-width: 100%;
 }
+
+.workspace-bracket-query-launcher {
+  justify-content: flex-start;
+  inline-size: 100%;
+}
+.workspace-bracket-query-symbol {
+  color: var(--color-text-accent);
+}
+.workspace-bracket-query {
+  position: relative;
+  padding-inline: var(--spacing-3);
+}
+.workspace-bracket-query-field {
+  flex: 1;
+  min-inline-size: 0;
+}
+.workspace-bracket-query::before,
+.workspace-bracket-query::after {
+  position: absolute;
+  top: var(--spacing-2);
+  bottom: var(--spacing-2);
+  width: var(--spacing-1);
+  background: var(--color-text-accent);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 2px,
+    2px 2px,
+    2px calc(100% - 2px),
+    100% calc(100% - 2px),
+    100% 100%,
+    0 100%
+  );
+  content: "";
+  pointer-events: none;
+}
+.workspace-bracket-query::before {
+  inset-inline-start: 0;
+}
+.workspace-bracket-query::after {
+  inset-inline-end: 0;
+  transform: scaleX(-1);
+}

@@ -17,7 +17,7 @@ test("an interrupted project edit is recovered for review", async ({
       json: editorialFixtures.saveRecovery.failedSaveBody,
     });
   });
-  await app.open("/content/projects/chainedchat");
+  await app.open("/content/projects/chainedchat?legacyRecovery=1");
   await unlockSyntheticBrowserRecovery(browser);
 
   const title = screen.getByRole("textbox", "Title");

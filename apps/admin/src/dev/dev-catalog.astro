@@ -7,6 +7,7 @@ import { DevMarksCatalog } from "../components/dev-marks-catalog";
 import { DevOpenAICatalog } from "../components/workspace/dev-openai-catalog";
 import { DevTableLoadingCatalog } from "../components/workspace/dev-table-loading-catalog";
 import { DevKitCatalog } from "../components/workspace/dev-kit-catalog";
+import { DevActivityCatalog } from "../components/overview/DevActivityCatalog";
 import { loadShellFixtures } from "../lib/shell-fixtures";
 
 // The normal Content owner/origin middleware still applies. This route cannot
@@ -23,7 +24,7 @@ const inventoryProjection = {
   records: [],
   groups: [],
   searchEntries: [],
-  unavailable: false,
+  status: { published: "ready", drafts: "ready" } as const,
 };
 const fixture = Astro.url.searchParams.get("fixture");
 
@@ -46,6 +47,8 @@ const kit = fixture === "kit" ? await loadShellFixtures(Astro.url) : undefined;
     <DevDataCatalog client:load />
   ) : fixture === "marks" ? (
     <DevMarksCatalog />
+  ) : fixture === "activity" ? (
+    <DevActivityCatalog client:load now={Date.now()} />
   ) : fixture === "split" ? (
     <DevSplitCatalog client:load />
   ) : kit ? (

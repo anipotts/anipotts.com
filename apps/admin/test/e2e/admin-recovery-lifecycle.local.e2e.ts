@@ -39,7 +39,7 @@ async function localOnly({ app, browser }: Fixtures) {
       receipt.pagehide = event.isTrusted;
     });
   });
-  await app.open("/content/new");
+  await app.open("/content/new?legacyRecovery=1");
   expect(
     await browser.evaluate(
       () =>
@@ -54,7 +54,7 @@ async function localOnly({ app, browser }: Fixtures) {
 async function openPeer(browser: Browser) {
   expect(
     await browser.evaluate((name) => {
-      const peer = window.open("/content/new", name);
+      const peer = window.open("/content/new?legacyRecovery=1", name);
       Reflect.set(window, "syntheticRecoveryPeer", peer);
       return Boolean(peer);
     }, peerName),

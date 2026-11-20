@@ -16,6 +16,7 @@ import { recordCollection } from "./editorial-collections";
 export function overlayPublishedInventory(
   entries: InventoryEntry[],
   publications: PublishedSnapshot[],
+  { includeBody = true }: { includeBody?: boolean } = {},
 ) {
   const result = new Map<string, InventoryEntry>(
     entries.map((entry) => {
@@ -43,7 +44,7 @@ export function overlayPublishedInventory(
       collection,
       id: record.id,
       data: validated.data as Record<string, unknown>,
-      body: parseEditorialSource(source).body,
+      ...(includeBody ? { body: parseEditorialSource(source).body } : {}),
       published: true,
       publishedAt: publication.publishedAt,
       publicationId: publication.publicationId,

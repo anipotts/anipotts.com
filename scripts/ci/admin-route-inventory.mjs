@@ -184,6 +184,16 @@ export const ADMIN_ROUTES = [
     smoke: false,
   },
   {
+    route: "/api/editorial/inventory",
+    file: "apps/admin/src/pages/api/editorial/inventory.ts",
+    nav: false,
+  },
+  {
+    route: "/api/editorial/readiness",
+    file: "apps/admin/src/pages/api/editorial/readiness.ts",
+    nav: false,
+  },
+  {
     route: "/api/editorial/media",
     file: "apps/admin/src/pages/api/editorial/media.ts",
     nav: false,
